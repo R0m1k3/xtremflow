@@ -4,10 +4,13 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/xtream_provider.dart';
 import '../screens/player_screen.dart';
 import '../../../core/models/iptv_models.dart';
+import '../../../core/models/playlist_config.dart';
 
 /// Live TV tab with group-based pagination
 class LiveTVTab extends ConsumerStatefulWidget {
-  const LiveTVTab({super.key});
+  final PlaylistConfig playlist;
+
+  const LiveTVTab({super.key, required this.playlist});
 
   @override
   ConsumerState<LiveTVTab> createState() => _LiveTVTabState();
@@ -26,7 +29,8 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
   Widget build(BuildContext context) {
     super.build(context);
 
-    final channelsAsync = ref.watch(liveChannelsProvider);
+    final service = ref.watch(xtreamServiceProvider(widget.playlist));
+    final channelsAsync = ref.watch(liveChannelsByPlaylistProvider(widget.playlist));
 
     return channelsAsync.when(
       data: (groupedChannels) {
