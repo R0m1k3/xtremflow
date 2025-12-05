@@ -26,7 +26,7 @@ COPY . .
 RUN flutter pub get
 
 # Build web application (CanvasKit renderer is now default)
-RUN flutter build web --release
+RUN flutter build web --release --verbose
 
 # ============================================
 # Stage 2: Serve with dhttpd (Dart HTTP server)
