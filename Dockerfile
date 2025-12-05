@@ -3,6 +3,8 @@
 # ============================================
 FROM ghcr.io/cirruslabs/flutter:stable AS builder
 
+USER root
+
 WORKDIR /app
 
 # Safe directory configuration for git
