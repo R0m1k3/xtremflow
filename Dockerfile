@@ -25,8 +25,8 @@ COPY . .
 # Re-run pub get after copying source to ensure lockfile consistency
 RUN flutter pub get
 
-# Build web application (HTML renderer for compatibility)
-RUN flutter build web --release --web-renderer html
+# Build web application (CanvasKit renderer is now default)
+RUN flutter build web --release
 
 # ============================================
 # Stage 2: Serve with dhttpd (Dart HTTP server)
