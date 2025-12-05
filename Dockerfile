@@ -22,8 +22,10 @@ RUN flutter pub get
 # Copy source code
 COPY . .
 
+# Re-run pub get after copying source to ensure lockfile consistency
+RUN flutter pub get
+
 # Build web application (HTML renderer for compatibility)
-RUN dart run build_runner build --delete-conflicting-outputs
 RUN flutter build web --release --web-renderer html
 
 # ============================================
