@@ -1,7 +1,7 @@
 # ============================================
 # Stage 1: Build Flutter Web Application
 # ============================================
-FROM cirrusci/flutter:stable AS builder
+FROM ghcr.io/cirruslabs/flutter:stable AS builder
 
 WORKDIR /app
 
