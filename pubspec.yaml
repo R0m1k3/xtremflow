@@ -1,0 +1,51 @@
+name: xtremflow
+description: High-performance IPTV Web Application with Xtream Codes API
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management
+  flutter_riverpod: ^2.6.1
+  
+  # Local Database
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  
+  # Networking
+  dio: ^5.7.0
+  
+  # Routing
+  go_router: ^14.6.2
+  
+  # Video Player
+  media_kit: ^1.1.11
+  media_kit_video: ^1.2.5
+  media_kit_libs_video: ^1.0.5
+  
+  # UI
+  google_fonts: ^6.2.1
+  cached_network_image: ^3.4.1
+  
+  # Security
+  flutter_secure_storage: ^9.2.2
+  crypto: ^3.0.6
+  
+  # Utils
+  uuid: ^4.5.1
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.13
+
+flutter:
+  uses-material-design: true

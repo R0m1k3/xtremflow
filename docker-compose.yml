@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  iptv-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: iptv-web
+    
+    # Volume for Hive data persistence
+    volumes:
+      - iptv_data:/app/data
+    
+    # Use external nginx network
+    networks:
+      - nginx_default
+    
+    # Environment variables
+    environment:
+      - HIVE_STORAGE_PATH=/app/data
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# Named volume for Hive data persistence
+volumes:
+  iptv_data:
+    driver: local
+
+# External network (must exist before running)
+networks:
+  nginx_default:
+    external: true
