@@ -21,6 +21,7 @@ RUN flutter pub get
 COPY . .
 
 # Build web application (HTML renderer for compatibility)
+RUN dart run build_runner build --delete-conflicting-outputs
 RUN flutter build web --release --web-renderer html
 
 # ============================================
