@@ -1,197 +1,183 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../../../core/models/playlist_config.dart';
-import '../services/xtream_service.dart';
-import '../models/xtream_models.dart';
-import '../screens/video_player_screen.dart';
-import 'epg_widget.dart';
+import '../providers/xtream_provider.dart';
+import '../screens/player_screen.dart';
+import '../../../core/models/iptv_models.dart';
 
+/// Live TV tab with group-based pagination
 class LiveTVTab extends ConsumerStatefulWidget {
-  final PlaylistConfig playlist;
-
-  const LiveTVTab({super.key, required this.playlist});
+  const LiveTVTab({super.key});
 
   @override
   ConsumerState<LiveTVTab> createState() => _LiveTVTabState();
 }
 
-class _LiveTVTabState extends ConsumerState<LiveTVTab> {
-  final ScrollController _scrollController = ScrollController();
-  final List<LiveChannel> _channels = [];
-  bool _isLoading = false;
-  bool _hasMore = true;
-  int _currentOffset = 0;
-  static const int _pageSize = 100;
+class _LiveTVTabState extends ConsumerState<LiveTVTab>
+    with AutomaticKeepAliveClientMixin {
+  final Map<String, int> _currentPages = {};
+  final Map<String, bool> _expandedCategories = {};
+  static const int _itemsPerPage = 100;
 
   @override
-  void initState() {
-    super.initState();
-    _loadMoreChannels();
-    _scrollController.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent * 0.8) {
-      _loadMoreChannels();
-    }
-  }
-
-  Future<void> _loadMoreChannels() async {
-    if (_isLoading || !_hasMore) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final service = ref.read(xtreamServiceProvider(widget.playlist));
-      final newChannels = await service.getLiveStreams(
-        offset: _currentOffset,
-        limit: _pageSize,
-      );
-
-      setState(() {
-        _channels.addAll(newChannels);
-        _currentOffset += _pageSize;
-        _hasMore = newChannels.length == _pageSize;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load channels: $e')),
-        );
-      }
-    }
-  }
+  bool get wantKeepAlive => true;
 
   @override
   Widget build(BuildContext context) {
-    if (_channels.isEmpty && !_isLoading) {
-      return const Center(child: Text('No channels available'));
-    }
+    super.build(context);
 
-    return GridView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.all(8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 0.75,
-      ),
-      itemCount: _channels.length + (_hasMore ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index >= _channels.length) {
-          return const Center(child: CircularProgressIndicator());
+    final channelsAsync = ref.watch(liveChannelsProvider);
+
+    return channelsAsync.when(
+      data: (groupedChannels) {
+        if (groupedChannels.isEmpty) {
+          return const Center(
+            child: Text('No live channels available'),
+          );
         }
 
-        final channel = _channels[index];
-        return _ChannelCard(
-          channel: channel,
-          playlist: widget.playlist,
-        );
-      },
-    );
-  }
-}
+        final categories = groupedChannels.keys.toList()..sort();
 
-class _ChannelCard extends StatelessWidget {
-  final LiveChannel channel;
-  final PlaylistConfig playlist;
+        return ListView.builder(
+          itemCount: categories.length,
+          itemBuilder: (context, index) {
+            final category = categories[index];
+            final channels = groupedChannels[category]!;
+            final currentPage = _currentPages[category] ?? 0;
+            final isExpanded = _expandedCategories[category] ?? false;
 
-  const _ChannelCard({
-    required this.channel,
-    required this.playlist,
-  });
+            // Calculate pagination
+            final totalPages = (channels.length / _itemsPerPage).ceil();
+            final startIndex = currentPage * _itemsPerPage;
+            final endIndex = (startIndex + _itemsPerPage > channels.length)
+                ? channels.length
+                : startIndex + _itemsPerPage;
+            final paginatedChannels = channels.sublist(startIndex, endIndex);
 
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {
-          final streamUrl = channel.getStreamUrl(
-            playlist.dns,
-            playlist.username,
-            playlist.password,
-          );
-          
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => VideoPlayerScreen(
-                streamUrl: streamUrl,
-                title: channel.name,
-                posterUrl: channel.streamIcon,
-              ),
-            ),
-          );
-        },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: channel.streamIcon != null
-                  ? CachedNetworkImage(
-                      imageUrl: channel.streamIcon!,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: Colors.grey.shade800,
-                        child: const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        color: Colors.grey.shade800,
-                        child: const Icon(Icons.live_tv, size: 48),
-                      ),
-                    )
-                  : Container(
-                      color: Colors.grey.shade800,
-                      child: const Icon(Icons.live_tv, size: 48),
-                    ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            return Card(
+              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: ExpansionPanelList(
+                expansionCallback: (panelIndex, expanded) {
+                  setState(() {
+                    _expandedCategories[category] = !expanded;
+                  });
+                },
                 children: [
-                  Text(
-                    channel.name,
-                    style: GoogleFonts.roboto(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                  ExpansionPanel(
+                    headerBuilder: (context, isExpanded) {
+                      return ListTile(
+                        title: Text(
+                          category,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        subtitle: Text('${channels.length} channels'),
+                      );
+                    },
+                    body: Column(
+                      children: [
+                        // Pagination controls
+                        if (totalPages > 1)
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.arrow_back),
+                                  onPressed: currentPage > 0
+                                      ? () {
+                                          setState(() {
+                                            _currentPages[category] = currentPage - 1;
+                                          });
+                                        }
+                                      : null,
+                                ),
+                                Text(
+                                  'Page ${currentPage + 1} of $totalPages',
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.arrow_forward),
+                                  onPressed: currentPage < totalPages - 1
+                                      ? () {
+                                          setState(() {
+                                            _currentPages[category] = currentPage + 1;
+                                          });
+                                        }
+                                      : null,
+                                ),
+                              ],
+                            ),
+                          ),
+                        // Channel list
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: paginatedChannels.length,
+                          itemExtent: 72,
+                          itemBuilder: (context, channelIndex) {
+                            final channel = paginatedChannels[channelIndex];
+                            return _buildChannelTile(context, channel);
+                          },
+                        ),
+                      ],
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
+                    isExpanded: isExpanded,
                   ),
-                  const SizedBox(height: 4),
-                  // EPG Display
-                  if (channel.epgChannelId != null)
-                    EPGWidget(
-                      channelId: channel.streamId,
-                      playlist: playlist,
-                    ),
                 ],
               ),
-            ),
+            );
+          },
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stack) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const SizedBox(height: 16),
+            Text('Error loading channels: $error'),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildChannelTile(BuildContext context, Channel channel) {
+    return ListTile(
+      leading: channel.streamIcon.isNotEmpty
+          ? CachedNetworkImage(
+              imageUrl: channel.streamIcon,
+              width: 48,
+              height: 48,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => const Icon(Icons.tv),
+              errorWidget: (context, url, error) => const Icon(Icons.broken_image),
+            )
+          : const Icon(Icons.tv),
+      title: Text(
+        channel.name,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: channel.num.isNotEmpty
+          ? Text('Ch. ${channel.num}')
+          : null,
+      trailing: const Icon(Icons.play_circle_outline),
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => PlayerScreen(
+              streamId: channel.streamId,
+              title: channel.name,
+              streamType: StreamType.live,
+            ),
+          ),
+        );
+      },
     );
   }
 }

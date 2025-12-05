@@ -1,13 +1,3 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../../../core/models/playlist_config.dart';
-import '../services/xtream_service.dart';
-import '../models/xtream_models.dart';
-import '../screens/video_player_screen.dart';
-
-class MoviesTab extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
 
   const MoviesTab({super.key, required this.playlist});

@@ -1,42 +1,37 @@
-# Multi-stage Dockerfile for Flutter Web IPTV Application
+# ============================================
 # Stage 1: Build Flutter Web Application
-FROM ghcr.io/cirruslabs/flutter:stable AS builder
+# ============================================
+FROM cirrusci/flutter:stable AS builder
 
 WORKDIR /app
 
-# Copy pubspec file
-COPY pubspec.yaml ./
+# Copy dependency files first for better caching
+COPY pubspec.yaml pubspec.lock ./
 
 # Get dependencies
 RUN flutter pub get
 
-# Copy entire project
+# Copy source code
 COPY . .
 
-# Build Flutter Web with CanvasKit renderer for 60fps performance
-RUN flutter build web --release --web-renderer canvaskit
+# Build web application (HTML renderer for compatibility)
+RUN flutter build web --release --web-renderer html
 
-# Stage 2: Serve with dhttpd (Dart HTTP Server)
-FROM dart:stable AS runtime
+# ============================================
+# Stage 2: Serve with dhttpd (Dart HTTP server)
+# ============================================
+FROM dart:stable
 
-# Install dhttpd globally and add to PATH
-RUN dart pub global activate dhttpd
-ENV PATH="$PATH:/root/.pub-cache/bin"
-
-# Create app directory
 WORKDIR /app
 
-# Copy built web files from builder stage
-COPY --from=builder /app/build/web /app/web
+# Install dhttpd globally
+RUN dart pub global activate dhttpd
 
-# Create data directory for Hive persistence
-RUN mkdir -p /app/data
+# Copy built web application from builder stage
+COPY --from=builder /app/build/web /app/web
 
 # Expose port (internal only, not mapped to host)
 EXPOSE 8080
 
-# Set environment variable for Hive storage
-ENV HIVE_STORAGE_PATH=/app/data
-
-# Run dhttpd server (now available in PATH)
-CMD ["dhttpd", "--host", "0.0.0.0", "--port", "8080", "--path", "/app/web"]
+# Serve web application
+CMD ["/root/.pub-cache/bin/dhttpd", "--host", "0.0.0.0", "--port", "8080", "--path", "/app/web"]
