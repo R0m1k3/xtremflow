@@ -38,6 +38,12 @@ final liveChannelsProvider = FutureProvider.autoDispose((ref) async {
   return await service.getLiveChannels();
 });
 
+/// Provider for live TV channels by playlist (family provider)
+final liveChannelsByPlaylistProvider = FutureProvider.family.autoDispose((ref, PlaylistConfig playlist) async {
+  final service = ref.watch(xtreamServiceProvider(playlist));
+  return await service.getLiveChannels();
+});
+
 /// Provider for VOD items (movies) grouped by category
 final vodItemsProvider = FutureProvider.autoDispose((ref) async {
   final service = ref.watch(activeXtreamServiceProvider);
