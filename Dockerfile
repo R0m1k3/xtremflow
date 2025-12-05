@@ -43,7 +43,7 @@ RUN dart pub global activate dhttpd
 COPY --from=builder /app/build/web /app/web
 
 # Expose port (internal only, not mapped to host)
-EXPOSE 8080
+EXPOSE 8089
 
 # Serve web application
-CMD ["/root/.pub-cache/bin/dhttpd", "--host", "0.0.0.0", "--port", "8080", "--path", "/app/web"]
+CMD ["/root/.pub-cache/bin/dhttpd", "--host", "0.0.0.0", "--port", "8089", "--path", "/app/web"]

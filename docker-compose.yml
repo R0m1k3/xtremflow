@@ -5,9 +5,5 @@ services:
       dockerfile: Dockerfile
     container_name: xtremflow
     restart: unless-stopped
-    networks:
-      - nginx_default
-
-networks:
-  nginx_default:
-    external: true
+    ports:
+      - "8089:8089"
