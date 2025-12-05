@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../models/app_user.dart';
@@ -9,10 +8,9 @@ import '../models/playlist_config.dart';
 class HiveService {
   static const String _usersBoxName = 'users';
   static const String _playlistsBoxName = 'playlists';
-  static const String _encryptionKeyName = 'hive_encryption_key';
   
-  static const _storage = FlutterSecureStorage();
   static bool _initialized = false;
+  static List<int>? _encryptionKey;
 
   /// Initialize Hive for Web with encryption
   static Future<void> init() async {
@@ -45,32 +43,18 @@ class HiveService {
     _initialized = true;
   }
 
-  /// Get or create 256-bit encryption key
+  /// Get or create 256-bit encryption key (web-compatible)
   static Future<List<int>> _getOrCreateEncryptionKey() async {
-    try {
-      final existingKey = await _storage.read(key: _encryptionKeyName);
-      
-      if (existingKey != null) {
-        return base64Decode(existingKey);
-      }
-    } catch (e) {
-      // Storage might not be available in some web contexts
-      // Fall back to session-based key (not persisted)
+    // For web: use session-based key (regenerated each session)
+    // Note: Data persists in IndexedDB but encryption key is not stored
+    if (_encryptionKey != null) {
+      return _encryptionKey!;
     }
 
     // Generate new 256-bit key
-    final key = Hive.generateSecureKey();
+    _encryptionKey = Hive.generateSecureKey();
     
-    try {
-      await _storage.write(
-        key: _encryptionKeyName,
-        value: base64Encode(key),
-      );
-    } catch (e) {
-      // Ignore if storage fails - key will be regenerated next session
-    }
-    
-    return key;
+    return _encryptionKey!;
   }
 
   /// Seed default admin user (admin/admin)
