@@ -40,13 +40,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     try {
       final usersBox = HiveService.usersBox;
-      final passwordHash = HiveService.hashPassword(password);
 
-      // Search for user with matching credentials
+      // Search for user by username
       final user = usersBox.values.firstWhere(
-        (user) => user.username == username && user.passwordHash == passwordHash,
-        orElse: () => throw Exception('Invalid credentials'),
+        (user) => user.username == username,
+        orElse: () => throw Exception('User not found'),
       );
+
+      // Verify password using salt-based hashing
+      if (!HiveService.verifyPassword(password, user.passwordHash)) {
+        throw Exception('Invalid password');
+      }
 
       state = AuthState(currentUser: user, isLoading: false);
       return true;
@@ -58,6 +62,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return false;
     }
   }
+
 
   /// Logout current user
   void logout() {

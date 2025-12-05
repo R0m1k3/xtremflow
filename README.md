@@ -1,211 +1,228 @@
-# XtremFlow IPTV Web Application
+# XtremFlow - IPTV Web Application
 
-Application IPTV Web haute performance basée sur Flutter avec intégration Xtream Codes API, authentification locale sécurisée, panneau d'administration complet et déploiement Docker.
+High-performance, containerized IPTV Web Application using Flutter Web and Xtream Codes API.
 
-![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
-![Flutter](https://img.shields.io/badge/Flutter-Web-blue)
-![License](https://img.shields.io/badge/License-Private-red)
+## Features
 
----
+✅ **Local Authentication System**
+- Default admin user (`admin`/`admin`)
+- Secure salt-based password hashing (SHA-256)
+- No public signup - private app only
 
-## ✨ Fonctionnalités
+✅ **Multi-Playlist Management**
+- Centralized Xtream credentials management
+- Playlist assignment to users
+- Easy switching between playlists
 
-### 🔐 Authentification Locale
-- Système privé sans inscription publique
-- Admin par défaut : `admin` / `admin`
-- Chiffrement SHA-256 des mots de passe
-- Base de données Hive chiffrée AES-256
+✅ **High-Performance Dashboard (60fps)**
+- Category-based pagination (100 items/page for Live TV, 50 for Movies)
+- Lazy loading with `ListView.builder` / `GridView.builder`
+- Image caching with `cached_network_image`
 
-### 📺 Lecteur IPTV Complet
-- **Lecteur vidéo intégré** avec media_kit
-  - Contrôles personnalisés (play/pause/seek ±10s)
-  - Mode plein écran
-  - Barre de progression avec temps
-  - Indicateur de buffering
-- **EPG (Guide électronique)**
-  - Badge "LIVE" sur programme en cours
-  - Barre de progression du programme
-  - Aperçu du programme suivant
-- **Support multi-formats**
-  - Live TV (HLS/M3U8)
-  - Films (VOD)
-  - Séries (structure prête)
+✅ **Live TV with EPG**
+- Electronic Program Guide (EPG) overlay
+- "Now & Next" program display
+- Real-time progress bar
 
-### 👨‍💼 Panneau d'Administration
-- **Gestion des Utilisateurs**
-  - Création/Édition/Suppression
-  - Attribution du rôle admin
-  - ✅ **Assignation de playlists** par utilisateur
-  - Compteur de playlists assignées
-- **Gestion des Playlists**
-  - Ajout de serveurs Xtream (DNS, Username, Password)
-  - Édition/Suppression
-  - Protection contre suppression admin
+✅ **VOD & Series**
+- Movies and Series organized by categories
+- Grid layout with posters
+- Ratings display
 
-### ⚡ Performance Optimisée
-- **Lazy Loading** : Pagination de 100 items
-- **Cache Intelligent** : 
-  - Images avec `cached_network_image`
-  - Requêtes API avec TTL 10min
-- **60fps Garanti** : Renderer CanvasKit
-- **Gestion Mémoire** : Support de 20k+ chaînes
+✅ **Docker Deployment**
+- Multi-stage build with Flutter and Dart
+- `dhttpd` static server (minimal footprint)
+- External network support (`nginx_default`)
 
-### 🐳 Déploiement Docker
-- Build multi-stage optimisé
-- Serveur statique `dhttpd` (5MB)
-- Réseau externe `nginx_default`
-- Volume persistant pour données Hive
+## Tech Stack
 
----
+- **Framework**: Flutter Web
+- **State Management**: Riverpod
+- **Local Database**: Hive (Web IndexedDB) with AES encryption
+- **Networking**: Dio with cache interceptors
+- **Routing**: GoRouter with auth guards
+- **Video Player**: `video_player` + `chewie`
+- **UI**: Google Fonts, Material Design 3
 
-## 🚀 Démarrage Rapide
+## Prerequisites
 
-### Option 1 : Docker (Recommandé)
+- Docker & Docker Compose
+- Existing `nginx_default` network (for reverse proxy routing)
+- Flutter SDK (for local development only)
+
+## Quick Start (Docker)
+
+### 1. Build the Docker image
 
 ```bash
-# 1. Créer le réseau externe (si inexistant)
-docker network create nginx_default
+docker-compose build
+```
 
-# 2. Build et lancer
-cd c:\Users\Michael\Git\xtremflow
+### 2. Start the container
+
+```bash
 docker-compose up -d
-
-# 3. Vérifier les logs
-docker-compose logs -f iptv-web
 ```
 
-**Accès** : Configurer votre reverse proxy (Nginx Proxy Manager/Traefik) pour pointer vers `http://iptv-web:8080`
+### 3. Access via reverse proxy
 
-### Option 2 : Développement Local (Nécessite Flutter SDK)
+Configure your reverse proxy (Nginx/Traefik) to route traffic to:
+- **Container**: `xtremflow`
+- **Internal Port**: `8080`
+- **Network**: `nginx_default`
+
+Example Nginx configuration:
+
+```nginx
+location /iptv {
+    proxy_pass http://xtremflow:8080;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+}
+```
+
+### 4. Login
+
+- **URL**: `http://your-domain/iptv`
+- **Default Credentials**:
+  - Username: `admin`
+  - Password: `admin`
+
+⚠️ **Change the admin password immediately after first login!**
+
+## Local Development
+
+### Install dependencies
 
 ```bash
-# 1. Installer les dépendances
 flutter pub get
-
-# 2. Lancer en mode dev
-flutter run -d chrome
-
-# 3. Build production
-flutter build web --release --web-renderer canvaskit
 ```
 
----
+### Generate Hive adapters (if modified)
 
-## 📖 Guide d'Utilisation
+```bash
+flutter pub run build_runner build --delete-conflicting-outputs
+```
 
-### Première Connexion
+### Run web app
 
-1. **Login Initial**
-   - URL : `http://votre-domaine.com/`
-   - Username : `admin`
-   - Password : `admin`
+```bash
+flutter run -d chrome
+```
 
-2. **⚠️ Sécurité : Changer le mot de passe**
-   - Admin Panel → Users → Edit admin → New Password
-
-### Ajouter une Playlist Xtream
-
-1. **Accéder au Admin Panel**
-   - Bouton "Admin Panel" dans Settings ou navbar
-
-2. **Onglet Playlists → Add Playlist**
-   - **Playlist Name** : Mon IPTV
-   - **Server URL** : `http://votre-serveur.com:8080`
-   - **Username** : `votre_username`
-   - **Password** : `votre_password`
-   - Cliquer **Save**
-
-3. **Assigner à un Utilisateur**
-   - Onglet Users → Add User (ou Edit existant)
-   - Cocher la/les playlist(s) sous "Assigned Playlists"
-   - Sauvegarder
-
-### Regarder l'IPTV
-
-1. **Sélectionner une Playlist**
-   - Logout puis login avec compte utilisateur
-   - Choisir la playlist sur l'écran de sélection
-
-2. **Navigation**
-   - **Live TV** : Grille de chaînes avec EPG
-   - **Movies** : Catalogue VOD
-   - **Series** : Liste des séries
-   - **Settings** : Paramètres utilisateur
-
-3. **Lecture**
-   - Cliquer sur une chaîne/film → Lecteur s'ouvre
-   - Contrôles : Play/Pause, ±10s, Fullscreen
-   - EPG visible sur chaînes live
-
----
-
-## 🏗️ Architecture Technique
-
-### Stack Technologique
-
-| Composant | Technologie | Version |
-|-----------|-------------|---------|
-| Framework | Flutter (Web) | Stable |
-| State Management | Riverpod | 2.6.1 |
-| Base de Données | Hive (IndexedDB) | 2.2.3 |
-| Networking | Dio | 5.7.0 |
-| Routing | GoRouter | 14.6.2 |
-| Video Player | media_kit | 1.1.11 |
-| UI | Google Fonts | 6.2.1 |
-
-### Structure du Projet
+## Project Structure
 
 ```
 lib/
 ├── core/
-│   ├── database/     # Hive + Encryption
-│   ├── models/       # AppUser, PlaylistConfig
-│   └── router/       # GoRouter + Guards
+│   ├── database/
+│   │   └── hive_service.dart          # Hive initialization & encryption
+│   ├── models/
+│   │   ├── app_user.dart              # User model (Hive)
+│   │   ├── playlist_config.dart       # Playlist credentials (Hive)
+│   │   └── iptv_models.dart          # Channel, VOD, Series, EPG models
+│   ├── router/
+│   │   └── app_router.dart           # GoRouter configuration
+│   └── utils/
+│       └── crypto_utils.dart         # Password hashing utilities
 ├── features/
-│   ├── admin/        # CRUD Users/Playlists
-│   ├── auth/         # Login + AuthProvider
+│   ├── auth/
+│   │   ├── providers/
+│   │   │   └── auth_provider.dart    # Authentication state
+│   │   └── screens/
+│   │       └── login_screen.dart
+│   ├── admin/
+│   │   └── screens/
+│   │       └── admin_panel.dart      # User & Playlist CRUD
 │   └── iptv/
-│       ├── models/   # Xtream DTOs
-│       ├── services/ # API Client
-│       ├── screens/  # Dashboard, Player
-│       └── widgets/  # Tabs, EPG
+│       ├── services/
+│       │   └── xtream_service.dart   # Xtream API client
+│       ├── providers/
+│       │   └── xtream_provider.dart  # Riverpod providers
+│       ├── screens/
+│       │   └── player_screen.dart    # Video player
+│       └── widgets/
+│           ├── live_tv_tab.dart      # Live TV with pagination
+│           ├── movies_tab.dart       # Movies grid
+│           ├── series_tab.dart       # Series grid
+│           └── epg_overlay.dart      # EPG display
 └── main.dart
 ```
 
-**Total** : 20 fichiers Dart + 8 fichiers config = **28 fichiers**
+## Security Features
 
----
+### Password Storage
+- **Algorithm**: SHA-256 with random UUID-based salt
+- **Format**: `salt:hash` (stored in Hive)
+- **Legacy Support**: Fallback to unsalted comparison for migration
 
-## 🔒 Sécurité
+### Database Encryption
+- **Hive AES Cipher** (256-bit key)
+- Key stored in `FlutterSecureStorage`
+- Automatic key generation on first run
 
-### Implémentations
+### Authentication Flow
+1. User enters credentials
+2. System retrieves stored hash
+3. Input password is hashed with same salt
+4. Constant-time comparison prevents timing attacks
 
-✅ **Authentification**
-- SHA-256 password hashing
-- Pas de credentials en dur
-- Session-based auth
+## Performance Optimizations
 
-✅ **Stockage**
-- Chiffrement AES-256 (Hive)
-- Clés stockées via `flutter_secure_storage`
-- Fallback session si secure storage indisponible
+### Memory Management (20k+ channels)
+- **Grouping**: Channels organized by category
+- **Pagination**: 100 items per page (Live TV), 50 per page (Movies)
+- **Lazy Loading**: Only render visible items
+- **Image Caching**: Disk/memory cache with `cached_network_image`
 
-✅ **API**
-- Validation des entrées utilisateur
-- Intercepteurs Dio avec timeout
-- Pas d'exposition de credentials dans URLs
+### Network Optimization
+- **Dio Cache Interceptor**: 1-hour cache for API responses
+- **EPG Cache**: 5-minute refresh for program data
+- **Hive Disk Store**: Persistent cache across sessions
 
-### Recommandations Production
+### Rendering (60fps Target)
+- `ListView.builder` with fixed `itemExtent`
+- `AutomaticKeepAliveClientMixin` for tab state
+- Expansion panels for category navigation
+- Grid with fixed `crossAxisCount` and `childAspectRatio`
 
-- [ ] Changer mot de passe admin par défaut
-- [ ] Utiliser HTTPS via reverse proxy
-- [ ] Backup régulier du volume Docker `iptv_data`
-- [ ] Rotation des clés de chiffrement (optionnel)
-- [ ] Rate limiting sur reverse proxy
+## Xtream API Integration
 
----
+### Supported Endpoints
 
-## 🐋 Configuration Docker
+| Endpoint | Purpose | Caching |
+|----------|---------|---------|
+| `player_api.php` | Authentication | 1 hour |
+| `get_live_streams` | Live TV channels | 1 hour |
+| `get_vod_streams` | Movies | 1 hour |
+| `get_series` | Series | 1 hour |
+| `get_short_epg` | EPG data | 5 minutes |
+
+### Stream URL Formats
+
+```dart
+// Live TV
+http://[dns]/live/[username]/[password]/[stream_id].m3u8
+
+// Movies
+http://[dns]/movie/[username]/[password]/[stream_id].[container_extension]
+
+// Series
+http://[dns]/series/[username]/[password]/[stream_id].[container_extension]
+```
+
+## Docker Configuration
+
+### Dockerfile (Multi-Stage)
+
+**Stage 1: Builder**
+- Base: `cirrusci/flutter:stable`
+- Build: `flutter build web --release --web-renderer html`
+
+**Stage 2: Runtime**
+- Base: `dart:stable`
+- Server: `dhttpd --host 0.0.0.0 --port 8080`
+- Size: ~150MB (compressed)
 
 ### docker-compose.yml
 
@@ -213,128 +230,51 @@ lib/
 services:
   iptv-web:
     build: .
-    volumes:
-      - iptv_data:/app/data
-    networks:
-      - nginx_default  # Externe
+    container_name: xtremflow
     restart: unless-stopped
-
-volumes:
-  iptv_data:
+    networks:
+      - nginx_default
 
 networks:
   nginx_default:
-    external: true  # DOIT exister
+    external: true
 ```
 
-### Reverse Proxy (Exemple Nginx)
+**No port mapping** - Access via reverse proxy only.
 
-```nginx
-location / {
-    proxy_pass http://iptv-web:8080;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection 'upgrade';
-    proxy_set_header Host $host;
-    proxy_cache_bypass $http_upgrade;
-}
-```
+## Troubleshooting
 
----
-
-## 🧪 Tests & Validation
-
-### Checklist Déploiement
-
-- [ ] `docker-compose build` réussit sans erreur
-- [ ] Conteneur démarre : `docker-compose ps`
-- [ ] Login admin/admin fonctionne
-- [ ] Ajout playlist Xtream réussi
-- [ ] Lecture d'une chaîne Live TV
-- [ ] EPG s'affiche correctement
-- [ ] Lecture d'un film VOD
-- [ ] Fullscreen fonctionne
-
-### Performance
-
-**Target** : 60fps constant
-
-**Commande de test** :
+### Container won't start
 ```bash
-# Chrome DevTools → Performance Tab
-# Record pendant 10s de scroll dans grille 1000+ items
-# FPS moyen doit être > 55fps
+# Check logs
+docker logs xtremflow
+
+# Verify network exists
+docker network ls | grep nginx_default
+
+# Create network if missing
+docker network create nginx_default
 ```
 
----
+### Login fails with admin/admin
+- Check Hive database initialization in logs
+- Verify `HiveService.init()` completed successfully
+- Default admin is seeded only if `users` box is empty
 
-## ⚠️ Limitations Connues
+### EPG not displaying
+- EPG is optional and gracefully degrades
+- Check if Xtream server supports `get_short_epg`
+- Verify stream has `epg_channel_id`
 
-| Limitation | Status | Workaround |
-|------------|--------|------------|
-| Series Episodes | ❌ Non implémenté | Nécessite `get_series_info` API |
-| EPG Timeline | ❌ Vue chronologique absente | Seulement Now & Next |
-| Flutter SDK | ⚠️ Requis pour build | Utiliser Docker pre-built |
-| CORS Issues | ⚠️ Possible avec certains serveurs | Configurer proxy CORS |
+### Performance issues (FPS drops)
+- Reduce `_itemsPerPage` constant (currently 100 for Live TV)
+- Disable image caching temporarily
+- Check browser DevTools Performance tab
 
----
+## License
 
-## 📊 Métriques Projet
+Proprietary - Private Use Only
 
-- **Lignes de Code** : ~3,500 (Dart)
-- **Temps de Build** : ~2-3 min (Docker)
-- **Taille Image** : ~150MB (compressed)
-- **Temps de Démarrage** : <5s
-- **Mémoire Runtime** : ~200MB (1000 items chargés)
+## Support
 
----
-
-## 🤝 Support
-
-### Problèmes Courants
-
-**Q: "Erreur réseau nginx_default"**  
-R: `docker network create nginx_default`
-
-**Q: "Pas de chaînes affichées"**  
-R: Vérifier credentials Xtream dans Admin Panel
-
-**Q: "Vidéo ne charge pas"**  
-R: Tester l'URL stream dans VLC. Si fonctionne → problème CORS
-
-**Q: "Build Flutter échoue"**  
-R: Utiliser Docker (build automatique)
-
----
-
-## 📝 Changelog
-
-### v1.0.0 (2025-12-05)
-
-✅ **Fonctionnalités Complètes**
-- Lecteur vidéo media_kit avec contrôles
-- Widget EPG avec badge LIVE
-- Admin : assignation playlists aux users
-- Docker deployment optimisé
-- Documentation complète
-
----
-
-## 📄 License
-
-**Private Use Only** - Non distribué publiquement
-
----
-
-## 🎯 Roadmap Futur (Optionnel)
-
-- [ ] Épisodes de séries (get_series_info)
-- [ ] Vue timeline EPG complète
-- [ ] Favoris utilisateur
-- [ ] Historique de lecture
-- [ ] Multi-langue UI
-- [ ] Mode hors ligne (téléchargements)
-
----
-
-**Développé avec ❤️ par l'équipe Antigravity**
+For Xtream API documentation, consult your IPTV provider.

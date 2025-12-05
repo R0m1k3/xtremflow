@@ -1,23 +1,29 @@
 import 'package:hive/hive.dart';
+import 'package:equatable/equatable.dart';
 
 part 'playlist_config.g.dart';
 
+/// Hive model for Xtream Codes playlist configuration
+/// 
+/// Stores credentials for connecting to an Xtream server
 @HiveType(typeId: 1)
-class PlaylistConfig {
+class PlaylistConfig extends Equatable {
   @HiveField(0)
   final String id;
 
   @HiveField(1)
   final String name;
 
+  /// Xtream server URL (without trailing slash)
   @HiveField(2)
-  final String dns; // Xtream server URL (without trailing slash)
+  final String dns;
 
   @HiveField(3)
   final String username;
 
+  /// Xtream password (stored encrypted by Hive)
   @HiveField(4)
-  final String password; // Will be encrypted by Hive
+  final String password;
 
   @HiveField(5)
   final DateTime createdAt;
@@ -35,6 +41,7 @@ class PlaylistConfig {
     this.isActive = true,
   });
 
+  /// Creates a copy of this playlist with updated fields
   PlaylistConfig copyWith({
     String? id,
     String? name,
@@ -57,4 +64,16 @@ class PlaylistConfig {
 
   /// Generate Xtream API base URL
   String get apiBaseUrl => '$dns/player_api.php';
+
+  @override
+  List<Object?> get props => [
+        id,
+        name,
+        dns,
+        username,
+        password,
+        createdAt,
+        isActive,
+      ];
 }
+

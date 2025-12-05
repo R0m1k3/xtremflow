@@ -94,15 +94,39 @@ class HiveService {
     }
   }
 
-  /// Hash password using SHA-256
+  /// Hash password using SHA-256 with salt
   static String _hashPassword(String password) {
-    final bytes = utf8.encode(password);
+    // Generate a random salt using the first 16 chars of a UUID
+    final salt = const Uuid().v4().substring(0, 16);
+    final bytes = utf8.encode(password + salt);
     final digest = sha256.convert(bytes);
-    return digest.toString();
+    return '$salt:${digest.toString()}';
+  }
+
+  /// Verify password against stored hash
+  static bool verifyPassword(String password, String storedHash) {
+    try {
+      final parts = storedHash.split(':');
+      if (parts.length != 2) {
+        // Legacy hash without salt - fallback to direct comparison
+        final legacyHash = sha256.convert(utf8.encode(password)).toString();
+        return legacyHash == storedHash;
+      }
+      
+      final salt = parts[0];
+      final expectedHash = parts[1];
+      final bytes = utf8.encode(password + salt);
+      final actualHash = sha256.convert(bytes).toString();
+      
+      return actualHash == expectedHash;
+    } catch (e) {
+      return false;
+    }
   }
 
   /// Public method to hash passwords (used by auth)
   static String hashPassword(String password) => _hashPassword(password);
+
 
   /// Get users box
   static Box<AppUser> get usersBox => Hive.box<AppUser>(_usersBoxName);
