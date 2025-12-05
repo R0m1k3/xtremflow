@@ -1,9 +1,15 @@
 # ============================================
 # Stage 1: Build Flutter Web Application
 # ============================================
-FROM cirrusci/flutter:stable AS builder
+FROM ghcr.io/cirruslabs/flutter:stable AS builder
 
 WORKDIR /app
+
+# Safe directory configuration for git
+RUN git config --global --add safe.directory /app
+
+# Enable web support (idempotent)
+RUN flutter config --enable-web
 
 # Copy dependency files first for better caching
 COPY pubspec.yaml pubspec.lock ./
