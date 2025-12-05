@@ -28,7 +28,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   void initState() {
     super.initState();
     _tabs = [
-      LiveTVTab(playlist: widget.playlist),
+      const LiveTVTab(),
       MoviesTab(playlist: widget.playlist),
       SeriesTab(playlist: widget.playlist),
       const SettingsTab(),
