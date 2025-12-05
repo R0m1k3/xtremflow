@@ -5,6 +5,12 @@ FROM ghcr.io/cirruslabs/flutter:stable AS builder
 
 WORKDIR /app
 
+# Safe directory configuration for git
+RUN git config --global --add safe.directory /app
+
+# Enable web support (idempotent)
+RUN flutter config --enable-web
+
 # Copy dependency files first for better caching
 COPY pubspec.yaml ./
 
