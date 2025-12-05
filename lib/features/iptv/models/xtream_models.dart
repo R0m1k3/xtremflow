@@ -71,6 +71,7 @@ class Series {
   final String name;
   final String? cover;
   final String? categoryId;
+  final String categoryName;
   final String? rating;
 
   const Series({
@@ -78,6 +79,7 @@ class Series {
     required this.name,
     this.cover,
     this.categoryId,
+    this.categoryName = '',
     this.rating,
   });
 
@@ -87,6 +89,7 @@ class Series {
       name: json['name']?.toString() ?? 'Unknown',
       cover: json['cover']?.toString(),
       categoryId: json['category_id']?.toString(),
+      categoryName: json['category_name']?.toString() ?? '',
       rating: json['rating']?.toString(),
     );
   }

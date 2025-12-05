@@ -2,8 +2,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/playlist_config.dart';
 import '../services/xtream_service.dart';
 
-/// Singleton Xtream service provider
-final xtreamServiceProvider = Provider<XtreamService>((ref) {
+/// Family provider for Xtream service - one instance per playlist
+final xtreamServiceProvider = Provider.family<XtreamService, PlaylistConfig>((ref, playlist) {
+  final service = XtreamService();
+  service.setPlaylist(playlist);
+  ref.onDispose(() => service.dispose());
+  return service;
+});
+
+/// Singleton Xtream service provider (legacy, for activeXtreamServiceProvider)
+final _singletonXtreamServiceProvider = Provider<XtreamService>((ref) {
   final service = XtreamService();
   ref.onDispose(() => service.dispose());
   return service;
@@ -14,7 +22,7 @@ final selectedPlaylistProvider = StateProvider<PlaylistConfig?>((ref) => null);
 
 /// Provider that watches for playlist changes and updates Xtream service
 final activeXtreamServiceProvider = Provider<XtreamService>((ref) {
-  final service = ref.watch(xtreamServiceProvider);
+  final service = ref.watch(_singletonXtreamServiceProvider);
   final playlist = ref.watch(selectedPlaylistProvider);
   
   if (playlist != null) {

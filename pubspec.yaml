@@ -30,6 +30,8 @@ dependencies:
   video_player: ^2.8.2
   video_player_web: ^2.3.0  # Required for web platform
   chewie: ^1.7.5
+  media_kit: ^1.1.10
+  media_kit_video: ^1.2.4
   
   # UI Components
   google_fonts: ^6.1.0

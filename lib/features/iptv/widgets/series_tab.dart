@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/playlist_config.dart';
 import '../services/xtream_service.dart';
 import '../models/xtream_models.dart';
+import '../providers/xtream_provider.dart';
 
 class SeriesTab extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
@@ -52,7 +53,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
 
     try {
       final service = ref.read(xtreamServiceProvider(widget.playlist));
-      final newSeries = await service.getSeries(
+      final newSeries = await service.getSeriesPaginated(
         offset: _currentOffset,
         limit: _pageSize,
       );

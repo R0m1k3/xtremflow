@@ -3,6 +3,7 @@ import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 import 'package:dio_cache_interceptor_hive_store/dio_cache_interceptor_hive_store.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/models/iptv_models.dart';
+import '../models/xtream_models.dart' as xm;
 
 /// Xtream Codes API Service
 /// 
@@ -175,6 +176,68 @@ class XtreamService {
       }
 
       return groupedSeries;
+    } catch (e) {
+      throw Exception('Failed to fetch series: $e');
+    }
+  }
+
+  /// Get movies with pagination support
+  Future<List<xm.Movie>> getMovies({int offset = 0, int limit = 100}) async {
+    if (_currentPlaylist == null) throw Exception('No playlist configured');
+
+    try {
+      final response = await _dio.get(
+        _currentPlaylist!.apiBaseUrl,
+        queryParameters: {
+          'username': _currentPlaylist!.username,
+          'password': _currentPlaylist!.password,
+          'action': 'get_vod_streams',
+        },
+        options: Options(extra: _cacheOptions.toExtra()),
+      );
+
+      final List<dynamic> allMovies = response.data as List<dynamic>;
+      
+      // Apply pagination
+      final endIndex = (offset + limit) > allMovies.length ? allMovies.length : offset + limit;
+      if (offset >= allMovies.length) return [];
+      
+      final paginatedMovies = allMovies.sublist(offset, endIndex);
+      
+      return paginatedMovies
+          .map((movieData) => xm.Movie.fromJson(movieData as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to fetch movies: $e');
+    }
+  }
+
+  /// Get series with pagination support (returns flat list)
+  Future<List<xm.Series>> getSeriesPaginated({int offset = 0, int limit = 100}) async {
+    if (_currentPlaylist == null) throw Exception('No playlist configured');
+
+    try {
+      final response = await _dio.get(
+        _currentPlaylist!.apiBaseUrl,
+        queryParameters: {
+          'username': _currentPlaylist!.username,
+          'password': _currentPlaylist!.password,
+          'action': 'get_series',
+        },
+        options: Options(extra: _cacheOptions.toExtra()),
+      );
+
+      final List<dynamic> allSeries = response.data as List<dynamic>;
+      
+      // Apply pagination
+      final endIndex = (offset + limit) > allSeries.length ? allSeries.length : offset + limit;
+      if (offset >= allSeries.length) return [];
+      
+      final paginatedSeries = allSeries.sublist(offset, endIndex);
+      
+      return paginatedSeries
+          .map((seriesData) => xm.Series.fromJson(seriesData as Map<String, dynamic>))
+          .toList();
     } catch (e) {
       throw Exception('Failed to fetch series: $e');
     }
