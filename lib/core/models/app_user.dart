@@ -1,21 +1,27 @@
 import 'package:hive/hive.dart';
+import 'package:equatable/equatable.dart';
 
 part 'app_user.g.dart';
 
+/// Hive model for local application users
+/// 
+/// Stores user credentials with hashed passwords and admin privileges
 @HiveType(typeId: 0)
-class AppUser {
+class AppUser extends Equatable {
   @HiveField(0)
   final String id;
 
   @HiveField(1)
   final String username;
 
+  /// Password hash in format "salt:hash"
   @HiveField(2)
-  final String passwordHash; // SHA-256 hash
+  final String passwordHash;
 
   @HiveField(3)
   final bool isAdmin;
 
+  /// List of playlist IDs assigned to this user
   @HiveField(4)
   final List<String> assignedPlaylistIds;
 
@@ -26,11 +32,12 @@ class AppUser {
     required this.id,
     required this.username,
     required this.passwordHash,
-    required this.isAdmin,
-    required this.assignedPlaylistIds,
+    this.isAdmin = false,
+    this.assignedPlaylistIds = const [],
     required this.createdAt,
   });
 
+  /// Creates a copy of this user with updated fields
   AppUser copyWith({
     String? id,
     String? username,
@@ -48,4 +55,14 @@ class AppUser {
       createdAt: createdAt ?? this.createdAt,
     );
   }
+
+  @override
+  List<Object?> get props => [
+        id,
+        username,
+        passwordHash,
+        isAdmin,
+        assignedPlaylistIds,
+        createdAt,
+      ];
 }

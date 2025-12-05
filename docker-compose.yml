@@ -5,29 +5,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: iptv-web
-    
-    # Volume for Hive data persistence
-    volumes:
-      - iptv_data:/app/data
-    
-    # Use external nginx network
+    container_name: xtremflow
+    restart: unless-stopped
     networks:
       - nginx_default
-    
-    # Environment variables
-    environment:
-      - HIVE_STORAGE_PATH=/app/data
-    
-    # Restart policy
-    restart: unless-stopped
 
-# Named volume for Hive data persistence
-volumes:
-  iptv_data:
-    driver: local
-
-# External network (must exist before running)
 networks:
   nginx_default:
     external: true
