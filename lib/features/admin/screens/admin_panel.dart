@@ -43,60 +43,76 @@ class _AdminPanelState extends ConsumerState<AdminPanel>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Custom Glass Header
-            Container(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                children: [
-                  GlassCard(
-                    borderRadius: 12,
-                    padding: const EdgeInsets.all(8),
-                    showBorder: false,
-                    onTap: () => context.go('/playlists'),
-                    child: const Icon(Icons.arrow_back, color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(width: 16),
-                  Text(
-                    'Administration',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const Spacer(),
-                  // Custom Tab Bar Indicator
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(50),
+      extendBodyBehindAppBar: true,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment.center,
+            radius: 1.5,
+            colors: [
+              Color(0xFF2C2C2E), // Dark Grey (Apple TV Surface)
+              Color(0xFF000000), // Pure Black
+            ],
+            stops: [0.0, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Custom Glass Header
+              Container(
+                padding: const EdgeInsets.all(24),
+                child: Row(
+                  children: [
+                    GlassCard(
+                      borderRadius: 12,
+                      padding: const EdgeInsets.all(8),
+                      showBorder: false,
+                      onTap: () => context.go('/playlists'),
+                      child: const Icon(Icons.arrow_back, color: Colors.white70),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildTabButton(0, 'Playlists', Icons.playlist_play),
-                        const SizedBox(width: 4),
-                        _buildTabButton(1, 'Users', Icons.people),
-                      ],
+                    const SizedBox(width: 16),
+                    Text(
+                      'Administration',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                ],
+                    const Spacer(),
+                    // Custom Tab Bar Indicator
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildTabButton(0, 'Playlists', Icons.playlist_play),
+                          const SizedBox(width: 4),
+                          _buildTabButton(1, 'Users', Icons.people),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            
-            // Content
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                physics: const NeverScrollableScrollPhysics(), // Custom tabs handle ref
-                children: const [
-                  _PlaylistsTab(),
-                  _UsersTab(),
-                ],
+              
+              // Content
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  physics: const NeverScrollableScrollPhysics(), // Custom tabs handle ref
+                  children: const [
+                    _PlaylistsTab(),
+                    _UsersTab(),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -121,7 +137,7 @@ class _AdminPanelState extends ConsumerState<AdminPanel>
                 Icon(
                   icon,
                   size: 18,
-                  color: isSelected ? Colors.black : AppColors.textSecondary,
+                  color: isSelected ? Colors.black : Colors.white70,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -129,7 +145,7 @@ class _AdminPanelState extends ConsumerState<AdminPanel>
                   style: GoogleFonts.inter(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
-                    color: isSelected ? Colors.black : AppColors.textSecondary,
+                    color: isSelected ? Colors.black : Colors.white70,
                   ),
                 ),
               ],
@@ -156,7 +172,7 @@ class _PlaylistsTab extends ConsumerWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('${playlistsAsync.asData?.value.length ?? 0} Playlists', style: Theme.of(context).textTheme.bodyLarge),
+              Text('${playlistsAsync.asData?.value.length ?? 0} Playlists', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white70)),
               GradientButton(
                 label: 'Add Playlist',
                 icon: Icons.add,
@@ -212,9 +228,9 @@ class _PlaylistsTab extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(playlist.name, style: Theme.of(context).textTheme.titleMedium),
+                              Text(playlist.name, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white)),
                               const SizedBox(height: 4),
-                              Text(playlist.dns, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textTertiary)),
+                              Text(playlist.dns, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white60)),
                             ],
                           ),
                         ),
@@ -222,7 +238,7 @@ class _PlaylistsTab extends ConsumerWidget {
                           children: [
                             IconButton(
                               icon: const Icon(Icons.edit_outlined, size: 20),
-                              color: AppColors.textSecondary,
+                              color: Colors.white70,
                               onPressed: () => _showPlaylistDialog(context, ref, playlist),
                               tooltip: 'Edit',
                             ),
@@ -337,7 +353,7 @@ class _UsersTab extends ConsumerWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-               Text('${usersAsync.asData?.value.length ?? 0} Users', style: Theme.of(context).textTheme.bodyLarge),
+               Text('${usersAsync.asData?.value.length ?? 0} Users', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white70)),
               GradientButton(
                 label: 'Create User',
                 icon: Icons.person_add,
@@ -394,7 +410,7 @@ class _UsersTab extends ConsumerWidget {
                             children: [
                               Row(
                                 children: [
-                                  Text(user.username, style: Theme.of(context).textTheme.titleMedium),
+                                  Text(user.username, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white)),
                                   if (user.isAdmin) ...[
                                     const SizedBox(width: 8),
                                     Container(
@@ -409,12 +425,12 @@ class _UsersTab extends ConsumerWidget {
                                 ],
                               ),
                               const SizedBox(height: 4),
-                              Text('ID: ${user.id}', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textTertiary)),
+                              Text('ID: ${user.id}', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white60)),
                             ],
                           ),
                         ),
                         PopupMenuButton<String>(
-                          icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
+                          icon: const Icon(Icons.more_vert, color: Colors.white70),
                           color: AppColors.surface,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           onSelected: (value) {
