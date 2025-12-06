@@ -255,6 +255,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
             builder: (context) => PlayerScreen(
               streamId: channel.streamId,
               title: channel.name,
+              playlist: widget.playlist,
               streamType: StreamType.live,
             ),
           ),

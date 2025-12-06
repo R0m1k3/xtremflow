@@ -5,6 +5,7 @@ import 'package:chewie/chewie.dart';
 import '../providers/xtream_provider.dart';
 import '../widgets/epg_overlay.dart';
 import '../../../core/models/iptv_models.dart';
+import '../../../core/models/playlist_config.dart';
 
 /// Stream type enum for player
 enum StreamType { live, vod, series }
@@ -15,11 +16,13 @@ class PlayerScreen extends ConsumerStatefulWidget {
   final String title;
   final StreamType streamType;
   final String containerExtension;
+  final PlaylistConfig playlist;
 
   const PlayerScreen({
     super.key,
     required this.streamId,
     required this.title,
+    required this.playlist,
     this.streamType = StreamType.live,
     this.containerExtension = 'm3u8',
   });
@@ -42,7 +45,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   Future<void> _initializePlayer() async {
     try {
-      final xtreamService = ref.read(activeXtreamServiceProvider);
+      final xtreamService = ref.read(xtreamServiceProvider(widget.playlist));
       
       // Generate stream URL based on type
       late String streamUrl;
@@ -177,7 +180,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         bottom: 80,
                         left: 0,
                         right: 0,
-                        child: EpgOverlay(streamId: widget.streamId),
+                        child: EpgOverlay(
+                          streamId: widget.streamId,
+                          playlist: widget.playlist,
+                        ),
                       ),
                   ],
                 ),
