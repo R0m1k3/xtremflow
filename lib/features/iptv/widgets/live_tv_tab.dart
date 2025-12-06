@@ -81,6 +81,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
            
            // Filter Logic
            List<Channel> displayedChannels = [];
+           bool showingCategoryGrid = false;
            
            if (_searchQuery.isNotEmpty) {
              // Global Search
@@ -93,37 +94,47 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                  .where((c) => favorites.contains(c.streamId))
                  .toList();
            } else if (_selectedCategory != null) {
-              // Selected Category
+              // Selected Category View
               displayedChannels = groupedChannels[_selectedCategory] ?? [];
            } else {
-             // Default: Show first category or All if practical, but "All" is too big.
-             // Apple TV pattern: Auto-select first category if nothing selected.
-             if (categories.isNotEmpty) {
-                // We don't want to trigger setState during build, so we just use the first category functionality
-                // But visualized as "All" might be confusing with map keys.
-                // Let's default to the first category in the list.
-                _selectedCategory ??= categories.first;
-                displayedChannels = groupedChannels[_selectedCategory] ?? [];
-             }
+             // Category Grid View (Default)
+             showingCategoryGrid = true;
            }
 
           return Column(
             children: [
-              // Minimalist Header
+              // Header
               Container(
-                padding: const EdgeInsets.only(left: 24, right: 24, top: 16, bottom: 8),
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
                 child: Row(
                   children: [
+                    // Back Button (if in category view and not searching)
+                    if (_selectedCategory != null && _searchQuery.isEmpty && !_showFavoritesOnly) ...[
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+                        onPressed: () {
+                          setState(() {
+                            _selectedCategory = null;
+                            _mainScrollController.jumpTo(0);
+                          });
+                        },
+                        tooltip: 'Back to Categories',
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+
                     Text(
-                      'Live TV',
+                      _searchQuery.isNotEmpty ? 'Search Results' : 
+                      _showFavoritesOnly ? 'Favorites' :
+                      _selectedCategory ?? 'Live TV',
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),
                     const Spacer(),
                     
                     // Search Pill
                     Container(
-                      width: 250,
-                      height: 36,
+                      width: 300,
+                      height: 40,
                       decoration: BoxDecoration(
                         color: AppColors.surface,
                         borderRadius: BorderRadius.circular(AppTheme.radiusFull),
@@ -132,17 +143,17 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: Row(
                         children: [
-                          const Icon(Icons.search, size: 18, color: AppColors.textSecondary),
+                          const Icon(Icons.search, size: 20, color: AppColors.textSecondary),
                           const SizedBox(width: 8),
                           Expanded(
                             child: TextField(
                               controller: _searchController,
-                              style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                              style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
                               decoration: const InputDecoration(
                                 hintText: 'Search channels',
                                 border: InputBorder.none,
                                 isDense: true,
-                                contentPadding: EdgeInsets.only(bottom: 12),
+                                contentPadding: EdgeInsets.only(bottom: 11),
                               ),
                             ),
                           ),
@@ -166,63 +177,41 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                          setState(() {
                            _showFavoritesOnly = !_showFavoritesOnly;
                            if (_showFavoritesOnly) _searchController.clear();
+                           _selectedCategory = null; // Reset selection when toggling favorites
                          });
                       },
                       tooltip: 'Favorites Only',
                     ),
-                    IconButton(
-                      icon: Icon(
-                        _isGridView ? Icons.view_list : Icons.grid_view,
-                        color: AppColors.textSecondary,
+                    
+                    // View Toggle (Only show when not in category grid)
+                    if (!showingCategoryGrid)
+                      IconButton(
+                        icon: Icon(
+                          _isGridView ? Icons.view_list : Icons.grid_view,
+                          color: AppColors.textSecondary,
+                        ),
+                        onPressed: () => setState(() => _isGridView = !_isGridView),
+                        tooltip: 'Toggle View',
                       ),
-                      onPressed: () => setState(() => _isGridView = !_isGridView),
-                      tooltip: 'Toggle View',
-                    ),
                   ],
                 ),
               ),
 
-              // Categories Horizontal List (Only if not searching/favorites)
-              if (_searchQuery.isEmpty && !_showFavoritesOnly)
-                Container(
-                  height: 48,
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    scrollDirection: Axis.horizontal,
-                    itemCount: categories.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (context, index) {
-                      final category = categories[index];
-                      final isSelected = category == _selectedCategory;
-                      return CategoryChip(
-                        label: category,
-                        isSelected: isSelected,
-                        onTap: () {
-                          setState(() {
-                            _selectedCategory = category;
-                            _mainScrollController.jumpTo(0); // Reset scroll
-                          });
-                        },
-                      );
-                    },
-                  ),
-                ),
-
-              const SizedBox(height: 8),
-
-              // Channels Content
+              // Content
               Expanded(
-                child: displayedChannels.isEmpty
-                  ? Center(
-                      child: Text(
-                        _showFavoritesOnly ? 'No favorites' : 'No channels found',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
-                      ),
-                    )
-                  : _isGridView
-                      ? _buildGridView(displayedChannels)
-                      : _buildListView(displayedChannels),
+                child: showingCategoryGrid
+                    ? _buildCategoryGrid(categories, groupedChannels)
+                    : displayedChannels.isEmpty
+                        ? Center(
+                            child: Text(
+                              _searchQuery.isNotEmpty ? 'No channels found' : 
+                              _showFavoritesOnly ? 'No favorites' : 'No channels in this group',
+                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
+                            ),
+                          )
+                        : _isGridView
+                            ? _buildChannelGrid(displayedChannels)
+                            : _buildChannelList(displayedChannels),
               ),
             ],
           );
@@ -231,7 +220,94 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
     );
   }
 
-  Widget _buildGridView(List<Channel> channels) {
+  Widget _buildCategoryGrid(List<String> categories, Map<String, List<Channel>> groupedChannels) {
+    final columns = ResponsiveLayout.value(
+      context,
+      mobile: 2,
+      tablet: 3,
+      desktop: 5,
+    );
+
+    return GridView.builder(
+      controller: _mainScrollController,
+      padding: const EdgeInsets.all(24),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
+        mainAxisSpacing: 16,
+        crossAxisSpacing: 16,
+        childAspectRatio: 1.5,
+      ),
+      itemCount: categories.length,
+      itemBuilder: (context, index) {
+        final category = categories[index];
+        final count = groupedChannels[category]?.length ?? 0;
+        
+        return Card(
+          clipBehavior: Clip.antiAlias,
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: InkWell(
+            onTap: () {
+              setState(() {
+                _selectedCategory = category;
+                _mainScrollController.jumpTo(0);
+              });
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.surface,
+                    AppColors.surface.withOpacity(0.8),
+                  ],
+                ),
+                border: Border.all(color: AppColors.border.withOpacity(0.5)),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.folder_open, color: AppColors.primary, size: 32),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    category,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$count Channels',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildChannelGrid(List<Channel> channels) {
     final columns = ResponsiveLayout.value(
       context,
       mobile: 2,
@@ -241,12 +317,12 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
 
     return GridView.builder(
       controller: _mainScrollController,
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: columns,
         mainAxisSpacing: 16,
         crossAxisSpacing: 16,
-        childAspectRatio: 1.3, // Card ratio 4:3ish
+        childAspectRatio: 1.3,
       ),
       itemCount: channels.length,
       itemBuilder: (context, index) {
@@ -262,10 +338,10 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
     );
   }
 
-  Widget _buildListView(List<Channel> channels) {
+  Widget _buildChannelList(List<Channel> channels) {
     return ListView.separated(
       controller: _mainScrollController,
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       itemCount: channels.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
