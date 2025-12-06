@@ -153,16 +153,26 @@ Handler _createXtreamProxyHandler() {
 
       print('Proxying request to: $targetUrl');
 
-      // Use simple http.get/post with timeout
+      // Headers to simulate a legitimate IPTV client
+      // Many IPTV servers check User-Agent and Referer to prevent unauthorized access
+      final proxyHeaders = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': baseUrl,
+        'Origin': baseUrl,
+      };
+
+      // Use simple http.get/post with timeout and proper headers
       http.Response response;
       if (request.method == 'GET') {
-        response = await http.get(targetUrl).timeout(
+        response = await http.get(targetUrl, headers: proxyHeaders).timeout(
           const Duration(seconds: 30),
           onTimeout: () => http.Response('Request timeout', 504),
         );
       } else if (request.method == 'POST') {
         final body = await request.readAsString();
-        response = await http.post(targetUrl, body: body).timeout(
+        response = await http.post(targetUrl, headers: proxyHeaders, body: body).timeout(
           const Duration(seconds: 30),
           onTimeout: () => http.Response('Request timeout', 504),
         );
