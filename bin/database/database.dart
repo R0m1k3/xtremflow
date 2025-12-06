@@ -151,6 +151,34 @@ class AppDatabase {
     );
   }
 
+  /// Get all users
+  List<User> getAllUsers() {
+    final result = _db.select('SELECT * FROM users ORDER BY username ASC');
+    return result.map((row) => User.fromMap(row)).toList();
+  }
+
+  /// Update user password
+  void updateUserPassword(String userId, String newPassword) {
+    final passwordHash = PasswordHasher.hash(newPassword);
+    _db.execute(
+      'UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [passwordHash, userId],
+    );
+  }
+
+  /// Update user administration status
+  void updateUserAdminStatus(String userId, bool isAdmin) {
+    _db.execute(
+      'UPDATE users SET is_admin = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [isAdmin ? 1 : 0, userId],
+    );
+  }
+
+  /// Delete user
+  void deleteUser(String userId) {
+    _db.execute('DELETE FROM users WHERE id = ?', [userId]);
+  }
+
   // ==================== Sessions ====================
 
   /// Create new session
