@@ -153,14 +153,15 @@ Handler _createXtreamProxyHandler() {
 
       print('Proxying request to: $targetUrl');
 
-      // Headers to simulate a legitimate IPTV client
-      // Many IPTV servers check User-Agent and Referer to prevent unauthorized access
+      // Headers to simulate a legitimate IPTV client (VLC/Kodi style)
+      // Many IPTV servers check User-Agent to prevent web playback
       final proxyHeaders = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        // Use VLC Media Player User-Agent - most IPTV servers whitelist this
+        'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
         'Accept': '*/*',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Referer': baseUrl,
-        'Origin': baseUrl,
+        'Accept-Encoding': 'identity',
+        'Connection': 'keep-alive',
+        'Icy-MetaData': '1',  // Common for IPTV streams
       };
 
       // Use simple http.get/post with timeout and proper headers
