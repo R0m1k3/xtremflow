@@ -30,14 +30,18 @@ RUN flutter pub get
 RUN flutter build web --release --base-href="/" --verbose
 
 # ============================================
-# Stage 2: Serve with dhttpd (Dart HTTP server)
+# Stage 2: Serve with custom Dart server (with API proxy)
 # ============================================
 FROM dart:stable
 
 WORKDIR /app
 
-# Install dhttpd globally
-RUN dart pub global activate dhttpd
+# Copy server code and pubspec
+COPY bin/server.dart ./bin/
+COPY bin/pubspec.yaml ./
+
+# Get dependencies
+RUN dart pub get
 
 # Copy built web application from builder stage
 COPY --from=builder /app/build/web /app/web
@@ -45,5 +49,5 @@ COPY --from=builder /app/build/web /app/web
 # Expose port (internal only, not mapped to host)
 EXPOSE 8089
 
-# Serve web application
-CMD ["/root/.pub-cache/bin/dhttpd", "--host", "0.0.0.0", "--port", "8089", "--path", "/app/web"]
+# Serve web application with API proxy
+CMD ["dart", "run", "bin/server.dart", "--port", "8089", "--path", "/app/web"]
