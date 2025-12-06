@@ -70,8 +70,8 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
     
     // Filter categories based on keywords
     var categories = groupedChannels.keys.toList();
-    if (settings.filterKeywords.isNotEmpty) {
-      categories = categories.where((cat) => settings.matchesFilter(cat)).toList();
+    if (settings.liveTvKeywords.isNotEmpty) {
+      categories = categories.where((cat) => settings.matchesLiveTvFilter(cat)).toList();
     }
     categories.sort();
 
@@ -88,7 +88,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
             ),
             const SizedBox(height: 8),
             Text(
-              'Filter: ${settings.categoryFilter}',
+              'Filter: ${settings.liveTvCategoryFilter}',
               style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey.shade600),
             ),
           ],
