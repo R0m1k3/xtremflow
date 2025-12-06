@@ -20,7 +20,9 @@ class MoviesTab extends ConsumerStatefulWidget {
 
 class _MoviesTabState extends ConsumerState<MoviesTab> {
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
   final List<Movie> _movies = [];
+  String _searchQuery = '';
   bool _isLoading = false;
   bool _hasMore = true;
   int _currentOffset = 0;
@@ -36,6 +38,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -83,56 +86,114 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
     final settings = ref.watch(iptvSettingsProvider);
     
     // Filter movies by category
-    final filteredMovies = settings.moviesKeywords.isEmpty
+    var filteredMovies = settings.moviesKeywords.isEmpty
         ? _movies
         : _movies.where((m) => settings.matchesMoviesFilter(m.categoryName)).toList();
+    
+    // Apply search filter
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filteredMovies = filteredMovies.where((m) => 
+        m.name.toLowerCase().contains(query)
+      ).toList();
+    }
 
     if (_movies.isEmpty && !_isLoading) {
       return const Center(child: Text('No movies available'));
     }
 
-    if (filteredMovies.isEmpty && _movies.isNotEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.filter_list_off, size: 48, color: Colors.grey),
-            const SizedBox(height: 16),
-            Text(
-              'No movies match the filter',
-              style: GoogleFonts.roboto(color: Colors.grey),
+    return Column(
+      children: [
+        // Search bar
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search movies...',
+              hintStyle: GoogleFonts.roboto(color: Colors.grey.shade500),
+              prefixIcon: const Icon(Icons.search, color: Colors.grey),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.grey),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: Colors.grey.shade800,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Filter: ${settings.moviesCategoryFilter}',
-              style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey.shade600),
-            ),
-          ],
+            style: GoogleFonts.roboto(color: Colors.white),
+            onChanged: (value) => setState(() => _searchQuery = value),
+          ),
         ),
-      );
-    }
+        
+        // Results count
+        if (_searchQuery.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '${filteredMovies.length} result${filteredMovies.length != 1 ? 's' : ''} found',
+                style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey.shade600),
+              ),
+            ),
+          ),
+        
+        // Movie grid
+        Expanded(
+          child: filteredMovies.isEmpty && _movies.isNotEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        _searchQuery.isNotEmpty ? Icons.search_off : Icons.filter_list_off,
+                        size: 48,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _searchQuery.isNotEmpty 
+                            ? 'No movies match "$_searchQuery"'
+                            : 'No movies match the filter',
+                        style: GoogleFonts.roboto(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                )
+              : GridView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(8),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                    crossAxisSpacing: 6,
+                    mainAxisSpacing: 6,
+                    childAspectRatio: 0.65,
+                  ),
+                  itemCount: filteredMovies.length + (_hasMore && _searchQuery.isEmpty ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index >= filteredMovies.length) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-    return GridView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.all(8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 7,
-        crossAxisSpacing: 6,
-        mainAxisSpacing: 6,
-        childAspectRatio: 0.65,
-      ),
-      itemCount: filteredMovies.length + (_hasMore ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index >= filteredMovies.length) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final movie = filteredMovies[index];
-        return _MovieCard(
-          movie: movie,
-          playlist: widget.playlist,
-        );
-      },
+                    final movie = filteredMovies[index];
+                    return _MovieCard(
+                      movie: movie,
+                      playlist: widget.playlist,
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 }
