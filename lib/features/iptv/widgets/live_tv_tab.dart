@@ -148,9 +148,10 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                           Expanded(
                             child: TextField(
                               controller: _searchController,
-                              style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                              style: const TextStyle(fontSize: 14, color: Colors.white),
                               decoration: const InputDecoration(
-                                hintText: 'Search channels',
+                                hintText: 'Rechercher...',
+                                hintStyle: TextStyle(color: Colors.white54),
                                 border: InputBorder.none,
                                 isDense: true,
                                 contentPadding: EdgeInsets.only(bottom: 11),
