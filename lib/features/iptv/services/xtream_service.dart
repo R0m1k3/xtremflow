@@ -326,7 +326,7 @@ class XtreamService {
   }
 
   /// Get movies with pagination support
-  Future<List<xm.Movie>> getMovies({int offset = 0, int limit = 100}) async {
+  Future<List<xm.Movie>> getMoviesPaginated({int offset = 0, int limit = 100}) async {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
 
     try {
