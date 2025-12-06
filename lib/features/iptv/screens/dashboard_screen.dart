@@ -48,7 +48,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     // Glassmorphism Top Bar
     return Scaffold(
       extendBodyBehindAppBar: true, // Content behind app bar
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent, // Transparent to show gradient
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(80),
         child: Container(
@@ -58,19 +58,43 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Colors.black.withOpacity(0.9), // Darker at top
+                Colors.black.withOpacity(0.6), // Subtler top shadow
                 Colors.transparent,
               ],
             ),
           ),
-          child: Row(
+          child: Stack(
+            alignment: Alignment.center,
             children: [
-              // Logo Area
-              _buildLogo(),
+              // 1. Side Elements (Logo & Profile) - Pushed to edges
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Logo Area
+                  _buildLogo(),
+                  
+                  // Search / Profile (Right Side)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.search, color: Colors.white),
+                        onPressed: () {
+                           // Global search trigger
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      const CircleAvatar(
+                        radius: 16,
+                        backgroundColor: Colors.white24,
+                        child: Icon(Icons.person, size: 18, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
               
-              const Spacer(),
-              
-              // Centered Navigation Tabs (Pills)
+              // 2. Centered Navigation Tabs (Pills)
               Container(
                 height: 50,
                 decoration: BoxDecoration(
@@ -108,35 +132,39 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                   }),
                 ),
               ),
-              
-              const Spacer(),
-              
-              // Search / Profile (Right Side)
-              IconButton(
-                icon: const Icon(Icons.search, color: Colors.white),
-                onPressed: () {
-                   // Global search trigger
-                },
-              ),
-              const SizedBox(width: 8),
-              const CircleAvatar(
-                radius: 16,
-                backgroundColor: Colors.white24,
-                child: Icon(Icons.person, size: 18, color: Colors.white),
-              ),
             ],
           ),
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        physics: const NeverScrollableScrollPhysics(), // Disable swipe to avoid gesture conflicts
+      body: Stack(
         children: [
-          // Padding top to account for the transparent AppBar
-          Padding(padding: const EdgeInsets.only(top: 80), child: LiveTVTab(playlist: widget.playlist)),
-          Padding(padding: const EdgeInsets.only(top: 80), child: MoviesTab(playlist: widget.playlist)),
-          Padding(padding: const EdgeInsets.only(top: 80), child: SeriesTab(playlist: widget.playlist)),
-          const Padding(padding: EdgeInsets.only(top: 80), child: SettingsTab()),
+          // Background Gradient (Apple TV Depth Effect)
+          Container(
+            decoration: const BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(0, -0.2), // Slightly above center
+                radius: 1.5,
+                colors: [
+                  Color(0xFF2C2C2E), // Dark Grey center (Light Source)
+                  Color(0xFF000000), // Pure Black edges
+                ],
+                stops: [0.0, 1.0],
+              ),
+            ),
+          ),
+          
+          // Content
+          TabBarView(
+            controller: _tabController,
+            physics: const NeverScrollableScrollPhysics(), // Disable swipe to avoid gesture conflicts
+            children: [
+              // Padding top to account for the transparent AppBar
+              Padding(padding: const EdgeInsets.only(top: 80), child: LiveTVTab(playlist: widget.playlist)),
+              Padding(padding: const EdgeInsets.only(top: 80), child: MoviesTab(playlist: widget.playlist)),
+              Padding(padding: const EdgeInsets.only(top: 80), child: SeriesTab(playlist: widget.playlist)),
+              const Padding(padding: EdgeInsets.only(top: 80), child: SettingsTab()),
+            ],
+          ),
         ],
       ),
     );

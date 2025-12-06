@@ -52,6 +52,11 @@ class _ChannelCardState extends ConsumerState<ChannelCard>
        vsync: this, 
        duration: const Duration(milliseconds: 1000)
     )..repeat(reverse: true);
+    
+    // Fetch EPG immediately when card is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchEpg();
+    });
   }
 
   @override
@@ -107,7 +112,6 @@ class _ChannelCardState extends ConsumerState<ChannelCard>
     return MouseRegion(
       onEnter: (_) {
         setState(() => _isHovered = true);
-        if (!_epgLoaded) _fetchEpg();
       },
       onExit: (_) => setState(() => _isHovered = false),
       cursor: SystemMouseCursors.click,
@@ -228,7 +232,7 @@ class _ChannelCardState extends ConsumerState<ChannelCard>
                       fontSize: 13,
                     ),
                   ),
-                  if ((widget.currentProgram != null || _epgNow != null) && _isHovered) ...[
+                  if ((widget.currentProgram != null || _epgNow != null)) ...[
                     const SizedBox(height: 2),
                     Text(
                       _epgNow ?? widget.currentProgram ?? '',
