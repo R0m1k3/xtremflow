@@ -200,7 +200,8 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     
     return InkWell(
       onTap: onTap,
@@ -210,11 +211,11 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.primary.withOpacity(0.1)
-              : (isDark ? AppColors.surfaceVariantDark : AppColors.surfaceVariantLight),
+              ? colorScheme.primary.withOpacity(0.1)
+              : colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? AppColors.primary : Colors.transparent,
+            color: isSelected ? colorScheme.primary : Colors.transparent,
             width: 2,
           ),
         ),
@@ -223,8 +224,8 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
             Icon(
               icon,
               color: isSelected
-                  ? AppColors.primary
-                  : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -236,15 +237,15 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
                     style: GoogleFonts.inter(
                       fontWeight: FontWeight.w600,
                       color: isSelected
-                          ? AppColors.primary
-                          : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                          ? colorScheme.primary
+                          : colorScheme.onSurface,
                     ),
                   ),
                   Text(
                     subtitle,
                     style: GoogleFonts.inter(
                       fontSize: 12,
-                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -253,13 +254,14 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
             if (isSelected)
               Icon(
                 Icons.check_circle,
-                color: AppColors.primary,
+                color: colorScheme.primary,
               ),
           ],
         ),
       ),
     );
   }
+
 
   Widget _buildFiltersTab(BuildContext context, dynamic currentUser, IptvSettings settings) {
     return ListView(

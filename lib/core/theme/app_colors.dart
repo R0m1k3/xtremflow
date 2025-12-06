@@ -1,125 +1,99 @@
 import 'package:flutter/material.dart';
 
-/// XtremFlow Premium Color Palette
+/// XtremFlow Cinematic Minimalist Palette
 /// 
-/// Modern theme with cyan/teal gradients - supports light and dark modes
+/// A deep, dark, and neutral palette designed for content-first experiences.
+/// Focuses on #0A0A0A backgrounds and subtle surfaces.
 class AppColors {
   AppColors._();
 
-  // ============ PRIMARY GRADIENT ============
-  /// Cyan primary - main accent color
-  static const Color primary = Color(0xFF00BCD4);
+  // ============ BACKGROUNDS ============
+  /// Pitch black for OLED/Main backgrounds
+  static const Color background = Color(0xFF0A0A0A);
   
-  /// Teal secondary - gradient end
-  static const Color secondary = Color(0xFF00ACC1);
+  /// Dark grey for cards/sheets
+  static const Color surface = Color(0xFF141414);
   
-  /// Primary gradient for buttons and highlights
+  /// Slightly lighter for hover states or active items
+  static const Color surfaceLight = Color(0xFF1F1F1F);
+  
+  /// For inputs or secondary surfaces
+  static const Color surfaceVariant = Color(0xFF2A2A2A);
+
+  // ============ ACCENTS (MINIMALIST) ============
+  /// Primary Brand Color (Electric Blue/Violet for modern feel)
+  /// Replacing the old Gradient Cyan with a solid, punchy color.
+  static const Color primary = Color(0xFF3F51B5); // Indigo
+  
+  /// Secondary accent
+  static const Color accent = Color(0xFF7986CB);
+
+  /// Primary Gradient (Subtle, for buttons only)
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [primary, secondary],
+    colors: [primary, accent],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
-  // ============ DARK MODE SURFACE COLORS ============
-  /// Deep dark background
-  static const Color backgroundDark = Color(0xFF0A0E1A);
+  // ============ TEXT ============
+  /// Pure white for high contrast headers
+  static const Color textPrimary = Color(0xFFFFFFFF);
   
-  /// Card/elevated surface (dark)
-  static const Color surfaceDark = Color(0xFF121829);
+  /// Light grey for body text
+  static const Color textSecondary = Color(0xFFB3B3B3);
   
-  /// Lighter surface variant (dark)
-  static const Color surfaceVariantDark = Color(0xFF1E2638);
+  /// Darker grey for hints/disabled
+  static const Color textTertiary = Color(0xFF808080);
   
-  /// Border/divider color (dark)
-  static const Color borderDark = Color(0xFF2A3441);
+  // ============ FUNCTIONAL COLORS ============
+  static const Color success = Color(0xFF4CAF50);
+  static const Color warning = Color(0xFFFFC107);
+  static const Color error = Color(0xFFCF6679);
+  static const Color info = Color(0xFF2196F3);
+  static const Color live = Color(0xFFFF0000); // Standard Red for LIVE
 
-  // ============ LIGHT MODE SURFACE COLORS ============
-  /// Light background
-  static const Color backgroundLight = Color(0xFFF5F7FA);
-  
-  /// Card/elevated surface (light)
-  static const Color surfaceLight = Color(0xFFFFFFFF);
-  
-  /// Lighter surface variant (light)
-  static const Color surfaceVariantLight = Color(0xFFF0F2F5);
-  
-  /// Border/divider color (light)
-  static const Color borderLight = Color(0xFFE2E8F0);
-
-  // ============ DARK MODE TEXT COLORS ============
-  static const Color textPrimaryDark = Color(0xFFF5F5F5);
-  static const Color textSecondaryDark = Color(0xFF94A3B8);
-  static const Color textDisabledDark = Color(0xFF64748B);
-
-  // ============ LIGHT MODE TEXT COLORS ============
-  static const Color textPrimaryLight = Color(0xFF1A1A2E);
-  static const Color textSecondaryLight = Color(0xFF64748B);
-  static const Color textDisabledLight = Color(0xFF94A3B8);
-
-  // ============ LEGACY ALIASES (for backwards compatibility) ============
-  static const Color background = backgroundDark;
-  static const Color surface = surfaceDark;
-  static const Color surfaceVariant = surfaceVariantDark;
-  static const Color border = borderDark;
-  static const Color textPrimary = textPrimaryDark;
-  static const Color textSecondary = textSecondaryDark;
-  static const Color textDisabled = textDisabledDark;
-  static const Color overlay = Color(0xCC0A0E14);
-
-  // ============ ACCENT COLORS ============
-  /// Live indicator red
-  static const Color live = Color(0xFFFF6B6B);
-  
-  /// Success green
-  static const Color success = Color(0xFF4ADE80);
-  
-  /// Warning amber
-  static const Color warning = Color(0xFFFBBF24);
-  
-  /// Error red
-  static const Color error = Color(0xFFEF4444);
-  
-  /// Info blue
-  static const Color info = Color(0xFF3B82F6);
-
-  // ============ CATEGORY COLORS ============
-  static const List<Color> categoryColors = [
-    Color(0xFF6366F1), // Indigo
-    Color(0xFFEC4899), // Pink
-    Color(0xFF8B5CF6), // Purple
-    Color(0xFF14B8A6), // Teal
-    Color(0xFFF59E0B), // Amber
-    Color(0xFF10B981), // Emerald
-  ];
+  // ============ BORDERS ============
+  static const Color border = Color(0xFF333333);
 
   // ============ GLASSMORPHISM ============
-  static const Color glassBackground = Color(0x1AFFFFFF);
-  static const Color glassBorder = Color(0x33FFFFFF);
-  static const Color glassBackgroundLight = Color(0x40FFFFFF);
-  static const Color glassBorderLight = Color(0x20000000);
+  static final Color glassBackground = const Color(0xFF1E1E1E).withOpacity(0.7);
+  static final Color glassBorder = const Color(0xFFFFFFFF).withOpacity(0.1);
 
-  // ============ DARK THEME COLOR SCHEME ============
+  // ============ CATEGORY COLORS (MUTED) ============
+  static const List<Color> categoryColors = [
+    Color(0xFF5C6BC0), // Indigo
+    Color(0xFFAB47BC), // Purple
+    Color(0xFFEF5350), // Red
+    Color(0xFF26A69A), // Teal
+    Color(0xFFFFA726), // Orange
+    Color(0xFF78909C), // Blue Grey
+  ];
+
+  // ============ THEME SCHEMES ============
   static ColorScheme get darkColorScheme => const ColorScheme.dark(
     primary: primary,
-    secondary: secondary,
-    surface: surfaceDark,
+    secondary: accent,
+    surface: surface,
+    background: background,
     error: error,
-    onPrimary: Color(0xFF000000),
-    onSecondary: Color(0xFF000000),
-    onSurface: textPrimaryDark,
-    onError: Color(0xFFFFFFFF),
+    onPrimary: Colors.white,
+    onSecondary: Colors.white,
+    onSurface: textPrimary,
+    onError: Colors.white,
+    brightness: Brightness.dark,
   );
 
-  // ============ LIGHT THEME COLOR SCHEME ============
+  // Minimalist Light Scheme (if ever toggled)
   static ColorScheme get lightColorScheme => const ColorScheme.light(
     primary: primary,
-    secondary: secondary,
-    surface: surfaceLight,
+    secondary: accent,
+    surface: Color(0xFFF5F5F5),
+    background: Colors.white,
     error: error,
-    onPrimary: Color(0xFFFFFFFF),
-    onSecondary: Color(0xFFFFFFFF),
-    onSurface: textPrimaryLight,
-    onError: Color(0xFFFFFFFF),
+    onPrimary: Colors.white,
+    onSecondary: Colors.black,
+    onSurface: Color(0xFF121212),
+    onError: Colors.white,
+    brightness: Brightness.light,
   );
 }
-
