@@ -145,7 +145,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 labelText: 'Username',
                                 prefixIcon: const Icon(Icons.person_outline),
                                 fillColor: AppColors.surface,
-                                hoverColor: AppColors.surfaceLight,
+                                hoverColor: AppColors.surface.withOpacity(0.8),
                               ),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
