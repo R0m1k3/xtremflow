@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:html' as html;
 import 'dart:ui_web' as ui_web;
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../providers/xtream_provider.dart';
 import '../widgets/epg_overlay.dart';
 import '../../../core/models/playlist_config.dart';
@@ -9,7 +11,7 @@ import '../../../core/models/playlist_config.dart';
 /// Stream type enum for player
 enum StreamType { live, vod, series }
 
-/// Video player screen using HTML5 player with mpegts.js for TS streams
+/// Video player screen using FFmpeg transcoding for live streams
 class PlayerScreen extends ConsumerStatefulWidget {
   final String streamId;
   final String title;
@@ -31,10 +33,12 @@ class PlayerScreen extends ConsumerStatefulWidget {
 }
 
 class _PlayerScreenState extends ConsumerState<PlayerScreen> {
-  String? _streamUrl;
+  String? _hlsUrl;
   String? _errorMessage;
+  String? _statusMessage;
   late String _viewId;
   bool _isInitialized = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -43,8 +47,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _initializePlayer();
   }
 
-  void _initializePlayer() {
+  Future<void> _initializePlayer() async {
     try {
+      setState(() {
+        _isLoading = true;
+        _statusMessage = 'Validating playlist...';
+      });
+
       // Validate playlist before proceeding
       if (widget.playlist.dns.isEmpty || 
           widget.playlist.username.isEmpty || 
@@ -53,35 +62,57 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       }
 
       final xtreamService = ref.read(xtreamServiceProvider(widget.playlist));
-      
-      // Explicitly ensure playlist is set (defensive programming)
       xtreamService.setPlaylist(widget.playlist);
       
-      // Generate stream URL based on type
-      late String streamUrl;
-      switch (widget.streamType) {
-        case StreamType.live:
-          streamUrl = xtreamService.getLiveStreamUrl(widget.streamId);
-          break;
-        case StreamType.vod:
-          streamUrl = xtreamService.getVodStreamUrl(
-            widget.streamId,
-            widget.containerExtension,
-          );
-          break;
-        case StreamType.series:
-          streamUrl = xtreamService.getSeriesStreamUrl(
-            widget.streamId,
-            widget.containerExtension,
-          );
-          break;
+      String hlsUrl;
+      
+      if (widget.streamType == StreamType.live) {
+        // For live streams, use FFmpeg transcoding
+        setState(() {
+          _statusMessage = 'Starting stream transcoding...';
+        });
+        
+        // Build the FFmpeg endpoint URL
+        final baseUrl = html.window.location.origin;
+        final iptvUrl = '${widget.playlist.dns}/live/${widget.playlist.username}/${widget.playlist.password}/${widget.streamId}.ts';
+        final encodedUrl = Uri.encodeComponent(iptvUrl);
+        final streamEndpoint = '$baseUrl/api/stream/${widget.streamId}?url=$encodedUrl';
+        
+        debugPrint('PlayerScreen: Starting FFmpeg stream: $streamEndpoint');
+        
+        // Call the FFmpeg streaming endpoint
+        final response = await http.get(Uri.parse(streamEndpoint));
+        
+        if (response.statusCode != 200) {
+          throw Exception('Failed to start stream: ${response.body}');
+        }
+        
+        final data = jsonDecode(response.body);
+        if (data['status'] != 'started') {
+          throw Exception('Stream failed to start: ${data['error'] ?? 'Unknown error'}');
+        }
+        
+        // Get the local HLS URL
+        hlsUrl = '$baseUrl${data['hlsUrl']}';
+        debugPrint('PlayerScreen: FFmpeg HLS URL: $hlsUrl');
+        
+      } else {
+        // For VOD and Series, use direct proxy (they usually work)
+        final streamUrl = widget.streamType == StreamType.vod
+            ? xtreamService.getVodStreamUrl(widget.streamId, widget.containerExtension)
+            : xtreamService.getSeriesStreamUrl(widget.streamId, widget.containerExtension);
+        hlsUrl = streamUrl;
       }
       
-      debugPrint('PlayerScreen: Initializing stream URL: $streamUrl');
+      setState(() {
+        _statusMessage = 'Loading player...';
+      });
       
       // Register the HTML view with an iframe pointing to our player.html
-      final encodedUrl = Uri.encodeComponent(streamUrl);
-      final playerUrl = 'player.html?url=$encodedUrl';
+      final encodedHlsUrl = Uri.encodeComponent(hlsUrl);
+      final playerUrl = 'player.html?url=$encodedHlsUrl';
+      
+      debugPrint('PlayerScreen: Player URL: $playerUrl');
       
       // Register platform view factory
       // ignore: undefined_prefixed_name
@@ -100,11 +131,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       );
 
       setState(() {
-        _streamUrl = streamUrl;
+        _hlsUrl = hlsUrl;
         _isInitialized = true;
+        _isLoading = false;
       });
     } catch (e) {
+      debugPrint('PlayerScreen error: $e');
       setState(() {
+        _isLoading = false;
         _errorMessage = e.toString();
       });
     }
@@ -147,30 +181,55 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       textAlign: TextAlign.center,
                     ),
                   ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _errorMessage = null;
+                        _isLoading = true;
+                      });
+                      _initializePlayer();
+                    },
+                    child: const Text('Retry'),
+                  ),
                 ],
               ),
             )
-          : !_isInitialized
-              ? const Center(
-                  child: CircularProgressIndicator(),
-                )
-              : Stack(
-                  children: [
-                    // HTML5 video player via iframe
-                    HtmlElementView(viewType: _viewId),
-                    // EPG overlay for live streams
-                    if (widget.streamType == StreamType.live)
-                      Positioned(
-                        bottom: 80,
-                        left: 0,
-                        right: 0,
-                        child: EpgOverlay(
-                          streamId: widget.streamId,
-                          playlist: widget.playlist,
-                        ),
+          : _isLoading
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(
+                        _statusMessage ?? 'Loading...',
+                        style: const TextStyle(color: Colors.white70),
                       ),
-                  ],
-                ),
+                    ],
+                  ),
+                )
+              : !_isInitialized
+                  ? const Center(
+                      child: CircularProgressIndicator(),
+                    )
+                  : Stack(
+                      children: [
+                        // HTML5 video player via iframe
+                        HtmlElementView(viewType: _viewId),
+                        // EPG overlay for live streams
+                        if (widget.streamType == StreamType.live)
+                          Positioned(
+                            bottom: 80,
+                            left: 0,
+                            right: 0,
+                            child: EpgOverlay(
+                              streamId: widget.streamId,
+                              playlist: widget.playlist,
+                            ),
+                          ),
+                      ],
+                    ),
     );
   }
 }
