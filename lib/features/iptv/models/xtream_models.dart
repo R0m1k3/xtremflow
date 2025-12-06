@@ -263,15 +263,13 @@ class ShortEPG {
 
     final now = DateTime.now();
 
-    // Helper to decode Base64 encoded title
+    // Helper to decode Base64 encoded title with proper UTF-8 support
     String decodeTitle(String? encodedTitle) {
       if (encodedTitle == null || encodedTitle.isEmpty) return '';
       try {
-        // Try Base64 decode
-        final decoded = String.fromCharCodes(
-          base64Decode(encodedTitle),
-        );
-        return decoded;
+        // Try Base64 decode with UTF-8 encoding
+        final bytes = base64Decode(encodedTitle);
+        return utf8.decode(bytes, allowMalformed: true);
       } catch (_) {
         // Not Base64, return as-is
         return encodedTitle;
