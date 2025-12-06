@@ -218,10 +218,10 @@ class _ShimmerLoadingState extends State<ShimmerLoading>
             gradient: LinearGradient(
               begin: Alignment(_animation.value - 1, 0),
               end: Alignment(_animation.value + 1, 0),
-              colors: const [
-                AppColors.surfaceVariant,
+              colors: [
+                AppColors.surface.withOpacity(0.5),
                 AppColors.surface,
-                AppColors.surfaceVariant,
+                AppColors.surface.withOpacity(0.5),
               ],
             ),
           ),
@@ -280,7 +280,7 @@ class CategoryChip extends StatelessWidget {
     return Material(
       color: isSelected
           ? AppColors.primary.withOpacity(0.2)
-          : AppColors.surfaceVariant,
+          : AppColors.surface,
       borderRadius: BorderRadius.circular(AppTheme.radiusFull),
       child: InkWell(
         onTap: onTap,

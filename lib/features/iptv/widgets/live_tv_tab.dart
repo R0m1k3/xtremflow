@@ -8,6 +8,7 @@ import '../screens/player_screen.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/responsive_layout.dart';
 import 'channel_card.dart';
 
@@ -153,7 +154,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                     : null,
                 isDense: true,
                 filled: true,
-                fillColor: AppColors.surfaceVariant,
+                fillColor: AppColors.surface.withOpacity(0.5),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide.none,
@@ -238,7 +239,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppColors.surfaceLight,
+                  AppColors.surface.withOpacity(0.8),
                   AppColors.surface,
                 ],
               ),
@@ -313,7 +314,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: AppColors.surfaceVariant.withOpacity(0.5),
+            color: AppColors.surface.withOpacity(0.5),
             child: Row(
               children: [
                 IconButton(
