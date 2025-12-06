@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/playlist_config.dart';
-import '../../widgets/mobile_scaffold.dart';
-import '../../theme/mobile_theme.dart';
+import '../../../widgets/mobile_scaffold.dart';
+import '../../../theme/mobile_theme.dart';
 import '../widgets/mobile_live_tv_tab.dart';
 import '../widgets/mobile_movies_tab.dart';
 import '../widgets/mobile_series_tab.dart';
