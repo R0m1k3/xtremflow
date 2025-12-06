@@ -6,6 +6,7 @@ import '../../../core/models/playlist_config.dart';
 import '../models/xtream_models.dart';
 import '../providers/xtream_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/watch_history_provider.dart';
 import '../screens/player_screen.dart';
 
 class MoviesTab extends ConsumerStatefulWidget {
@@ -136,7 +137,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
   }
 }
 
-class _MovieCard extends StatelessWidget {
+class _MovieCard extends ConsumerWidget {
   final Movie movie;
   final PlaylistConfig playlist;
 
@@ -146,12 +147,17 @@ class _MovieCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final watchHistory = ref.watch(watchHistoryProvider);
+    final isWatched = watchHistory.isMovieWatched(movie.streamId);
+
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
-          // Use PlayerScreen for VOD (video on demand)
+          // Mark as watched when opening
+          ref.read(watchHistoryProvider.notifier).markMovieWatched(movie.streamId);
+          
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -165,67 +171,93 @@ class _MovieCard extends StatelessWidget {
             ),
           );
         },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        onLongPress: () {
+          // Toggle watched status on long press
+          ref.read(watchHistoryProvider.notifier).toggleMovieWatched(movie.streamId);
+        },
+        child: Stack(
           children: [
-            Expanded(
-              child: movie.streamIcon != null
-                  ? CachedNetworkImage(
-                      imageUrl: movie.streamIcon!,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: Colors.grey.shade800,
-                        child: const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        color: Colors.grey.shade800,
-                        child: const Icon(Icons.movie, size: 48),
-                      ),
-                    )
-                  : Container(
-                      color: Colors.grey.shade800,
-                      child: const Icon(Icons.movie, size: 48),
-                    ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    movie.name,
-                    style: GoogleFonts.roboto(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (movie.rating != null) ...[
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.star,
-                          size: 12,
-                          color: Colors.amber.shade700,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          movie.rating!,
-                          style: GoogleFonts.roboto(
-                            fontSize: 10,
-                            color: Colors.grey.shade600,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: movie.streamIcon != null
+                      ? CachedNetworkImage(
+                          imageUrl: movie.streamIcon!,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            color: Colors.grey.shade800,
+                            child: const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
                           ),
+                          errorWidget: (context, url, error) => Container(
+                            color: Colors.grey.shade800,
+                            child: const Icon(Icons.movie, size: 48),
+                          ),
+                        )
+                      : Container(
+                          color: Colors.grey.shade800,
+                          child: const Icon(Icons.movie, size: 48),
+                        ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        movie.name,
+                        style: GoogleFonts.roboto(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (movie.rating != null) ...[
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.star,
+                              size: 12,
+                              color: Colors.amber.shade700,
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              movie.rating!,
+                              style: GoogleFonts.roboto(
+                                fontSize: 10,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
-                    ),
-                  ],
-                ],
-              ),
+                    ],
+                  ),
+                ),
+              ],
             ),
+            // Watched indicator
+            if (isWatched)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: Colors.green,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.check,
+                    size: 14,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
