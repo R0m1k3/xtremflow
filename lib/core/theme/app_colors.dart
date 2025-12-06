@@ -1,73 +1,58 @@
 import 'package:flutter/material.dart';
 
-/// XtremFlow Cinematic Minimalist Palette
+/// XtremFlow Apple TV Style Palette
 /// 
-/// A deep, dark, and neutral palette designed for content-first experiences.
-/// Focuses on #0A0A0A backgrounds and subtle surfaces.
+/// Ultra minimalist, focus-driven palette.
+/// - Background: Pure Black (#000000)
+/// - Focus/Active: Pure White (#FFFFFF)
+/// - Inactive: Grey (#9E9E9E)
+/// - Glass: Heavy blur with low opacity
 class AppColors {
   AppColors._();
 
   // ============ BACKGROUNDS ============
-  /// Pitch black for OLED/Main backgrounds
-  static const Color background = Color(0xFF0A0A0A);
+  /// Pure black for that infinite depth look (OLED friendly)
+  static const Color background = Color(0xFF000000);
   
-  /// Dark grey for cards/sheets
-  static const Color surface = Color(0xFF141414);
+  /// Very deep grey for surfaces that need to be distinct but subtle
+  static const Color surface = Color(0xFF121212);
   
-  /// Slightly lighter for hover states or active items
-  static const Color surfaceLight = Color(0xFF1F1F1F);
-  
-  /// For inputs or secondary surfaces
-  static const Color surfaceVariant = Color(0xFF2A2A2A);
+  /// Focused element background (often white in tvOS for text, or bright accent)
+  static const Color focusColor = Color(0xFFFFFFFF);
 
-  // ============ ACCENTS (MINIMALIST) ============
-  /// Primary Brand Color (Electric Blue/Violet for modern feel)
-  /// Replacing the old Gradient Cyan with a solid, punchy color.
-  static const Color primary = Color(0xFF3F51B5); // Indigo
-  
-  /// Secondary accent
-  static const Color accent = Color(0xFF7986CB);
+  // ============ ACCENTS ============
+  /// Minimal white accent. In Apple TV, color is used sparingly.
+  /// We keep a subtle blue only for specific indicators if needed.
+  static const Color primary = Color(0xFFFFFFFF); 
+  static const Color accent = Color(0xFFE5E5E5);
 
-  /// Primary Gradient (Subtle, for buttons only)
+  /// Primary Gradient (Subtle silver/white glow)
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [primary, accent],
+    colors: [Color(0xFFFFFFFF), Color(0xFFCCCCCC)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   // ============ TEXT ============
-  /// Pure white for high contrast headers
   static const Color textPrimary = Color(0xFFFFFFFF);
-  
-  /// Light grey for body text
-  static const Color textSecondary = Color(0xFFB3B3B3);
-  
-  /// Darker grey for hints/disabled
-  static const Color textTertiary = Color(0xFF808080);
-  
+  static const Color textSecondary = Color(0xFF9E9E9E); // Medium Grey
+  static const Color textTertiary = Color(0xFF616161); // Darker Grey
+
   // ============ FUNCTIONAL COLORS ============
-  static const Color success = Color(0xFF4CAF50);
-  static const Color warning = Color(0xFFFFC107);
-  static const Color error = Color(0xFFCF6679);
-  static const Color info = Color(0xFF2196F3);
-  static const Color live = Color(0xFFFF0000); // Standard Red for LIVE
+  static const Color success = Color(0xFF4DB6AC); // Teal-ish
+  static const Color warning = Color(0xFFFFB74D);
+  static const Color error = Color(0xFFEF5350);
+  static const Color live = Color(0xFFFF3B30); // Apple Red
 
   // ============ BORDERS ============
-  static const Color border = Color(0xFF333333);
+  // Borders are usually hidden until focused
+  static const Color border = Color(0xFF1F1F1F); 
+  static const Color focusBorder = Color(0xFFFFFFFF);
 
   // ============ GLASSMORPHISM ============
-  static final Color glassBackground = const Color(0xFF1E1E1E).withOpacity(0.7);
-  static final Color glassBorder = const Color(0xFFFFFFFF).withOpacity(0.1);
-
-  // ============ CATEGORY COLORS (MUTED) ============
-  static const List<Color> categoryColors = [
-    Color(0xFF5C6BC0), // Indigo
-    Color(0xFFAB47BC), // Purple
-    Color(0xFFEF5350), // Red
-    Color(0xFF26A69A), // Teal
-    Color(0xFFFFA726), // Orange
-    Color(0xFF78909C), // Blue Grey
-  ];
+  // Apple TV uses this heavily for headers/overlays
+  static final Color glassBackground = const Color(0xFF1E1E1E).withOpacity(0.6);
+  static final Color glassBorder = const Color(0xFFFFFFFF).withOpacity(0.15);
 
   // ============ THEME SCHEMES ============
   static ColorScheme get darkColorScheme => const ColorScheme.dark(
@@ -76,23 +61,22 @@ class AppColors {
     surface: surface,
     background: background,
     error: error,
-    onPrimary: Colors.white,
-    onSecondary: Colors.white,
+    onPrimary: Colors.black, // White text on buttons -> Black text on White buttons
+    onSecondary: Colors.black,
     onSurface: textPrimary,
     onError: Colors.white,
     brightness: Brightness.dark,
   );
 
-  // Minimalist Light Scheme (if ever toggled)
   static ColorScheme get lightColorScheme => const ColorScheme.light(
-    primary: primary,
-    secondary: accent,
-    surface: Color(0xFFF5F5F5),
+    primary: Colors.black,
+    secondary: Colors.grey,
+    surface: Color(0xFFF2F2F7),
     background: Colors.white,
     error: error,
     onPrimary: Colors.white,
-    onSecondary: Colors.black,
-    onSurface: Color(0xFF121212),
+    onSecondary: Colors.white,
+    onSurface: Colors.black,
     onError: Colors.white,
     brightness: Brightness.light,
   );

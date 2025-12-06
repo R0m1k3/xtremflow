@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/responsive_layout.dart';
 import '../widgets/live_tv_tab.dart';
 import '../widgets/movies_tab.dart';
 import '../widgets/series_tab.dart';
 import '../widgets/settings_tab.dart';
 
-/// Main dashboard with responsive navigation (Rail for desktop, Bar for mobile)
+/// Apple TV Style Dashboard
+/// 
+/// Uses a floating Top Bar for navigation instead of a sidebar.
+/// Content flows underneath the top bar.
 class DashboardScreen extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
 
@@ -22,181 +25,156 @@ class DashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  int _selectedIndex = 0;
-
-  late final List<Widget> _tabs;
-
-  static const List<NavigationDestination> _destinations = [
-    NavigationDestination(
-      icon: Icon(Icons.live_tv_outlined),
-      selectedIcon: Icon(Icons.live_tv),
-      label: 'TV Live',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.movie_outlined),
-      selectedIcon: Icon(Icons.movie),
-      label: 'Films',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.tv_outlined),
-      selectedIcon: Icon(Icons.tv),
-      label: 'Séries',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.settings_outlined),
-      selectedIcon: Icon(Icons.settings),
-      label: 'Paramètres',
-    ),
-  ];
-
-  static const List<NavigationRailDestination> _railDestinations = [
-    NavigationRailDestination(
-      icon: Icon(Icons.live_tv_outlined),
-      selectedIcon: Icon(Icons.live_tv),
-      label: Text('TV Live'),
-    ),
-    NavigationRailDestination(
-      icon: Icon(Icons.movie_outlined),
-      selectedIcon: Icon(Icons.movie),
-      label: Text('Films'),
-    ),
-    NavigationRailDestination(
-      icon: Icon(Icons.tv_outlined),
-      selectedIcon: Icon(Icons.tv),
-      label: Text('Séries'),
-    ),
-    NavigationRailDestination(
-      icon: Icon(Icons.settings_outlined),
-      selectedIcon: Icon(Icons.settings),
-      label: Text('Paramètres'),
-    ),
-  ];
+class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  
+  final List<String> _tabs = ['Live TV', 'Films', 'Séries', 'Réglages'];
+  final List<IconData> _icons = [Icons.live_tv, Icons.movie, Icons.tv, Icons.settings];
 
   @override
   void initState() {
     super.initState();
-    _tabs = [
-      LiveTVTab(playlist: widget.playlist),
-      MoviesTab(playlist: widget.playlist),
-      SeriesTab(playlist: widget.playlist),
-      const SettingsTab(),
-    ];
+    _tabController = TabController(length: 4, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = ResponsiveLayout.isDesktop(context);
-
+    // Glassmorphism Top Bar
     return Scaffold(
-      appBar: _buildAppBar(),
-      body: isDesktop
-          ? _buildDesktopLayout()
-          : _buildMobileLayout(),
-      bottomNavigationBar: isDesktop ? null : _buildBottomNav(),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      title: Row(
-        children: [
-          // Logo
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.live_tv,
-              color: Colors.black,
-              size: 18,
+      extendBodyBehindAppBar: true, // Content behind app bar
+      backgroundColor: AppColors.background,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(80),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withOpacity(0.9), // Darker at top
+                Colors.transparent,
+              ],
             ),
           ),
-          const SizedBox(width: 12),
-          // Title
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              const Text(
-                'XtremFlow',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+              // Logo Area
+              _buildLogo(),
+              
+              const Spacer(),
+              
+              // Centered Navigation Tabs (Pills)
+              Container(
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  dividerColor: Colors.transparent,
+                  indicator: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  indicatorPadding: const EdgeInsets.all(4),
+                  labelColor: Colors.black, // Active text color (on white)
+                  unselectedLabelColor: Colors.grey,
+                  labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
+                  overlayColor: WidgetStateProperty.all(Colors.transparent),
+                  tabs: List.generate(_tabs.length, (index) {
+                    return Tab(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: [
+                            Icon(_icons[index], size: 18),
+                            const SizedBox(width: 8),
+                            Text(_tabs[index]),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
                 ),
               ),
-              Text(
-                widget.playlist.name,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w400,
-                ),
+              
+              const Spacer(),
+              
+              // Search / Profile (Right Side)
+              IconButton(
+                icon: const Icon(Icons.search, color: Colors.white),
+                onPressed: () {
+                   // Global search trigger
+                },
+              ),
+              const SizedBox(width: 8),
+              const CircleAvatar(
+                radius: 16,
+                backgroundColor: Colors.white24,
+                child: Icon(Icons.person, size: 18, color: Colors.white),
               ),
             ],
           ),
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        physics: const NeverScrollableScrollPhysics(), // Disable swipe to avoid gesture conflicts
+        children: [
+          // Padding top to account for the transparent AppBar
+          Padding(padding: const EdgeInsets.only(top: 80), child: LiveTVTab(playlist: widget.playlist)),
+          Padding(padding: const EdgeInsets.only(top: 80), child: MoviesTab(playlist: widget.playlist)),
+          Padding(padding: const EdgeInsets.only(top: 80), child: SeriesTab(playlist: widget.playlist)),
+          const Padding(padding: EdgeInsets.only(top: 80), child: SettingsTab()),
         ],
       ),
-      actions: [
-        // Search button
-        IconButton(
-          icon: const Icon(Icons.search),
-          onPressed: () {
-            // TODO: Global search
-          },
-        ),
-        const SizedBox(width: 8),
-      ],
     );
   }
 
-  Widget _buildDesktopLayout() {
+  Widget _buildLogo() {
     return Row(
       children: [
-        // Navigation Rail
-        NavigationRail(
-          selectedIndex: _selectedIndex,
-          onDestinationSelected: (index) {
-            setState(() {
-              _selectedIndex = index;
-            });
-          },
-          extended: true,
-          minExtendedWidth: 180,
-          leading: const SizedBox(height: AppTheme.spacing16),
-          destinations: _railDestinations,
-        ),
-        // Divider
-        const VerticalDivider(thickness: 1, width: 1),
-        // Content
-        Expanded(
-          child: AnimatedSwitcher(
-            duration: AppTheme.durationNormal,
-            child: _tabs[_selectedIndex],
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [Color(0xFF43cea2), Color(0xFF185a9d)]), // Green to Blue
+            borderRadius: BorderRadius.circular(10),
           ),
+          child: const Icon(Icons.play_arrow_rounded, color: Colors.white),
+        ),
+        const SizedBox(width: 12),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Xtrem',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 16, color: Colors.white),
+            ),
+            Text(
+              'Flow',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w300, 
+                fontSize: 16, 
+                color: Colors.white.withOpacity(0.8),
+                height: 0.8
+              ),
+            ),
+          ],
         ),
       ],
-    );
-  }
-
-  Widget _buildMobileLayout() {
-    return AnimatedSwitcher(
-      duration: AppTheme.durationNormal,
-      child: _tabs[_selectedIndex],
-    );
-  }
-
-  Widget _buildBottomNav() {
-    return NavigationBar(
-      selectedIndex: _selectedIndex,
-      onDestinationSelected: (index) {
-        setState(() {
-          _selectedIndex = index;
-        });
-      },
-      destinations: _destinations,
     );
   }
 }
