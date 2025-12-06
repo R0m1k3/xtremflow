@@ -1,14 +1,16 @@
 services:
   iptv-web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: xtremflow
-    restart: unless-stopped
+    build: .
     ports:
       - "8089:8089"
     networks:
       - nginx_default
+    volumes:
+      - xtremflow-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  xtremflow-data:
 
 networks:
   nginx_default:

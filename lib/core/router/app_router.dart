@@ -9,14 +9,19 @@ import '../../features/admin/screens/admin_panel.dart';
 import '../models/playlist_config.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authNotifier = ref.watch(authProvider.notifier);
   final authState = ref.watch(authProvider);
 
   return GoRouter(
     initialLocation: '/login',
+    refreshListenable: RouterRefreshNotifier(ref),
     redirect: (context, state) {
       final isLoggedIn = authState.isAuthenticated;
       final isLoginRoute = state.matchedLocation == '/login';
+
+      // Wait for initial auth check to complete
+      if (!authState.isInitialized) {
+        return null;
+      }
 
       // Redirect to login if not authenticated
       if (!isLoggedIn && !isLoginRoute) {
@@ -67,3 +72,14 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+/// Notifier that triggers router refresh when auth state changes
+class RouterRefreshNotifier extends ChangeNotifier {
+  RouterRefreshNotifier(this._ref) {
+    _ref.listen(authProvider, (_, __) {
+      notifyListeners();
+    });
+  }
+
+  final Ref _ref;
+}
