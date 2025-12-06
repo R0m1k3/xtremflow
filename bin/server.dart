@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:args/args.dart';
 import 'database/database.dart';
 import 'api/auth_handler.dart';
+import 'api/users_handler.dart';
 import 'api/playlists_handler.dart';
 import 'middleware/auth_middleware.dart';
 
@@ -30,6 +31,7 @@ void main(List<String> args) async {
   // Create API handlers
   final authHandler = AuthHandler(db);
   final playlistsHandler = PlaylistsHandler(db);
+  final usersHandler = UsersHandler(db);
 
   // Setup router
   final apiRouter = Router()
@@ -38,7 +40,11 @@ void main(List<String> args) async {
     // Playlists endpoints (with auth middleware)
     ..mount('/api/playlists', Pipeline()
       .addMiddleware(authMiddleware(db))
-      .addHandler(playlistsHandler.router.call));
+      .addHandler(playlistsHandler.router.call))
+    // Users endpoints (with auth middleware)
+    ..mount('/api/users', Pipeline()
+      .addMiddleware(authMiddleware(db))
+      .addHandler(usersHandler.router.call));
 
   // Create handlers
   final staticHandler = createStaticHandler(
