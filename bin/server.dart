@@ -414,6 +414,7 @@ Handler _createStreamHandler() {
       final quality = request.url.queryParameters['quality'] ?? 'medium';
       final buffer = request.url.queryParameters['buffer'] ?? 'medium';
       final timeout = request.url.queryParameters['timeout'] ?? 'medium';
+      final mode = request.url.queryParameters['mode'] ?? 'auto'; // direct, transcode, auto
 
       // Map quality to bitrate/CRF
       final (int bitrate, int crf) = switch (quality) {
@@ -470,9 +471,11 @@ Handler _createStreamHandler() {
         '-y',  // Overwrite output files
         '-loglevel', 'warning',  // Reduce verbose output
         '-err_detect', 'ignore_err',  // Ignore decoding errors
-        '-fflags', '+genpts+discardcorrupt',  // Generate PTS, discard corrupt frames
-        '-analyzeduration', isVod ? '10000000' : '2000000',  // 10s for VOD, 2s for live
-        '-probesize', isVod ? '5000000' : '1000000',  // 5MB for VOD, 1MB for live
+        '-fflags', '+genpts+discardcorrupt+nobuffer',  // Generate PTS, discard corrupt, reduce buffering
+        '-flags', 'low_delay',  // Low delay mode
+        '-thread_queue_size', '4096',  // Prevent queue overflow on slow CPU
+        '-analyzeduration', isVod ? '10000000' : '1000000',  // 10s for VOD, 1s for live (faster start)
+        '-probesize', isVod ? '5000000' : '500000',  // 5MB for VOD, 500KB for live (faster start)
         '-user_agent', 'VLC/3.0.18 LibVLC/3.0.18',
         '-headers', 'Accept: */*\r\nConnection: keep-alive\r\n',
       ];
@@ -488,46 +491,68 @@ Handler _createStreamHandler() {
         ]);
       }
       
-      ffmpegArgs.addAll([
-        '-i', iptvUrl,
-        // Video: transcode to H.264 for browser compatibility
-        '-c:v', 'libx264',
-        '-preset', 'veryfast',  // Better quality than ultrafast, still fast
-        '-profile:v', 'main',  // Main profile for better quality HD
-        '-level', '4.0',  // Higher level for HD content
-        '-pix_fmt', 'yuv420p',  // Required for browser compatibility
-        '-crf', '$crf',  // Quality-based encoding from settings
-        '-b:v', '${bitrate}k',  // Video bitrate from settings
-        '-maxrate', '${(bitrate * 1.25).round()}k',  // Allow bursts
-        '-bufsize', '${bufferSize}k',  // Buffer size from settings
-      ]);
+      ffmpegArgs.addAll(['-i', iptvUrl]);
+
+      // Check mode: direct (copy) vs transcode
+      final usePassthrough = mode == 'direct';
       
-      // Add latency flags only for live streams
+      if (usePassthrough) {
+        // PASSTHROUGH MODE: Copy streams without re-encoding (0% CPU)
+        // Only works if source is H.264/AAC compatible with browsers
+        ffmpegArgs.addAll([
+          '-c:v', 'copy',  // Copy video stream as-is
+          '-c:a', 'copy',  // Copy audio stream as-is
+          '-bsf:v', 'h264_mp4toannexb',  // Convert to Annex B format for HLS
+        ]);
+      } else {
+        // TRANSCODE MODE: Re-encode for browser compatibility
+        ffmpegArgs.addAll([
+          // Video: transcode to H.264 for browser compatibility
+          '-c:v', 'libx264',
+          '-preset', 'ultrafast',  // Fastest encoding, lowest CPU (was: veryfast)
+          '-tune', 'zerolatency',  // Low latency for live streaming
+          '-profile:v', 'main',  // Main profile for better quality HD
+          '-level', '4.0',  // Higher level for HD content
+          '-pix_fmt', 'yuv420p',  // Required for browser compatibility
+          '-crf', '$crf',  // Quality-based encoding from settings
+          '-b:v', '${bitrate}k',  // Video bitrate from settings
+          '-maxrate', '${(bitrate * 1.5).round()}k',  // Allow larger bursts
+          '-bufsize', '${bufferSize}k',  // Buffer size from settings
+        ]);
+      }
+      
+      // Add timestamp handling for live streams
       if (!isVod) {
         ffmpegArgs.addAll([
-          '-tune', 'zerolatency',  // Low latency for live streaming
-          '-fps_mode', 'passthrough',  // Pass through timestamps as-is (replaces deprecated -vsync)
+          '-fps_mode', 'passthrough',  // Pass through timestamps as-is
         ]);
       } else {
         ffmpegArgs.addAll([
-          '-fps_mode', 'cfr',  // Constant frame rate for VOD (replaces deprecated -vsync)
+          '-fps_mode', 'cfr',  // Constant frame rate for VOD
           '-g', '48',  // Keyframe every 2 seconds at 24fps
           '-keyint_min', '48',
         ]);
       }
       
+      // Audio handling for transcode mode
+      if (!usePassthrough) {
+        ffmpegArgs.addAll([
+          '-c:a', 'aac',
+          '-b:a', '128k',
+          '-ar', '44100',
+          '-ac', '2',  // Force stereo
+        ]);
+      }
+      
       ffmpegArgs.addAll([
         '-avoid_negative_ts', 'make_zero',  // Handle negative timestamps
-        // Audio: transcode to AAC
-        '-c:a', 'aac',
-        '-b:a', '128k',
-        '-ar', '44100',
-        '-ac', '2',  // Force stereo
+        '-max_muxing_queue_size', '1024',  // Prevent queue overflow
         // HLS output settings - optimized for stability
         '-f', 'hls',
         '-hls_time', isVod ? '4' : '$segmentDuration',  // Segment duration from settings for live
-        '-hls_list_size', isVod ? '0' : '10',  // Keep all segments for VOD, 10 for live
-        '-hls_flags', isVod ? 'independent_segments' : 'delete_segments+append_list+omit_endlist+program_date_time',
+        '-hls_list_size', isVod ? '0' : '20',  // Keep all segments for VOD, 20 for live (was 10)
+        '-hls_flags', isVod ? 'independent_segments' : 'append_list+omit_endlist+program_date_time',  // Removed delete_segments to avoid 404s
+        '-hls_delete_threshold', '5',  // Keep 5 extra segments before deleting
         '-hls_start_number_source', 'datetime',  // Better segment continuity
         '-hls_segment_filename', '${outputDir.path}/segment_%d.ts',
         outputPath,

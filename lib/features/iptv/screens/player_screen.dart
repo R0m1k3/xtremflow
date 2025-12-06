@@ -134,8 +134,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           ConnectionTimeout.medium => 'medium',
           ConnectionTimeout.long => 'long',
         };
+        final modeParam = settings.modeString; // direct, transcode, or auto
         
-        final streamEndpoint = '$baseUrl/api/stream/${widget.streamId}?url=$encodedUrl&quality=$qualityParam&buffer=$bufferParam&timeout=$timeoutParam';
+        final streamEndpoint = '$baseUrl/api/stream/${widget.streamId}?url=$encodedUrl&quality=$qualityParam&buffer=$bufferParam&timeout=$timeoutParam&mode=$modeParam';
         
         debugPrint('PlayerScreen: Starting FFmpeg stream: $streamEndpoint');
         
