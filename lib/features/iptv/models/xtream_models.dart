@@ -98,6 +98,128 @@ class Series {
   }
 }
 
+/// Season model for series
+class Season {
+  final int seasonNumber;
+  final String name;
+  final int episodeCount;
+  final String? cover;
+
+  const Season({
+    required this.seasonNumber,
+    required this.name,
+    required this.episodeCount,
+    this.cover,
+  });
+
+  factory Season.fromJson(Map<String, dynamic> json) {
+    return Season(
+      seasonNumber: int.tryParse(json['season_number']?.toString() ?? '1') ?? 1,
+      name: json['name']?.toString() ?? 'Season ${json['season_number'] ?? 1}',
+      episodeCount: int.tryParse(json['episode_count']?.toString() ?? '0') ?? 0,
+      cover: json['cover']?.toString(),
+    );
+  }
+}
+
+/// Episode model for series
+class Episode {
+  final String id;
+  final int episodeNum;
+  final String title;
+  final String? containerExtension;
+  final String? info;
+  final String? cover;
+  final int? durationSecs;
+
+  const Episode({
+    required this.id,
+    required this.episodeNum,
+    required this.title,
+    this.containerExtension,
+    this.info,
+    this.cover,
+    this.durationSecs,
+  });
+
+  factory Episode.fromJson(Map<String, dynamic> json) {
+    return Episode(
+      id: json['id']?.toString() ?? '',
+      episodeNum: int.tryParse(json['episode_num']?.toString() ?? '1') ?? 1,
+      title: json['title']?.toString() ?? 'Episode ${json['episode_num'] ?? 1}',
+      containerExtension: json['container_extension']?.toString() ?? 'mkv',
+      info: json['info']?.toString(),
+      cover: json['custom_cover']?.toString() ?? json['cover']?.toString(),
+      durationSecs: int.tryParse(json['duration_secs']?.toString() ?? '0'),
+    );
+  }
+
+  String getStreamUrl(String dns, String username, String password) {
+    return '$dns/series/$username/$password/$id.${containerExtension ?? 'mkv'}';
+  }
+}
+
+/// Series info with seasons and episodes
+class SeriesInfo {
+  final String seriesId;
+  final String name;
+  final String? cover;
+  final String? plot;
+  final String? cast;
+  final String? director;
+  final String? genre;
+  final String? releaseDate;
+  final String? rating;
+  final List<Season> seasons;
+  final Map<int, List<Episode>> episodes;
+
+  const SeriesInfo({
+    required this.seriesId,
+    required this.name,
+    this.cover,
+    this.plot,
+    this.cast,
+    this.director,
+    this.genre,
+    this.releaseDate,
+    this.rating,
+    required this.seasons,
+    required this.episodes,
+  });
+
+  factory SeriesInfo.fromJson(Map<String, dynamic> json) {
+    final seasonsData = json['seasons'] as List<dynamic>? ?? [];
+    final seasons = seasonsData.map((s) => Season.fromJson(s as Map<String, dynamic>)).toList();
+
+    final episodesData = json['episodes'] as Map<String, dynamic>? ?? {};
+    final episodes = <int, List<Episode>>{};
+    
+    episodesData.forEach((seasonNum, episodesList) {
+      final seasonInt = int.tryParse(seasonNum) ?? 1;
+      final episodeList = (episodesList as List<dynamic>?)
+          ?.map((e) => Episode.fromJson(e as Map<String, dynamic>))
+          .toList() ?? [];
+      episodes[seasonInt] = episodeList;
+    });
+
+    final info = json['info'] as Map<String, dynamic>? ?? {};
+
+    return SeriesInfo(
+      seriesId: json['series_id']?.toString() ?? info['series_id']?.toString() ?? '',
+      name: info['name']?.toString() ?? json['name']?.toString() ?? 'Unknown',
+      cover: info['cover']?.toString() ?? json['cover']?.toString(),
+      plot: info['plot']?.toString(),
+      cast: info['cast']?.toString(),
+      director: info['director']?.toString(),
+      genre: info['genre']?.toString(),
+      releaseDate: info['releaseDate']?.toString(),
+      rating: info['rating']?.toString(),
+      seasons: seasons,
+      episodes: episodes,
+    );
+  }
+}
+
 class Category {
   final String categoryId;
   final String categoryName;

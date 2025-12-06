@@ -399,6 +399,28 @@ class XtreamService {
     }
   }
 
+  /// Get series info with seasons and episodes
+  Future<xm.SeriesInfo> getSeriesInfo(String seriesId) async {
+    if (_currentPlaylist == null) throw Exception('No playlist configured');
+
+    try {
+      final response = await _dio.get(
+        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
+        queryParameters: {
+          'username': _currentPlaylist!.username,
+          'password': _currentPlaylist!.password,
+          'action': 'get_series_info',
+          'series_id': seriesId,
+        },
+        options: Options(extra: _cacheOptions.toExtra()),
+      );
+
+      return xm.SeriesInfo.fromJson(response.data as Map<String, dynamic>);
+    } catch (e) {
+      throw Exception('Failed to fetch series info: $e');
+    }
+  }
+
   /// Get short EPG for a specific stream
   /// 
   /// Returns "Now" and "Next" program info

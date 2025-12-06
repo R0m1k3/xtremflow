@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/playlist_config.dart';
-import '../services/xtream_service.dart';
 import '../models/xtream_models.dart';
 import '../providers/xtream_provider.dart';
+import '../screens/series_detail_screen.dart';
 
 class SeriesTab extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
@@ -86,10 +86,10 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
       controller: _scrollController,
       padding: const EdgeInsets.all(8),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 5,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 0.7,
+        crossAxisCount: 7,
+        crossAxisSpacing: 6,
+        mainAxisSpacing: 6,
+        childAspectRatio: 0.65,
       ),
       itemCount: _series.length + (_hasMore ? 1 : 0),
       itemBuilder: (context, index) {
@@ -98,7 +98,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
         }
 
         final serie = _series[index];
-        return _SeriesCard(series: serie);
+        return _SeriesCard(series: serie, playlist: widget.playlist);
       },
     );
   }
@@ -106,8 +106,9 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
 
 class _SeriesCard extends StatelessWidget {
   final Series series;
+  final PlaylistConfig playlist;
 
-  const _SeriesCard({required this.series});
+  const _SeriesCard({required this.series, required this.playlist});
 
   @override
   Widget build(BuildContext context) {
@@ -115,22 +116,14 @@ class _SeriesCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
-          // Series require episode selection screen (not implemented)
-          // For now, show info dialog
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: Text(series.name),
-              content: const Text(
-                'Series playback requires episode selection.\n\n'
-                'Use Xtream API endpoint get_series_info to fetch episodes.',
+          // Navigate to series detail screen for episode selection
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SeriesDetailScreen(
+                series: series,
+                playlist: playlist,
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('OK'),
-                ),
-              ],
             ),
           );
         },
