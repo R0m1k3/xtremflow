@@ -237,28 +237,29 @@ class _ChannelCardState extends State<ChannelCard>
               ),
             ],
           ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.circle,
-                size: 6,
-                color: Colors.white,
-              ),
-              SizedBox(width: 4),
-              Text(
-                'LIVE',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
+          child: child,
         );
       },
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.circle,
+            size: 6,
+            color: Colors.white,
+          ),
+          SizedBox(width: 4),
+          Text(
+            'LIVE',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

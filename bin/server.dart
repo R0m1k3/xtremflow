@@ -480,14 +480,16 @@ Handler _createStreamHandler() {
         '-headers', 'Accept: */*\r\nConnection: keep-alive\r\n',
       ];
       
-      // Add reconnect flags only for live streams (not VOD)
+      // Add reconnect flags and longer timeout for live streams (not VOD)
       if (!isVod) {
         ffmpegArgs.addAll([
           '-reconnect', '1',
           '-reconnect_streamed', '1',
-          '-reconnect_delay_max', '5',
+          '-reconnect_delay_max', '10',  // Increased from 5s
           '-reconnect_on_network_error', '1',
           '-reconnect_on_http_error', '4xx,5xx',
+          '-rw_timeout', '${timeoutSeconds * 1000000}',  // Read/write timeout in microseconds
+          '-stimeout', '${timeoutSeconds * 1000000}',   // Socket timeout
         ]);
       }
       
@@ -554,11 +556,10 @@ Handler _createStreamHandler() {
         // HLS output settings - optimized for stability
         '-f', 'hls',
         '-hls_time', isVod ? '4' : '$segmentDuration',  // Segment duration from settings for live
-        '-hls_list_size', isVod ? '0' : '20',  // Keep all segments for VOD, 20 for live (was 10)
-        '-hls_flags', isVod ? 'independent_segments' : 'append_list+omit_endlist+program_date_time',  // Removed delete_segments to avoid 404s
-        '-hls_delete_threshold', '5',  // Keep 5 extra segments before deleting
-        '-hls_start_number_source', 'datetime',  // Better segment continuity
-        '-hls_segment_filename', '${outputDir.path}/segment_%d.ts',
+        '-hls_list_size', isVod ? '0' : '30',  // Keep all for VOD, 30 for live (more buffer to prevent 404s)
+        '-hls_flags', isVod ? 'independent_segments' : 'append_list+omit_endlist',  // Simplified flags
+        '-hls_start_number_source', 'epoch',  // Use epoch for consistent segment naming
+        '-hls_segment_filename', '${outputDir.path}/segment_%05d.ts',  // 5-digit numbering
         outputPath,
       ]);
 
@@ -584,22 +585,51 @@ Handler _createStreamHandler() {
         _activeStreams.remove(streamId);
       });
 
-      // Wait for FFmpeg to create the initial playlist (transcoding takes longer)
-      await Future.delayed(const Duration(seconds: 5));
-
-      // Check if stream started successfully
+      // Wait for FFmpeg to create the initial playlist with retries
+      // Different sources may take varying times to buffer and produce first segment
       final playlistFile = File(outputPath);
-      if (!await playlistFile.exists()) {
+      bool playlistReady = false;
+      const maxWaitSeconds = 15;  // Maximum wait time for first segment
+      const checkIntervalMs = 500;  // Check every 500ms
+      
+      for (int waited = 0; waited < maxWaitSeconds * 1000; waited += checkIntervalMs) {
+        await Future.delayed(const Duration(milliseconds: checkIntervalMs));
+        
+        // Check if process died early
+        if (!_activeStreams.containsKey(streamId)) {
+          final stderr = stderrBuffer.toString();
+          print('FFmpeg process died early for $streamId: $stderr');
+          return Response.internalServerError(
+            body: jsonEncode({
+              'error': 'FFmpeg process died early',
+              'details': stderr.length > 500 ? stderr.substring(0, 500) : stderr,
+            }),
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        
+        // Check if playlist file exists and has content
+        if (await playlistFile.exists()) {
+          final content = await playlistFile.readAsString();
+          if (content.contains('#EXTINF')) {
+            playlistReady = true;
+            print('FFmpeg ready for $streamId after ${waited}ms');
+            break;
+          }
+        }
+      }
+
+      if (!playlistReady) {
         // FFmpeg failed - get error message
         final stderr = stderrBuffer.toString();
-        print('FFmpeg failed to create playlist for $streamId');
+        print('FFmpeg failed to create playlist for $streamId after ${maxWaitSeconds}s');
         print('FFmpeg stderr: $stderr');
         process.kill();
         _activeStreams.remove(streamId);
         return Response.internalServerError(
           body: jsonEncode({
-            'error': 'FFmpeg failed to start stream',
-            'details': stderr.length > 200 ? stderr.substring(0, 200) : stderr,
+            'error': 'FFmpeg failed to start stream (timeout)',
+            'details': stderr.length > 500 ? stderr.substring(0, 500) : stderr,
           }),
           headers: {'content-type': 'application/json'},
         );
