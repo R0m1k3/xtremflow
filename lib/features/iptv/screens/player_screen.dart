@@ -97,11 +97,48 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         debugPrint('PlayerScreen: FFmpeg HLS URL: $hlsUrl');
         
       } else {
-        // For VOD and Series, use direct proxy (they usually work)
-        final streamUrl = widget.streamType == StreamType.vod
-            ? xtreamService.getVodStreamUrl(widget.streamId, widget.containerExtension)
-            : xtreamService.getSeriesStreamUrl(widget.streamId, widget.containerExtension);
-        hlsUrl = streamUrl;
+        // For VOD and Series
+        final ext = widget.containerExtension.toLowerCase();
+        final baseUrl = html.window.location.origin;
+        
+        // Check if format needs transcoding (MKV, AVI, etc. are not browser-native)
+        final needsTranscoding = ext == 'mkv' || ext == 'avi' || ext == 'wmv' || ext == 'flv';
+        
+        if (needsTranscoding) {
+          // Use FFmpeg for non-browser-compatible formats
+          setState(() {
+            _statusMessage = 'Transcoding video for browser compatibility...';
+          });
+          
+          final vodPath = widget.streamType == StreamType.vod ? 'movie' : 'series';
+          final iptvUrl = '${widget.playlist.dns}/$vodPath/${widget.playlist.username}/${widget.playlist.password}/${widget.streamId}.$ext';
+          final encodedUrl = Uri.encodeComponent(iptvUrl);
+          final streamEndpoint = '$baseUrl/api/stream/vod_${widget.streamId}?url=$encodedUrl';
+          
+          debugPrint('PlayerScreen: Starting FFmpeg VOD transcode: $streamEndpoint');
+          
+          final response = await http.get(Uri.parse(streamEndpoint));
+          
+          if (response.statusCode != 200) {
+            throw Exception('Failed to start VOD transcode: ${response.body}');
+          }
+          
+          final data = jsonDecode(response.body);
+          if (data['status'] != 'started') {
+            throw Exception('VOD transcode failed: ${data['error'] ?? 'Unknown error'}');
+          }
+          
+          hlsUrl = '$baseUrl${data['hlsUrl']}';
+          debugPrint('PlayerScreen: FFmpeg VOD HLS URL: $hlsUrl');
+          
+        } else {
+          // MP4, WebM can be played directly via proxy
+          final streamUrl = widget.streamType == StreamType.vod
+              ? xtreamService.getVodStreamUrl(widget.streamId, widget.containerExtension)
+              : xtreamService.getSeriesStreamUrl(widget.streamId, widget.containerExtension);
+          hlsUrl = streamUrl;
+          debugPrint('PlayerScreen: Direct playback URL: $hlsUrl');
+        }
       }
       
       setState(() {
