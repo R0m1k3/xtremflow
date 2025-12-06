@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../providers/xtream_provider.dart';
 import '../screens/player_screen.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/models/playlist_config.dart';
 
-/// Live TV tab with group-based pagination
+/// Live TV tab with category box grid navigation
 class LiveTVTab extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
 
@@ -18,9 +19,9 @@ class LiveTVTab extends ConsumerStatefulWidget {
 
 class _LiveTVTabState extends ConsumerState<LiveTVTab>
     with AutomaticKeepAliveClientMixin {
-  final Map<String, int> _currentPages = {};
-  final Map<String, bool> _expandedCategories = {};
-  static const int _itemsPerPage = 100;
+  String? _selectedCategory;
+  int _currentPage = 0;
+  static const int _itemsPerPage = 50;
 
   @override
   bool get wantKeepAlive => true;
@@ -29,7 +30,6 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
   Widget build(BuildContext context) {
     super.build(context);
 
-    final service = ref.watch(xtreamServiceProvider(widget.playlist));
     final channelsAsync = ref.watch(liveChannelsByPlaylistProvider(widget.playlist));
 
     return channelsAsync.when(
@@ -40,101 +40,13 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
           );
         }
 
-        final categories = groupedChannels.keys.toList()..sort();
+        // If a category is selected, show channels list
+        if (_selectedCategory != null && groupedChannels.containsKey(_selectedCategory)) {
+          return _buildChannelsList(groupedChannels[_selectedCategory]!);
+        }
 
-        return ListView.builder(
-          itemCount: categories.length,
-          itemBuilder: (context, index) {
-            final category = categories[index];
-            final channels = groupedChannels[category]!;
-            final currentPage = _currentPages[category] ?? 0;
-            final isExpanded = _expandedCategories[category] ?? false;
-
-            // Calculate pagination
-            final totalPages = (channels.length / _itemsPerPage).ceil();
-            final startIndex = currentPage * _itemsPerPage;
-            final endIndex = (startIndex + _itemsPerPage > channels.length)
-                ? channels.length
-                : startIndex + _itemsPerPage;
-            final paginatedChannels = channels.sublist(startIndex, endIndex);
-
-            return Card(
-              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: ExpansionPanelList(
-                expansionCallback: (panelIndex, expanded) {
-                  setState(() {
-                    _expandedCategories[category] = !expanded;
-                  });
-                },
-                children: [
-                  ExpansionPanel(
-                    headerBuilder: (context, isExpanded) {
-                      return ListTile(
-                        title: Text(
-                          category,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        subtitle: Text('${channels.length} channels'),
-                      );
-                    },
-                    body: Column(
-                      children: [
-                        // Pagination controls
-                        if (totalPages > 1)
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.arrow_back),
-                                  onPressed: currentPage > 0
-                                      ? () {
-                                          setState(() {
-                                            _currentPages[category] = currentPage - 1;
-                                          });
-                                        }
-                                      : null,
-                                ),
-                                Text(
-                                  'Page ${currentPage + 1} of $totalPages',
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.arrow_forward),
-                                  onPressed: currentPage < totalPages - 1
-                                      ? () {
-                                          setState(() {
-                                            _currentPages[category] = currentPage + 1;
-                                          });
-                                        }
-                                      : null,
-                                ),
-                              ],
-                            ),
-                          ),
-                        // Channel list
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: paginatedChannels.length,
-                          itemExtent: 72,
-                          itemBuilder: (context, channelIndex) {
-                            final channel = paginatedChannels[channelIndex];
-                            return _buildChannelTile(context, channel);
-                          },
-                        ),
-                      ],
-                    ),
-                    isExpanded: isExpanded,
-                  ),
-                ],
-              ),
-            );
-          },
-        );
+        // Otherwise show category grid
+        return _buildCategoryGrid(groupedChannels);
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, stack) => Center(
@@ -150,27 +62,193 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
     );
   }
 
+  /// Build the category grid view with box cards
+  Widget _buildCategoryGrid(Map<String, List<Channel>> groupedChannels) {
+    final categories = groupedChannels.keys.toList()..sort();
+
+    return Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: GridView.builder(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 4,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.5,
+        ),
+        itemCount: categories.length,
+        itemBuilder: (context, index) {
+          final category = categories[index];
+          final channelCount = groupedChannels[category]!.length;
+          
+          return _CategoryBox(
+            categoryName: category,
+            channelCount: channelCount,
+            onTap: () {
+              setState(() {
+                _selectedCategory = category;
+                _currentPage = 0;
+              });
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  /// Build channels list for selected category
+  Widget _buildChannelsList(List<Channel> channels) {
+    final totalPages = (channels.length / _itemsPerPage).ceil();
+    final startIndex = _currentPage * _itemsPerPage;
+    final endIndex = (startIndex + _itemsPerPage > channels.length)
+        ? channels.length
+        : startIndex + _itemsPerPage;
+    final paginatedChannels = channels.sublist(startIndex, endIndex);
+
+    return Column(
+      children: [
+        // Header with back button
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            border: Border(
+              bottom: BorderSide(
+                color: Theme.of(context).dividerColor,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  setState(() {
+                    _selectedCategory = null;
+                    _currentPage = 0;
+                  });
+                },
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _selectedCategory ?? '',
+                  style: GoogleFonts.roboto(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Text(
+                '${channels.length} channels',
+                style: GoogleFonts.roboto(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Pagination controls
+        if (totalPages > 1)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left),
+                  onPressed: _currentPage > 0
+                      ? () => setState(() => _currentPage--)
+                      : null,
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${_currentPage + 1} / $totalPages',
+                    style: GoogleFonts.roboto(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right),
+                  onPressed: _currentPage < totalPages - 1
+                      ? () => setState(() => _currentPage++)
+                      : null,
+                ),
+              ],
+            ),
+          ),
+
+        // Channels list
+        Expanded(
+          child: ListView.builder(
+            itemCount: paginatedChannels.length,
+            itemExtent: 72,
+            itemBuilder: (context, index) {
+              final channel = paginatedChannels[index];
+              return _buildChannelTile(context, channel);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildChannelTile(BuildContext context, Channel channel) {
+    // Check if image URL is HTTP (will be blocked by Mixed Content on HTTPS site)
+    final bool hasValidImage = channel.streamIcon.isNotEmpty && 
+        channel.streamIcon.startsWith('https://');
+    
+    final Widget placeholder = Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade800,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Icon(Icons.tv, color: Colors.white54),
+    );
+
     return ListTile(
-      leading: channel.streamIcon.isNotEmpty
-          ? CachedNetworkImage(
-              imageUrl: channel.streamIcon,
-              width: 48,
-              height: 48,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => const Icon(Icons.tv),
-              errorWidget: (context, url, error) => const Icon(Icons.broken_image),
+      leading: hasValidImage
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: CachedNetworkImage(
+                imageUrl: channel.streamIcon,
+                width: 48,
+                height: 48,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => placeholder,
+                errorWidget: (context, url, error) => placeholder,
+              ),
             )
-          : const Icon(Icons.tv),
+          : placeholder,
       title: Text(
         channel.name,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
+        style: GoogleFonts.roboto(fontWeight: FontWeight.w500),
       ),
       subtitle: channel.num.isNotEmpty
-          ? Text('Ch. ${channel.num}')
+          ? Text('Ch. ${channel.num}', style: const TextStyle(fontSize: 12))
           : null,
-      trailing: const Icon(Icons.play_circle_outline),
+      trailing: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          Icons.play_arrow,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      ),
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -182,6 +260,98 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
           ),
         );
       },
+    );
+  }
+}
+
+/// Category box card widget
+class _CategoryBox extends StatelessWidget {
+  final String categoryName;
+  final int channelCount;
+  final VoidCallback onTap;
+
+  const _CategoryBox({
+    required this.categoryName,
+    required this.channelCount,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.live_tv,
+                      size: 24,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '$channelCount',
+                        style: GoogleFonts.roboto(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Text(
+                  categoryName,
+                  style: GoogleFonts.roboto(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
