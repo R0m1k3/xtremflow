@@ -497,11 +497,15 @@ Handler _createStreamHandler() {
       final usePassthrough = mode == 'direct';
       
       if (usePassthrough) {
-        // PASSTHROUGH MODE: Copy streams without re-encoding (0% CPU)
-        // Only works if source is H.264/AAC compatible with browsers
+        // PASSTHROUGH MODE: Copy video, but transcode audio to AAC
+        // Most IPTV streams use AC3/MP3 audio which browsers can't play in HLS
+        // Video copy = 0% CPU, audio transcode = ~5% CPU (still very light)
         ffmpegArgs.addAll([
-          '-c:v', 'copy',  // Copy video stream as-is
-          '-c:a', 'copy',  // Copy audio stream as-is
+          '-c:v', 'copy',  // Copy video stream as-is (H.264)
+          '-c:a', 'aac',   // Transcode audio to AAC (browser compatible)
+          '-b:a', '128k',  // Audio bitrate
+          '-ar', '44100',  // Sample rate
+          '-ac', '2',      // Stereo
           '-bsf:v', 'h264_mp4toannexb',  // Convert to Annex B format for HLS
         ]);
       } else {
