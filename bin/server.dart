@@ -431,6 +431,10 @@ Handler _createStreamHandler() {
         '-reconnect_on_http_error', '4xx,5xx',
         '-rw_timeout', '15000000', // 15s timeout
         
+        // Probing settings to ensure stream detection
+        '-analyzeduration', '20000000', // 20s
+        '-probesize', '10000000',      // 10MB
+        
         '-i', iptvUrl,
         
         // Output format: MPEG-TS for streaming (compatible with mpegts.js)

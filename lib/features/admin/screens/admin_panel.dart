@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/services/playlist_api_service.dart';
 import '../../../core/services/user_api_service.dart';
@@ -42,40 +43,100 @@ class _AdminPanelState extends ConsumerState<AdminPanel>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Column(
           children: [
+            // Custom Glass Header
             Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                children: [
+                  GlassCard(
+                    borderRadius: 12,
+                    padding: const EdgeInsets.all(8),
+                    showBorder: false,
+                    onTap: () => context.go('/playlists'),
+                    child: const Icon(Icons.arrow_back, color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(width: 16),
+                  Text(
+                    'Administration',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const Spacer(),
+                  // Custom Tab Bar Indicator
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildTabButton(0, 'Playlists', Icons.playlist_play),
+                        const SizedBox(width: 4),
+                        _buildTabButton(1, 'Users', Icons.people),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              child: const Icon(Icons.admin_panel_settings, size: 20),
             ),
-            const SizedBox(width: 12),
-            const Text('Administration'),
-          ],
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/playlists'),
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.playlist_play), text: 'Playlists'),
-            Tab(icon: Icon(Icons.people), text: 'Utilisateurs'),
+            
+            // Content
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                physics: const NeverScrollableScrollPhysics(), // Custom tabs handle ref
+                children: const [
+                  _PlaylistsTab(),
+                  _UsersTab(),
+                ],
+              ),
+            ),
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: const [
-          _PlaylistsTab(),
-          _UsersTab(),
-        ],
-      ),
+    );
+  }
+
+  Widget _buildTabButton(int index, String label, IconData icon) {
+    return AnimatedBuilder(
+      animation: _tabController.animation!,
+      builder: (context, child) {
+        final isSelected = _tabController.index == index;
+        return GestureDetector(
+          onTap: () => _tabController.animateTo(index),
+          child: AnimatedContainer(
+            duration: AppTheme.durationFast,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.focusColor : Colors.transparent,
+              borderRadius: BorderRadius.circular(50),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 18,
+                  color: isSelected ? Colors.black : AppColors.textSecondary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: isSelected ? Colors.black : AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -91,80 +152,89 @@ class _PlaylistsTab extends ConsumerWidget {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: GradientButton(
-            label: 'Ajouter une playlist',
-            icon: Icons.add,
-            onPressed: () => _showPlaylistDialog(context, ref),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('${playlistsAsync.asData?.value.length ?? 0} Playlists', style: Theme.of(context).textTheme.bodyLarge),
+              GradientButton(
+                label: 'Add Playlist',
+                icon: Icons.add,
+                onPressed: () => _showPlaylistDialog(context, ref),
+              ),
+            ],
           ),
         ),
         Expanded(
           child: playlistsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, stack) => Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 48, color: AppColors.error),
-                  const SizedBox(height: 16),
-                  Text('Erreur: $error'),
-                  const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: () => ref.refresh(playlistsProvider),
-                    child: const Text('Réessayer'),
-                  ),
-                ],
-              ),
-            ),
+            error: (error, stack) => Center(child: Text('Error: $error', style: const TextStyle(color: AppColors.error))),
             data: (playlists) {
               if (playlists.isEmpty) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.playlist_remove, size: 64, color: AppColors.textSecondary),
+                      Icon(Icons.playlist_remove, size: 64, color: AppColors.textSecondary.withOpacity(0.5)),
                       const SizedBox(height: 16),
-                      Text(
-                        'Aucune playlist',
-                        style: TextStyle(fontSize: 18, color: AppColors.textSecondary),
+                      Text('No playlists configured', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: () => _showPlaylistDialog(context, ref),
+                        child: const Text('Add your first playlist'),
                       ),
                     ],
                   ),
                 );
               }
 
-              return ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+              return ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                 itemCount: playlists.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final playlist = playlists[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          gradient: AppColors.primaryGradient,
-                          borderRadius: BorderRadius.circular(10),
+                  return GlassCard(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.playlist_play, color: AppColors.textPrimary),
                         ),
-                        child: const Icon(Icons.playlist_play, color: Colors.black, size: 20),
-                      ),
-                      title: Text(playlist.name),
-                      subtitle: Text(playlist.dns, style: const TextStyle(fontSize: 11)),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit_outlined),
-                            onPressed: () => _showPlaylistDialog(context, ref, playlist),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(playlist.name, style: Theme.of(context).textTheme.titleMedium),
+                              const SizedBox(height: 4),
+                              Text(playlist.dns, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textTertiary)),
+                            ],
                           ),
-                          IconButton(
-                            icon: Icon(Icons.delete_outline, color: AppColors.error),
-                            onPressed: () => _deletePlaylist(context, ref, playlist),
-                          ),
-                        ],
-                      ),
+                        ),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit_outlined, size: 20),
+                              color: AppColors.textSecondary,
+                              onPressed: () => _showPlaylistDialog(context, ref, playlist),
+                              tooltip: 'Edit',
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, size: 20),
+                              color: AppColors.error,
+                              onPressed: () => _deletePlaylist(context, ref, playlist),
+                              tooltip: 'Delete',
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   );
                 },
@@ -263,82 +333,102 @@ class _UsersTab extends ConsumerWidget {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: GradientButton(
-            label: 'Créer un utilisateur',
-            icon: Icons.person_add,
-            onPressed: () => _showCreateUserDialog(context, ref),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+               Text('${usersAsync.asData?.value.length ?? 0} Users', style: Theme.of(context).textTheme.bodyLarge),
+              GradientButton(
+                label: 'Create User',
+                icon: Icons.person_add,
+                onPressed: () => _showCreateUserDialog(context, ref),
+              ),
+            ],
           ),
         ),
         Expanded(
           child: usersAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, stack) => Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 48, color: AppColors.error),
-                  const SizedBox(height: 16),
-                  Text('Erreur: $error'),
-                  OutlinedButton(
-                    onPressed: () => ref.refresh(usersProvider),
-                    child: const Text('Réessayer'),
-                  ),
-                ],
-              ),
-            ),
+            error: (error, stack) => Center(child: Text('Error: $error', style: const TextStyle(color: AppColors.error))),
             data: (users) {
               if (users.isEmpty) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.people_outline, size: 64, color: AppColors.textSecondary),
+                      Icon(Icons.people_outline, size: 64, color: AppColors.textSecondary.withOpacity(0.5)),
                       const SizedBox(height: 16),
-                      Text('Aucun utilisateur', style: TextStyle(fontSize: 18, color: AppColors.textSecondary)),
+                      Text('No users found', style: Theme.of(context).textTheme.titleMedium),
                     ],
                   ),
                 );
               }
 
-              return ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+              return ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                 itemCount: users.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final user = users[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: user.isAdmin ? AppColors.primary.withOpacity(0.2) : AppColors.surface.withOpacity(0.5),
-                        child: Icon(user.isAdmin ? Icons.admin_panel_settings : Icons.person, color: user.isAdmin ? AppColors.primary : AppColors.textSecondary),
-                      ),
-                      title: Row(
-                        children: [
-                          Text(user.username),
-                          if (user.isAdmin) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                              child: Text('Admin', style: TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.w600)),
-                            ),
+                  return GlassCard(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: user.isAdmin ? AppColors.focusColor : AppColors.surface,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            user.isAdmin ? Icons.admin_panel_settings : Icons.person,
+                            color: user.isAdmin ? Colors.black : AppColors.textPrimary,
+                            size: 24
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(user.username, style: Theme.of(context).textTheme.titleMedium),
+                                  if (user.isAdmin) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.focusColor.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(50),
+                                      ),
+                                      child: const Text('ADMIN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.focusColor)),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text('ID: ${user.id}', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textTertiary)),
+                            ],
+                          ),
+                        ),
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
+                          color: AppColors.surface,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          onSelected: (value) {
+                            switch (value) {
+                              case 'password': _showChangePasswordDialog(context, ref, user); break;
+                              case 'delete': _deleteUser(context, ref, user); break;
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(value: 'password', child: Row(children: [Icon(Icons.lock_reset, size: 18), SizedBox(width: 8), Text('Change Password')])),
+                            const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: AppColors.error, size: 18), SizedBox(width: 8), Text('Delete', style: TextStyle(color: AppColors.error))])),
                           ],
-                        ],
-                      ),
-                      subtitle: Text('ID: ${user.id}', style: const TextStyle(fontSize: 11)),
-                      trailing: PopupMenuButton<String>(
-                        onSelected: (value) {
-                          switch (value) {
-                            case 'password': _showChangePasswordDialog(context, ref, user); break;
-                            case 'delete': _deleteUser(context, ref, user); break;
-                          }
-                        },
-                        itemBuilder: (context) => [
-                          const PopupMenuItem(value: 'password', child: ListTile(leading: Icon(Icons.lock_reset), title: Text('Changer mot de passe'), dense: true)),
-                          PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete, color: AppColors.error), title: Text('Supprimer', style: TextStyle(color: AppColors.error)), dense: true)),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   );
                 },
