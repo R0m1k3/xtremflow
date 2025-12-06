@@ -310,7 +310,7 @@ class _UsersTab extends ConsumerWidget {
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: user.isAdmin ? AppColors.primary.withOpacity(0.2) : AppColors.surfaceVariant,
+                        backgroundColor: user.isAdmin ? AppColors.primary.withOpacity(0.2) : AppColors.surface.withOpacity(0.5),
                         child: Icon(user.isAdmin ? Icons.admin_panel_settings : Icons.person, color: user.isAdmin ? AppColors.primary : AppColors.textSecondary),
                       ),
                       title: Row(
