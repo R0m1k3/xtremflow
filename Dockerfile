@@ -36,8 +36,11 @@ FROM dart:stable
 
 WORKDIR /app
 
-# Install SQLite3 library for FFI
-RUN apt-get update && apt-get install -y sqlite3 libsqlite3-dev && rm -rf /var/lib/apt/lists/*
+# Install SQLite3 library for FFI and FFmpeg for IPTV stream transcoding
+RUN apt-get update && apt-get install -y sqlite3 libsqlite3-dev ffmpeg && rm -rf /var/lib/apt/lists/*
+
+# Create directory for HLS stream output
+RUN mkdir -p /tmp/streams && chmod 777 /tmp/streams
 
 # Copy entire bin directory (API, database, etc.)
 COPY bin/ ./bin/

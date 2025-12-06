@@ -47,10 +47,12 @@ void main(List<String> args) async {
     listDirectories: false,
   );
 
-  // Main handler with API proxy
+  // Main handler with API proxy and FFmpeg streaming
   final handler = Cascade()
     .add(_createApiHandler(apiRouter))
+    .add(_createStreamHandler())  // FFmpeg streaming endpoint
     .add(_createXtreamProxyHandler())
+    .add(_createHlsHandler())  // Serve generated HLS files
     .add(staticHandler)
     .handler;
 
@@ -71,6 +73,7 @@ void main(List<String> args) async {
   print('Serving static files from: $webPath');
   print('REST API available at: /api/auth/* and /api/playlists/*');
   print('Xtream proxy available at: /api/xtream/*');
+  print('FFmpeg streaming available at: /api/stream/*');
   
   // Clean expired sessions periodically (every hour)
   Timer.periodic(const Duration(hours: 1), (_) {
@@ -292,3 +295,175 @@ String _rewriteUrl(String url, String baseUrl, String basePath, String proxyOrig
   return '$proxyOrigin/api/xtream/$fullUrl';
 }
 
+// ============================================
+// FFmpeg Stream Transcoding Handler
+// ============================================
+
+/// Active FFmpeg processes by stream ID
+final Map<String, Process> _activeStreams = {};
+
+/// Create handler for FFmpeg streaming
+/// 
+/// This endpoint starts an FFmpeg process that connects to the IPTV server
+/// with proper headers and transcodes the stream to local HLS files.
+Handler _createStreamHandler() {
+  return (Request request) async {
+    final path = request.url.path;
+
+    // Only handle /api/stream/* requests
+    if (!path.startsWith('api/stream/')) {
+      return Response.notFound('Not found');
+    }
+
+    try {
+      // Extract stream ID from path: /api/stream/{id}
+      final pathParts = path.split('/');
+      if (pathParts.length < 3) {
+        return Response.badRequest(body: 'Invalid stream path');
+      }
+      
+      final streamId = pathParts[2];
+      
+      // Get the IPTV URL from query parameter
+      final iptvUrl = request.url.queryParameters['url'];
+      if (iptvUrl == null || iptvUrl.isEmpty) {
+        return Response.badRequest(body: 'Missing url parameter');
+      }
+
+      print('Starting FFmpeg stream for ID: $streamId');
+      print('IPTV URL: $iptvUrl');
+
+      // Create output directory for this stream
+      final outputDir = Directory('/tmp/streams/$streamId');
+      if (!await outputDir.exists()) {
+        await outputDir.create(recursive: true);
+      }
+
+      // Clean old files
+      await for (final file in outputDir.list()) {
+        await file.delete();
+      }
+
+      final outputPath = '${outputDir.path}/stream.m3u8';
+
+      // Kill existing FFmpeg process for this stream if any
+      if (_activeStreams.containsKey(streamId)) {
+        _activeStreams[streamId]?.kill();
+        _activeStreams.remove(streamId);
+      }
+
+      // Start FFmpeg process with VLC User-Agent
+      // Using -c copy for efficient passthrough (no transcoding = low CPU)
+      final process = await Process.start('ffmpeg', [
+        '-y',  // Overwrite output files
+        '-user_agent', 'VLC/3.0.18 LibVLC/3.0.18',
+        '-headers', 'Accept: */*\r\nConnection: keep-alive\r\n',
+        '-i', iptvUrl,
+        '-c', 'copy',  // Copy codec (no transcoding)
+        '-f', 'hls',
+        '-hls_time', '2',  // 2 second segments
+        '-hls_list_size', '5',  // Keep only last 5 segments
+        '-hls_flags', 'delete_segments+append_list',
+        '-hls_segment_filename', '${outputDir.path}/segment_%d.ts',
+        outputPath,
+      ]);
+
+      _activeStreams[streamId] = process;
+
+      // Log FFmpeg output for debugging
+      process.stderr.transform(utf8.decoder).listen((data) {
+        // Only print errors, not the verbose output
+        if (data.contains('Error') || data.contains('error')) {
+          print('FFmpeg error [$streamId]: $data');
+        }
+      });
+
+      process.exitCode.then((code) {
+        print('FFmpeg process [$streamId] exited with code: $code');
+        _activeStreams.remove(streamId);
+      });
+
+      // Wait a moment for FFmpeg to create the initial playlist
+      await Future.delayed(const Duration(seconds: 3));
+
+      // Check if stream started successfully
+      final playlistFile = File(outputPath);
+      if (!await playlistFile.exists()) {
+        // FFmpeg might have failed - check stderr
+        process.kill();
+        _activeStreams.remove(streamId);
+        return Response.internalServerError(
+          body: jsonEncode({'error': 'FFmpeg failed to start stream'}),
+          headers: {'content-type': 'application/json'},
+        );
+      }
+
+      // Return the local HLS URL
+      return Response.ok(
+        jsonEncode({
+          'status': 'started',
+          'streamId': streamId,
+          'hlsUrl': '/hls/$streamId/stream.m3u8',
+        }),
+        headers: {
+          'content-type': 'application/json',
+          'access-control-allow-origin': '*',
+        },
+      );
+    } catch (e, stackTrace) {
+      print('Stream error: $e');
+      print(stackTrace);
+      return Response.internalServerError(
+        body: jsonEncode({'error': 'Stream error', 'message': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
+    }
+  };
+}
+
+/// Create handler for serving HLS files generated by FFmpeg
+Handler _createHlsHandler() {
+  return (Request request) async {
+    final path = request.url.path;
+
+    // Only handle /hls/* requests
+    if (!path.startsWith('hls/')) {
+      return Response.notFound('Not found');
+    }
+
+    try {
+      // Extract file path: /hls/{streamId}/{filename}
+      final relativePath = path.substring('hls/'.length);
+      final filePath = '/tmp/streams/$relativePath';
+      
+      final file = File(filePath);
+      if (!await file.exists()) {
+        return Response.notFound('HLS file not found');
+      }
+
+      // Determine content type
+      String contentType;
+      if (filePath.endsWith('.m3u8')) {
+        contentType = 'application/vnd.apple.mpegurl';
+      } else if (filePath.endsWith('.ts')) {
+        contentType = 'video/MP2T';
+      } else {
+        contentType = 'application/octet-stream';
+      }
+
+      final bytes = await file.readAsBytes();
+      
+      return Response.ok(
+        bytes,
+        headers: {
+          'content-type': contentType,
+          'access-control-allow-origin': '*',
+          'cache-control': 'no-cache',
+        },
+      );
+    } catch (e) {
+      print('HLS serve error: $e');
+      return Response.internalServerError(body: 'Error serving HLS file');
+    }
+  };
+}
