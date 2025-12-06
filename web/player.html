@@ -249,15 +249,28 @@
             log('Stream URL: ' + streamUrl.substring(0, 80) + '...');
 
             // Determine stream type and try appropriate player
-            if (streamUrl.includes('.m3u8')) {
+            const lowerUrl = streamUrl.toLowerCase();
+
+            // Check for standard video files that should be played directly
+            if (lowerUrl.includes('.mp4') || lowerUrl.includes('.mkv') ||
+                lowerUrl.includes('.avi') || lowerUrl.includes('.webm') ||
+                lowerUrl.includes('.mov')) {
+                log('Detected direct video file, playing directly');
+                await playDirect(streamUrl);
+            }
+            // HLS streams
+            else if (lowerUrl.includes('.m3u8')) {
                 await playWithHLS(streamUrl);
-            } else if (streamUrl.includes('.ts')) {
+            }
+            // MPEG-TS streams
+            else if (lowerUrl.includes('.ts')) {
                 const success = await playWithMpegTS(streamUrl);
                 if (!success) {
                     await playDirect(streamUrl);
                 }
-            } else {
-                // Try HLS first, then MPEG-TS
+            }
+            // Unknown format - try HLS first (for FFmpeg generated streams)
+            else {
                 await playWithHLS(streamUrl);
             }
         }
