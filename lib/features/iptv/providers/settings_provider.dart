@@ -166,6 +166,15 @@ class IptvSettings {
     }
   }
 
+  /// Get transcoding mode string for FFmpeg URL parameter
+  String get modeString {
+    switch (transcodingMode) {
+      case TranscodingMode.disabled: return 'direct';  // Passthrough, 0% CPU
+      case TranscodingMode.forced: return 'transcode';
+      case TranscodingMode.auto: return 'auto';
+    }
+  }
+
   // ===== Filter Methods =====
 
   static List<String> _parseKeywords(String filter) {
