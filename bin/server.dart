@@ -1,9 +1,15 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_static/shelf_static.dart';
+import 'package:shelf_router/shelf_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:args/args.dart';
+import 'database/database.dart';
+import 'api/auth_handler.dart';
+import 'api/playlists_handler.dart';
+import 'middleware/auth_middleware.dart';
 
 void main(List<String> args) async {
   // Parse command line arguments
@@ -15,6 +21,24 @@ void main(List<String> args) async {
   final port = int.parse(result['port']);
   final webPath = result['path'];
 
+  // Initialize database
+  final db = AppDatabase();
+  await db.init();
+  await db.seedAdmin();
+
+  // Create API handlers
+  final authHandler = AuthHandler(db);
+  final playlistsHandler = PlaylistsHandler(db);
+
+  // Setup router
+  final apiRouter = Router()
+    // Auth endpoints (no auth middleware) - full path including /api/
+    ..mount('/api/auth', authHandler.router)
+    // Playlists endpoints (with auth middleware)
+    ..mount('/api/playlists', Pipeline()
+      .addMiddleware(authMiddleware(db))
+      .addHandler(playlistsHandler.router.call));
+
   // Create handlers
   final staticHandler = createStaticHandler(
     webPath,
@@ -24,7 +48,8 @@ void main(List<String> args) async {
 
   // Main handler with API proxy
   final handler = Cascade()
-    .add(_createApiProxyHandler())
+    .add(_createApiHandler(apiRouter))
+    .add(_createXtreamProxyHandler())
     .add(staticHandler)
     .handler;
 
@@ -43,7 +68,28 @@ void main(List<String> args) async {
 
   print('Server started on port ${server.port}');
   print('Serving static files from: $webPath');
-  print('API proxy available at: /api/xtream/*');
+  print('REST API available at: /api/auth/* and /api/playlists/*');
+  print('Xtream proxy available at: /api/xtream/*');
+  
+  // Clean expired sessions periodically (every hour)
+  Timer.periodic(const Duration(hours: 1), (_) {
+    db.cleanExpiredSessions();
+    print('Cleaned expired sessions');
+  });
+}
+
+/// Create API handler
+Handler _createApiHandler(Router apiRouter) {
+  return (Request request) async {
+    final path = request.url.path;
+    
+    // Only handle /api/* requests (excluding /api/xtream)
+    if (path.startsWith('api/') && !path.startsWith('api/xtream/')) {
+      return apiRouter(request);
+    }
+    
+    return Response.notFound('Not found');
+  };
 }
 
 /// CORS middleware to allow cross-origin requests
@@ -68,8 +114,8 @@ final _corsHeaders = {
   'Access-Control-Allow-Headers': 'Origin, Content-Type, Accept, Authorization',
 };
 
-/// Create API proxy handler
-Handler _createApiProxyHandler() {
+/// Create Xtream proxy handler
+Handler _createXtreamProxyHandler() {
   return (Request request) async {
     final path = request.url.path;
 

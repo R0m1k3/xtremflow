@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'core/database/hive_service.dart';
 import 'core/router/app_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Hive database with encryption
-  await HiveService.init();
+  // Note: Hive is no longer needed for auth - using API backend now
 
   runApp(const ProviderScope(child: MyApp()));
 }
@@ -48,7 +46,7 @@ class MyApp extends ConsumerWidget {
           ),
         ),
       ),
-      themeMode: ThemeMode.dark, // Default to dark mode for IPTV
+      themeMode: ThemeMode.system,
       routerConfig: router,
     );
   }
