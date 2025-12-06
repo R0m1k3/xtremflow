@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../features/iptv/screens/player_screen.dart';
+export '../../../../features/iptv/screens/player_screen.dart' show StreamType;
 import '../../../../core/models/playlist_config.dart';
 
 /// Mobile wrapper for the PlayerScreen.

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/playlist_config.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_theme.dart';
+
 import '../../../../core/widgets/components/hero_carousel.dart';
 import '../../../../core/widgets/components/ui_components.dart';
 import '../../../../features/iptv/models/xtream_models.dart';
