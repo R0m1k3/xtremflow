@@ -127,7 +127,10 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                       _searchQuery.isNotEmpty ? 'Search Results' : 
                       _showFavoritesOnly ? 'Favorites' :
                       _selectedCategory ?? 'Live TV',
-                      style: Theme.of(context).textTheme.headlineMedium,
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const Spacer(),
                     
