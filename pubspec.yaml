@@ -30,6 +30,7 @@ dependencies:
   # Video Player
   video_player: ^2.8.2
   video_player_web: ^2.3.0
+  video_player_web_hls: ^0.1.5
   chewie: ^1.7.5
   media_kit: ^1.1.10
   media_kit_video: ^1.2.4
