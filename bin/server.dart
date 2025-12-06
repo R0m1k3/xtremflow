@@ -410,7 +410,33 @@ Handler _createStreamHandler() {
         return Response.badRequest(body: 'Missing url parameter');
       }
 
-      print('Starting FFmpeg stream for ID: $streamId');
+      // Get streaming settings from query parameters
+      final quality = request.url.queryParameters['quality'] ?? 'medium';
+      final buffer = request.url.queryParameters['buffer'] ?? 'medium';
+      final timeout = request.url.queryParameters['timeout'] ?? 'medium';
+
+      // Map quality to bitrate/CRF
+      final (int bitrate, int crf) = switch (quality) {
+        'low' => (1500, 26),
+        'high' => (5000, 20),
+        _ => (3000, 23), // medium
+      };
+
+      // Map buffer to segment duration and buffer size
+      final (int segmentDuration, int bufferSize) = switch (buffer) {
+        'low' => (2, 4000),
+        'high' => (6, 12000),
+        _ => (4, 8000), // medium
+      };
+
+      // Map timeout to seconds
+      final int timeoutSeconds = switch (timeout) {
+        'short' => 15,
+        'long' => 60,
+        _ => 30, // medium
+      };
+
+      print('Starting FFmpeg stream for ID: $streamId (quality=$quality, buffer=$buffer)');
       print('IPTV URL: $iptvUrl');
 
       // Create output directory for this stream
@@ -470,21 +496,21 @@ Handler _createStreamHandler() {
         '-profile:v', 'main',  // Main profile for better quality HD
         '-level', '4.0',  // Higher level for HD content
         '-pix_fmt', 'yuv420p',  // Required for browser compatibility
-        '-crf', '21',  // Quality-based encoding (lower = better, 21 is high quality)
-        '-b:v', '4000k',  // 4 Mbps video bitrate for HD quality
-        '-maxrate', '5000k',  // Allow bursts up to 5 Mbps
-        '-bufsize', '8000k',  // Larger buffer for smoother playback
+        '-crf', '$crf',  // Quality-based encoding from settings
+        '-b:v', '${bitrate}k',  // Video bitrate from settings
+        '-maxrate', '${(bitrate * 1.25).round()}k',  // Allow bursts
+        '-bufsize', '${bufferSize}k',  // Buffer size from settings
       ]);
       
       // Add latency flags only for live streams
       if (!isVod) {
         ffmpegArgs.addAll([
           '-tune', 'zerolatency',  // Low latency for live streaming
-          '-vsync', 'passthrough',  // Pass through timestamps as-is
+          '-fps_mode', 'passthrough',  // Pass through timestamps as-is (replaces deprecated -vsync)
         ]);
       } else {
         ffmpegArgs.addAll([
-          '-vsync', 'cfr',  // Constant frame rate for VOD
+          '-fps_mode', 'cfr',  // Constant frame rate for VOD (replaces deprecated -vsync)
           '-g', '48',  // Keyframe every 2 seconds at 24fps
           '-keyint_min', '48',
         ]);
@@ -499,8 +525,8 @@ Handler _createStreamHandler() {
         '-ac', '2',  // Force stereo
         // HLS output settings - optimized for stability
         '-f', 'hls',
-        '-hls_time', isVod ? '4' : '3',  // 4s for VOD, 3s for live (better buffering)
-        '-hls_list_size', isVod ? '0' : '10',  // Keep all segments for VOD, 10 for live (30s buffer)
+        '-hls_time', isVod ? '4' : '$segmentDuration',  // Segment duration from settings for live
+        '-hls_list_size', isVod ? '0' : '10',  // Keep all segments for VOD, 10 for live
         '-hls_flags', isVod ? 'independent_segments' : 'delete_segments+append_list+omit_endlist+program_date_time',
         '-hls_start_number_source', 'datetime',  // Better segment continuity
         '-hls_segment_filename', '${outputDir.path}/segment_%d.ts',

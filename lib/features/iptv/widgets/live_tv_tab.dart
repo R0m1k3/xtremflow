@@ -237,7 +237,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
     
     // Proxy HTTP images through our server to avoid Mixed Content blocking
     if (hasIcon && channel.streamIcon.startsWith('http://')) {
-      iconUrl = '/api/xtream/${Uri.encodeComponent(channel.streamIcon)}';
+      iconUrl = '/api/xtream/${channel.streamIcon}';
     }
     
     final Widget placeholder = Container(

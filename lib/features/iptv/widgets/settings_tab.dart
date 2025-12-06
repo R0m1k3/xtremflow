@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
+import 'streaming_settings_tab.dart';
 
+/// Main Settings tab with sub-tabs for Filters and Streaming
 class SettingsTab extends ConsumerStatefulWidget {
   const SettingsTab({super.key});
 
@@ -12,7 +14,8 @@ class SettingsTab extends ConsumerStatefulWidget {
   ConsumerState<SettingsTab> createState() => _SettingsTabState();
 }
 
-class _SettingsTabState extends ConsumerState<SettingsTab> {
+class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   late TextEditingController _liveTvController;
   late TextEditingController _moviesController;
   late TextEditingController _seriesController;
@@ -21,6 +24,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _liveTvController = TextEditingController();
     _moviesController = TextEditingController();
     _seriesController = TextEditingController();
@@ -28,6 +32,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
 
   @override
   void dispose() {
+    _tabController.dispose();
     _liveTvController.dispose();
     _moviesController.dispose();
     _seriesController.dispose();
@@ -57,6 +62,38 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
       if (!_initialized) _syncControllers(settings);
     });
 
+    return Column(
+      children: [
+        // TabBar
+        Container(
+          color: Theme.of(context).colorScheme.surface,
+          child: TabBar(
+            controller: _tabController,
+            tabs: const [
+              Tab(icon: Icon(Icons.filter_list), text: 'Filtres'),
+              Tab(icon: Icon(Icons.stream), text: 'Streaming'),
+            ],
+          ),
+        ),
+        
+        // TabBarView
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              // Filters Tab
+              _buildFiltersTab(context, currentUser, settings),
+              
+              // Streaming Tab
+              const StreamingSettingsTab(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFiltersTab(BuildContext context, dynamic currentUser, IptvSettings settings) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -65,7 +102,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
           child: ListTile(
             leading: const Icon(Icons.person),
             title: Text(
-              'Logged in as',
+              'Connecté en tant que',
               style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey),
             ),
             subtitle: Text(
@@ -84,7 +121,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
         
         // Category filters section
         Text(
-          'Category Filters',
+          'Filtres de Catégories',
           style: GoogleFonts.roboto(
             fontWeight: FontWeight.bold,
             fontSize: 16,
@@ -92,7 +129,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
         ),
         const SizedBox(height: 4),
         Text(
-          'Only categories containing one of these keywords will be shown. Separate with commas.',
+          'Seules les catégories contenant un de ces mots-clés seront affichées. Séparez par des virgules.',
           style: GoogleFonts.roboto(
             fontSize: 12,
             color: Colors.grey.shade600,
@@ -102,7 +139,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
         
         // Live TV Filter
         _buildFilterCard(
-          title: 'Live TV Filter',
+          title: 'Filtre TV Live',
           icon: Icons.live_tv,
           controller: _liveTvController,
           keywords: settings.liveTvKeywords,
@@ -118,7 +155,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
         
         // Movies Filter
         _buildFilterCard(
-          title: 'Movies Filter',
+          title: 'Filtre Films',
           icon: Icons.movie,
           controller: _moviesController,
           keywords: settings.moviesKeywords,
@@ -134,7 +171,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
         
         // Series Filter
         _buildFilterCard(
-          title: 'Series Filter',
+          title: 'Filtre Séries',
           icon: Icons.tv,
           controller: _seriesController,
           keywords: settings.seriesKeywords,
@@ -153,7 +190,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.admin_panel_settings),
-              title: Text('Admin Panel', style: GoogleFonts.roboto()),
+              title: Text('Panneau Admin', style: GoogleFonts.roboto()),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.go('/admin'),
             ),
@@ -165,7 +202,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
         Card(
           child: ListTile(
             leading: const Icon(Icons.playlist_play),
-            title: Text('Change Playlist', style: GoogleFonts.roboto()),
+            title: Text('Changer de Playlist', style: GoogleFonts.roboto()),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.go('/playlists'),
           ),
@@ -176,7 +213,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
         Card(
           child: ListTile(
             leading: const Icon(Icons.info_outline),
-            title: Text('About', style: GoogleFonts.roboto()),
+            title: Text('À propos', style: GoogleFonts.roboto()),
             subtitle: Text(
               'XtremFlow IPTV v1.0.0',
               style: GoogleFonts.roboto(fontSize: 12),
@@ -192,7 +229,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
             context.go('/login');
           },
           icon: const Icon(Icons.logout),
-          label: const Text('Logout'),
+          label: const Text('Déconnexion'),
           style: FilledButton.styleFrom(
             backgroundColor: Colors.red.shade700,
             padding: const EdgeInsets.symmetric(vertical: 16),
