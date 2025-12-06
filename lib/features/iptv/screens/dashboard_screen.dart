@@ -63,18 +63,67 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               ],
             ),
           ),
-          child: Stack(
-            alignment: Alignment.center,
+          child: Row(
             children: [
-              // 1. Side Elements (Logo & Profile) - Pushed to edges
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Logo Area
-                  _buildLogo(),
-                  
-                  // Search / Profile (Right Side)
-                  Row(
+              // 1. Logo Area (Fixed Width for centering balance)
+              SizedBox(
+                width: 200,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: _buildLogo(),
+                ),
+              ),
+              
+              // 2. Centered Navigation Tabs (Expanded to fill space, then Centered)
+              Expanded(
+                child: Center(
+                  child: Container(
+                    height: 50,
+                    constraints: const BoxConstraints(maxWidth: 600), // Prevent taking too much space
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(color: Colors.white.withOpacity(0.05)),
+                    ),
+                    child: TabBar(
+                      controller: _tabController,
+                      isScrollable: true,
+                      dividerColor: Colors.transparent,
+                      indicator: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      indicatorPadding: const EdgeInsets.all(4),
+                      labelColor: Colors.black,
+                      unselectedLabelColor: Colors.white70, // Fixed: Improved readability
+                      labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
+                      overlayColor: WidgetStateProperty.all(Colors.transparent),
+                      tabs: List.generate(_tabs.length, (index) {
+                        return Tab(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Row(
+                              children: [
+                                Icon(_icons[index], size: 18),
+                                const SizedBox(width: 8),
+                                Text(_tabs[index]),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+                ),
+              ),
+              
+              // 3. Search / Profile (Fixed Width for centering balance)
+              SizedBox(
+                width: 200,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
@@ -91,45 +140,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                       ),
                     ],
                   ),
-                ],
-              ),
-              
-              // 2. Centered Navigation Tabs (Pills)
-              Container(
-                height: 50,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: Colors.white.withOpacity(0.05)),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  isScrollable: true,
-                  dividerColor: Colors.transparent,
-                  indicator: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  indicatorPadding: const EdgeInsets.all(4),
-                  labelColor: Colors.black, // Active text color (on white)
-                  unselectedLabelColor: Colors.grey,
-                  labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
-                  overlayColor: WidgetStateProperty.all(Colors.transparent),
-                  tabs: List.generate(_tabs.length, (index) {
-                    return Tab(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          children: [
-                            Icon(_icons[index], size: 18),
-                            const SizedBox(width: 8),
-                            Text(_tabs[index]),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
                 ),
               ),
             ],
