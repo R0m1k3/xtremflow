@@ -52,7 +52,7 @@ void main(List<String> args) async {
     .add(_createApiHandler(apiRouter))
     .add(_createStreamHandler())  // FFmpeg streaming endpoint
     .add(_createXtreamProxyHandler())
-    .add(_createHlsHandler())  // Serve generated HLS files
+    // .add(_createHlsHandler())  // REMOVED: HLS obsolete with direct stream
     .add(staticHandler)
     .handler;
 
@@ -396,7 +396,7 @@ Handler _createStreamHandler() {
     }
 
     try {
-      // Extract stream ID from path: /api/stream/{id}
+      // Extract stream ID
       final pathParts = path.split('/');
       if (pathParts.length < 3) {
         return Response.badRequest(body: 'Invalid stream path');
@@ -404,303 +404,113 @@ Handler _createStreamHandler() {
       
       final streamId = pathParts[2];
       
-      // Get the IPTV URL from query parameter
+      // Get parameters
       final iptvUrl = request.url.queryParameters['url'];
       if (iptvUrl == null || iptvUrl.isEmpty) {
         return Response.badRequest(body: 'Missing url parameter');
       }
 
-      // Get streaming settings from query parameters
-      final quality = request.url.queryParameters['quality'] ?? 'medium';
-      final buffer = request.url.queryParameters['buffer'] ?? 'medium';
-      final timeout = request.url.queryParameters['timeout'] ?? 'medium';
-      final mode = request.url.queryParameters['mode'] ?? 'auto'; // direct, transcode, auto
+      print('Starting Direct Stream for ID: $streamId');
+      print('Source: $iptvUrl');
 
-      // Map quality to bitrate/CRF
-      final (int bitrate, int crf) = switch (quality) {
-        'low' => (1500, 26),
-        'high' => (5000, 20),
-        _ => (3000, 23), // medium
-      };
-
-      // Map buffer to segment duration and buffer size
-      final (int segmentDuration, int bufferSize) = switch (buffer) {
-        'low' => (2, 4000),
-        'high' => (6, 12000),
-        _ => (4, 8000), // medium
-      };
-
-      // Map timeout to seconds
-      final int timeoutSeconds = switch (timeout) {
-        'short' => 15,
-        'long' => 60,
-        _ => 30, // medium
-      };
-
-      print('Starting FFmpeg stream for ID: $streamId (quality=$quality, buffer=$buffer)');
-      print('IPTV URL: $iptvUrl');
-
-      // Create output directory for this stream
-      final outputDir = Directory('/tmp/streams/$streamId');
-      if (!await outputDir.exists()) {
-        await outputDir.create(recursive: true);
-      }
-
-      // Clean old files
-      await for (final file in outputDir.list()) {
-        await file.delete();
-      }
-
-      final outputPath = '${outputDir.path}/stream.m3u8';
-
-      // Kill existing FFmpeg process for this stream if any
-      if (_activeStreams.containsKey(streamId)) {
-        _activeStreams[streamId]?.kill();
-        _activeStreams.remove(streamId);
-      }
-
-      // Start FFmpeg process with VLC User-Agent
-      // Transcode to H.264/AAC for browser compatibility (HEVC not supported in Chrome)
-      // Using fast preset for lower CPU usage
-      // Added resilience flags for corrupted/discontinuous streams
-      //
-      // Check if this is a VOD (file) or live stream
-      final isVod = streamId.startsWith('vod_');
+      // Setup FFmpeg arguments for fMP4 piping
+      // Determine if it's VOD or Live
+      final isVod = streamId.startsWith('vod_'); // Or use extension check
       
       final ffmpegArgs = <String>[
-        '-y',  // Overwrite output files
-        '-loglevel', 'warning',  // Reduce verbose output
-        '-err_detect', 'ignore_err',  // Ignore decoding errors
-        '-fflags', '+genpts+discardcorrupt+nobuffer',  // Generate PTS, discard corrupt, reduce buffering
-        '-flags', 'low_delay',  // Low delay mode
-        '-thread_queue_size', '4096',  // Prevent queue overflow on slow CPU
-        '-analyzeduration', isVod ? '10000000' : '1000000',  // 10s for VOD, 1s for live (faster start)
-        '-probesize', isVod ? '5000000' : '500000',  // 5MB for VOD, 500KB for live (faster start)
+        '-hide_banner',
+        '-loglevel', 'error', // Minimize logs, only errors
         '-user_agent', 'VLC/3.0.18 LibVLC/3.0.18',
         '-headers', 'Accept: */*\r\nConnection: keep-alive\r\n',
+        
+        // Input resilience flags
+        '-reconnect', '1',
+        '-reconnect_streamed', '1',
+        '-reconnect_delay_max', '10',
+        '-reconnect_on_network_error', '1',
+        '-reconnect_on_http_error', '4xx,5xx',
+        '-rw_timeout', '15000000', // 15s timeout
+        
+        '-i', iptvUrl,
+        
+        // Output format: fragmented MP4 (fMP4) for streaming
+        '-f', 'mp4',
+        '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
+        
+        // Video: Copy is BEST for performance (0% CPU)
+        // Browsers support H.264 well.
+        '-c:v', 'copy',
+        
+        // Audio: Transcode to AAC is SAFEST for browsers
+        // (Many IPTV streams typically use MP2/AC3 which browsers hate)
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        '-ar', '44100',
+        '-ac', '2',
+        
+        // Fix for MPEG-TS timestamps
+        '-fflags', '+genpts',
+        
+        // Output to stdout pipe
+        'pipe:1'
       ];
-      
-      // Add reconnect flags and longer timeout for live streams (not VOD)
-      if (!isVod) {
-        ffmpegArgs.addAll([
-          '-reconnect', '1',
-          '-reconnect_streamed', '1',
-          '-reconnect_delay_max', '10',  // Increased from 5s
-          '-reconnect_on_network_error', '1',
-          '-reconnect_on_http_error', '4xx,5xx',
-          '-rw_timeout', '${timeoutSeconds * 1000000}',  // Read/write timeout in microseconds
-          '-stimeout', '${timeoutSeconds * 1000000}',   // Socket timeout
-        ]);
-      }
-      
-      ffmpegArgs.addAll(['-i', iptvUrl]);
 
-      // Check mode: direct (copy) vs transcode
-      final usePassthrough = mode == 'direct';
-      
-      if (usePassthrough) {
-        // PASSTHROUGH MODE: Copy video, but transcode audio to AAC
-        // Most IPTV streams use AC3/MP3 audio which browsers can't play in HLS
-        // Video copy = 0% CPU, audio transcode = ~5% CPU (still very light)
-        ffmpegArgs.addAll([
-          '-c:v', 'copy',  // Copy video stream as-is (H.264)
-          '-c:a', 'aac',   // Transcode audio to AAC (browser compatible)
-          '-b:a', '128k',  // Audio bitrate
-          '-ar', '44100',  // Sample rate
-          '-ac', '2',      // Stereo
-          '-bsf:v', 'h264_mp4toannexb',  // Convert to Annex B format for HLS
-        ]);
-      } else {
-        // TRANSCODE MODE: Re-encode for browser compatibility
-        ffmpegArgs.addAll([
-          // Video: transcode to H.264 for browser compatibility
-          '-c:v', 'libx264',
-          '-preset', 'ultrafast',  // Fastest encoding, lowest CPU (was: veryfast)
-          '-tune', 'zerolatency',  // Low latency for live streaming
-          '-profile:v', 'main',  // Main profile for better quality HD
-          '-level', '4.0',  // Higher level for HD content
-          '-pix_fmt', 'yuv420p',  // Required for browser compatibility
-          '-crf', '$crf',  // Quality-based encoding from settings
-          '-b:v', '${bitrate}k',  // Video bitrate from settings
-          '-maxrate', '${(bitrate * 1.5).round()}k',  // Allow larger bursts
-          '-bufsize', '${bufferSize}k',  // Buffer size from settings
-        ]);
-      }
-      
-      // Add timestamp handling for live streams
-      if (!isVod) {
-        ffmpegArgs.addAll([
-          '-fps_mode', 'passthrough',  // Pass through timestamps as-is
-        ]);
-      } else {
-        ffmpegArgs.addAll([
-          '-fps_mode', 'cfr',  // Constant frame rate for VOD
-          '-g', '48',  // Keyframe every 2 seconds at 24fps
-          '-keyint_min', '48',
-        ]);
-      }
-      
-      // Audio handling for transcode mode
-      if (!usePassthrough) {
-        ffmpegArgs.addAll([
-          '-c:a', 'aac',
-          '-b:a', '128k',
-          '-ar', '44100',
-          '-ac', '2',  // Force stereo
-        ]);
-      }
-      
-      ffmpegArgs.addAll([
-        '-avoid_negative_ts', 'make_zero',  // Handle negative timestamps
-        '-max_muxing_queue_size', '1024',  // Prevent queue overflow
-        // HLS output settings - optimized for stability
-        '-f', 'hls',
-        '-hls_time', isVod ? '4' : '$segmentDuration',  // Segment duration from settings for live
-        '-hls_list_size', isVod ? '0' : '30',  // Keep all for VOD, 30 for live (more buffer to prevent 404s)
-        '-hls_flags', isVod ? 'independent_segments' : 'append_list+omit_endlist',  // Simplified flags
-        '-hls_start_number_source', 'epoch',  // Use epoch for consistent segment naming
-        '-hls_segment_filename', '${outputDir.path}/segment_%05d.ts',  // 5-digit numbering
-        outputPath,
-      ]);
-
+      // Start the process
       final process = await Process.start('ffmpeg', ffmpegArgs);
-
-      _activeStreams[streamId] = process;
-
-      // Collect FFmpeg stderr for error reporting
-      final stderrBuffer = StringBuffer();
-      process.stderr.transform(utf8.decoder).listen((data) {
-        stderrBuffer.write(data);
-        // Print warnings and errors
-        if (data.contains('Error') || data.contains('error') || data.contains('Warning')) {
-          print('FFmpeg [$streamId]: $data');
-        }
-      });
-
-      process.exitCode.then((code) {
-        print('FFmpeg process [$streamId] exited with code: $code');
-        if (code != 0) {
-          print('FFmpeg stderr: ${stderrBuffer.toString().substring(0, stderrBuffer.length.clamp(0, 500))}');
-        }
-        _activeStreams.remove(streamId);
-      });
-
-      // Wait for FFmpeg to create the initial playlist with retries
-      // Different sources may take varying times to buffer and produce first segment
-      final playlistFile = File(outputPath);
-      bool playlistReady = false;
-      const maxWaitSeconds = 15;  // Maximum wait time for first segment
-      const checkIntervalMs = 500;  // Check every 500ms
       
-      for (int waited = 0; waited < maxWaitSeconds * 1000; waited += checkIntervalMs) {
-        await Future.delayed(const Duration(milliseconds: checkIntervalMs));
-        
-        // Check if process died early
-        if (!_activeStreams.containsKey(streamId)) {
-          final stderr = stderrBuffer.toString();
-          print('FFmpeg process died early for $streamId: $stderr');
-          return Response.internalServerError(
-            body: jsonEncode({
-              'error': 'FFmpeg process died early',
-              'details': stderr.length > 500 ? stderr.substring(0, 500) : stderr,
-            }),
-            headers: {'content-type': 'application/json'},
-          );
-        }
-        
-        // Check if playlist file exists and has content
-        if (await playlistFile.exists()) {
-          final content = await playlistFile.readAsString();
-          if (content.contains('#EXTINF')) {
-            playlistReady = true;
-            print('FFmpeg ready for $streamId after ${waited}ms');
-            break;
-          }
-        }
-      }
-
-      if (!playlistReady) {
-        // FFmpeg failed - get error message
-        final stderr = stderrBuffer.toString();
-        print('FFmpeg failed to create playlist for $streamId after ${maxWaitSeconds}s');
-        print('FFmpeg stderr: $stderr');
-        process.kill();
-        _activeStreams.remove(streamId);
-        return Response.internalServerError(
-          body: jsonEncode({
-            'error': 'FFmpeg failed to start stream (timeout)',
-            'details': stderr.length > 500 ? stderr.substring(0, 500) : stderr,
-          }),
-          headers: {'content-type': 'application/json'},
-        );
-      }
-
-      // Return the local HLS URL
-      return Response.ok(
-        jsonEncode({
-          'status': 'started',
-          'streamId': streamId,
-          'hlsUrl': '/hls/$streamId/stream.m3u8',
-        }),
-        headers: {
-          'content-type': 'application/json',
-          'access-control-allow-origin': '*',
+      // Manage process lifecycle
+      // We use a StreamController to pipe stdout to the response
+      // AND detect when the client disconnects to kill the process.
+      final controller = StreamController<List<int>>();
+      
+      // Pipe stdout to controller
+      process.stdout.listen(
+        (data) {
+          if (!controller.isClosed) controller.add(data);
+        },
+        onError: (e) {
+          print('FFmpeg stdout error: $e');
+          if (!controller.isClosed) controller.addError(e);
+        },
+        onDone: () {
+          print('FFmpeg process finished for $streamId');
+          if (!controller.isClosed) controller.close();
         },
       );
+
+      // Log stderr for debug
+      process.stderr.transform(utf8.decoder).listen((data) {
+        if (data.contains('Error') || data.contains('error')) {
+          print('FFmpeg Error [$streamId]: $data');
+        }
+      });
+
+      // CLEANUP: When the HTTP client disconnects, the stream subscription
+      // will be cancelled. We MUST kill the FFmpeg process then.
+      controller.onCancel = () {
+        print('Client disconnected for $streamId. Killing FFmpeg...');
+        process.kill();
+      };
+
+      return Response.ok(
+        controller.stream,
+        headers: {
+          'Content-Type': 'video/mp4',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'no-cache, no-store',
+          'Connection': 'keep-alive',
+        },
+      );
+
     } catch (e, stackTrace) {
-      print('Stream error: $e');
+      print('Stream setup error: $e');
       print(stackTrace);
       return Response.internalServerError(
-        body: jsonEncode({'error': 'Stream error', 'message': e.toString()}),
+        body: jsonEncode({'error': 'Stream setup error', 'message': e.toString()}),
         headers: {'content-type': 'application/json'},
       );
     }
   };
 }
 
-/// Create handler for serving HLS files generated by FFmpeg
-Handler _createHlsHandler() {
-  return (Request request) async {
-    final path = request.url.path;
 
-    // Only handle /hls/* requests
-    if (!path.startsWith('hls/')) {
-      return Response.notFound('Not found');
-    }
-
-    try {
-      // Extract file path: /hls/{streamId}/{filename}
-      final relativePath = path.substring('hls/'.length);
-      final filePath = '/tmp/streams/$relativePath';
-      
-      final file = File(filePath);
-      if (!await file.exists()) {
-        return Response.notFound('HLS file not found');
-      }
-
-      // Determine content type
-      String contentType;
-      if (filePath.endsWith('.m3u8')) {
-        contentType = 'application/vnd.apple.mpegurl';
-      } else if (filePath.endsWith('.ts')) {
-        contentType = 'video/MP2T';
-      } else {
-        contentType = 'application/octet-stream';
-      }
-
-      final bytes = await file.readAsBytes();
-      
-      return Response.ok(
-        bytes,
-        headers: {
-          'content-type': contentType,
-          'access-control-allow-origin': '*',
-          'cache-control': 'no-cache',
-        },
-      );
-    } catch (e) {
-      print('HLS serve error: $e');
-      return Response.internalServerError(body: 'Error serving HLS file');
-    }
-  };
-}
