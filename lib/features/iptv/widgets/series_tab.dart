@@ -1,9 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/playlist_config.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive_layout.dart';
+import '../../../core/widgets/components/hero_carousel.dart';
+import '../../../core/widgets/components/ui_components.dart';
 import '../models/xtream_models.dart';
 import '../providers/xtream_provider.dart';
 import '../providers/settings_provider.dart';
@@ -125,11 +129,22 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
     }
   }
 
+  void _openSeries(Series series) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SeriesDetailScreen(
+          series: series,
+          playlist: widget.playlist,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(iptvSettingsProvider);
     
-    // Use search results if searching, otherwise use loaded series with category filter
     List<Series> displaySeries;
     if (_searchQuery.isNotEmpty && _searchResults != null) {
       displaySeries = _searchResults!;
@@ -143,194 +158,135 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
       return const Center(child: Text('No series available'));
     }
 
-    return Column(
-      children: [
-        // Search bar
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Search all series...',
-              hintStyle: GoogleFonts.roboto(color: Colors.grey.shade500),
-              prefixIcon: _isSearching 
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: SizedBox(
-                        width: 20, height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  : const Icon(Icons.search, color: Colors.grey),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.grey),
-                      onPressed: () {
-                        _searchController.clear();
-                        _onSearchChanged('');
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: Colors.grey.shade800,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
-            style: GoogleFonts.roboto(color: Colors.white),
-            onChanged: _onSearchChanged,
-          ),
-        ),
-        
-        // Results count
-        if (_searchQuery.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '${displaySeries.length} result${displaySeries.length != 1 ? 's' : ''} found',
-                style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey.shade600),
-              ),
-            ),
-          ),
-        
-        // Series grid
-        Expanded(
-          child: displaySeries.isEmpty && _series.isNotEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+    // Hero Items
+    final heroItems = _series.take(5).map((s) => HeroItem(
+      id: s.seriesId.toString(), // ID logic might differ for Series
+      title: s.name,
+      imageUrl: s.cover ?? '',
+      subtitle: s.rating != null ? '${s.rating} ★' : null,
+      onMoreInfo: () => _openSeries(s),
+    )).toList();
+
+    final double gridItemRatio = 0.65;
+    final int crossAxisCount = ResponsiveLayout.value(
+      context,
+      mobile: 3,
+      tablet: 5,
+      desktop: 7,
+    );
+
+    return CustomScrollView(
+      controller: _scrollController,
+      slivers: [
+        // Header
+        SliverToBoxAdapter(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+            child: Row(
+              children: [
+                Text(
+                  'TV Series',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                const Spacer(),
+                Container(
+                  width: 300,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
                     children: [
-                      Icon(
-                        _searchQuery.isNotEmpty ? Icons.search_off : Icons.filter_list_off,
-                        size: 48,
-                        color: Colors.grey,
+                      const Icon(Icons.search, size: 20, color: AppColors.textSecondary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                          decoration: const InputDecoration(
+                            hintText: 'Search',
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: EdgeInsets.only(bottom: 12),
+                            isDense: true,
+                          ),
+                          onChanged: _onSearchChanged,
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _searchQuery.isNotEmpty 
-                            ? 'No series match "$_searchQuery"'
-                            : 'No series match the filter',
-                        style: GoogleFonts.roboto(color: Colors.grey),
-                      ),
+                      if (_isSearching)
+                        const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)),
+                      if (_searchQuery.isNotEmpty)
+                        GestureDetector(
+                          onTap: () {
+                             _searchController.clear();
+                             _onSearchChanged('');
+                          },
+                          child: const Icon(Icons.close, size: 16, color: AppColors.textSecondary),
+                        ),
                     ],
                   ),
-                )
-              : GridView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(8),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 7,
-                    crossAxisSpacing: 6,
-                    mainAxisSpacing: 6,
-                    childAspectRatio: 0.65,
-                  ),
-                  itemCount: displaySeries.length + (_hasMore && _searchQuery.isEmpty ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (index >= displaySeries.length) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    final serie = displaySeries[index];
-                    return _SeriesCard(series: serie, playlist: widget.playlist);
-                  },
                 ),
+              ],
+            ),
+          ),
         ),
+
+        // Hero Carousel
+        if (_searchQuery.isEmpty && heroItems.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: HeroCarousel(
+                items: heroItems,
+                onTap: (item) {
+                   final series = _series.firstWhere((s) => s.name == item.title); // Fallback by title if ID mismatch
+                   _openSeries(series);
+                },
+              ),
+            ),
+          ),
+        
+        // Grid
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          sliver: SliverGrid(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: 24,
+              mainAxisSpacing: 32,
+              childAspectRatio: gridItemRatio,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                if (index >= displaySeries.length) return null;
+                final serie = displaySeries[index];
+                return MediaCard(
+                  title: serie.name,
+                  imageUrl: serie.cover,
+                  subtitle: serie.rating != null ? '${serie.rating} ★' : null,
+                  rating: serie.rating,
+                  placeholderIcon: Icons.tv,
+                  onTap: () => _openSeries(serie),
+                );
+              },
+              childCount: displaySeries.length,
+            ),
+          ),
+        ),
+        
+        // Loader
+        if (_isLoading)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ),
       ],
-    );
-  }
-}
-
-class _SeriesCard extends StatelessWidget {
-  final Series series;
-  final PlaylistConfig playlist;
-
-  const _SeriesCard({required this.series, required this.playlist});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {
-          // Navigate to series detail screen for episode selection
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => SeriesDetailScreen(
-                series: series,
-                playlist: playlist,
-              ),
-            ),
-          );
-        },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: series.cover != null
-                  ? CachedNetworkImage(
-                      imageUrl: series.cover!,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: Colors.grey.shade800,
-                        child: const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        color: Colors.grey.shade800,
-                        child: const Icon(Icons.tv, size: 48),
-                      ),
-                    )
-                  : Container(
-                      color: Colors.grey.shade800,
-                      child: const Icon(Icons.tv, size: 48),
-                    ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    series.name,
-                    style: GoogleFonts.roboto(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (series.rating != null) ...[
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.star,
-                          size: 12,
-                          color: Colors.amber.shade700,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          series.rating!,
-                          style: GoogleFonts.roboto(
-                            fontSize: 10,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

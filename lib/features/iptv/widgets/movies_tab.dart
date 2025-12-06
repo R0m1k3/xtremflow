@@ -1,13 +1,17 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/playlist_config.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/responsive_layout.dart';
+import '../../../core/widgets/components/hero_carousel.dart';
+import '../../../core/widgets/components/ui_components.dart';
+import '../../favorites/providers/watch_history_provider.dart';
 import '../models/xtream_models.dart';
 import '../providers/xtream_provider.dart';
 import '../providers/settings_provider.dart';
-import '../providers/watch_history_provider.dart';
 import '../screens/player_screen.dart';
 
 class MoviesTab extends ConsumerStatefulWidget {
@@ -23,7 +27,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   final List<Movie> _movies = [];
-  List<Movie>? _searchResults; // Results from full catalog search
+  List<Movie>? _searchResults;
   String _searchQuery = '';
   bool _isLoading = false;
   bool _isSearching = false;
@@ -103,7 +107,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
 
     try {
       final service = ref.read(xtreamServiceProvider(widget.playlist));
-      final newMovies = await service.getMovies(
+      final newMovies = await service.getMoviesPaginated(
         offset: _currentOffset,
         limit: _pageSize,
       );
@@ -126,252 +130,177 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
     }
   }
 
+  void _playMovie(Movie movie) {
+    ref.read(watchHistoryProvider.notifier).markMovieWatched(movie.streamId);
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PlayerScreen(
+          streamId: movie.streamId,
+          title: movie.name,
+          playlist: widget.playlist,
+          streamType: StreamType.vod,
+          containerExtension: movie.containerExtension ?? 'mp4',
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(iptvSettingsProvider);
+    final watchHistory = ref.watch(watchHistoryProvider);
     
-    // Use search results if searching, otherwise use loaded movies with category filter
     List<Movie> displayMovies;
     if (_searchQuery.isNotEmpty && _searchResults != null) {
       displayMovies = _searchResults!;
     } else {
       displayMovies = settings.moviesKeywords.isEmpty
           ? _movies
-          : _movies.where((m) => settings.matchesMoviesFilter(m.categoryName)).toList();
+          : _movies.where((m) => settings.matchesMovieFilter(m.categoryName)).toList();
     }
+
+    // Hero Items (Take 5 random or first 5)
+    final heroItems = _movies.take(5).map((m) => HeroItem(
+      id: m.streamId,
+      title: m.name,
+      imageUrl: m.streamIcon ?? '',
+      subtitle: m.rating != null ? '${m.rating} ★' : null,
+      onMoreInfo: () {
+         _playMovie(m);
+      },
+    )).toList();
 
     if (_movies.isEmpty && !_isLoading) {
       return const Center(child: Text('No movies available'));
     }
 
-    return Column(
-      children: [
-        // Search bar
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Search all movies...',
-              hintStyle: GoogleFonts.roboto(color: Colors.grey.shade500),
-              prefixIcon: _isSearching 
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: SizedBox(
-                        width: 20, height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  : const Icon(Icons.search, color: Colors.grey),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.grey),
-                      onPressed: () {
-                        _searchController.clear();
-                        _onSearchChanged('');
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: Colors.grey.shade800,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
-            style: GoogleFonts.roboto(color: Colors.white),
-            onChanged: _onSearchChanged,
-          ),
-        ),
-        
-        // Results count
-        if (_searchQuery.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '${displayMovies.length} result${displayMovies.length != 1 ? 's' : ''} found',
-                style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey.shade600),
-              ),
-            ),
-          ),
-        
-        // Movie grid
-        Expanded(
-          child: displayMovies.isEmpty && _movies.isNotEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        _searchQuery.isNotEmpty ? Icons.search_off : Icons.filter_list_off,
-                        size: 48,
-                        color: Colors.grey,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _searchQuery.isNotEmpty 
-                            ? 'No movies match "$_searchQuery"'
-                            : 'No movies match the filter',
-                        style: GoogleFonts.roboto(color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                )
-              : GridView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(8),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 7,
-                    crossAxisSpacing: 6,
-                    mainAxisSpacing: 6,
-                    childAspectRatio: 0.65,
-                  ),
-                  itemCount: displayMovies.length + (_hasMore && _searchQuery.isEmpty ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (index >= displayMovies.length) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    final movie = displayMovies[index];
-                    return _MovieCard(
-                      movie: movie,
-                      playlist: widget.playlist,
-                    );
-                  },
-                ),
-        ),
-      ],
+    final double gridItemRatio = 0.65;
+    final int crossAxisCount = ResponsiveLayout.value(
+      context,
+      mobile: 3,
+      tablet: 5,
+      desktop: 7,
     );
-  }
-}
 
-class _MovieCard extends ConsumerWidget {
-  final Movie movie;
-  final PlaylistConfig playlist;
-
-  const _MovieCard({
-    required this.movie,
-    required this.playlist,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final watchHistory = ref.watch(watchHistoryProvider);
-    final isWatched = watchHistory.isMovieWatched(movie.streamId);
-
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {
-          // Mark as watched when opening
-          ref.read(watchHistoryProvider.notifier).markMovieWatched(movie.streamId);
-          
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PlayerScreen(
-                streamId: movie.streamId,
-                title: movie.name,
-                playlist: playlist,
-                streamType: StreamType.vod,
-                containerExtension: movie.containerExtension ?? 'mp4',
-              ),
-            ),
-          );
-        },
-        onLongPress: () {
-          // Toggle watched status on long press
-          ref.read(watchHistoryProvider.notifier).toggleMovieWatched(movie.streamId);
-        },
-        child: Stack(
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CustomScrollView(
+      controller: _scrollController,
+      slivers: [
+        // Header
+        SliverToBoxAdapter(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+            child: Row(
               children: [
-                Expanded(
-                  child: movie.streamIcon != null
-                      ? CachedNetworkImage(
-                          imageUrl: movie.streamIcon!,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            color: Colors.grey.shade800,
-                            child: const Center(
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ),
-                          errorWidget: (context, url, error) => Container(
-                            color: Colors.grey.shade800,
-                            child: const Icon(Icons.movie, size: 48),
-                          ),
-                        )
-                      : Container(
-                          color: Colors.grey.shade800,
-                          child: const Icon(Icons.movie, size: 48),
-                        ),
+                Text(
+                  'Movies',
+                  style: Theme.of(context).textTheme.headlineMedium,
                 ),
+                const Spacer(),
                 Container(
-                  padding: const EdgeInsets.all(8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  width: 300,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
                     children: [
-                      Text(
-                        movie.name,
-                        style: GoogleFonts.roboto(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
+                      const Icon(Icons.search, size: 20, color: AppColors.textSecondary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                          decoration: const InputDecoration(
+                            hintText: 'Search',
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: EdgeInsets.only(bottom: 12),
+                            isDense: true,
+                          ),
+                          onChanged: _onSearchChanged,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                      if (movie.rating != null) ...[
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.star,
-                              size: 12,
-                              color: Colors.amber.shade700,
-                            ),
-                            const SizedBox(width: 2),
-                            Text(
-                              movie.rating!,
-                              style: GoogleFonts.roboto(
-                                fontSize: 10,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
+                      if (_isSearching)
+                        const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)),
+                      if (_searchQuery.isNotEmpty)
+                        GestureDetector(
+                          onTap: () {
+                             _searchController.clear();
+                             _onSearchChanged('');
+                          },
+                          child: const Icon(Icons.close, size: 16, color: AppColors.textSecondary),
                         ),
-                      ],
                     ],
                   ),
                 ),
               ],
             ),
-            // Watched indicator
-            if (isWatched)
-              Positioned(
-                top: 4,
-                right: 4,
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: Colors.green,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.check,
-                    size: 14,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-          ],
+          ),
         ),
-      ),
+
+        // Hero Carousel
+        if (_searchQuery.isEmpty && heroItems.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: HeroCarousel(
+                items: heroItems,
+                onTap: (item) {
+                   final movie = _movies.firstWhere((element) => element.streamId == item.id);
+                   _playMovie(movie);
+                },
+              ),
+            ),
+          ),
+        
+        // Grid
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          sliver: SliverGrid(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: 24,
+              mainAxisSpacing: 32,
+              childAspectRatio: gridItemRatio,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                if (index >= displayMovies.length) return null;
+                final movie = displayMovies[index];
+                final isWatched = watchHistory.isMovieWatched(movie.streamId);
+                
+                return MediaCard(
+                  title: movie.name,
+                  imageUrl: movie.streamIcon,
+                  subtitle: movie.rating != null ? '${movie.rating} ★' : null,
+                  rating: movie.rating,
+                  isWatched: isWatched,
+                  onTap: () => _playMovie(movie),
+                  onLongPress: () {
+                    ref.read(watchHistoryProvider.notifier).toggleMovieWatched(movie.streamId);
+                  },
+                );
+              },
+              childCount: displayMovies.length,
+            ),
+          ),
+        ),
+        
+        // Loader
+        if (_isLoading)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ),
+      ],
     );
   }
 }
