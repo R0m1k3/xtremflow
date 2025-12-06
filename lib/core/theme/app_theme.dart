@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
-/// XtremFlow Cinematic Minimalist Theme
+/// XtremFlow Apple TV Theme
 /// 
-/// Refined, content-first theme. Less noise, more focus.
+/// Focus-driven, immersive, minimal.
 class AppTheme {
   AppTheme._();
 
@@ -15,15 +15,20 @@ class AppTheme {
   static const double spacing16 = 16.0;
   static const double spacing24 = 24.0;
   static const double spacing32 = 32.0;
+  static const double spacing48 = 48.0; // Larger spacing for TV feel
 
-  // ============ RADIUS (Tighter for professional look) ============
-  static const double radiusSm = 6.0;
-  static const double radiusMd = 8.0;
-  static const double radiusLg = 12.0;
-  static const double radiusXl = 16.0;
-  static const double radiusFull = 999.0;
+  // ============ RADIUS ============
+  static const double radiusSm = 8.0;
+  static const double radiusMd = 12.0;
+  static const double radiusLg = 16.0;
+  static const double radiusXl = 24.0;
 
-  // ============ DARK THEME (Main) ============
+  // ============ ANIMATION ============
+  static const Duration durationFast = Duration(milliseconds: 200);
+  static const Duration durationNormal = Duration(milliseconds: 300);
+  static const Curve curveDefault = Curves.easeOutCubic;
+
+  // ============ DARK THEME (TV Main) ============
   static ThemeData get darkTheme {
     final baseTheme = ThemeData.dark(useMaterial3: true);
     
@@ -31,163 +36,114 @@ class AppTheme {
       colorScheme: AppColors.darkColorScheme,
       scaffoldBackgroundColor: AppColors.background,
       
-      // AppBar: Minimalist, blends with background
+      // AppBar: Totally transparent, content floats below
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.background, // Seamless
+        backgroundColor: Colors.transparent, 
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        centerTitle: false,
-        iconTheme: const IconThemeData(color: AppColors.textPrimary),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: AppColors.textSecondary),
         titleTextStyle: GoogleFonts.inter(
-          fontSize: 20,
+          fontSize: 16,
           fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
+          color: AppColors.textSecondary,
+          letterSpacing: 0.5,
         ),
       ),
       
-      // Navigation: Simple, functional
+      // NavigationBar: Minimal, often just icons or text
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: AppColors.background,
-        surfaceTintColor: Colors.transparent,
-        indicatorColor: AppColors.primary.withOpacity(0.15),
+        backgroundColor: Colors.transparent,
+        indicatorColor: Colors.transparent,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        height: 80,
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+           final isSelected = states.contains(WidgetState.selected);
+           // Selected: White and slightly larger/glowing
+           // Unselected: Grey and smaller
+           return IconThemeData(
+             color: isSelected ? AppColors.focusColor : AppColors.textSecondary,
+             size: isSelected ? 28 : 24,
+           );
+        }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final isSelected = states.contains(WidgetState.selected);
           return GoogleFonts.inter(
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-            color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
+            color: isSelected ? AppColors.focusColor : AppColors.textSecondary,
           );
         }),
-        iconTheme: WidgetStateProperty.resolveWith((states) {
-           final isSelected = states.contains(WidgetState.selected);
-           return IconThemeData(
-             color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
-           );
-        }),
       ),
       
-      // NavigationRail (Desktop)
-      navigationRailTheme: NavigationRailThemeData(
-        backgroundColor: AppColors.background,
-        indicatorColor: AppColors.primary.withOpacity(0.15),
-        selectedIconTheme: const IconThemeData(color: AppColors.textPrimary),
-        unselectedIconTheme: const IconThemeData(color: AppColors.textSecondary),
-        selectedLabelTextStyle: GoogleFonts.inter(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.w600,
-          fontSize: 12,
-        ),
-        unselectedLabelTextStyle: GoogleFonts.inter(
-          color: AppColors.textSecondary,
-          fontWeight: FontWeight.w500,
-          fontSize: 12,
-        ),
-      ),
-      
-      // Cards: Flat, subtle border
+      // Cards: No background by default, they pop on focus
       cardTheme: CardThemeData(
-        color: AppColors.surface,
-        surfaceTintColor: Colors.transparent,
+        color: Colors.transparent, // Background comes from container in widget
         elevation: 0,
+        margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusMd),
-          side: const BorderSide(color: AppColors.border, width: 1),
         ),
-        margin: EdgeInsets.zero,
       ),
       
-      // Inputs: Clean, filled
+      // Inputs: Minimal, dark pills
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surfaceVariant,
-        contentPadding: const EdgeInsets.all(spacing16),
+        fillColor: AppColors.surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: spacing24, vertical: spacing16),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusSm),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderRadius: BorderRadius.circular(radiusFull), // Pill shape
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusSm),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderRadius: BorderRadius.circular(radiusFull),
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusSm),
-          borderSide: const BorderSide(color: AppColors.primary),
+          borderRadius: BorderRadius.circular(radiusFull),
+          borderSide: const BorderSide(color: AppColors.focusColor, width: 2),
         ),
         hintStyle: GoogleFonts.inter(color: AppColors.textTertiary),
-        labelStyle: GoogleFonts.inter(color: AppColors.textSecondary),
       ),
       
-      // Buttons: Sharp, reliable
+      // Buttons: White pill buttons usually
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
+          backgroundColor: AppColors.focusColor, // White buttons
+          foregroundColor: Colors.black, // Black text
+          elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusSm),
+            borderRadius: BorderRadius.circular(radiusFull),
           ),
-          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+          textStyle: GoogleFonts.inter(
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
+          ),
+        ).copyWith(
+          overlayColor: WidgetStateProperty.all(Colors.black.withOpacity(0.1)),
         ),
       ),
 
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.textPrimary,
-          side: const BorderSide(color: AppColors.border),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusSm),
-          ),
-          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        ),
-      ),
-
-      // Text
       textTheme: TextTheme(
         displayLarge: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
-        displayMedium: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
-        headlineMedium: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
         titleLarge: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
-        titleMedium: GoogleFonts.inter(color: AppColors.textPrimary, fontWeight: FontWeight.w500),
         bodyLarge: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 16),
         bodyMedium: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 14),
       ),
     );
   }
 
-  // ============ LIGHT THEME (Minimalist) ============
-  static ThemeData get lightTheme {
-     final baseTheme = ThemeData.light(useMaterial3: true);
-     final colors = AppColors.lightColorScheme;
+  static const double radiusFull = 999.0;
 
-     return baseTheme.copyWith(
-       colorScheme: colors,
-       scaffoldBackgroundColor: colors.background,
-       appBarTheme: AppBarTheme(
-         backgroundColor: colors.background,
-         foregroundColor: colors.onSurface,
-         elevation: 0,
-         centerTitle: false,
-         iconTheme: IconThemeData(color: colors.onSurface),
-         titleTextStyle: GoogleFonts.inter(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: colors.onSurface,
-        ),
-       ),
-       cardTheme: CardThemeData(
-         color: colors.surface,
-         elevation: 0,
-         shape: RoundedRectangleBorder(
-           borderRadius: BorderRadius.circular(radiusMd),
-           side: BorderSide(color: Colors.grey.shade300),
-         ),
-       ),
-       textTheme: TextTheme(
-         bodyLarge: GoogleFonts.inter(color: colors.onSurface),
-         bodyMedium: GoogleFonts.inter(color: colors.onSurfaceVariant),
-       ),
-       // Can expand light theme details later if needed
-     );
-  }
+  // Light theme stub (TV interfaces rarely use light mode, but good for completeness)
+  static ThemeData get lightTheme => ThemeData.light(useMaterial3: true).copyWith(
+    colorScheme: AppColors.lightColorScheme,
+    inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFFF2F2F7),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(radiusFull),
+            borderSide: BorderSide.none)),
+  );
 }
