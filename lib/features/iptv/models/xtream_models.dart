@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// Xtream API Data Models (lightweight for memory optimization)
 
 class LiveChannel {
@@ -261,21 +263,62 @@ class ShortEPG {
 
     final now = DateTime.now();
 
+    // Helper to decode Base64 encoded title
+    String decodeTitle(String? encodedTitle) {
+      if (encodedTitle == null || encodedTitle.isEmpty) return '';
+      try {
+        // Try Base64 decode
+        final decoded = String.fromCharCodes(
+          base64Decode(encodedTitle),
+        );
+        return decoded;
+      } catch (_) {
+        // Not Base64, return as-is
+        return encodedTitle;
+      }
+    }
+
+    // Helper to parse timestamp (Unix epoch or ISO format)
+    DateTime? parseTimestamp(dynamic value) {
+      if (value == null) return null;
+      
+      final strValue = value.toString();
+      
+      // Try parsing as Unix timestamp (seconds)
+      final intValue = int.tryParse(strValue);
+      if (intValue != null) {
+        return DateTime.fromMillisecondsSinceEpoch(intValue * 1000);
+      }
+      
+      // Try parsing as ISO date string
+      return DateTime.tryParse(strValue);
+    }
+
     for (var i = 0; i < epgListings.length; i++) {
-      final listing = epgListings[i];
-      final start = DateTime.tryParse(listing['start']?.toString() ?? '');
-      final stop = DateTime.tryParse(listing['stop']?.toString() ?? '');
+      final listing = epgListings[i] as Map<String, dynamic>;
+      
+      // Parse start/stop timestamps (can be 'start', 'start_timestamp', or Unix epoch)
+      final start = parseTimestamp(listing['start']) ?? 
+                    parseTimestamp(listing['start_timestamp']);
+      final stop = parseTimestamp(listing['stop']) ?? 
+                   parseTimestamp(listing['end']) ??
+                   parseTimestamp(listing['stop_timestamp']);
 
       if (start != null && stop != null) {
         if (now.isAfter(start) && now.isBefore(stop)) {
-          nowTitle = listing['title']?.toString();
+          // Decode title (may be Base64 encoded)
+          nowTitle = decodeTitle(listing['title']?.toString());
+          
           final duration = stop.difference(start).inSeconds;
           final elapsed = now.difference(start).inSeconds;
-          currentProgress = elapsed / duration;
+          if (duration > 0) {
+            currentProgress = elapsed / duration;
+          }
 
           // Get next item
           if (i + 1 < epgListings.length) {
-            nextTitle = epgListings[i + 1]['title']?.toString();
+            final nextListing = epgListings[i + 1] as Map<String, dynamic>;
+            nextTitle = decodeTitle(nextListing['title']?.toString());
           }
           break;
         }

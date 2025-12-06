@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import '../providers/xtream_provider.dart';
 import '../providers/playback_positions_provider.dart';
+import '../providers/settings_provider.dart';
 import '../widgets/epg_overlay.dart';
 import '../../../core/models/playlist_config.dart';
 
@@ -111,11 +112,30 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           _statusMessage = 'Starting stream transcoding...';
         });
         
-        // Build the FFmpeg endpoint URL
+        // Build the FFmpeg endpoint URL with streaming settings
+        final settings = ref.read(iptvSettingsProvider);
         final baseUrl = html.window.location.origin;
         final iptvUrl = '${widget.playlist.dns}/live/${widget.playlist.username}/${widget.playlist.password}/${widget.streamId}.ts';
         final encodedUrl = Uri.encodeComponent(iptvUrl);
-        final streamEndpoint = '$baseUrl/api/stream/${widget.streamId}?url=$encodedUrl';
+        
+        // Map enum values to string params
+        final qualityParam = switch (settings.streamQuality) {
+          StreamQuality.low => 'low',
+          StreamQuality.medium => 'medium',
+          StreamQuality.high => 'high',
+        };
+        final bufferParam = switch (settings.bufferSize) {
+          BufferSize.low => 'low',
+          BufferSize.medium => 'medium',
+          BufferSize.high => 'high',
+        };
+        final timeoutParam = switch (settings.connectionTimeout) {
+          ConnectionTimeout.short => 'short',
+          ConnectionTimeout.medium => 'medium',
+          ConnectionTimeout.long => 'long',
+        };
+        
+        final streamEndpoint = '$baseUrl/api/stream/${widget.streamId}?url=$encodedUrl&quality=$qualityParam&buffer=$bufferParam&timeout=$timeoutParam';
         
         debugPrint('PlayerScreen: Starting FFmpeg stream: $streamEndpoint');
         
