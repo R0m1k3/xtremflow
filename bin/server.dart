@@ -131,7 +131,13 @@ Handler _createXtreamProxyHandler() {
     try {
       // Extract target URL from request
       // Format: /api/xtream/http://server:port/path
-      final apiPath = path.substring('api/xtream/'.length);
+      // Note: URL might be URL-encoded (e.g., http%3A%2F%2F...)
+      String apiPath = path.substring('api/xtream/'.length);
+      
+      // Decode URL if it's encoded (http%3A%2F%2F -> http://)
+      if (apiPath.startsWith('http%3A') || apiPath.startsWith('https%3A')) {
+        apiPath = Uri.decodeComponent(apiPath);
+      }
       
       // The client will send the full URL after /api/xtream/
       if (!apiPath.startsWith('http://') && !apiPath.startsWith('https://')) {
@@ -460,13 +466,14 @@ Handler _createStreamHandler() {
         '-i', iptvUrl,
         // Video: transcode to H.264 for browser compatibility
         '-c:v', 'libx264',
-        '-preset', 'ultrafast',  // Fastest encoding (less CPU)
-        '-profile:v', 'baseline',  // Most compatible H.264 profile
-        '-level', '3.1',
+        '-preset', 'veryfast',  // Better quality than ultrafast, still fast
+        '-profile:v', 'main',  // Main profile for better quality HD
+        '-level', '4.0',  // Higher level for HD content
         '-pix_fmt', 'yuv420p',  // Required for browser compatibility
-        '-b:v', '2500k',  // 2.5 Mbps video bitrate
-        '-maxrate', '3000k',
-        '-bufsize', '6000k',
+        '-crf', '21',  // Quality-based encoding (lower = better, 21 is high quality)
+        '-b:v', '4000k',  // 4 Mbps video bitrate for HD quality
+        '-maxrate', '5000k',  // Allow bursts up to 5 Mbps
+        '-bufsize', '8000k',  // Larger buffer for smoother playback
       ]);
       
       // Add latency flags only for live streams
