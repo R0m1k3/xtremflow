@@ -38,6 +38,7 @@ class Movie {
   final String name;
   final String? streamIcon;
   final String? categoryId;
+  final String categoryName;
   final String? containerExtension;
   final String? rating;
 
@@ -46,6 +47,7 @@ class Movie {
     required this.name,
     this.streamIcon,
     this.categoryId,
+    this.categoryName = '',
     this.containerExtension,
     this.rating,
   });
@@ -56,6 +58,7 @@ class Movie {
       name: json['name']?.toString() ?? 'Unknown',
       streamIcon: json['stream_icon']?.toString(),
       categoryId: json['category_id']?.toString(),
+      categoryName: json['category_name']?.toString() ?? '',
       containerExtension: json['container_extension']?.toString() ?? 'mp4',
       rating: json['rating']?.toString(),
     );

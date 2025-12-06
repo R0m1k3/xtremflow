@@ -96,6 +96,39 @@ class XtreamService {
     }
   }
 
+  /// Load categories mapping (category_id -> category_name)
+  Future<Map<String, String>> _getLiveCategories() async {
+    if (_currentPlaylist == null) throw Exception('No playlist configured');
+
+    try {
+      final response = await _dio.get(
+        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
+        queryParameters: {
+          'username': _currentPlaylist!.username,
+          'password': _currentPlaylist!.password,
+          'action': 'get_live_categories',
+        },
+        options: Options(extra: _cacheOptions.toExtra()),
+      );
+
+      final List<dynamic> categories = response.data as List<dynamic>;
+      final Map<String, String> categoryMap = {};
+
+      for (final cat in categories) {
+        final catData = cat as Map<String, dynamic>;
+        final id = catData['category_id']?.toString() ?? '';
+        final name = catData['category_name']?.toString() ?? 'Unknown';
+        if (id.isNotEmpty) {
+          categoryMap[id] = name;
+        }
+      }
+
+      return categoryMap;
+    } catch (e) {
+      return {}; // Return empty map on error, channels will be "Uncategorized"
+    }
+  }
+
   /// Get all live TV channels grouped by category
   /// 
   /// Returns a Map where key is category name and value is list of channels
@@ -103,6 +136,9 @@ class XtreamService {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
 
     try {
+      // First, load categories to get the mapping
+      final categoryMap = await _getLiveCategories();
+
       final response = await _dio.get(
         _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
         queryParameters: {
@@ -117,8 +153,15 @@ class XtreamService {
       final Map<String, List<Channel>> groupedChannels = {};
 
       for (final streamData in streams) {
-        final channel = Channel.fromJson(streamData as Map<String, dynamic>);
-        final categoryName = channel.categoryName.isEmpty ? 'Uncategorized' : channel.categoryName;
+        final data = streamData as Map<String, dynamic>;
+        // Get category name from our mapping using category_id
+        final categoryId = data['category_id']?.toString() ?? '';
+        final categoryName = categoryMap[categoryId] ?? 'Uncategorized';
+        
+        // Inject category_name into data before parsing
+        data['category_name'] = categoryName;
+        
+        final channel = Channel.fromJson(data);
 
         if (!groupedChannels.containsKey(categoryName)) {
           groupedChannels[categoryName] = [];
@@ -132,11 +175,44 @@ class XtreamService {
     }
   }
 
+  /// Load VOD categories mapping
+  Future<Map<String, String>> _getVodCategories() async {
+    if (_currentPlaylist == null) return {};
+
+    try {
+      final response = await _dio.get(
+        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
+        queryParameters: {
+          'username': _currentPlaylist!.username,
+          'password': _currentPlaylist!.password,
+          'action': 'get_vod_categories',
+        },
+        options: Options(extra: _cacheOptions.toExtra()),
+      );
+
+      final List<dynamic> categories = response.data as List<dynamic>;
+      final Map<String, String> categoryMap = {};
+
+      for (final cat in categories) {
+        final catData = cat as Map<String, dynamic>;
+        final id = catData['category_id']?.toString() ?? '';
+        final name = catData['category_name']?.toString() ?? 'Unknown';
+        if (id.isNotEmpty) categoryMap[id] = name;
+      }
+
+      return categoryMap;
+    } catch (e) {
+      return {};
+    }
+  }
+
   /// Get all VOD items (movies) grouped by category
   Future<Map<String, List<VodItem>>> getVodItems() async {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
 
     try {
+      final categoryMap = await _getVodCategories();
+
       final response = await _dio.get(
         _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
         queryParameters: {
@@ -151,8 +227,12 @@ class XtreamService {
       final Map<String, List<VodItem>> groupedVods = {};
 
       for (final vodData in vods) {
-        final vod = VodItem.fromJson(vodData as Map<String, dynamic>);
-        final categoryName = vod.categoryName.isEmpty ? 'Uncategorized' : vod.categoryName;
+        final data = vodData as Map<String, dynamic>;
+        final categoryId = data['category_id']?.toString() ?? '';
+        final categoryName = categoryMap[categoryId] ?? 'Uncategorized';
+        data['category_name'] = categoryName;
+
+        final vod = VodItem.fromJson(data);
 
         if (!groupedVods.containsKey(categoryName)) {
           groupedVods[categoryName] = [];
@@ -166,11 +246,44 @@ class XtreamService {
     }
   }
 
+  /// Load Series categories mapping
+  Future<Map<String, String>> _getSeriesCategories() async {
+    if (_currentPlaylist == null) return {};
+
+    try {
+      final response = await _dio.get(
+        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
+        queryParameters: {
+          'username': _currentPlaylist!.username,
+          'password': _currentPlaylist!.password,
+          'action': 'get_series_categories',
+        },
+        options: Options(extra: _cacheOptions.toExtra()),
+      );
+
+      final List<dynamic> categories = response.data as List<dynamic>;
+      final Map<String, String> categoryMap = {};
+
+      for (final cat in categories) {
+        final catData = cat as Map<String, dynamic>;
+        final id = catData['category_id']?.toString() ?? '';
+        final name = catData['category_name']?.toString() ?? 'Unknown';
+        if (id.isNotEmpty) categoryMap[id] = name;
+      }
+
+      return categoryMap;
+    } catch (e) {
+      return {};
+    }
+  }
+
   /// Get all series grouped by category
   Future<Map<String, List<Series>>> getSeries() async {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
 
     try {
+      final categoryMap = await _getSeriesCategories();
+
       final response = await _dio.get(
         _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
         queryParameters: {
@@ -185,8 +298,12 @@ class XtreamService {
       final Map<String, List<Series>> groupedSeries = {};
 
       for (final seriesData in seriesList) {
-        final series = Series.fromJson(seriesData as Map<String, dynamic>);
-        final categoryName = series.categoryName.isEmpty ? 'Uncategorized' : series.categoryName;
+        final data = seriesData as Map<String, dynamic>;
+        final categoryId = data['category_id']?.toString() ?? '';
+        final categoryName = categoryMap[categoryId] ?? 'Uncategorized';
+        data['category_name'] = categoryName;
+
+        final series = Series.fromJson(data);
 
         if (!groupedSeries.containsKey(categoryName)) {
           groupedSeries[categoryName] = [];
@@ -205,6 +322,9 @@ class XtreamService {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
 
     try {
+      // Load categories for mapping
+      final categoryMap = await _getVodCategories();
+
       final response = await _dio.get(
         _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
         queryParameters: {
@@ -223,9 +343,12 @@ class XtreamService {
       
       final paginatedMovies = allMovies.sublist(offset, endIndex);
       
-      return paginatedMovies
-          .map((movieData) => xm.Movie.fromJson(movieData as Map<String, dynamic>))
-          .toList();
+      return paginatedMovies.map((movieData) {
+        final data = movieData as Map<String, dynamic>;
+        final categoryId = data['category_id']?.toString() ?? '';
+        data['category_name'] = categoryMap[categoryId] ?? 'Uncategorized';
+        return xm.Movie.fromJson(data);
+      }).toList();
     } catch (e) {
       throw Exception('Failed to fetch movies: $e');
     }
@@ -236,6 +359,9 @@ class XtreamService {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
 
     try {
+      // Load categories for mapping
+      final categoryMap = await _getSeriesCategories();
+
       final response = await _dio.get(
         _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
         queryParameters: {
@@ -254,9 +380,12 @@ class XtreamService {
       
       final paginatedSeries = allSeries.sublist(offset, endIndex);
       
-      return paginatedSeries
-          .map((seriesData) => xm.Series.fromJson(seriesData as Map<String, dynamic>))
-          .toList();
+      return paginatedSeries.map((seriesData) {
+        final data = seriesData as Map<String, dynamic>;
+        final categoryId = data['category_id']?.toString() ?? '';
+        data['category_name'] = categoryMap[categoryId] ?? 'Uncategorized';
+        return xm.Series.fromJson(data);
+      }).toList();
     } catch (e) {
       throw Exception('Failed to fetch series: $e');
     }
