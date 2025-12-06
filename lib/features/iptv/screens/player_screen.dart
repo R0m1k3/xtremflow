@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:video_player/video_player.dart';
-import 'package:chewie/chewie.dart';
+import 'dart:html' as html;
+import 'dart:ui_web' as ui_web;
 import '../providers/xtream_provider.dart';
 import '../widgets/epg_overlay.dart';
-import '../../../core/models/iptv_models.dart';
 import '../../../core/models/playlist_config.dart';
 
 /// Stream type enum for player
 enum StreamType { live, vod, series }
 
-/// Video player screen with EPG overlay for live streams
+/// Video player screen using HTML5 player with mpegts.js for TS streams
 class PlayerScreen extends ConsumerStatefulWidget {
   final String streamId;
   final String title;
@@ -24,7 +23,7 @@ class PlayerScreen extends ConsumerStatefulWidget {
     required this.title,
     required this.playlist,
     this.streamType = StreamType.live,
-    this.containerExtension = 'm3u8',
+    this.containerExtension = 'mp4',
   });
 
   @override
@@ -32,18 +31,19 @@ class PlayerScreen extends ConsumerStatefulWidget {
 }
 
 class _PlayerScreenState extends ConsumerState<PlayerScreen> {
-  late VideoPlayerController _videoPlayerController;
-  ChewieController? _chewieController;
-  bool _isLoading = true;
+  String? _streamUrl;
   String? _errorMessage;
+  late String _viewId;
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
+    _viewId = 'iptv-player-${widget.streamId}-${DateTime.now().millisecondsSinceEpoch}';
     _initializePlayer();
   }
 
-  Future<void> _initializePlayer() async {
+  void _initializePlayer() {
     try {
       // Validate playlist before proceeding
       if (widget.playlist.dns.isEmpty || 
@@ -77,67 +77,37 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           break;
       }
       
-      // Debug: Print stream URL to console
       debugPrint('PlayerScreen: Initializing stream URL: $streamUrl');
-
-      _videoPlayerController = VideoPlayerController.networkUrl(
-        Uri.parse(streamUrl),
-      );
-
-      await _videoPlayerController.initialize();
-
-      _chewieController = ChewieController(
-        videoPlayerController: _videoPlayerController,
-        autoPlay: true,
-        looping: false,
-        aspectRatio: 16 / 9,
-        allowFullScreen: true,
-        allowMuting: true,
-        showControls: true,
-        placeholder: Container(
-          color: Colors.black,
-          child: const Center(
-            child: CircularProgressIndicator(),
-          ),
-        ),
-        errorBuilder: (context, errorMessage) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.error_outline,
-                  size: 48,
-                  color: Colors.red,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Error: $errorMessage',
-                  style: const TextStyle(color: Colors.white),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          );
+      
+      // Register the HTML view with an iframe pointing to our player.html
+      final encodedUrl = Uri.encodeComponent(streamUrl);
+      final playerUrl = 'player.html?url=$encodedUrl';
+      
+      // Register platform view factory
+      // ignore: undefined_prefixed_name
+      ui_web.platformViewRegistry.registerViewFactory(
+        _viewId,
+        (int viewId) {
+          final iframe = html.IFrameElement()
+            ..src = playerUrl
+            ..style.border = 'none'
+            ..style.width = '100%'
+            ..style.height = '100%'
+            ..allow = 'autoplay; fullscreen'
+            ..allowFullscreen = true;
+          return iframe;
         },
       );
 
       setState(() {
-        _isLoading = false;
+        _streamUrl = streamUrl;
+        _isInitialized = true;
       });
     } catch (e) {
       setState(() {
-        _isLoading = false;
         _errorMessage = e.toString();
       });
     }
-  }
-
-  @override
-  void dispose() {
-    _videoPlayerController.dispose();
-    _chewieController?.dispose();
-    super.dispose();
   }
 
   @override
@@ -146,47 +116,48 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       appBar: AppBar(
         title: Text(widget.title),
         backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
       ),
       backgroundColor: Colors.black,
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
-          : _errorMessage != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: Colors.red,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Failed to load stream',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _errorMessage!,
-                        style: const TextStyle(color: Colors.white70),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+      body: _errorMessage != null
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: Colors.red,
                   ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Failed to load stream',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(color: Colors.white70),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : !_isInitialized
+              ? const Center(
+                  child: CircularProgressIndicator(),
                 )
               : Stack(
                   children: [
-                    Center(
-                      child: _chewieController != null
-                          ? Chewie(controller: _chewieController!)
-                          : const SizedBox.shrink(),
-                    ),
+                    // HTML5 video player via iframe
+                    HtmlElementView(viewType: _viewId),
                     // EPG overlay for live streams
                     if (widget.streamType == StreamType.live)
                       Positioned(

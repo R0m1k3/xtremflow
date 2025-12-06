@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>IPTV Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+        }
+
+        #player-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        #error {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            text-align: center;
+        }
+
+        #error-icon {
+            font-size: 64px;
+            color: #f44336;
+            margin-bottom: 16px;
+        }
+
+        #loading {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #fff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="player-container">
+        <video id="video" controls autoplay></video>
+        <div id="loading">
+            <div class="spinner"></div>
+        </div>
+        <div id="error">
+            <div id="error-icon">⚠</div>
+            <div id="error-message">Failed to load stream</div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/mpegts.js@latest/dist/mpegts.min.js"></script>
+    <script>
+        const video = document.getElementById('video');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const errorMessage = document.getElementById('error-message');
+
+        // Get stream URL from query parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const streamUrl = urlParams.get('url');
+
+        function showLoading() {
+            loading.style.display = 'block';
+            error.style.display = 'none';
+        }
+
+        function hideLoading() {
+            loading.style.display = 'none';
+        }
+
+        function showError(message) {
+            hideLoading();
+            error.style.display = 'block';
+            errorMessage.textContent = message || 'Failed to load stream';
+        }
+
+        if (!streamUrl) {
+            showError('No stream URL provided');
+        } else if (mpegts.isSupported()) {
+            showLoading();
+
+            const player = mpegts.createPlayer({
+                type: 'mse',  // could be 'flv' or 'mpegts'
+                isLive: true,
+                url: streamUrl,
+            }, {
+                enableWorker: true,
+                enableStashBuffer: false,
+                stashInitialSize: 128,
+                liveBufferLatencyChasing: true,
+                liveBufferLatencyMaxLatency: 1.5,
+                liveBufferLatencyMinRemain: 0.5,
+            });
+
+            player.attachMediaElement(video);
+            player.load();
+
+            video.addEventListener('canplay', () => {
+                hideLoading();
+                video.play().catch(e => console.log('Autoplay prevented:', e));
+            });
+
+            video.addEventListener('error', (e) => {
+                showError('Video error: ' + (video.error?.message || 'Unknown error'));
+            });
+
+            player.on(mpegts.Events.ERROR, (errType, errDetail, errInfo) => {
+                console.error('mpegts error:', errType, errDetail, errInfo);
+                showError(`Stream error: ${errDetail}`);
+            });
+
+            player.on(mpegts.Events.LOADING_COMPLETE, () => {
+                console.log('Loading complete');
+            });
+        } else {
+            showError('MPEG-TS playback is not supported in this browser');
+        }
+    </script>
+</body>
+
+</html>
