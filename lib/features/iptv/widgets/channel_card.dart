@@ -56,15 +56,6 @@ class _ChannelCardState extends ConsumerState<ChannelCard>
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final favorites = ref.watch(favoritesProvider);
-    final isFavorite = favorites.contains(widget.streamId);
-
-    // Dynamic sizing based on hover. 
-    // In valid tvOS, the layout reserves space, so we scale the content but not the layout bounds to avoid reflow.
-    // However, simplest way here is just Transform.scale.
-    
   Future<void> _fetchEpg() async {
     if (_epgLoaded) return;
     
@@ -108,6 +99,7 @@ class _ChannelCardState extends ConsumerState<ChannelCard>
     final favorites = ref.watch(favoritesProvider);
     final isFavorite = favorites.contains(widget.streamId);
 
+    // Dynamic sizing based on hover
     return MouseRegion(
       onEnter: (_) {
         setState(() => _isHovered = true);
