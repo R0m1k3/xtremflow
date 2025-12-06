@@ -7,6 +7,8 @@ import '../providers/settings_provider.dart';
 import '../screens/player_screen.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/models/playlist_config.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/responsive_layout.dart';
 import 'epg_widget.dart';
 
 /// Live TV tab with category box grid navigation
@@ -97,14 +99,22 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
       );
     }
 
+    // Responsive grid columns
+    final gridColumns = ResponsiveLayout.value(
+      context,
+      mobile: 2,
+      tablet: 4,
+      desktop: 6,
+    );
+
     return Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.all(12.0),
       child: GridView.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 6,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-          childAspectRatio: 1.8,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: gridColumns,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.6,
         ),
         itemCount: categories.length,
         itemBuilder: (context, index) {
