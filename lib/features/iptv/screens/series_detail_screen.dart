@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/playlist_config.dart';
 import '../models/xtream_models.dart';
 import '../providers/xtream_provider.dart';
+import '../providers/watch_history_provider.dart';
 import 'player_screen.dart';
 
 /// Series detail screen showing seasons and episodes
@@ -241,11 +242,22 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
   }
 
   Widget _buildEpisodeTile(Episode episode) {
+    final watchHistory = ref.watch(watchHistoryProvider);
+    final episodeKey = WatchHistory.episodeKey(
+      widget.series.seriesId,
+      _selectedSeason,
+      episode.episodeNum,
+    );
+    final isWatched = watchHistory.isEpisodeWatched(episodeKey);
+
     return Card(
       color: Colors.grey.shade800,
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         onTap: () {
+          // Mark as watched when playing
+          ref.read(watchHistoryProvider.notifier).markEpisodeWatched(episodeKey);
+          
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -259,6 +271,10 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
             ),
           );
         },
+        onLongPress: () {
+          // Toggle watched on long press
+          ref.read(watchHistoryProvider.notifier).toggleEpisodeWatched(episodeKey);
+        },
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -269,18 +285,20 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade700,
+                  color: isWatched ? Colors.green : Colors.blue.shade700,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Center(
-                  child: Text(
-                    '${episode.episodeNum}',
-                    style: GoogleFonts.roboto(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: isWatched
+                      ? const Icon(Icons.check, color: Colors.white, size: 20)
+                      : Text(
+                          '${episode.episodeNum}',
+                          style: GoogleFonts.roboto(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -295,7 +313,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                       style: GoogleFonts.roboto(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: Colors.white,
+                        color: isWatched ? Colors.white54 : Colors.white,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -313,7 +331,11 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
               ),
               
               // Play icon
-              const Icon(Icons.play_circle_outline, color: Colors.white70, size: 28),
+              Icon(
+                isWatched ? Icons.replay : Icons.play_circle_outline,
+                color: Colors.white70,
+                size: 28,
+              ),
             ],
           ),
         ),

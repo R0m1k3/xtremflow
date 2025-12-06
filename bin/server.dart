@@ -406,46 +406,76 @@ Handler _createStreamHandler() {
       // Transcode to H.264/AAC for browser compatibility (HEVC not supported in Chrome)
       // Using fast preset for lower CPU usage
       // Added resilience flags for corrupted/discontinuous streams
-      final process = await Process.start('ffmpeg', [
+      //
+      // Check if this is a VOD (file) or live stream
+      final isVod = streamId.startsWith('vod_');
+      
+      final ffmpegArgs = <String>[
         '-y',  // Overwrite output files
         '-loglevel', 'warning',  // Reduce verbose output
         '-err_detect', 'ignore_err',  // Ignore decoding errors
-        '-fflags', '+genpts+discardcorrupt+igndts',  // Generate PTS, discard corrupt frames, ignore DTS
-        '-flags', 'low_delay',  // Low delay mode
-        '-analyzeduration', '2000000',  // Limit analysis time (2 seconds)
-        '-probesize', '1000000',  // Limit probe size (1MB)
+        '-fflags', '+genpts+discardcorrupt',  // Generate PTS, discard corrupt frames
+        '-analyzeduration', isVod ? '10000000' : '2000000',  // 10s for VOD, 2s for live
+        '-probesize', isVod ? '5000000' : '1000000',  // 5MB for VOD, 1MB for live
         '-user_agent', 'VLC/3.0.18 LibVLC/3.0.18',
         '-headers', 'Accept: */*\r\nConnection: keep-alive\r\n',
-        '-reconnect', '1',
-        '-reconnect_streamed', '1',
-        '-reconnect_delay_max', '5',
-        '-reconnect_on_network_error', '1',  // Reconnect on network errors
-        '-reconnect_on_http_error', '4xx,5xx',  // Reconnect on HTTP errors
+      ];
+      
+      // Add reconnect flags only for live streams (not VOD)
+      if (!isVod) {
+        ffmpegArgs.addAll([
+          '-reconnect', '1',
+          '-reconnect_streamed', '1',
+          '-reconnect_delay_max', '5',
+          '-reconnect_on_network_error', '1',
+          '-reconnect_on_http_error', '4xx,5xx',
+        ]);
+      }
+      
+      ffmpegArgs.addAll([
         '-i', iptvUrl,
         // Video: transcode to H.264 for browser compatibility
         '-c:v', 'libx264',
         '-preset', 'ultrafast',  // Fastest encoding (less CPU)
-        '-tune', 'zerolatency',  // Low latency for live streaming
         '-profile:v', 'baseline',  // Most compatible H.264 profile
-        '-level', '3.0',
+        '-level', '3.1',
+        '-pix_fmt', 'yuv420p',  // Required for browser compatibility
         '-b:v', '2500k',  // 2.5 Mbps video bitrate
         '-maxrate', '3000k',
         '-bufsize', '6000k',
-        '-vsync', 'passthrough',  // Pass through timestamps as-is (fixes discontinuity)
+      ]);
+      
+      // Add latency flags only for live streams
+      if (!isVod) {
+        ffmpegArgs.addAll([
+          '-tune', 'zerolatency',  // Low latency for live streaming
+          '-vsync', 'passthrough',  // Pass through timestamps as-is
+        ]);
+      } else {
+        ffmpegArgs.addAll([
+          '-vsync', 'cfr',  // Constant frame rate for VOD
+          '-g', '48',  // Keyframe every 2 seconds at 24fps
+          '-keyint_min', '48',
+        ]);
+      }
+      
+      ffmpegArgs.addAll([
         '-avoid_negative_ts', 'make_zero',  // Handle negative timestamps
         // Audio: transcode to AAC
         '-c:a', 'aac',
         '-b:a', '128k',
         '-ar', '44100',
-        '-async', '1',  // Audio sync (stretch/compression allowed)
+        '-ac', '2',  // Force stereo
         // HLS output settings
         '-f', 'hls',
-        '-hls_time', '2',  // 2 second segments
-        '-hls_list_size', '5',  // Keep only last 5 segments
-        '-hls_flags', 'delete_segments+append_list+omit_endlist',
+        '-hls_time', isVod ? '4' : '2',  // 4 second segments for VOD, 2 for live
+        '-hls_list_size', isVod ? '0' : '5',  // Keep all segments for VOD, last 5 for live
+        '-hls_flags', isVod ? 'independent_segments' : 'delete_segments+append_list+omit_endlist',
         '-hls_segment_filename', '${outputDir.path}/segment_%d.ts',
         outputPath,
       ]);
+
+      final process = await Process.start('ffmpeg', ffmpegArgs);
 
       _activeStreams[streamId] = process;
 
