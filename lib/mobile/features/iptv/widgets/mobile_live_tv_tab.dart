@@ -8,7 +8,7 @@ import '../screens/mobile_player_screen.dart';
 import '../../../../core/models/iptv_models.dart';
 import '../../../../core/models/playlist_config.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../theme/mobile_theme.dart';
+import '../../../theme/mobile_theme.dart';
 import '../../../../core/widgets/components/ui_components.dart'; // For images/CachedNetworkImage if needed
 
 class MobileLiveTVTab extends ConsumerStatefulWidget {
