@@ -8,6 +8,7 @@ import '../screens/player_screen.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/responsive_layout.dart';
 import 'channel_card.dart';
 
