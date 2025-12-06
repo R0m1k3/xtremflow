@@ -332,6 +332,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
           name: channel.name,
           iconUrl: _getProxiedIconUrl(channel.streamIcon),
           currentProgram: null,
+          playlist: widget.playlist,
           onTap: () => _playChannel(channel),
         );
       },
@@ -354,6 +355,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
             iconUrl: _getProxiedIconUrl(channel.streamIcon),
             height: 70,
             width: double.infinity,
+            playlist: widget.playlist,
             onTap: () => _playChannel(channel),
           ),
         );

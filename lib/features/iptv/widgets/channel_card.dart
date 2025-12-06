@@ -1,17 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_theme.dart';
-import '../providers/favorites_provider.dart';
+import '../../../core/models/playlist_config.dart';
+import '../../iptv/providers/xtream_provider.dart';
 
-/// Apple TV Style Channel Card
-/// 
-/// "Pop-out" effect on focus:
-/// - Scales up (1.0 -> 1.1)
-/// - Throws a large soft shadow
-/// - Adds a thick white border (Focus Ring)
-/// - Title is typically BELOW the card in tvOS, but we'll overlay it subtly or keep below.
 class ChannelCard extends ConsumerStatefulWidget {
   final String streamId;
   final String name;
@@ -21,11 +12,13 @@ class ChannelCard extends ConsumerStatefulWidget {
   final VoidCallback? onTap;
   final double? width;
   final double? height;
+  final PlaylistConfig playlist;
 
   const ChannelCard({
     super.key,
     required this.streamId,
     required this.name,
+    required this.playlist,
     this.iconUrl,
     this.currentProgram,
     this.isLive = true,
@@ -42,7 +35,11 @@ class _ChannelCardState extends ConsumerState<ChannelCard>
     with SingleTickerProviderStateMixin {
   bool _isHovered = false;
   late AnimationController _pulseController;
-  // late Animation<double> _pulseAnimation; // Unused for now, focus is static
+  
+  // EPG State
+  String? _epgNow;
+  bool _epgLoaded = false;
+
 
   @override
   void initState() {
@@ -68,8 +65,54 @@ class _ChannelCardState extends ConsumerState<ChannelCard>
     // In valid tvOS, the layout reserves space, so we scale the content but not the layout bounds to avoid reflow.
     // However, simplest way here is just Transform.scale.
     
+  Future<void> _fetchEpg() async {
+    if (_epgLoaded) return;
+    
+    try {
+      // Don't modify state if unmounted
+      if (!mounted) return;
+
+      final service = ref.read(xtreamServiceProvider(widget.playlist));
+      // We use the short EPG endpoint for quick access
+      final entries = await service.getShortEpg(widget.streamId);
+      
+      if (mounted && entries.isNotEmpty) {
+        final now = DateTime.now();
+        // Find current program
+        final current = entries.firstWhere(
+          (e) {
+             try {
+               final start = DateTime.parse(e.start);
+               final end = DateTime.parse(e.end);
+               return now.isAfter(start) && now.isBefore(end);
+             } catch (_) {
+               return false; 
+             }
+          },
+          orElse: () => entries.first,
+        );
+        
+        setState(() {
+          _epgNow = current.title;
+          _epgLoaded = true;
+        });
+      }
+    } catch (_) {
+      // Fail silently
+      if (mounted) setState(() => _epgLoaded = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final favorites = ref.watch(favoritesProvider);
+    final isFavorite = favorites.contains(widget.streamId);
+
     return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
+      onEnter: (_) {
+        setState(() => _isHovered = true);
+        if (!_epgLoaded) _fetchEpg();
+      },
       onExit: (_) => setState(() => _isHovered = false),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
@@ -120,15 +163,13 @@ class _ChannelCardState extends ConsumerState<ChannelCard>
                       // 1. Background Image / Logo - EDGE TO EDGE
                       _buildChannelImage(),
                       
-                      // 2. Subtle Gradient (Always visible to make white logos pop on white background? No, black bg handling)
-                      // Only show gradient if we have text to show ON the card, but for tvOS text is often below.
-                      // Let's keep text overlay for now as requested "Minimalist" often implies overlays.
+                      // 2. Gradient Overlay (Subtle)
                       if (_isHovered)
                         Positioned.fill(
                           child: Container(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
-                                colors: [Colors.transparent, Colors.black.withOpacity(0.8)],
+                                colors: [Colors.transparent, Colors.black.withOpacity(0.4)],
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
                               ),
@@ -174,8 +215,6 @@ class _ChannelCardState extends ConsumerState<ChannelCard>
             const SizedBox(height: 8),
             
             // Text separates from card (Classic tvOS look)
-            // Only show text prominently if hovered? Or always?
-            // "Minimalist" -> Always show but keep it subtle. White when focused.
             SizedBox(
               width: widget.width ?? 180,
               child: Column(
@@ -193,10 +232,10 @@ class _ChannelCardState extends ConsumerState<ChannelCard>
                       fontSize: 13,
                     ),
                   ),
-                  if (widget.currentProgram != null && _isHovered) ...[
+                  if ((widget.currentProgram != null || _epgNow != null) && _isHovered) ...[
                     const SizedBox(height: 2),
                     Text(
-                      widget.currentProgram!,
+                      _epgNow ?? widget.currentProgram ?? '',
                       textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
