@@ -159,13 +159,23 @@ class EpgEntry {
     return EpgEntry(
       id: json['id']?.toString() ?? '',
       epgId: json['epg_id']?.toString() ?? '',
-      title: json['title']?.toString() ?? '',
+      title: _decodeBase64(json['title']?.toString()),
       lang: json['lang']?.toString() ?? '',
       start: json['start']?.toString() ?? '',
       end: json['end']?.toString() ?? '',
-      description: json['description']?.toString() ?? '',
+      description: _decodeBase64(json['description']?.toString()),
       channelId: json['channel_id']?.toString() ?? '',
     );
+  }
+
+  static String _decodeBase64(String? text) {
+    if (text == null || text.isEmpty) return '';
+    try {
+      final bytes = base64Decode(text);
+      return utf8.decode(bytes, allowMalformed: true);
+    } catch (_) {
+      return text;
+    }
   }
 
   /// Calculate progress percentage for current program
