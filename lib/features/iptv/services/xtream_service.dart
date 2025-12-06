@@ -362,6 +362,46 @@ class XtreamService {
     }
   }
 
+  /// Search movies in the entire catalogue
+  Future<List<xm.Movie>> searchMovies(String query) async {
+    if (_currentPlaylist == null) throw Exception('No playlist configured');
+    if (query.isEmpty) return [];
+
+    try {
+      final categoryMap = await _getVodCategories();
+
+      final response = await _dio.get(
+        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
+        queryParameters: {
+          'username': _currentPlaylist!.username,
+          'password': _currentPlaylist!.password,
+          'action': 'get_vod_streams',
+        },
+        options: Options(extra: _cacheOptions.toExtra()),
+      );
+
+      final List<dynamic> allMovies = response.data as List<dynamic>;
+      final queryLower = query.toLowerCase();
+      
+      // Filter by search query
+      return allMovies
+          .where((m) {
+            final name = (m['name']?.toString() ?? '').toLowerCase();
+            return name.contains(queryLower);
+          })
+          .take(100) // Limit results
+          .map((movieData) {
+            final data = movieData as Map<String, dynamic>;
+            final categoryId = data['category_id']?.toString() ?? '';
+            data['category_name'] = categoryMap[categoryId] ?? 'Uncategorized';
+            return xm.Movie.fromJson(data);
+          })
+          .toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
   /// Get series with pagination support (returns flat list)
   Future<List<xm.Series>> getSeriesPaginated({int offset = 0, int limit = 100}) async {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
@@ -396,6 +436,46 @@ class XtreamService {
       }).toList();
     } catch (e) {
       throw Exception('Failed to fetch series: $e');
+    }
+  }
+
+  /// Search series in the entire catalogue
+  Future<List<xm.Series>> searchSeries(String query) async {
+    if (_currentPlaylist == null) throw Exception('No playlist configured');
+    if (query.isEmpty) return [];
+
+    try {
+      final categoryMap = await _getSeriesCategories();
+
+      final response = await _dio.get(
+        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
+        queryParameters: {
+          'username': _currentPlaylist!.username,
+          'password': _currentPlaylist!.password,
+          'action': 'get_series',
+        },
+        options: Options(extra: _cacheOptions.toExtra()),
+      );
+
+      final List<dynamic> allSeries = response.data as List<dynamic>;
+      final queryLower = query.toLowerCase();
+      
+      // Filter by search query
+      return allSeries
+          .where((s) {
+            final name = (s['name']?.toString() ?? '').toLowerCase();
+            return name.contains(queryLower);
+          })
+          .take(100) // Limit results
+          .map((seriesData) {
+            final data = seriesData as Map<String, dynamic>;
+            final categoryId = data['category_id']?.toString() ?? '';
+            data['category_name'] = categoryMap[categoryId] ?? 'Uncategorized';
+            return xm.Series.fromJson(data);
+          })
+          .toList();
+    } catch (e) {
+      return [];
     }
   }
 
@@ -456,6 +536,39 @@ class XtreamService {
     } catch (e) {
       // EPG is optional, don't throw on failure
       return [];
+    }
+  }
+
+  /// Get short EPG as ShortEPG object (for EPGWidget)
+  Future<xm.ShortEPG> getShortEPG(String streamId) async {
+    if (_currentPlaylist == null) throw Exception('No playlist configured');
+
+    try {
+      final response = await _dio.get(
+        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
+        queryParameters: {
+          'username': _currentPlaylist!.username,
+          'password': _currentPlaylist!.password,
+          'action': 'get_short_epg',
+          'stream_id': streamId,
+        },
+        options: Options(
+          extra: CacheOptions(
+            store: _cacheOptions.store,
+            policy: CachePolicy.request,
+            maxStale: const Duration(minutes: 5),
+          ).toExtra(),
+        ),
+      );
+
+      if (response.data == null) {
+        return const xm.ShortEPG();
+      }
+
+      return xm.ShortEPG.fromJson(response.data as Map<String, dynamic>);
+    } catch (e) {
+      // EPG is optional, don't throw on failure
+      return const xm.ShortEPG();
     }
   }
 

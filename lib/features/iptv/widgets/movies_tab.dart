@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -22,11 +23,14 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   final List<Movie> _movies = [];
+  List<Movie>? _searchResults; // Results from full catalog search
   String _searchQuery = '';
   bool _isLoading = false;
+  bool _isSearching = false;
   bool _hasMore = true;
   int _currentOffset = 0;
   static const int _pageSize = 100;
+  Timer? _searchDebounce;
 
   @override
   void initState() {
@@ -39,6 +43,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
   void dispose() {
     _scrollController.dispose();
     _searchController.dispose();
+    _searchDebounce?.cancel();
     super.dispose();
   }
 
@@ -46,6 +51,46 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent * 0.8) {
       _loadMoreMovies();
+    }
+  }
+
+  void _onSearchChanged(String query) {
+    _searchDebounce?.cancel();
+    
+    setState(() {
+      _searchQuery = query;
+      if (query.isEmpty) {
+        _searchResults = null;
+        _isSearching = false;
+      }
+    });
+    
+    if (query.length >= 2) {
+      _searchDebounce = Timer(const Duration(milliseconds: 500), () {
+        _performSearch(query);
+      });
+    }
+  }
+
+  Future<void> _performSearch(String query) async {
+    if (query.isEmpty) return;
+    
+    setState(() => _isSearching = true);
+    
+    try {
+      final service = ref.read(xtreamServiceProvider(widget.playlist));
+      final results = await service.searchMovies(query);
+      
+      if (mounted && _searchQuery == query) {
+        setState(() {
+          _searchResults = results;
+          _isSearching = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSearching = false);
+      }
     }
   }
 
@@ -85,17 +130,14 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
   Widget build(BuildContext context) {
     final settings = ref.watch(iptvSettingsProvider);
     
-    // Filter movies by category
-    var filteredMovies = settings.moviesKeywords.isEmpty
-        ? _movies
-        : _movies.where((m) => settings.matchesMoviesFilter(m.categoryName)).toList();
-    
-    // Apply search filter
-    if (_searchQuery.isNotEmpty) {
-      final query = _searchQuery.toLowerCase();
-      filteredMovies = filteredMovies.where((m) => 
-        m.name.toLowerCase().contains(query)
-      ).toList();
+    // Use search results if searching, otherwise use loaded movies with category filter
+    List<Movie> displayMovies;
+    if (_searchQuery.isNotEmpty && _searchResults != null) {
+      displayMovies = _searchResults!;
+    } else {
+      displayMovies = settings.moviesKeywords.isEmpty
+          ? _movies
+          : _movies.where((m) => settings.matchesMoviesFilter(m.categoryName)).toList();
     }
 
     if (_movies.isEmpty && !_isLoading) {
@@ -110,15 +152,23 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Search movies...',
+              hintText: 'Search all movies...',
               hintStyle: GoogleFonts.roboto(color: Colors.grey.shade500),
-              prefixIcon: const Icon(Icons.search, color: Colors.grey),
+              prefixIcon: _isSearching 
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 20, height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : const Icon(Icons.search, color: Colors.grey),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear, color: Colors.grey),
                       onPressed: () {
                         _searchController.clear();
-                        setState(() => _searchQuery = '');
+                        _onSearchChanged('');
                       },
                     )
                   : null,
@@ -131,7 +181,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
             style: GoogleFonts.roboto(color: Colors.white),
-            onChanged: (value) => setState(() => _searchQuery = value),
+            onChanged: _onSearchChanged,
           ),
         ),
         
@@ -142,7 +192,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                '${filteredMovies.length} result${filteredMovies.length != 1 ? 's' : ''} found',
+                '${displayMovies.length} result${displayMovies.length != 1 ? 's' : ''} found',
                 style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey.shade600),
               ),
             ),
@@ -150,7 +200,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
         
         // Movie grid
         Expanded(
-          child: filteredMovies.isEmpty && _movies.isNotEmpty
+          child: displayMovies.isEmpty && _movies.isNotEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -179,13 +229,13 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                     mainAxisSpacing: 6,
                     childAspectRatio: 0.65,
                   ),
-                  itemCount: filteredMovies.length + (_hasMore && _searchQuery.isEmpty ? 1 : 0),
+                  itemCount: displayMovies.length + (_hasMore && _searchQuery.isEmpty ? 1 : 0),
                   itemBuilder: (context, index) {
-                    if (index >= filteredMovies.length) {
+                    if (index >= displayMovies.length) {
                       return const Center(child: CircularProgressIndicator());
                     }
 
-                    final movie = filteredMovies[index];
+                    final movie = displayMovies[index];
                     return _MovieCard(
                       movie: movie,
                       playlist: widget.playlist,

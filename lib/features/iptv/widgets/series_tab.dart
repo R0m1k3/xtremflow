@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -21,11 +22,14 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   final List<Series> _series = [];
+  List<Series>? _searchResults;
   String _searchQuery = '';
   bool _isLoading = false;
+  bool _isSearching = false;
   bool _hasMore = true;
   int _currentOffset = 0;
   static const int _pageSize = 100;
+  Timer? _searchDebounce;
 
   @override
   void initState() {
@@ -38,6 +42,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
   void dispose() {
     _scrollController.dispose();
     _searchController.dispose();
+    _searchDebounce?.cancel();
     super.dispose();
   }
 
@@ -45,6 +50,46 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent * 0.8) {
       _loadMoreSeries();
+    }
+  }
+
+  void _onSearchChanged(String query) {
+    _searchDebounce?.cancel();
+    
+    setState(() {
+      _searchQuery = query;
+      if (query.isEmpty) {
+        _searchResults = null;
+        _isSearching = false;
+      }
+    });
+    
+    if (query.length >= 2) {
+      _searchDebounce = Timer(const Duration(milliseconds: 500), () {
+        _performSearch(query);
+      });
+    }
+  }
+
+  Future<void> _performSearch(String query) async {
+    if (query.isEmpty) return;
+    
+    setState(() => _isSearching = true);
+    
+    try {
+      final service = ref.read(xtreamServiceProvider(widget.playlist));
+      final results = await service.searchSeries(query);
+      
+      if (mounted && _searchQuery == query) {
+        setState(() {
+          _searchResults = results;
+          _isSearching = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSearching = false);
+      }
     }
   }
 
@@ -84,17 +129,14 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
   Widget build(BuildContext context) {
     final settings = ref.watch(iptvSettingsProvider);
     
-    // Filter series by category
-    var filteredSeries = settings.seriesKeywords.isEmpty
-        ? _series
-        : _series.where((s) => settings.matchesSeriesFilter(s.categoryName)).toList();
-    
-    // Apply search filter
-    if (_searchQuery.isNotEmpty) {
-      final query = _searchQuery.toLowerCase();
-      filteredSeries = filteredSeries.where((s) => 
-        s.name.toLowerCase().contains(query)
-      ).toList();
+    // Use search results if searching, otherwise use loaded series with category filter
+    List<Series> displaySeries;
+    if (_searchQuery.isNotEmpty && _searchResults != null) {
+      displaySeries = _searchResults!;
+    } else {
+      displaySeries = settings.seriesKeywords.isEmpty
+          ? _series
+          : _series.where((s) => settings.matchesSeriesFilter(s.categoryName)).toList();
     }
 
     if (_series.isEmpty && !_isLoading) {
@@ -109,15 +151,23 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Search series...',
+              hintText: 'Search all series...',
               hintStyle: GoogleFonts.roboto(color: Colors.grey.shade500),
-              prefixIcon: const Icon(Icons.search, color: Colors.grey),
+              prefixIcon: _isSearching 
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 20, height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : const Icon(Icons.search, color: Colors.grey),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear, color: Colors.grey),
                       onPressed: () {
                         _searchController.clear();
-                        setState(() => _searchQuery = '');
+                        _onSearchChanged('');
                       },
                     )
                   : null,
@@ -130,7 +180,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
             style: GoogleFonts.roboto(color: Colors.white),
-            onChanged: (value) => setState(() => _searchQuery = value),
+            onChanged: _onSearchChanged,
           ),
         ),
         
@@ -141,7 +191,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                '${filteredSeries.length} result${filteredSeries.length != 1 ? 's' : ''} found',
+                '${displaySeries.length} result${displaySeries.length != 1 ? 's' : ''} found',
                 style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey.shade600),
               ),
             ),
@@ -149,7 +199,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
         
         // Series grid
         Expanded(
-          child: filteredSeries.isEmpty && _series.isNotEmpty
+          child: displaySeries.isEmpty && _series.isNotEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -178,13 +228,13 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                     mainAxisSpacing: 6,
                     childAspectRatio: 0.65,
                   ),
-                  itemCount: filteredSeries.length + (_hasMore && _searchQuery.isEmpty ? 1 : 0),
+                  itemCount: displaySeries.length + (_hasMore && _searchQuery.isEmpty ? 1 : 0),
                   itemBuilder: (context, index) {
-                    if (index >= filteredSeries.length) {
+                    if (index >= displaySeries.length) {
                       return const Center(child: CircularProgressIndicator());
                     }
 
-                    final serie = filteredSeries[index];
+                    final serie = displaySeries[index];
                     return _SeriesCard(series: serie, playlist: widget.playlist);
                   },
                 ),
