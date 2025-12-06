@@ -56,6 +56,7 @@
             left: 50%;
             transform: translate(-50%, -50%);
             color: #fff;
+            text-align: center;
         }
 
         .spinner {
@@ -65,12 +66,27 @@
             border-top-color: transparent;
             border-radius: 50%;
             animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
         }
 
         @keyframes spin {
             to {
                 transform: rotate(360deg);
             }
+        }
+
+        #debug {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: #0f0;
+            font-size: 12px;
+            font-family: monospace;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px;
+            border-radius: 4px;
+            max-width: 80%;
+            word-break: break-all;
         }
     </style>
 </head>
@@ -80,26 +96,38 @@
         <video id="video" controls autoplay></video>
         <div id="loading">
             <div class="spinner"></div>
+            <div id="loading-text">Loading stream...</div>
         </div>
         <div id="error">
             <div id="error-icon">⚠</div>
             <div id="error-message">Failed to load stream</div>
         </div>
+        <div id="debug"></div>
     </div>
 
+    <!-- Try HLS.js first, then fall back to mpegts.js -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/mpegts.js@latest/dist/mpegts.min.js"></script>
     <script>
         const video = document.getElementById('video');
         const loading = document.getElementById('loading');
+        const loadingText = document.getElementById('loading-text');
         const error = document.getElementById('error');
         const errorMessage = document.getElementById('error-message');
+        const debug = document.getElementById('debug');
 
         // Get stream URL from query parameter
         const urlParams = new URLSearchParams(window.location.search);
-        const streamUrl = urlParams.get('url');
+        let streamUrl = urlParams.get('url');
 
-        function showLoading() {
+        function log(msg) {
+            console.log(msg);
+            debug.textContent = msg;
+        }
+
+        function showLoading(msg) {
             loading.style.display = 'block';
+            loadingText.textContent = msg || 'Loading stream...';
             error.style.display = 'none';
         }
 
@@ -113,30 +141,77 @@
             errorMessage.textContent = message || 'Failed to load stream';
         }
 
-        if (!streamUrl) {
-            showError('No stream URL provided');
-        } else if (mpegts.isSupported()) {
-            showLoading();
+        async function playWithHLS(url) {
+            log('Trying HLS.js with: ' + url);
+            showLoading('Loading HLS stream...');
+
+            if (!Hls.isSupported()) {
+                // Try native HLS (Safari)
+                if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = url;
+                    video.addEventListener('canplay', () => {
+                        hideLoading();
+                        video.play().catch(e => log('Autoplay prevented: ' + e));
+                    });
+                    video.addEventListener('error', () => {
+                        showError('HLS playback error');
+                    });
+                    return true;
+                }
+                return false;
+            }
+
+            const hls = new Hls({
+                xhrSetup: function (xhr, url) {
+                    // Don't add extra headers - the proxy already handles this
+                }
+            });
+
+            hls.loadSource(url);
+            hls.attachMedia(video);
+
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                log('HLS manifest parsed, starting playback');
+                hideLoading();
+                video.play().catch(e => log('Autoplay prevented: ' + e));
+            });
+
+            hls.on(Hls.Events.ERROR, (event, data) => {
+                log('HLS Error: ' + data.type + ' - ' + data.details);
+                if (data.fatal) {
+                    showError('HLS Error: ' + data.details);
+                }
+            });
+
+            return true;
+        }
+
+        async function playWithMpegTS(url) {
+            log('Trying mpegts.js with: ' + url);
+            showLoading('Loading MPEG-TS stream...');
+
+            if (!mpegts.isSupported()) {
+                return false;
+            }
 
             const player = mpegts.createPlayer({
-                type: 'mse',  // could be 'flv' or 'mpegts'
+                type: 'mpegts',
                 isLive: true,
-                url: streamUrl,
+                url: url,
             }, {
                 enableWorker: true,
-                enableStashBuffer: false,
-                stashInitialSize: 128,
-                liveBufferLatencyChasing: true,
-                liveBufferLatencyMaxLatency: 1.5,
-                liveBufferLatencyMinRemain: 0.5,
+                enableStashBuffer: true,
+                stashInitialSize: 384 * 1024,
+                autoCleanupSourceBuffer: true,
             });
 
             player.attachMediaElement(video);
             player.load();
 
             video.addEventListener('canplay', () => {
+                log('MPEG-TS stream ready');
                 hideLoading();
-                video.play().catch(e => console.log('Autoplay prevented:', e));
+                video.play().catch(e => log('Autoplay prevented: ' + e));
             });
 
             video.addEventListener('error', (e) => {
@@ -144,16 +219,50 @@
             });
 
             player.on(mpegts.Events.ERROR, (errType, errDetail, errInfo) => {
-                console.error('mpegts error:', errType, errDetail, errInfo);
-                showError(`Stream error: ${errDetail}`);
+                log('mpegts error: ' + errType + ' - ' + errDetail);
+                showError('Stream error: ' + errDetail);
             });
 
-            player.on(mpegts.Events.LOADING_COMPLETE, () => {
-                console.log('Loading complete');
-            });
-        } else {
-            showError('MPEG-TS playback is not supported in this browser');
+            return true;
         }
+
+        async function playDirect(url) {
+            log('Trying direct playback: ' + url);
+            showLoading('Loading stream directly...');
+
+            video.src = url;
+            video.addEventListener('canplay', () => {
+                hideLoading();
+                video.play().catch(e => log('Autoplay prevented: ' + e));
+            });
+            video.addEventListener('error', () => {
+                showError('Direct playback error');
+            });
+        }
+
+        async function initPlayer() {
+            if (!streamUrl) {
+                showError('No stream URL provided');
+                return;
+            }
+
+            log('Stream URL: ' + streamUrl.substring(0, 80) + '...');
+
+            // Determine stream type and try appropriate player
+            if (streamUrl.includes('.m3u8')) {
+                await playWithHLS(streamUrl);
+            } else if (streamUrl.includes('.ts')) {
+                const success = await playWithMpegTS(streamUrl);
+                if (!success) {
+                    await playDirect(streamUrl);
+                }
+            } else {
+                // Try HLS first, then MPEG-TS
+                await playWithHLS(streamUrl);
+            }
+        }
+
+        initPlayer();
     </script>
 </body>
 
