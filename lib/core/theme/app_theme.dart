@@ -103,21 +103,21 @@ class AppTheme {
       ),
       
       // Cards: Transparent by default (content defines look)
-      cardTheme: const CardTheme(
-        color: AppColors.surface,
-        elevation: 0,
-        margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(radiusMd))),
-      ),
+      // cardTheme: const CardTheme(
+      //   color: AppColors.surface,
+      //   elevation: 0,
+      //   margin: EdgeInsets.zero,
+      //   shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(radiusMd))),
+      // ),
 
       // Dialogs: Glass/Dark
-      dialogTheme: DialogTheme(
-        backgroundColor: const Color(0xFF1C1C1E), // Apple Dark Grey
-        elevation: 24,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusLg)),
-        titleTextStyle: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-        contentTextStyle: GoogleFonts.inter(fontSize: 16, color: AppColors.textSecondary),
-      ),
+      // dialogTheme: DialogTheme(
+      //   backgroundColor: const Color(0xFF1C1C1E), // Apple Dark Grey
+      //   elevation: 24,
+      //   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusLg)),
+      //   titleTextStyle: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+      //   contentTextStyle: GoogleFonts.inter(fontSize: 16, color: AppColors.textSecondary),
+      // ),
     );
   }
 
