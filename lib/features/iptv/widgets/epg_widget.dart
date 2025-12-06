@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/playlist_config.dart';
-import '../services/xtream_service.dart';
+import '../providers/xtream_provider.dart';
 import '../models/xtream_models.dart';
 
 class EPGWidget extends ConsumerStatefulWidget {
