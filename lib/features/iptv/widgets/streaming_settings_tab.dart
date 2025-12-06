@@ -21,6 +21,7 @@ class StreamingSettingsTab extends ConsumerWidget {
           style: GoogleFonts.roboto(
             fontSize: 18,
             fontWeight: FontWeight.bold,
+            color: Colors.white,
           ),
         ),
         const SizedBox(height: 8),
@@ -28,7 +29,7 @@ class StreamingSettingsTab extends ConsumerWidget {
           'Ces paramètres s\'appliquent uniquement aux flux TV en direct.',
           style: GoogleFonts.roboto(
             fontSize: 12,
-            color: Colors.grey,
+            color: Colors.white54,
           ),
         ),
         const SizedBox(height: 24),
@@ -95,17 +96,18 @@ class StreamingSettingsTab extends ConsumerWidget {
                 ConnectionTimeout.long => 'Long (60s)',
               },
             ),
-            const Divider(height: 1),
+            Divider(height: 1, color: Colors.white.withOpacity(0.1)),
             SwitchListTile(
               title: Text(
                 'Reconnexion automatique',
-                style: GoogleFonts.roboto(fontSize: 14),
+                style: GoogleFonts.roboto(fontSize: 14, color: Colors.white),
               ),
               subtitle: Text(
                 'Se reconnecter en cas de coupure',
-                style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey),
+                style: GoogleFonts.roboto(fontSize: 12, color: Colors.white54),
               ),
               value: settings.autoReconnect,
+              activeColor: Colors.blueAccent,
               onChanged: (v) => notifier.setAutoReconnect(v),
             ),
           ],
@@ -130,17 +132,18 @@ class StreamingSettingsTab extends ConsumerWidget {
                 TranscodingMode.disabled => 'Désactivé (direct)',
               },
             ),
-            const Divider(height: 1),
+            Divider(height: 1, color: Colors.white.withOpacity(0.1)),
             SwitchListTile(
               title: Text(
                 'Préférer lecture directe',
-                style: GoogleFonts.roboto(fontSize: 14),
+                style: GoogleFonts.roboto(fontSize: 14, color: Colors.white),
               ),
               subtitle: Text(
                 'Utiliser le flux original si compatible',
-                style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey),
+                style: GoogleFonts.roboto(fontSize: 12, color: Colors.white54),
               ),
               value: settings.preferDirectPlay,
+              activeColor: Colors.blueAccent,
               onChanged: (v) => notifier.setPreferDirectPlay(v),
             ),
           ],
@@ -203,9 +206,12 @@ class StreamingSettingsTab extends ConsumerWidget {
     required IconData icon,
     required List<Widget> children,
   }) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -213,19 +219,20 @@ class StreamingSettingsTab extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+                Icon(icon, size: 20, color: Colors.blueAccent),
                 const SizedBox(width: 8),
                 Text(
                   title,
                   style: GoogleFonts.roboto(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
+                    color: Colors.white,
                   ),
                 ),
               ],
             ),
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: Colors.white.withOpacity(0.1)),
           ...children,
         ],
       ),
@@ -241,21 +248,24 @@ class StreamingSettingsTab extends ConsumerWidget {
     required String Function(T) labelBuilder,
   }) {
     return ListTile(
-      title: Text(title, style: GoogleFonts.roboto(fontSize: 14)),
-      subtitle: Text(subtitle, style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey)),
+      title: Text(title, style: GoogleFonts.roboto(fontSize: 14, color: Colors.white)),
+      subtitle: Text(subtitle, style: GoogleFonts.roboto(fontSize: 12, color: Colors.white54)),
       trailing: DropdownButton<T>(
         value: value,
         underline: const SizedBox(),
+        dropdownColor: const Color(0xFF1C1C1E), // Dark background for dropdown
         items: items.map((item) {
           return DropdownMenuItem<T>(
             value: item,
             child: Text(
               labelBuilder(item),
-              style: GoogleFonts.roboto(fontSize: 13),
+              style: GoogleFonts.roboto(fontSize: 13, color: Colors.white),
             ),
           );
         }).toList(),
         onChanged: onChanged,
+        style: GoogleFonts.roboto(color: Colors.white),
+        iconEnabledColor: Colors.white70,
       ),
     );
   }

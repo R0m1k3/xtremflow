@@ -68,9 +68,21 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
       children: [
         // TabBar
         Container(
-          color: Theme.of(context).colorScheme.surface,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(50),
+          ),
           child: TabBar(
             controller: _tabController,
+            indicator: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(50),
+            ),
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white54,
+            dividerColor: Colors.transparent,
+            overlayColor: MaterialStateProperty.all(Colors.transparent),
             tabs: const [
               Tab(icon: Icon(Icons.filter_list), text: 'Filtres'),
               Tab(icon: Icon(Icons.stream), text: 'Streaming'),
@@ -109,82 +121,97 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
       padding: const EdgeInsets.all(16),
       children: [
         // Theme selection card
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.dark_mode,
-                      color: AppColors.primary,
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                   Icon(
+                    Icons.dark_mode,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Thème',
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Thème',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                
-                // Theme options
-                _buildThemeOption(
-                  context: context,
-                  title: 'Système',
-                  subtitle: 'Suivre les paramètres du système',
-                  icon: Icons.settings_suggest,
-                  isSelected: themeState.appThemeMode == AppThemeMode.system,
-                  onTap: () => themeNotifier.setThemeMode(AppThemeMode.system),
-                ),
-                const SizedBox(height: 8),
-                _buildThemeOption(
-                  context: context,
-                  title: 'Sombre',
-                  subtitle: 'Interface sombre premium',
-                  icon: Icons.dark_mode,
-                  isSelected: themeState.appThemeMode == AppThemeMode.dark,
-                  onTap: () => themeNotifier.setThemeMode(AppThemeMode.dark),
-                ),
-                const SizedBox(height: 8),
-                _buildThemeOption(
-                  context: context,
-                  title: 'Clair',
-                  subtitle: 'Interface claire et lumineuse',
-                  icon: Icons.light_mode,
-                  isSelected: themeState.appThemeMode == AppThemeMode.light,
-                  onTap: () => themeNotifier.setThemeMode(AppThemeMode.light),
-                ),
-              ],
-            ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              
+              // Theme options
+              _buildThemeOption(
+                context: context,
+                title: 'Système',
+                subtitle: 'Suivre les paramètres du système',
+                icon: Icons.settings_suggest,
+                isSelected: themeState.appThemeMode == AppThemeMode.system,
+                onTap: () => themeNotifier.setThemeMode(AppThemeMode.system),
+              ),
+              const SizedBox(height: 8),
+              _buildThemeOption(
+                context: context,
+                title: 'Sombre',
+                subtitle: 'Interface sombre premium',
+                icon: Icons.dark_mode,
+                isSelected: themeState.appThemeMode == AppThemeMode.dark,
+                onTap: () => themeNotifier.setThemeMode(AppThemeMode.dark),
+              ),
+              const SizedBox(height: 8),
+              _buildThemeOption(
+                context: context,
+                title: 'Clair',
+                subtitle: 'Interface claire et lumineuse',
+                icon: Icons.light_mode,
+                isSelected: themeState.appThemeMode == AppThemeMode.light,
+                onTap: () => themeNotifier.setThemeMode(AppThemeMode.light),
+              ),
+            ],
           ),
         ),
         
         const SizedBox(height: 16),
         
         // Quick toggle card
-        Card(
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
           child: ListTile(
             leading: Icon(
               isDark ? Icons.dark_mode : Icons.light_mode,
-              color: AppColors.primary,
+              color: Colors.white,
             ),
             title: Text(
               'Mode actuel',
-              style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+              style: GoogleFonts.inter(fontWeight: FontWeight.w500, color: Colors.white),
             ),
             subtitle: Text(
               isDark ? 'Thème sombre actif' : 'Thème clair actif',
+              style: TextStyle(color: Colors.white70),
             ),
             trailing: Switch(
               value: isDark,
               onChanged: (_) => themeNotifier.toggleTheme(),
               activeColor: AppColors.primary,
+              trackColor: MaterialStateProperty.resolveWith(
+                (states) => states.contains(MaterialState.selected) 
+                  ? AppColors.primary.withOpacity(0.5) 
+                  : Colors.grey.shade800,
+              ),
             ),
           ),
         ),
@@ -268,21 +295,27 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
       padding: const EdgeInsets.all(16),
       children: [
         // User info card
-        Card(
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          padding: const EdgeInsets.all(4),
           child: ListTile(
-            leading: const Icon(Icons.person),
+            leading: const Icon(Icons.person, color: Colors.white),
             title: Text(
               'Connecté en tant que',
-              style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey),
+              style: GoogleFonts.roboto(fontSize: 12, color: Colors.white70),
             ),
             subtitle: Text(
               currentUser?.username ?? 'Unknown',
-              style: GoogleFonts.roboto(fontWeight: FontWeight.w600),
+              style: GoogleFonts.roboto(fontWeight: FontWeight.w600, color: Colors.white),
             ),
             trailing: currentUser?.isAdmin ?? false
                 ? Chip(
-                    label: Text('Admin', style: GoogleFonts.roboto(fontSize: 11)),
-                    backgroundColor: Colors.blue.shade100,
+                    label: Text('Admin', style: GoogleFonts.roboto(fontSize: 11, color: Colors.black)),
+                    backgroundColor: Colors.white,
                   )
                 : null,
           ),
@@ -295,6 +328,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
           style: GoogleFonts.roboto(
             fontWeight: FontWeight.bold,
             fontSize: 16,
+            color: Colors.white,
           ),
         ),
         const SizedBox(height: 4),
@@ -302,7 +336,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
           'Seules les catégories contenant un de ces mots-clés seront affichées. Séparez par des virgules.',
           style: GoogleFonts.roboto(
             fontSize: 12,
-            color: Colors.grey.shade600,
+            color: Colors.white54,
           ),
         ),
         const SizedBox(height: 12),
@@ -357,11 +391,16 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
         
         // Admin panel
         if (currentUser?.isAdmin ?? false) ...[
-          Card(
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withOpacity(0.1)),
+            ),
             child: ListTile(
-              leading: const Icon(Icons.admin_panel_settings),
-              title: Text('Panneau Admin', style: GoogleFonts.roboto()),
-              trailing: const Icon(Icons.chevron_right),
+              leading: const Icon(Icons.admin_panel_settings, color: Colors.white),
+              title: Text('Panneau Admin', style: GoogleFonts.roboto(color: Colors.white)),
+              trailing: const Icon(Icons.chevron_right, color: Colors.white54),
               onTap: () => context.go('/admin'),
             ),
           ),
@@ -369,24 +408,34 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
         ],
         
         // Change playlist
-        Card(
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
           child: ListTile(
-            leading: const Icon(Icons.playlist_play),
-            title: Text('Changer de Playlist', style: GoogleFonts.roboto()),
-            trailing: const Icon(Icons.chevron_right),
+            leading: const Icon(Icons.playlist_play, color: Colors.white),
+            title: Text('Changer de Playlist', style: GoogleFonts.roboto(color: Colors.white)),
+            trailing: const Icon(Icons.chevron_right, color: Colors.white54),
             onTap: () => context.go('/playlists'),
           ),
         ),
         const SizedBox(height: 8),
         
         // About
-        Card(
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
           child: ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: Text('À propos', style: GoogleFonts.roboto()),
+            leading: const Icon(Icons.info_outline, color: Colors.white),
+            title: Text('À propos', style: GoogleFonts.roboto(color: Colors.white)),
             subtitle: Text(
               'XtremFlow IPTV v1.0.0',
-              style: GoogleFonts.roboto(fontSize: 12),
+              style: GoogleFonts.roboto(fontSize: 12, color: Colors.white54),
             ),
           ),
         ),
@@ -417,69 +466,81 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
     required ValueChanged<String> onChanged,
     required VoidCallback onClear,
   }) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 18, color: Colors.blue.shade700),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: GoogleFonts.roboto(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: Colors.blueAccent),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: GoogleFonts.roboto(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: Colors.white,
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: controller,
-              decoration: InputDecoration(
-                hintText: 'Ex: FR,FRANCE,HD,SPORT',
-                hintStyle: GoogleFonts.roboto(fontSize: 12),
-                border: const OutlineInputBorder(),
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                suffixIcon: controller.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 16),
-                        onPressed: onClear,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      )
-                    : null,
-              ),
-              style: GoogleFonts.roboto(fontSize: 12),
-              onChanged: onChanged,
-            ),
-            if (keywords.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 4,
-                runSpacing: 4,
-                children: keywords.map((keyword) {
-                  return Chip(
-                    label: Text(
-                      keyword,
-                      style: GoogleFonts.roboto(fontSize: 10),
-                    ),
-                    padding: EdgeInsets.zero,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                  );
-                }).toList(),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: controller,
+            decoration: InputDecoration(
+              hintText: 'Ex: FR,FRANCE,HD,SPORT',
+              hintStyle: GoogleFonts.roboto(fontSize: 12, color: Colors.white30),
+              filled: true,
+              fillColor: Colors.black26,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide.none,
+              ),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
+              suffixIcon: controller.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 16, color: Colors.white54),
+                      onPressed: onClear,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    )
+                  : null,
+            ),
+            style: GoogleFonts.roboto(fontSize: 12, color: Colors.white),
+            onChanged: onChanged,
+          ),
+          if (keywords.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: keywords.map((keyword) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.blueAccent.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(50),
+                    border: Border.all(color: Colors.blueAccent.withOpacity(0.5)),
+                  ),
+                  child: Text(
+                    keyword,
+                    style: GoogleFonts.roboto(fontSize: 11, color: Colors.white),
+                  ),
+                );
+              }).toList(),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
