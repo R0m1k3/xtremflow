@@ -17,6 +17,9 @@ class AppColors {
   /// Very deep grey for surfaces that need to be distinct but subtle (Apple Dark Grey)
   static const Color surface = Color(0xFF1C1C1E);
   
+  /// Slightly lighter grey for secondary surfaces or hover states
+  static const Color surfaceVariant = Color(0xFF2C2C2E);
+  
   /// Focused element background (often white in tvOS for text, or bright accent)
   static const Color focusColor = Color(0xFFFFFFFF);
 
