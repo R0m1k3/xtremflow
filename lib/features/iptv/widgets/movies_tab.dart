@@ -8,7 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../../core/widgets/components/hero_carousel.dart';
 import '../../../core/widgets/components/ui_components.dart';
-import '../../favorites/providers/watch_history_provider.dart';
+import '../providers/watch_history_provider.dart';
 import '../models/xtream_models.dart';
 import '../providers/xtream_provider.dart';
 import '../providers/settings_provider.dart';
@@ -158,7 +158,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
     } else {
       displayMovies = settings.moviesKeywords.isEmpty
           ? _movies
-          : _movies.where((m) => settings.matchesMovieFilter(m.categoryName)).toList();
+          : _movies.where((m) => settings.matchesMoviesFilter(m.categoryName)).toList();
     }
 
     // Hero Items (Take 5 random or first 5)
