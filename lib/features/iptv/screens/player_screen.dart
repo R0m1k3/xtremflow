@@ -136,9 +136,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         };
         final modeParam = settings.modeString; // direct, transcode, or auto
         
-        // Construct the stream URL directly using fMP4 format
-        // We add &ext=.mp4 to force the web player to use Direct Play instead of HLS/MPEGTS
-        final streamEndpoint = '$baseUrl/api/stream/${widget.streamId}?url=$encodedUrl&quality=$qualityParam&buffer=$bufferParam&timeout=$timeoutParam&mode=$modeParam&ext=.mp4';
+        // Construct the stream URL directly using MPEG-TS format
+        // We add &ext=.ts to force the web player to use mpegts.js which is perfect for low-latency live streams
+        final streamEndpoint = '$baseUrl/api/stream/${widget.streamId}?url=$encodedUrl&quality=$qualityParam&buffer=$bufferParam&timeout=$timeoutParam&mode=$modeParam&ext=.ts';
         
         debugPrint('PlayerScreen: Starting Direct Stream: $streamEndpoint');
         
