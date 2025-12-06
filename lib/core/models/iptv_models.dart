@@ -1,3 +1,4 @@
+import 'dart:convert';
 /// Channel model for Live TV
 class Channel {
   final String streamId;
