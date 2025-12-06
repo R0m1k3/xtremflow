@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_static/shelf_static.dart';
@@ -136,48 +137,54 @@ Handler _createXtreamProxyHandler() {
         );
       }
 
-      final targetUrl = Uri.parse(apiPath + '?' + (request.url.query));
+      // Reconstruct the full target URL with query parameters
+      String fullUrl = apiPath;
+      if (request.url.query.isNotEmpty) {
+        // If the target URL already has query params, append with &
+        if (fullUrl.contains('?')) {
+          fullUrl = '$fullUrl&${request.url.query}';
+        } else {
+          fullUrl = '$fullUrl?${request.url.query}';
+        }
+      }
+      
+      final targetUrl = Uri.parse(fullUrl);
 
       print('Proxying request to: $targetUrl');
 
-      // Forward the request
-      final client = http.Client();
-      try {
-        final proxyRequest = http.Request(request.method, targetUrl);
-        
-        // Copy headers (excluding host)
-        request.headers.forEach((key, value) {
-          if (key.toLowerCase() != 'host') {
-            proxyRequest.headers[key] = value;
-          }
-        });
-
-        // Copy body if present
-        if (request.method != 'GET' && request.method != 'HEAD') {
-          proxyRequest.bodyBytes = await request.read().toList()
-            .then((chunks) => chunks.expand((chunk) => chunk).toList());
-        }
-
-        final response = await client.send(proxyRequest);
-        final responseBody = await response.stream.toBytes();
-
-        return Response(
-          response.statusCode,
-          body: responseBody,
-          headers: {
-            'content-type': response.headers['content-type'] ?? 'application/json',
-            ...response.headers,
-          },
+      // Use simple http.get/post with timeout
+      http.Response response;
+      if (request.method == 'GET') {
+        response = await http.get(targetUrl).timeout(
+          const Duration(seconds: 30),
+          onTimeout: () => http.Response('Request timeout', 504),
         );
-      } finally {
-        client.close();
+      } else if (request.method == 'POST') {
+        final body = await request.readAsString();
+        response = await http.post(targetUrl, body: body).timeout(
+          const Duration(seconds: 30),
+          onTimeout: () => http.Response('Request timeout', 504),
+        );
+      } else {
+        return Response(405, body: 'Method not allowed');
       }
+
+      return Response(
+        response.statusCode,
+        body: response.bodyBytes,
+        headers: {
+          'content-type': response.headers['content-type'] ?? 'application/json',
+          'access-control-allow-origin': '*',
+        },
+      );
     } catch (e, stackTrace) {
       print('Proxy error: $e');
       print(stackTrace);
       return Response.internalServerError(
-        body: 'Proxy error: $e',
+        body: jsonEncode({'error': 'Proxy error', 'message': e.toString()}),
+        headers: {'content-type': 'application/json'},
       );
     }
   };
 }
+
