@@ -11,8 +11,8 @@ class WatchHistory {
   final Set<String> watchedEpisodes;
 
   const WatchHistory({
-    this.watchedMovies = const {},
-    this.watchedEpisodes = const {},
+    this.watchedMovies = const <String>{},
+    this.watchedEpisodes = const <String>{},
   });
 
   WatchHistory copyWith({
