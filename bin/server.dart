@@ -466,11 +466,12 @@ Handler _createStreamHandler() {
         '-b:a', '128k',
         '-ar', '44100',
         '-ac', '2',  // Force stereo
-        // HLS output settings
+        // HLS output settings - optimized for stability
         '-f', 'hls',
-        '-hls_time', isVod ? '4' : '2',  // 4 second segments for VOD, 2 for live
-        '-hls_list_size', isVod ? '0' : '5',  // Keep all segments for VOD, last 5 for live
-        '-hls_flags', isVod ? 'independent_segments' : 'delete_segments+append_list+omit_endlist',
+        '-hls_time', isVod ? '4' : '3',  // 4s for VOD, 3s for live (better buffering)
+        '-hls_list_size', isVod ? '0' : '10',  // Keep all segments for VOD, 10 for live (30s buffer)
+        '-hls_flags', isVod ? 'independent_segments' : 'delete_segments+append_list+omit_endlist+program_date_time',
+        '-hls_start_number_source', 'datetime',  // Better segment continuity
         '-hls_segment_filename', '${outputDir.path}/segment_%d.ts',
         outputPath,
       ]);

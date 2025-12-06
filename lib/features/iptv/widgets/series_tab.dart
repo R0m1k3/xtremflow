@@ -19,7 +19,9 @@ class SeriesTab extends ConsumerStatefulWidget {
 
 class _SeriesTabState extends ConsumerState<SeriesTab> {
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
   final List<Series> _series = [];
+  String _searchQuery = '';
   bool _isLoading = false;
   bool _hasMore = true;
   int _currentOffset = 0;
@@ -35,6 +37,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -82,53 +85,111 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
     final settings = ref.watch(iptvSettingsProvider);
     
     // Filter series by category
-    final filteredSeries = settings.seriesKeywords.isEmpty
+    var filteredSeries = settings.seriesKeywords.isEmpty
         ? _series
         : _series.where((s) => settings.matchesSeriesFilter(s.categoryName)).toList();
+    
+    // Apply search filter
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filteredSeries = filteredSeries.where((s) => 
+        s.name.toLowerCase().contains(query)
+      ).toList();
+    }
 
     if (_series.isEmpty && !_isLoading) {
       return const Center(child: Text('No series available'));
     }
 
-    if (filteredSeries.isEmpty && _series.isNotEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.filter_list_off, size: 48, color: Colors.grey),
-            const SizedBox(height: 16),
-            Text(
-              'No series match the filter',
-              style: GoogleFonts.roboto(color: Colors.grey),
+    return Column(
+      children: [
+        // Search bar
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search series...',
+              hintStyle: GoogleFonts.roboto(color: Colors.grey.shade500),
+              prefixIcon: const Icon(Icons.search, color: Colors.grey),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.grey),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: Colors.grey.shade800,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Filter: ${settings.seriesCategoryFilter}',
-              style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey.shade600),
-            ),
-          ],
+            style: GoogleFonts.roboto(color: Colors.white),
+            onChanged: (value) => setState(() => _searchQuery = value),
+          ),
         ),
-      );
-    }
+        
+        // Results count
+        if (_searchQuery.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '${filteredSeries.length} result${filteredSeries.length != 1 ? 's' : ''} found',
+                style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey.shade600),
+              ),
+            ),
+          ),
+        
+        // Series grid
+        Expanded(
+          child: filteredSeries.isEmpty && _series.isNotEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        _searchQuery.isNotEmpty ? Icons.search_off : Icons.filter_list_off,
+                        size: 48,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _searchQuery.isNotEmpty 
+                            ? 'No series match "$_searchQuery"'
+                            : 'No series match the filter',
+                        style: GoogleFonts.roboto(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                )
+              : GridView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(8),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                    crossAxisSpacing: 6,
+                    mainAxisSpacing: 6,
+                    childAspectRatio: 0.65,
+                  ),
+                  itemCount: filteredSeries.length + (_hasMore && _searchQuery.isEmpty ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index >= filteredSeries.length) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-    return GridView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.all(8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 7,
-        crossAxisSpacing: 6,
-        mainAxisSpacing: 6,
-        childAspectRatio: 0.65,
-      ),
-      itemCount: filteredSeries.length + (_hasMore ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index >= filteredSeries.length) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final serie = filteredSeries[index];
-        return _SeriesCard(series: serie, playlist: widget.playlist);
-      },
+                    final serie = filteredSeries[index];
+                    return _SeriesCard(series: serie, playlist: widget.playlist);
+                  },
+                ),
+        ),
+      ],
     );
   }
 }
