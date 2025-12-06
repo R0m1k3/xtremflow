@@ -353,47 +353,76 @@ Handler _createStreamHandler() {
       }
 
       // Start FFmpeg process with VLC User-Agent
-      // Using -c copy for efficient passthrough (no transcoding = low CPU)
+      // Transcode to H.264/AAC for browser compatibility (HEVC not supported in Chrome)
+      // Using fast preset for lower CPU usage
       final process = await Process.start('ffmpeg', [
         '-y',  // Overwrite output files
+        '-loglevel', 'warning',  // Reduce verbose output
         '-user_agent', 'VLC/3.0.18 LibVLC/3.0.18',
         '-headers', 'Accept: */*\r\nConnection: keep-alive\r\n',
+        '-reconnect', '1',
+        '-reconnect_streamed', '1',
+        '-reconnect_delay_max', '5',
         '-i', iptvUrl,
-        '-c', 'copy',  // Copy codec (no transcoding)
+        // Video: transcode to H.264 for browser compatibility
+        '-c:v', 'libx264',
+        '-preset', 'ultrafast',  // Fastest encoding (less CPU)
+        '-tune', 'zerolatency',  // Low latency for live streaming
+        '-profile:v', 'baseline',  // Most compatible H.264 profile
+        '-level', '3.0',
+        '-b:v', '2500k',  // 2.5 Mbps video bitrate
+        '-maxrate', '3000k',
+        '-bufsize', '6000k',
+        // Audio: transcode to AAC
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        '-ar', '44100',
+        // HLS output settings
         '-f', 'hls',
         '-hls_time', '2',  // 2 second segments
         '-hls_list_size', '5',  // Keep only last 5 segments
-        '-hls_flags', 'delete_segments+append_list',
+        '-hls_flags', 'delete_segments+append_list+omit_endlist',
         '-hls_segment_filename', '${outputDir.path}/segment_%d.ts',
         outputPath,
       ]);
 
       _activeStreams[streamId] = process;
 
-      // Log FFmpeg output for debugging
+      // Collect FFmpeg stderr for error reporting
+      final stderrBuffer = StringBuffer();
       process.stderr.transform(utf8.decoder).listen((data) {
-        // Only print errors, not the verbose output
-        if (data.contains('Error') || data.contains('error')) {
-          print('FFmpeg error [$streamId]: $data');
+        stderrBuffer.write(data);
+        // Print warnings and errors
+        if (data.contains('Error') || data.contains('error') || data.contains('Warning')) {
+          print('FFmpeg [$streamId]: $data');
         }
       });
 
       process.exitCode.then((code) {
         print('FFmpeg process [$streamId] exited with code: $code');
+        if (code != 0) {
+          print('FFmpeg stderr: ${stderrBuffer.toString().substring(0, stderrBuffer.length.clamp(0, 500))}');
+        }
         _activeStreams.remove(streamId);
       });
 
-      // Wait a moment for FFmpeg to create the initial playlist
-      await Future.delayed(const Duration(seconds: 3));
+      // Wait for FFmpeg to create the initial playlist (transcoding takes longer)
+      await Future.delayed(const Duration(seconds: 5));
 
       // Check if stream started successfully
       final playlistFile = File(outputPath);
       if (!await playlistFile.exists()) {
-        // FFmpeg might have failed - check stderr
+        // FFmpeg failed - get error message
+        final stderr = stderrBuffer.toString();
+        print('FFmpeg failed to create playlist for $streamId');
+        print('FFmpeg stderr: $stderr');
         process.kill();
         _activeStreams.remove(streamId);
         return Response.internalServerError(
-          body: jsonEncode({'error': 'FFmpeg failed to start stream'}),
+          body: jsonEncode({
+            'error': 'FFmpeg failed to start stream',
+            'details': stderr.length > 200 ? stderr.substring(0, 200) : stderr,
+          }),
           headers: {'content-type': 'application/json'},
         );
       }
