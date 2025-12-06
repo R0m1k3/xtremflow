@@ -5,8 +5,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import 'streaming_settings_tab.dart';
+import '../../../core/providers/theme_provider.dart';
+import '../../../core/theme/app_colors.dart';
 
-/// Main Settings tab with sub-tabs for Filters and Streaming
+/// Main Settings tab with sub-tabs for Filters, Streaming, and Appearance
 class SettingsTab extends ConsumerStatefulWidget {
   const SettingsTab({super.key});
 
@@ -24,7 +26,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _liveTvController = TextEditingController();
     _moviesController = TextEditingController();
     _seriesController = TextEditingController();
@@ -72,6 +74,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
             tabs: const [
               Tab(icon: Icon(Icons.filter_list), text: 'Filtres'),
               Tab(icon: Icon(Icons.stream), text: 'Streaming'),
+              Tab(icon: Icon(Icons.palette), text: 'Apparence'),
             ],
           ),
         ),
@@ -86,10 +89,175 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
               
               // Streaming Tab
               const StreamingSettingsTab(),
+              
+              // Appearance Tab
+              _buildAppearanceTab(context),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  /// Build Appearance tab with theme toggle
+  Widget _buildAppearanceTab(BuildContext context) {
+    final themeState = ref.watch(themeProvider);
+    final themeNotifier = ref.read(themeProvider.notifier);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Theme selection card
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.dark_mode,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Thème',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Theme options
+                _buildThemeOption(
+                  context: context,
+                  title: 'Système',
+                  subtitle: 'Suivre les paramètres du système',
+                  icon: Icons.settings_suggest,
+                  isSelected: themeState.appThemeMode == AppThemeMode.system,
+                  onTap: () => themeNotifier.setThemeMode(AppThemeMode.system),
+                ),
+                const SizedBox(height: 8),
+                _buildThemeOption(
+                  context: context,
+                  title: 'Sombre',
+                  subtitle: 'Interface sombre premium',
+                  icon: Icons.dark_mode,
+                  isSelected: themeState.appThemeMode == AppThemeMode.dark,
+                  onTap: () => themeNotifier.setThemeMode(AppThemeMode.dark),
+                ),
+                const SizedBox(height: 8),
+                _buildThemeOption(
+                  context: context,
+                  title: 'Clair',
+                  subtitle: 'Interface claire et lumineuse',
+                  icon: Icons.light_mode,
+                  isSelected: themeState.appThemeMode == AppThemeMode.light,
+                  onTap: () => themeNotifier.setThemeMode(AppThemeMode.light),
+                ),
+              ],
+            ),
+          ),
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Quick toggle card
+        Card(
+          child: ListTile(
+            leading: Icon(
+              isDark ? Icons.dark_mode : Icons.light_mode,
+              color: AppColors.primary,
+            ),
+            title: Text(
+              'Mode actuel',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+            ),
+            subtitle: Text(
+              isDark ? 'Thème sombre actif' : 'Thème clair actif',
+            ),
+            trailing: Switch(
+              value: isDark,
+              onChanged: (_) => themeNotifier.toggleTheme(),
+              activeColor: AppColors.primary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildThemeOption({
+    required BuildContext context,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.primary.withOpacity(0.1)
+              : (isDark ? AppColors.surfaceVariantDark : AppColors.surfaceVariantLight),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: isSelected
+                  ? AppColors.primary
+                  : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600,
+                      color: isSelected
+                          ? AppColors.primary
+                          : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              Icon(
+                Icons.check_circle,
+                color: AppColors.primary,
+              ),
+          ],
+        ),
+      ),
     );
   }
 
