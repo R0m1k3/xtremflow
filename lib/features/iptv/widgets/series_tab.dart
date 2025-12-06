@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/playlist_config.dart';
 import '../models/xtream_models.dart';
 import '../providers/xtream_provider.dart';
+import '../providers/settings_provider.dart';
 import '../screens/series_detail_screen.dart';
 
 class SeriesTab extends ConsumerStatefulWidget {
@@ -78,8 +79,36 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = ref.watch(iptvSettingsProvider);
+    
+    // Filter series by category
+    final filteredSeries = settings.seriesKeywords.isEmpty
+        ? _series
+        : _series.where((s) => settings.matchesSeriesFilter(s.categoryName)).toList();
+
     if (_series.isEmpty && !_isLoading) {
       return const Center(child: Text('No series available'));
+    }
+
+    if (filteredSeries.isEmpty && _series.isNotEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.filter_list_off, size: 48, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(
+              'No series match the filter',
+              style: GoogleFonts.roboto(color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Filter: ${settings.seriesCategoryFilter}',
+              style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+      );
     }
 
     return GridView.builder(
@@ -91,13 +120,13 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
         mainAxisSpacing: 6,
         childAspectRatio: 0.65,
       ),
-      itemCount: _series.length + (_hasMore ? 1 : 0),
+      itemCount: filteredSeries.length + (_hasMore ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index >= _series.length) {
+        if (index >= filteredSeries.length) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final serie = _series[index];
+        final serie = filteredSeries[index];
         return _SeriesCard(series: serie, playlist: widget.playlist);
       },
     );

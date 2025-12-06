@@ -46,6 +46,7 @@ dependencies:
   # Utilities
   intl: ^0.19.0
   equatable: ^2.0.5
+  shared_preferences: ^2.2.2
   
   # Server dependencies (for backend proxy)
   shelf: ^1.4.1
