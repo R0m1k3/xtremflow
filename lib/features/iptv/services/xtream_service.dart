@@ -53,10 +53,14 @@ class XtreamService {
   }
 
   /// Generate stream URL for live TV
+  /// 
+  /// Uses .ts format for direct continuous streaming (avoids HLS segment 403 issues)
   String getLiveStreamUrl(String streamId) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     
-    final url = '${_currentPlaylist!.dns}/live/${_currentPlaylist!.username}/${_currentPlaylist!.password}/$streamId.m3u8';
+    // Use .ts format instead of .m3u8 for direct streaming
+    // This avoids the need toseparate segment requests which may be blocked by CORS or 403
+    final url = '${_currentPlaylist!.dns}/live/${_currentPlaylist!.username}/${_currentPlaylist!.password}/$streamId.ts';
     return _wrapWithProxy(url);
   }
 
