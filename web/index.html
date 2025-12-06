@@ -5,35 +5,95 @@
   <base href="$FLUTTER_BASE_HREF">
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="IPTV Web Application">
+  <meta name="description" content="XtremFlow - Modern IPTV Streaming Application">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="XtremFlow">
+  <meta name="theme-color" content="#0A0E1A">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>XtremFlow IPTV</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
   <link rel="manifest" href="manifest.json">
+
   <style>
-    body {
+    * {
       margin: 0;
       padding: 0;
-      background: #000;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: linear-gradient(135deg, #0A0E1A 0%, #121829 100%);
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
-      font-family: 'Roboto', sans-serif;
+      min-height: 100vh;
+      font-family: 'Inter', 'Roboto', sans-serif;
+      overflow: hidden;
     }
 
-    .loading {
-      color: #fff;
-      font-size: 18px;
+    .loading-container {
+      text-align: center;
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    .logo {
+      font-size: 48px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #00BCD4 0%, #26C6DA 50%, #00ACC1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 24px;
+      letter-spacing: -1px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      margin: 0 auto 16px;
+      border: 3px solid rgba(0, 188, 212, 0.2);
+      border-top-color: #00BCD4;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    .loading-text {
+      color: #94A3B8;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
   </style>
 </head>
 
 <body>
-  <div class="loading">Loading XtremFlow...</div>
+  <div class="loading-container">
+    <div class="logo">XtremFlow</div>
+    <div class="spinner"></div>
+    <div class="loading-text">Loading...</div>
+  </div>
   <!-- HLS.js for HLS video playback on Chrome/Firefox -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script src="flutter_bootstrap.js" async></script>

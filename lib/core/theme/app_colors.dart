@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 
 /// XtremFlow Premium Color Palette
 /// 
-/// Modern dark theme with cyan/teal gradients
+/// Modern theme with cyan/teal gradients - supports light and dark modes
 class AppColors {
   AppColors._();
 
   // ============ PRIMARY GRADIENT ============
   /// Cyan primary - main accent color
-  static const Color primary = Color(0xFF00D9FF);
+  static const Color primary = Color(0xFF00BCD4);
   
   /// Teal secondary - gradient end
-  static const Color secondary = Color(0xFF00BFA5);
+  static const Color secondary = Color(0xFF00ACC1);
   
   /// Primary gradient for buttons and highlights
   static const LinearGradient primaryGradient = LinearGradient(
@@ -20,31 +20,51 @@ class AppColors {
     end: Alignment.bottomRight,
   );
 
-  // ============ SURFACE COLORS ============
+  // ============ DARK MODE SURFACE COLORS ============
   /// Deep dark background
-  static const Color background = Color(0xFF0A0E14);
+  static const Color backgroundDark = Color(0xFF0A0E1A);
   
-  /// Card/elevated surface
-  static const Color surface = Color(0xFF141A22);
+  /// Card/elevated surface (dark)
+  static const Color surfaceDark = Color(0xFF121829);
   
-  /// Lighter surface variant (hover states, inputs)
-  static const Color surfaceVariant = Color(0xFF1E2630);
+  /// Lighter surface variant (dark)
+  static const Color surfaceVariantDark = Color(0xFF1E2638);
   
-  /// Border/divider color
-  static const Color border = Color(0xFF2A3441);
-  
-  /// Overlay color (modals, dialogs)
-  static const Color overlay = Color(0xCC0A0E14);
+  /// Border/divider color (dark)
+  static const Color borderDark = Color(0xFF2A3441);
 
-  // ============ TEXT COLORS ============
-  /// Primary text - white with high opacity
-  static const Color textPrimary = Color(0xFFF5F5F5);
+  // ============ LIGHT MODE SURFACE COLORS ============
+  /// Light background
+  static const Color backgroundLight = Color(0xFFF5F7FA);
   
-  /// Secondary text - muted
-  static const Color textSecondary = Color(0xFFB0BEC5);
+  /// Card/elevated surface (light)
+  static const Color surfaceLight = Color(0xFFFFFFFF);
   
-  /// Disabled/hint text
-  static const Color textDisabled = Color(0xFF607D8B);
+  /// Lighter surface variant (light)
+  static const Color surfaceVariantLight = Color(0xFFF0F2F5);
+  
+  /// Border/divider color (light)
+  static const Color borderLight = Color(0xFFE2E8F0);
+
+  // ============ DARK MODE TEXT COLORS ============
+  static const Color textPrimaryDark = Color(0xFFF5F5F5);
+  static const Color textSecondaryDark = Color(0xFF94A3B8);
+  static const Color textDisabledDark = Color(0xFF64748B);
+
+  // ============ LIGHT MODE TEXT COLORS ============
+  static const Color textPrimaryLight = Color(0xFF1A1A2E);
+  static const Color textSecondaryLight = Color(0xFF64748B);
+  static const Color textDisabledLight = Color(0xFF94A3B8);
+
+  // ============ LEGACY ALIASES (for backwards compatibility) ============
+  static const Color background = backgroundDark;
+  static const Color surface = surfaceDark;
+  static const Color surfaceVariant = surfaceVariantDark;
+  static const Color border = borderDark;
+  static const Color textPrimary = textPrimaryDark;
+  static const Color textSecondary = textSecondaryDark;
+  static const Color textDisabled = textDisabledDark;
+  static const Color overlay = Color(0xCC0A0E14);
 
   // ============ ACCENT COLORS ============
   /// Live indicator red
@@ -63,7 +83,6 @@ class AppColors {
   static const Color info = Color(0xFF3B82F6);
 
   // ============ CATEGORY COLORS ============
-  /// Colors for category chips/tags
   static const List<Color> categoryColors = [
     Color(0xFF6366F1), // Indigo
     Color(0xFFEC4899), // Pink
@@ -74,21 +93,33 @@ class AppColors {
   ];
 
   // ============ GLASSMORPHISM ============
-  /// Glass effect background color
   static const Color glassBackground = Color(0x1AFFFFFF);
-  
-  /// Glass border color
   static const Color glassBorder = Color(0x33FFFFFF);
+  static const Color glassBackgroundLight = Color(0x40FFFFFF);
+  static const Color glassBorderLight = Color(0x20000000);
 
   // ============ DARK THEME COLOR SCHEME ============
   static ColorScheme get darkColorScheme => const ColorScheme.dark(
     primary: primary,
     secondary: secondary,
-    surface: surface,
+    surface: surfaceDark,
     error: error,
     onPrimary: Color(0xFF000000),
     onSecondary: Color(0xFF000000),
-    onSurface: textPrimary,
+    onSurface: textPrimaryDark,
+    onError: Color(0xFFFFFFFF),
+  );
+
+  // ============ LIGHT THEME COLOR SCHEME ============
+  static ColorScheme get lightColorScheme => const ColorScheme.light(
+    primary: primary,
+    secondary: secondary,
+    surface: surfaceLight,
+    error: error,
+    onPrimary: Color(0xFFFFFFFF),
+    onSecondary: Color(0xFFFFFFFF),
+    onSurface: textPrimaryLight,
     onError: Color(0xFFFFFFFF),
   );
 }
+

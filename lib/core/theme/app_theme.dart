@@ -388,4 +388,236 @@ class AppTheme {
       ),
     );
   }
+
+  // ============ LIGHT THEME ============
+  static ThemeData get lightTheme {
+    final baseTheme = ThemeData.light(useMaterial3: true);
+    
+    return baseTheme.copyWith(
+      colorScheme: AppColors.lightColorScheme,
+      scaffoldBackgroundColor: AppColors.backgroundLight,
+      
+      // AppBar
+      appBarTheme: AppBarTheme(
+        backgroundColor: AppColors.surfaceLight,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: false,
+        titleTextStyle: GoogleFonts.inter(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimaryLight,
+        ),
+        iconTheme: const IconThemeData(color: AppColors.textPrimaryLight),
+      ),
+      
+      // Navigation Bar (bottom)
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: AppColors.surfaceLight,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: AppColors.primary.withOpacity(0.15),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.primary,
+            );
+          }
+          return GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textSecondaryLight,
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: AppColors.primary);
+          }
+          return const IconThemeData(color: AppColors.textSecondaryLight);
+        }),
+      ),
+      
+      // Navigation Rail (desktop sidebar)
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: AppColors.surfaceLight,
+        indicatorColor: AppColors.primary.withOpacity(0.15),
+        selectedIconTheme: const IconThemeData(color: AppColors.primary),
+        unselectedIconTheme: const IconThemeData(color: AppColors.textSecondaryLight),
+        selectedLabelTextStyle: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: AppColors.primary,
+        ),
+        unselectedLabelTextStyle: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: AppColors.textSecondaryLight,
+        ),
+      ),
+      
+      // Cards
+      cardTheme: CardThemeData(
+        color: AppColors.surfaceLight,
+        surfaceTintColor: Colors.transparent,
+        elevation: 2,
+        shadowColor: Colors.black.withOpacity(0.08),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusMd),
+        ),
+        margin: EdgeInsets.zero,
+      ),
+      
+      // Inputs
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: AppColors.surfaceVariantLight,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radiusSm),
+          borderSide: const BorderSide(color: AppColors.borderLight),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radiusSm),
+          borderSide: const BorderSide(color: AppColors.borderLight),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radiusSm),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radiusSm),
+          borderSide: const BorderSide(color: AppColors.error),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: spacing16,
+          vertical: spacing12,
+        ),
+        hintStyle: GoogleFonts.inter(
+          color: AppColors.textDisabledLight,
+          fontSize: 14,
+        ),
+        labelStyle: GoogleFonts.inter(
+          color: AppColors.textSecondaryLight,
+          fontSize: 14,
+        ),
+      ),
+      
+      // Buttons
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(
+            horizontal: spacing24,
+            vertical: spacing12,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusSm),
+          ),
+          textStyle: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      
+      // Dialogs
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.surfaceLight,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusLg),
+        ),
+        titleTextStyle: GoogleFonts.inter(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimaryLight,
+        ),
+        contentTextStyle: GoogleFonts.inter(
+          fontSize: 14,
+          color: AppColors.textSecondaryLight,
+        ),
+      ),
+      
+      // Dividers
+      dividerTheme: const DividerThemeData(
+        color: AppColors.borderLight,
+        thickness: 1,
+        space: 1,
+      ),
+      
+      // List tiles
+      listTileTheme: ListTileThemeData(
+        tileColor: Colors.transparent,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: spacing16,
+          vertical: spacing8,
+        ),
+        titleTextStyle: GoogleFonts.inter(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: AppColors.textPrimaryLight,
+        ),
+        subtitleTextStyle: GoogleFonts.inter(
+          fontSize: 12,
+          color: AppColors.textSecondaryLight,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusSm),
+        ),
+      ),
+      
+      // Progress indicators
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: AppColors.primary,
+        linearTrackColor: AppColors.surfaceVariantLight,
+        circularTrackColor: AppColors.surfaceVariantLight,
+      ),
+      
+      // Text theme
+      textTheme: TextTheme(
+        displayLarge: GoogleFonts.inter(
+          fontSize: 57,
+          fontWeight: FontWeight.w400,
+          color: AppColors.textPrimaryLight,
+        ),
+        headlineLarge: GoogleFonts.inter(
+          fontSize: 32,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimaryLight,
+        ),
+        titleLarge: GoogleFonts.inter(
+          fontSize: 22,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimaryLight,
+        ),
+        titleMedium: GoogleFonts.inter(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimaryLight,
+        ),
+        bodyLarge: GoogleFonts.inter(
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
+          color: AppColors.textPrimaryLight,
+        ),
+        bodyMedium: GoogleFonts.inter(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          color: AppColors.textPrimaryLight,
+        ),
+        bodySmall: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
+          color: AppColors.textSecondaryLight,
+        ),
+        labelLarge: GoogleFonts.inter(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimaryLight,
+        ),
+      ),
+    );
+  }
 }
+
