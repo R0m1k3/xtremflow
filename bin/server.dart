@@ -153,21 +153,34 @@ Handler _createXtreamProxyHandler() {
       
       final targetUrl = Uri.parse(fullUrl);
       final baseUrl = '${targetUrl.scheme}://${targetUrl.host}${targetUrl.hasPort ? ':${targetUrl.port}' : ''}';
+      
+      // Check if this is a video file that needs streaming
+      final lowerPath = targetUrl.path.toLowerCase();
+      final isVideoFile = lowerPath.endsWith('.mp4') || 
+                          lowerPath.endsWith('.mkv') || 
+                          lowerPath.endsWith('.avi') ||
+                          lowerPath.endsWith('.ts') ||
+                          lowerPath.endsWith('.m4v') ||
+                          lowerPath.contains('/movie/') ||
+                          lowerPath.contains('/series/');
 
-      print('Proxying request to: $targetUrl');
+      print('Proxying request to: $targetUrl (video streaming: $isVideoFile)');
+
+      // For video files, use streaming to avoid loading entire file in memory
+      if (isVideoFile) {
+        return _streamVideoFile(targetUrl);
+      }
 
       // Headers to simulate a legitimate IPTV client (VLC/Kodi style)
-      // Many IPTV servers check User-Agent to prevent web playback
       final proxyHeaders = {
-        // Use VLC Media Player User-Agent - most IPTV servers whitelist this
         'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
         'Accept': '*/*',
         'Accept-Encoding': 'identity',
         'Connection': 'keep-alive',
-        'Icy-MetaData': '1',  // Common for IPTV streams
+        'Icy-MetaData': '1',
       };
 
-      // Use simple http.get/post with timeout and proper headers
+      // Use simple http.get/post for non-video content
       http.Response response;
       if (request.method == 'GET') {
         response = await http.get(targetUrl, headers: proxyHeaders).timeout(
@@ -229,6 +242,43 @@ Handler _createXtreamProxyHandler() {
       );
     }
   };
+}
+
+/// Stream video file using HttpClient (avoids loading entire file in memory)
+Future<Response> _streamVideoFile(Uri targetUrl) async {
+  try {
+    final client = HttpClient();
+    client.connectionTimeout = const Duration(seconds: 30);
+    
+    final req = await client.getUrl(targetUrl);
+    req.headers.set('User-Agent', 'VLC/3.0.18 LibVLC/3.0.18');
+    req.headers.set('Accept', '*/*');
+    req.headers.set('Connection', 'keep-alive');
+    
+    final response = await req.close();
+    
+    // Get content type from response
+    final contentType = response.headers.contentType?.mimeType ?? 'video/mp4';
+    
+    // Create a streaming response
+    return Response(
+      response.statusCode,
+      body: response,
+      headers: {
+        'content-type': contentType,
+        'access-control-allow-origin': '*',
+        'accept-ranges': 'bytes',
+        if (response.contentLength > 0) 
+          'content-length': response.contentLength.toString(),
+      },
+    );
+  } catch (e) {
+    print('Video streaming error: $e');
+    return Response.internalServerError(
+      body: jsonEncode({'error': 'Video streaming error', 'message': e.toString()}),
+      headers: {'content-type': 'application/json'},
+    );
+  }
 }
 
 /// Rewrite URLs in M3U8 playlist to go through the proxy
@@ -355,14 +405,22 @@ Handler _createStreamHandler() {
       // Start FFmpeg process with VLC User-Agent
       // Transcode to H.264/AAC for browser compatibility (HEVC not supported in Chrome)
       // Using fast preset for lower CPU usage
+      // Added resilience flags for corrupted/discontinuous streams
       final process = await Process.start('ffmpeg', [
         '-y',  // Overwrite output files
         '-loglevel', 'warning',  // Reduce verbose output
+        '-err_detect', 'ignore_err',  // Ignore decoding errors
+        '-fflags', '+genpts+discardcorrupt+igndts',  // Generate PTS, discard corrupt frames, ignore DTS
+        '-flags', 'low_delay',  // Low delay mode
+        '-analyzeduration', '2000000',  // Limit analysis time (2 seconds)
+        '-probesize', '1000000',  // Limit probe size (1MB)
         '-user_agent', 'VLC/3.0.18 LibVLC/3.0.18',
         '-headers', 'Accept: */*\r\nConnection: keep-alive\r\n',
         '-reconnect', '1',
         '-reconnect_streamed', '1',
         '-reconnect_delay_max', '5',
+        '-reconnect_on_network_error', '1',  // Reconnect on network errors
+        '-reconnect_on_http_error', '4xx,5xx',  // Reconnect on HTTP errors
         '-i', iptvUrl,
         // Video: transcode to H.264 for browser compatibility
         '-c:v', 'libx264',
@@ -373,10 +431,13 @@ Handler _createStreamHandler() {
         '-b:v', '2500k',  // 2.5 Mbps video bitrate
         '-maxrate', '3000k',
         '-bufsize', '6000k',
+        '-vsync', 'passthrough',  // Pass through timestamps as-is (fixes discontinuity)
+        '-avoid_negative_ts', 'make_zero',  // Handle negative timestamps
         // Audio: transcode to AAC
         '-c:a', 'aac',
         '-b:a', '128k',
         '-ar', '44100',
+        '-async', '1',  // Audio sync (stretch/compression allowed)
         // HLS output settings
         '-f', 'hls',
         '-hls_time', '2',  // 2 second segments

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/playlist_config.dart';
 import '../models/xtream_models.dart';
 import '../providers/xtream_provider.dart';
+import '../providers/settings_provider.dart';
 import '../screens/player_screen.dart';
 
 class MoviesTab extends ConsumerStatefulWidget {
@@ -78,8 +79,36 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = ref.watch(iptvSettingsProvider);
+    
+    // Filter movies by category
+    final filteredMovies = settings.moviesKeywords.isEmpty
+        ? _movies
+        : _movies.where((m) => settings.matchesMoviesFilter(m.categoryName)).toList();
+
     if (_movies.isEmpty && !_isLoading) {
       return const Center(child: Text('No movies available'));
+    }
+
+    if (filteredMovies.isEmpty && _movies.isNotEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.filter_list_off, size: 48, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(
+              'No movies match the filter',
+              style: GoogleFonts.roboto(color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Filter: ${settings.moviesCategoryFilter}',
+              style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+      );
     }
 
     return GridView.builder(
@@ -91,13 +120,13 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
         mainAxisSpacing: 6,
         childAspectRatio: 0.65,
       ),
-      itemCount: _movies.length + (_hasMore ? 1 : 0),
+      itemCount: filteredMovies.length + (_hasMore ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index >= _movies.length) {
+        if (index >= filteredMovies.length) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final movie = _movies[index];
+        final movie = filteredMovies[index];
         return _MovieCard(
           movie: movie,
           playlist: widget.playlist,
