@@ -61,3 +61,28 @@ final epgProvider = FutureProvider.family.autoDispose((ref, String streamId) asy
   final service = ref.watch(activeXtreamServiceProvider);
   return await service.getShortEpg(streamId);
 });
+
+/// EPG request key for family provider (combines playlist and streamId)
+class EpgRequestKey {
+  final PlaylistConfig playlist;
+  final String streamId;
+  
+  const EpgRequestKey({required this.playlist, required this.streamId});
+  
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EpgRequestKey &&
+          runtimeType == other.runtimeType &&
+          playlist == other.playlist &&
+          streamId == other.streamId;
+
+  @override
+  int get hashCode => playlist.hashCode ^ streamId.hashCode;
+}
+
+/// Provider for EPG with playlist context
+final epgByPlaylistProvider = FutureProvider.family.autoDispose((ref, EpgRequestKey key) async {
+  final service = ref.watch(xtreamServiceProvider(key.playlist));
+  return await service.getShortEpg(key.streamId);
+});

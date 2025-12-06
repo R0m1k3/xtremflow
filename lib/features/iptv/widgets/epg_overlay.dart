@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/models/playlist_config.dart';
 import '../providers/xtream_provider.dart';
 
 /// EPG overlay widget showing "Now" and "Next" programs
 class EpgOverlay extends ConsumerWidget {
   final String streamId;
+  final PlaylistConfig playlist;
 
   const EpgOverlay({
     super.key,
     required this.streamId,
+    required this.playlist,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final epgAsync = ref.watch(epgProvider(streamId));
+    final epgAsync = ref.watch(epgByPlaylistProvider(
+      EpgRequestKey(playlist: playlist, streamId: streamId),
+    ));
 
     return epgAsync.when(
       data: (epgEntries) {
