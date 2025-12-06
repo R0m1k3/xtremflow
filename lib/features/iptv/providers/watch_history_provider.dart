@@ -32,7 +32,7 @@ class WatchHistory {
   bool isEpisodeWatched(String episodeId) => watchedEpisodes.contains(episodeId);
   
   /// Generate episode key
-  static String episodeKey(int seriesId, int seasonNum, int episodeNum) {
+  static String episodeKey(String seriesId, int seasonNum, int episodeNum) {
     return '${seriesId}_${seasonNum}_$episodeNum';
   }
 }
