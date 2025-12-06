@@ -306,3 +306,194 @@ class CategoryChip extends StatelessWidget {
     );
   }
 }
+
+/// Apple TV style Media Card (Vertical Poster)
+class MediaCard extends StatefulWidget {
+  final String title;
+  final String? imageUrl;
+  final String? subtitle;
+  final String? rating;
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  final bool isWatched;
+  final IconData placeholderIcon;
+
+  const MediaCard({
+    super.key,
+    required this.title,
+    this.imageUrl,
+    this.subtitle,
+    this.rating,
+    this.onTap,
+    this.onLongPress,
+    this.isWatched = false,
+    this.placeholderIcon = Icons.movie,
+  });
+
+  @override
+  State<MediaCard> createState() => _MediaCardState();
+}
+
+class _MediaCardState extends State<MediaCard>
+    with SingleTickerProviderStateMixin {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        onLongPress: widget.onLongPress,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Poster Image
+            Expanded(
+              child: AnimatedScale(
+                scale: _isHovered ? 1.05 : 1.0,
+                duration: AppTheme.durationFast,
+                curve: AppTheme.curveDefault,
+                child: AnimatedContainer(
+                  duration: AppTheme.durationFast,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    color: AppColors.surface,
+                    border: Border.all(
+                      color: _isHovered ? AppColors.focusColor : Colors.transparent,
+                      width: _isHovered ? 3 : 0,
+                    ),
+                    boxShadow: _isHovered
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.5),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            )
+                          ]
+                        : [
+                             BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            )
+                          ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd - (_isHovered ? 2 : 0)),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        if (widget.imageUrl != null)
+                          CachedNetworkImage(
+                            imageUrl: widget.imageUrl!,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              color: AppColors.surface,
+                              child: Center(
+                                child: Icon(widget.placeholderIcon, color: AppColors.textTertiary),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: AppColors.surface,
+                              child: Center(
+                                child: Icon(widget.placeholderIcon, color: AppColors.textTertiary),
+                              ),
+                            ),
+                          )
+                        else
+                          Container(
+                            color: AppColors.surface,
+                            child: Center(
+                              child: Icon(widget.placeholderIcon, color: AppColors.textTertiary),
+                            ),
+                          ),
+                        
+                        // Rating Badge (Top Left)
+                        if (widget.rating != null && widget.rating!.isNotEmpty)
+                          Positioned(
+                            top: 8,
+                            left: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.7),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.star, size: 10, color: Color(0xFFFFD700)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    widget.rating!,
+                                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                        // Watched Indicator (Top Right)
+                        if (widget.isWatched)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: AppColors.success,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.check, size: 12, color: Colors.white),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            
+            // Title & Subtitle (Below)
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: Column(
+                children: [
+                  Text(
+                    widget.title,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: _isHovered ? AppColors.focusColor : AppColors.textSecondary,
+                      fontWeight: _isHovered ? FontWeight.w600 : FontWeight.w500,
+                      fontSize: 13,
+                    ),
+                  ),
+                  if (widget.subtitle != null && _isHovered) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      widget.subtitle!,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textTertiary,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

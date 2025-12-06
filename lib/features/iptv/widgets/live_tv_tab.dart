@@ -10,9 +10,10 @@ import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/responsive_layout.dart';
+import '../../../core/widgets/components/ui_components.dart';
 import 'channel_card.dart';
 
-/// Live TV tab - Enhanced with Search, Favorites and Grid/List View
+/// Live TV tab - Apple TV Style with Horizontal Category Filter
 class LiveTVTab extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
 
@@ -27,14 +28,15 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
   
   // State
   String? _selectedCategory;
-  int _currentPage = 0;
-  static const int _itemsPerPage = 100; // Increased for grid view
   
   // UI State
   bool _isGridView = true;
   final TextEditingController _searchController = TextEditingController();
   bool _showFavoritesOnly = false;
   String _searchQuery = '';
+  
+  // Scroll Controllers
+  final ScrollController _mainScrollController = ScrollController();
 
   @override
   void initState() {
@@ -42,7 +44,6 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text.toLowerCase();
-        _currentPage = 0; // Reset page on search
       });
     });
   }
@@ -50,6 +51,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
   @override
   void dispose() {
     _searchController.dispose();
+    _mainScrollController.dispose();
     super.dispose();
   }
 
@@ -62,316 +64,170 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
 
     final channelsAsync = ref.watch(liveChannelsByPlaylistProvider(widget.playlist));
     final favorites = ref.watch(favoritesProvider);
-
-    return Scaffold( // Use scaffold for toolbar body structure
-      backgroundColor: Colors.transparent,
-      body: Column(
-        children: [
-          // Toolbar
-          _buildToolbar(),
-
-          // Content
-          Expanded(
-            child: channelsAsync.when(
-              data: (groupedChannels) {
-                // 1. Flatten for global search/filter if needed
-                final allChannels = groupedChannels.values.expand((element) => element).toList();
-                
-                List<Channel> displayedChannels = [];
-                bool isGlobalMode = _searchQuery.isNotEmpty || _showFavoritesOnly;
-
-                if (isGlobalMode) {
-                  // Global Filter Mode
-                  displayedChannels = allChannels.where((channel) {
-                    final matchesSearch = _searchQuery.isEmpty || 
-                        channel.name.toLowerCase().contains(_searchQuery);
-                    final matchesFavorite = !_showFavoritesOnly || 
-                        favorites.contains(channel.streamId);
-                    return matchesSearch && matchesFavorite;
-                  }).toList();
-                } else if (_selectedCategory != null) {
-                  // Category Mode
-                  displayedChannels = groupedChannels[_selectedCategory] ?? [];
-                }
-
-                // If no global mode and no category selected, show Category Grid
-                if (!isGlobalMode && _selectedCategory == null) {
-                  if (groupedChannels.isEmpty) {
-                    return const Center(child: Text('No channels found'));
-                  }
-                  return _buildCategoryGrid(groupedChannels);
-                }
-
-                // Show Channels (Grid or List)
-                if (displayedChannels.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.tv_off, size: 64, color: AppColors.textTertiary),
-                        const SizedBox(height: 16),
-                        Text(
-                          _showFavoritesOnly ? 'No favorites found' : 'No channels found',
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return _buildChannelsView(displayedChannels, isGlobalMode);
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, s) => Center(child: Text('Error: $e')),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildToolbar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
-      child: Row(
-        children: [
-          // Search Bar
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search channels...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () => _searchController.clear(),
-                      )
-                    : null,
-                isDense: true,
-                filled: true,
-                fillColor: AppColors.surface.withOpacity(0.5),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-
-          // Favorites Toggle
-          IconButton(
-            tooltip: 'Favorites Only',
-            icon: Icon(
-              _showFavoritesOnly ? Icons.favorite : Icons.favorite_border,
-              color: _showFavoritesOnly ? AppColors.primary : AppColors.textSecondary,
-            ),
-            onPressed: () {
-              setState(() {
-                _showFavoritesOnly = !_showFavoritesOnly;
-                _selectedCategory = null; // Reset category when toggling favorites
-                _currentPage = 0;
-              });
-            },
-          ),
-
-          // View Toggle
-          IconButton(
-            tooltip: _isGridView ? 'List View' : 'Grid View',
-            icon: Icon(
-              _isGridView ? Icons.view_list : Icons.grid_view,
-              color: AppColors.textSecondary,
-            ),
-            onPressed: () => setState(() => _isGridView = !_isGridView),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategoryGrid(Map<String, List<Channel>> groupedChannels) {
     final settings = ref.watch(iptvSettingsProvider);
-    var categories = groupedChannels.keys.toList();
-    
-    // Apply Settings Filter (Hidden categories)
-    if (settings.liveTvKeywords.isNotEmpty) {
-      categories = categories.where((cat) => settings.matchesLiveTvFilter(cat)).toList();
-    }
-    categories.sort();
 
-    final crossAxisCount = ResponsiveLayout.value(
-      context,
-      mobile: 2,
-      tablet: 3,
-      desktop: 5,
-    );
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: channelsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, s) => Center(child: Text('Error: $e')),
+        data: (groupedChannels) {
+           // Groups
+           var categories = groupedChannels.keys.toList();
+           if (settings.liveTvKeywords.isNotEmpty) {
+             categories = categories.where((cat) => settings.matchesLiveTvFilter(cat)).toList();
+           }
+           categories.sort();
+           
+           // Filter Logic
+           List<Channel> displayedChannels = [];
+           
+           if (_searchQuery.isNotEmpty) {
+             // Global Search
+             displayedChannels = groupedChannels.values.expand((l) => l)
+                 .where((c) => c.name.toLowerCase().contains(_searchQuery))
+                 .toList();
+           } else if (_showFavoritesOnly) {
+             // Favorites
+             displayedChannels = groupedChannels.values.expand((l) => l)
+                 .where((c) => favorites.contains(c.streamId))
+                 .toList();
+           } else if (_selectedCategory != null) {
+              // Selected Category
+              displayedChannels = groupedChannels[_selectedCategory] ?? [];
+           } else {
+             // Default: Show first category or All if practical, but "All" is too big.
+             // Apple TV pattern: Auto-select first category if nothing selected.
+             if (categories.isNotEmpty) {
+                // We don't want to trigger setState during build, so we just use the first category functionality
+                // But visualized as "All" might be confusing with map keys.
+                // Let's default to the first category in the list.
+                _selectedCategory ??= categories.first;
+                displayedChannels = groupedChannels[_selectedCategory] ?? [];
+             }
+           }
 
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        childAspectRatio: 1.5,
-      ),
-      itemCount: categories.length,
-      itemBuilder: (context, index) {
-        final category = categories[index];
-        final count = groupedChannels[category]!.length;
-        
-        return InkWell(
-          onTap: () => setState(() {
-            _selectedCategory = category;
-            _currentPage = 0;
-          }),
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              border: Border.all(color: AppColors.border),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.surface.withOpacity(0.8),
-                  AppColors.surface,
-                ],
-              ),
-            ),
-            child: Stack(
-              children: [
-                Positioned(
-                  right: -10,
-                  bottom: -10,
-                  child: Icon(
-                    Icons.tv,
-                    size: 80,
-                    color: Colors.white.withOpacity(0.03),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        category,
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+          return Column(
+            children: [
+              // Minimalist Header
+              Container(
+                padding: const EdgeInsets.only(left: 24, right: 24, top: 16, bottom: 8),
+                child: Row(
+                  children: [
+                    Text(
+                      'Live TV',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    const Spacer(),
+                    
+                    // Search Pill
+                    Container(
+                      width: 250,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                        border: Border.all(color: AppColors.border),
                       ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          '$count channels',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.search, size: 18, color: AppColors.textSecondary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                              decoration: const InputDecoration(
+                                hintText: 'Search channels',
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.only(bottom: 12),
+                              ),
+                            ),
                           ),
-                        ),
+                          if (_searchQuery.isNotEmpty)
+                          GestureDetector(
+                            onTap: () => _searchController.clear(),
+                            child: const Icon(Icons.close, size: 16, color: AppColors.textSecondary)
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
+                    const SizedBox(width: 16),
+                    
+                    // Favorites Toggle
+                    IconButton(
+                      icon: Icon(
+                        _showFavoritesOnly ? Icons.favorite : Icons.favorite_border,
+                        color: _showFavoritesOnly ? AppColors.error : AppColors.textSecondary,
+                      ),
+                      onPressed: () {
+                         setState(() {
+                           _showFavoritesOnly = !_showFavoritesOnly;
+                           if (_showFavoritesOnly) _searchController.clear();
+                         });
+                      },
+                      tooltip: 'Favorites Only',
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        _isGridView ? Icons.view_list : Icons.grid_view,
+                        color: AppColors.textSecondary,
+                      ),
+                      onPressed: () => setState(() => _isGridView = !_isGridView),
+                      tooltip: 'Toggle View',
+                    ),
+                  ],
+                ),
+              ),
+
+              // Categories Horizontal List (Only if not searching/favorites)
+              if (_searchQuery.isEmpty && !_showFavoritesOnly)
+                Container(
+                  height: 48,
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    scrollDirection: Axis.horizontal,
+                    itemCount: categories.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (context, index) {
+                      final category = categories[index];
+                      final isSelected = category == _selectedCategory;
+                      return CategoryChip(
+                        label: category,
+                        isSelected: isSelected,
+                        onTap: () {
+                          setState(() {
+                            _selectedCategory = category;
+                            _mainScrollController.jumpTo(0); // Reset scroll
+                          });
+                        },
+                      );
+                    },
                   ),
                 ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 
-  Widget _buildChannelsView(List<Channel> channels, bool isGlobalMode) {
-    // Pagination
-    final totalPages = (channels.length / _itemsPerPage).ceil();
-    final startIndex = _currentPage * _itemsPerPage;
-    final endIndex = (startIndex + _itemsPerPage > channels.length) 
-        ? channels.length 
-        : startIndex + _itemsPerPage;
-    final pageChannels = channels.sublist(startIndex, endIndex);
+              const SizedBox(height: 8),
 
-    return Column(
-      children: [
-        // Breadcrumb / Back Navigation
-        if (!isGlobalMode && _selectedCategory != null)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: AppColors.surface.withOpacity(0.5),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back_ios, size: 16),
-                  onPressed: () => setState(() => _selectedCategory = null),
-                  tooltip: 'Back to Categories',
-                ),
-                Text(
-                  _selectedCategory!,
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${channels.length} items',
-                  style: GoogleFonts.inter(color: AppColors.textSecondary),
-                ),
-              ],
-            ),
-          ),
-
-        // Grid/List Content
-        Expanded(
-          child: _isGridView 
-              ? _buildGridView(pageChannels) 
-              : _buildListView(pageChannels),
-        ),
-
-        // Pagination Controls
-        if (totalPages > 1)
-          Container(
-            height: 50,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              border: Border(top: BorderSide(color: AppColors.border)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.chevron_left),
-                  onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
-                ),
-                Text(
-                  'Page ${_currentPage + 1} of $totalPages',
-                  style: GoogleFonts.inter(fontWeight: FontWeight.w500),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right),
-                  onPressed: _currentPage < totalPages - 1 ? () => setState(() => _currentPage++) : null,
-                ),
-              ],
-            ),
-          ),
-      ],
+              // Channels Content
+              Expanded(
+                child: displayedChannels.isEmpty
+                  ? Center(
+                      child: Text(
+                        _showFavoritesOnly ? 'No favorites' : 'No channels found',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
+                      ),
+                    )
+                  : _isGridView
+                      ? _buildGridView(displayedChannels)
+                      : _buildListView(displayedChannels),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -384,21 +240,22 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
     );
 
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
+      controller: _mainScrollController,
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: columns,
         mainAxisSpacing: 16,
         crossAxisSpacing: 16,
-        childAspectRatio: 1.4, // Card ratio
+        childAspectRatio: 1.3, // Card ratio 4:3ish
       ),
       itemCount: channels.length,
       itemBuilder: (context, index) {
         final channel = channels[index];
         return ChannelCard(
-          streamId: channel.streamId, // Now required
+          streamId: channel.streamId,
           name: channel.name,
           iconUrl: _getProxiedIconUrl(channel.streamIcon),
-          currentProgram: null, // ShortEPG requires async fetch
+          currentProgram: null,
           onTap: () => _playChannel(channel),
         );
       },
@@ -407,19 +264,20 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
 
   Widget _buildListView(List<Channel> channels) {
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      controller: _mainScrollController,
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       itemCount: channels.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final channel = channels[index];
         return SizedBox(
-          height: 80, // Fixed height for list item
+          height: 70,
           child: ChannelCard(
             streamId: channel.streamId,
             name: channel.name,
             iconUrl: _getProxiedIconUrl(channel.streamIcon),
-            height: 80,
-            width: double.infinity, // Full width
+            height: 70,
+            width: double.infinity,
             onTap: () => _playChannel(channel),
           ),
         );
