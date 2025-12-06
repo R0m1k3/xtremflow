@@ -115,7 +115,7 @@ final _corsHeaders = {
   'Access-Control-Allow-Headers': 'Origin, Content-Type, Accept, Authorization',
 };
 
-/// Create Xtream proxy handler
+/// Create Xtream proxy handler with M3U8 URL rewriting support
 Handler _createXtreamProxyHandler() {
   return (Request request) async {
     final path = request.url.path;
@@ -149,6 +149,7 @@ Handler _createXtreamProxyHandler() {
       }
       
       final targetUrl = Uri.parse(fullUrl);
+      final baseUrl = '${targetUrl.scheme}://${targetUrl.host}${targetUrl.hasPort ? ':${targetUrl.port}' : ''}';
 
       print('Proxying request to: $targetUrl');
 
@@ -169,6 +170,34 @@ Handler _createXtreamProxyHandler() {
         return Response(405, body: 'Method not allowed');
       }
 
+      // Check if this is an M3U8/HLS playlist that needs URL rewriting
+      final contentType = response.headers['content-type'] ?? '';
+      final isM3u8 = fullUrl.endsWith('.m3u8') || 
+                     contentType.contains('application/vnd.apple.mpegurl') ||
+                     contentType.contains('application/x-mpegurl') ||
+                     contentType.contains('audio/mpegurl');
+
+      if (isM3u8 && response.statusCode == 200) {
+        // Rewrite URLs in M3U8 playlist to go through proxy
+        final rewrittenBody = _rewriteM3u8Urls(
+          response.body, 
+          baseUrl, 
+          targetUrl.path,
+          request.requestedUri.origin,
+        );
+        
+        print('Rewrote M3U8 playlist URLs for: $targetUrl');
+        
+        return Response(
+          response.statusCode,
+          body: rewrittenBody,
+          headers: {
+            'content-type': 'application/vnd.apple.mpegurl',
+            'access-control-allow-origin': '*',
+          },
+        );
+      }
+
       return Response(
         response.statusCode,
         body: response.bodyBytes,
@@ -186,5 +215,69 @@ Handler _createXtreamProxyHandler() {
       );
     }
   };
+}
+
+/// Rewrite URLs in M3U8 playlist to go through the proxy
+/// 
+/// Handles both relative and absolute URLs in HLS playlists
+String _rewriteM3u8Urls(String m3u8Content, String baseUrl, String originalPath, String proxyOrigin) {
+  final lines = m3u8Content.split('\n');
+  final rewrittenLines = <String>[];
+  
+  // Get directory path for relative URL resolution
+  final pathSegments = originalPath.split('/');
+  pathSegments.removeLast(); // Remove filename
+  final basePath = pathSegments.join('/');
+  
+  for (final line in lines) {
+    final trimmedLine = line.trim();
+    
+    // Skip empty lines and comments (except URI in comments)
+    if (trimmedLine.isEmpty) {
+      rewrittenLines.add(line);
+      continue;
+    }
+    
+    // Handle lines that contain URLs (not starting with #, or EXT-X-KEY/EXT-X-MAP with URI)
+    if (!trimmedLine.startsWith('#')) {
+      // This is a segment URL
+      final rewrittenUrl = _rewriteUrl(trimmedLine, baseUrl, basePath, proxyOrigin);
+      rewrittenLines.add(rewrittenUrl);
+    } else if (trimmedLine.contains('URI="')) {
+      // Handle EXT-X-KEY, EXT-X-MAP, etc. with URI attribute
+      final rewrittenLine = trimmedLine.replaceAllMapped(
+        RegExp(r'URI="([^"]+)"'),
+        (match) {
+          final uri = match.group(1)!;
+          final rewrittenUri = _rewriteUrl(uri, baseUrl, basePath, proxyOrigin);
+          return 'URI="$rewrittenUri"';
+        },
+      );
+      rewrittenLines.add(rewrittenLine);
+    } else {
+      rewrittenLines.add(line);
+    }
+  }
+  
+  return rewrittenLines.join('\n');
+}
+
+/// Rewrite a single URL to go through the proxy
+String _rewriteUrl(String url, String baseUrl, String basePath, String proxyOrigin) {
+  String fullUrl;
+  
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    // Already absolute URL
+    fullUrl = url;
+  } else if (url.startsWith('/')) {
+    // Absolute path, relative to server root
+    fullUrl = '$baseUrl$url';
+  } else {
+    // Relative path, relative to current directory
+    fullUrl = '$baseUrl$basePath/$url';
+  }
+  
+  // Wrap with proxy
+  return '$proxyOrigin/api/xtream/$fullUrl';
 }
 
