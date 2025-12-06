@@ -195,7 +195,10 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
               children: [
                 Text(
                   'Movies',
-                  style: Theme.of(context).textTheme.headlineMedium,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const Spacer(),
                 Container(

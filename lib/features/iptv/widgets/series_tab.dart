@@ -186,7 +186,10 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
               children: [
                 Text(
                   'TV Series',
-                  style: Theme.of(context).textTheme.headlineMedium,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const Spacer(),
                 Container(
