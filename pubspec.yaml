@@ -22,13 +22,14 @@ dependencies:
   dio: ^5.4.0
   dio_cache_interceptor: ^3.5.0
   dio_cache_interceptor_hive_store: ^3.2.2
+  http: ^1.2.0
   
   # Routing
   go_router: ^13.0.0
   
   # Video Player
   video_player: ^2.8.2
-  video_player_web: ^2.3.0  # Required for web platform
+  video_player_web: ^2.3.0
   chewie: ^1.7.5
   media_kit: ^1.1.10
   media_kit_video: ^1.2.4
@@ -44,6 +45,11 @@ dependencies:
   # Utilities
   intl: ^0.19.0
   equatable: ^2.0.5
+  
+  # Server dependencies (for backend proxy)
+  shelf: ^1.4.1
+  shelf_static: ^1.1.2
+  args: ^2.4.2
 
 dev_dependencies:
   flutter_test:

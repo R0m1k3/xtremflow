@@ -4,6 +4,7 @@ import 'package:dio_cache_interceptor_hive_store/dio_cache_interceptor_hive_stor
 import '../../../core/models/playlist_config.dart';
 import '../../../core/models/iptv_models.dart';
 import '../models/xtream_models.dart' as xm;
+import 'dart:html' as html;
 
 /// Xtream Codes API Service
 /// 
@@ -31,6 +32,21 @@ class XtreamService {
     _dio.interceptors.add(DioCacheInterceptor(options: _cacheOptions));
   }
 
+  /// Check if we're running on HTTPS (production)
+  bool get _isHttps {
+    return html.window.location.protocol == 'https:';
+  }
+
+  /// Wrap URL with proxy if needed (for HTTPS to HTTP bridge)
+  String _wrapWithProxy(String url) {
+    // If we're on HTTPS and the target URL is HTTP, use the proxy
+    if (_isHttps && url.startsWith('http://')) {
+      final baseUrl = html.window.location.origin;
+      return '$baseUrl/api/xtream/$url';
+    }
+    return url;
+  }
+
   /// Initialize connection with a playlist
   void setPlaylist(PlaylistConfig playlist) {
     _currentPlaylist = playlist;
@@ -40,21 +56,24 @@ class XtreamService {
   String getLiveStreamUrl(String streamId) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     
-    return '${_currentPlaylist!.dns}/live/${_currentPlaylist!.username}/${_currentPlaylist!.password}/$streamId.m3u8';
+    final url = '${_currentPlaylist!.dns}/live/${_currentPlaylist!.username}/${_currentPlaylist!.password}/$streamId.m3u8';
+    return _wrapWithProxy(url);
   }
 
   /// Generate stream URL for VOD (movies)
   String getVodStreamUrl(String streamId, String containerExtension) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     
-    return '${_currentPlaylist!.dns}/movie/${_currentPlaylist!.username}/${_currentPlaylist!.password}/$streamId.$containerExtension';
+    final url = '${_currentPlaylist!.dns}/movie/${_currentPlaylist!.username}/${_currentPlaylist!.password}/$streamId.$containerExtension';
+    return _wrapWithProxy(url);
   }
 
   /// Generate stream URL for series episodes
   String getSeriesStreamUrl(String streamId, String containerExtension) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     
-    return '${_currentPlaylist!.dns}/series/${_currentPlaylist!.username}/${_currentPlaylist!.password}/$streamId.$containerExtension';
+    final url = '${_currentPlaylist!.dns}/series/${_currentPlaylist!.username}/${_currentPlaylist!.password}/$streamId.$containerExtension';
+    return _wrapWithProxy(url);
   }
 
   /// Authenticate and get server info
@@ -63,7 +82,7 @@ class XtreamService {
 
     try {
       final response = await _dio.get(
-        _currentPlaylist!.apiBaseUrl,
+        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
         queryParameters: {
           'username': _currentPlaylist!.username,
           'password': _currentPlaylist!.password,
@@ -85,7 +104,7 @@ class XtreamService {
 
     try {
       final response = await _dio.get(
-        _currentPlaylist!.apiBaseUrl,
+        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
         queryParameters: {
           'username': _currentPlaylist!.username,
           'password': _currentPlaylist!.password,
@@ -119,7 +138,7 @@ class XtreamService {
 
     try {
       final response = await _dio.get(
-        _currentPlaylist!.apiBaseUrl,
+        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
         queryParameters: {
           'username': _currentPlaylist!.username,
           'password': _currentPlaylist!.password,
@@ -153,7 +172,7 @@ class XtreamService {
 
     try {
       final response = await _dio.get(
-        _currentPlaylist!.apiBaseUrl,
+        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
         queryParameters: {
           'username': _currentPlaylist!.username,
           'password': _currentPlaylist!.password,
@@ -187,7 +206,7 @@ class XtreamService {
 
     try {
       final response = await _dio.get(
-        _currentPlaylist!.apiBaseUrl,
+        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
         queryParameters: {
           'username': _currentPlaylist!.username,
           'password': _currentPlaylist!.password,
@@ -218,7 +237,7 @@ class XtreamService {
 
     try {
       final response = await _dio.get(
-        _currentPlaylist!.apiBaseUrl,
+        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
         queryParameters: {
           'username': _currentPlaylist!.username,
           'password': _currentPlaylist!.password,
@@ -251,7 +270,7 @@ class XtreamService {
 
     try {
       final response = await _dio.get(
-        _currentPlaylist!.apiBaseUrl,
+        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
         queryParameters: {
           'username': _currentPlaylist!.username,
           'password': _currentPlaylist!.password,

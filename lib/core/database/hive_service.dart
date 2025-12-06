@@ -19,23 +19,15 @@ class HiveService {
     // Initialize Hive for Web (uses IndexedDB)
     await Hive.initFlutter();
 
-    // Generate or retrieve encryption key
-    final encryptionKey = await _getOrCreateEncryptionKey();
-
     // Register adapters
     Hive.registerAdapter(AppUserAdapter());
     Hive.registerAdapter(PlaylistConfigAdapter());
 
-    // Open encrypted boxes
-    await Hive.openBox<AppUser>(
-      _usersBoxName,
-      encryptionCipher: HiveAesCipher(encryptionKey),
-    );
-    
-    await Hive.openBox<PlaylistConfig>(
-      _playlistsBoxName,
-      encryptionCipher: HiveAesCipher(encryptionKey),
-    );
+    // Open boxes WITHOUT encryption on Web
+    // Note: On Web, IndexedDB is already isolated by origin,
+    // and session-based encryption keys cause decrypt errors on reload
+    await Hive.openBox<AppUser>(_usersBoxName);
+    await Hive.openBox<PlaylistConfig>(_playlistsBoxName);
 
     // Seed default admin if no users exist
     await _seedDefaultAdmin();
