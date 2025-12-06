@@ -35,7 +35,7 @@ class CategoryCarousel<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final colorScheme = theme.colorScheme;
     
     if (items.isEmpty) {
       return const SizedBox.shrink();
@@ -58,9 +58,7 @@ class CategoryCarousel<T> extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
-                      color: isDark
-                          ? AppColors.textPrimaryDark
-                          : AppColors.textPrimaryLight,
+                      color: colorScheme.onSurface,
                     ),
                   ),
                   if (itemCount != null) ...[
@@ -71,15 +69,15 @@ class CategoryCarousel<T> extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.15),
+                        color: colorScheme.primary.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         '$itemCount',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
+                          color: colorScheme.primary,
                         ),
                       ),
                     ),
@@ -97,14 +95,14 @@ class CategoryCarousel<T> extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
+                          color: colorScheme.primary,
                         ),
                       ),
                       const SizedBox(width: 4),
-                      const Icon(
+                      Icon(
                         Icons.arrow_forward_ios_rounded,
                         size: 12,
-                        color: AppColors.primary,
+                        color: colorScheme.primary,
                       ),
                     ],
                   ),
@@ -173,7 +171,8 @@ class CategoryChipButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     
     return GestureDetector(
       onTap: onTap,
@@ -184,12 +183,12 @@ class CategoryChipButton extends StatelessWidget {
           gradient: isSelected ? AppColors.primaryGradient : null,
           color: isSelected
               ? null
-              : (isDark ? AppColors.surfaceVariantDark : AppColors.surfaceVariantLight),
+              : colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
                 ? Colors.transparent
-                : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                : colorScheme.outlineVariant,
           ),
         ),
         child: Row(
@@ -200,8 +199,8 @@ class CategoryChipButton extends StatelessWidget {
                 icon,
                 size: 16,
                 color: isSelected
-                    ? Colors.white
-                    : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                    ? colorScheme.onPrimary
+                    : colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 6),
             ],
@@ -211,8 +210,8 @@ class CategoryChipButton extends StatelessWidget {
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: isSelected
-                    ? Colors.white
-                    : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                    ? colorScheme.onPrimary
+                    : colorScheme.onSurface,
               ),
             ),
           ],
