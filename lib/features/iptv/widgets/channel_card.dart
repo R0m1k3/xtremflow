@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../providers/favorites_provider.dart';
 
 /// Premium channel card with Netflix-style design
 /// 
@@ -9,8 +11,10 @@ import '../../../core/theme/app_colors.dart';
 /// - Thumbnail/logo with fallback
 /// - Live badge with pulse animation
 /// - EPG overlay
+/// - Favorite toggle
 /// - Hover/tap effects
-class ChannelCard extends StatefulWidget {
+class ChannelCard extends ConsumerStatefulWidget {
+  final String streamId;
   final String name;
   final String? iconUrl;
   final String? currentProgram;
@@ -21,6 +25,7 @@ class ChannelCard extends StatefulWidget {
 
   const ChannelCard({
     super.key,
+    required this.streamId,
     required this.name,
     this.iconUrl,
     this.currentProgram,
@@ -31,10 +36,10 @@ class ChannelCard extends StatefulWidget {
   });
 
   @override
-  State<ChannelCard> createState() => _ChannelCardState();
+  ConsumerState<ChannelCard> createState() => _ChannelCardState();
 }
 
-class _ChannelCardState extends State<ChannelCard>
+class _ChannelCardState extends ConsumerState<ChannelCard>
     with SingleTickerProviderStateMixin {
   bool _isHovered = false;
   late AnimationController _pulseController;
@@ -61,9 +66,9 @@ class _ChannelCardState extends State<ChannelCard>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    
+    final favorites = ref.watch(favoritesProvider);
+    final isFavorite = favorites.contains(widget.streamId);
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -77,49 +82,31 @@ class _ChannelCardState extends State<ChannelCard>
           transform: Matrix4.identity()..scale(_isHovered ? 1.05 : 1.0),
           transformAlignment: Alignment.center,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isDark
-                  ? [
-                      AppColors.surfaceDark.withOpacity(0.95),
-                      AppColors.surfaceVariantDark.withOpacity(0.9),
-                    ]
-                  : [
-                      Colors.white.withOpacity(0.95),
-                      AppColors.surfaceVariantLight.withOpacity(0.9),
-                    ],
-            ),
+            borderRadius: BorderRadius.circular(8),
+            color: AppColors.surface, // Clean flat dark surface
             border: Border.all(
               color: _isHovered
-                  ? AppColors.primary.withOpacity(0.5)
-                  : (isDark ? AppColors.borderDark : AppColors.borderLight),
-              width: _isHovered ? 1.5 : 1,
+                  ? AppColors.primary
+                  : AppColors.border,
+              width: _isHovered ? 2 : 1,
             ),
             boxShadow: _isHovered
                 ? [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.2),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ]
-                : [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
-                      blurRadius: 8,
+                      color: AppColors.primary.withOpacity(0.3),
+                      blurRadius: 16,
                       offset: const Offset(0, 4),
                     ),
-                  ],
+                  ]
+                : [],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(11),
+            borderRadius: BorderRadius.circular(7), // Inner radius
             child: Stack(
               fit: StackFit.expand,
               children: [
                 // Channel logo/thumbnail
-                _buildChannelImage(isDark),
+                _buildChannelImage(),
                 
                 // Gradient overlay for text readability
                 Positioned.fill(
@@ -129,10 +116,10 @@ class _ChannelCardState extends State<ChannelCard>
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.7),
+                          Colors.black.withOpacity(0.2),
+                          Colors.black.withOpacity(0.9),
                         ],
-                        stops: const [0.4, 1.0],
+                        stops: const [0.0, 1.0],
                       ),
                     ),
                   ),
@@ -145,8 +132,24 @@ class _ChannelCardState extends State<ChannelCard>
                     right: 8,
                     child: _buildLiveBadge(),
                   ),
+
+                // Favorite Icon
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  child: IconButton(
+                    icon: Icon(
+                      isFavorite ? Icons.favorite : Icons.favorite_border,
+                      size: 20,
+                      color: isFavorite ? AppColors.primary : Colors.white70,
+                    ),
+                    onPressed: () {
+                      ref.read(favoritesProvider.notifier).toggleFavorite(widget.streamId);
+                    },
+                  ),
+                ),
                 
-                // Channel info overlay
+                // Channel info
                 Positioned(
                   left: 10,
                   right: 10,
@@ -159,26 +162,20 @@ class _ChannelCardState extends State<ChannelCard>
                         widget.name,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          shadows: [
-                            Shadow(
-                              color: Colors.black54,
-                              blurRadius: 4,
-                            ),
-                          ],
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (widget.currentProgram != null) ...[
-                        const SizedBox(height: 2),
+                      if (widget.currentProgram != null && widget.currentProgram!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
                         Text(
                           widget.currentProgram!,
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.white.withOpacity(0.7),
                             fontSize: 11,
-                            fontWeight: FontWeight.w400,
+                            fontWeight: FontWeight.w500,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -195,26 +192,26 @@ class _ChannelCardState extends State<ChannelCard>
     );
   }
 
-  Widget _buildChannelImage(bool isDark) {
+  Widget _buildChannelImage() {
     if (widget.iconUrl != null && widget.iconUrl!.isNotEmpty) {
       return CachedNetworkImage(
         imageUrl: widget.iconUrl!,
-        fit: BoxFit.cover,
-        placeholder: (context, url) => _buildPlaceholder(isDark),
-        errorWidget: (context, url, error) => _buildPlaceholder(isDark),
+        fit: BoxFit.contain, // Contain usually looks better for channel logos
+        placeholder: (context, url) => _buildPlaceholder(),
+        errorWidget: (context, url, error) => _buildPlaceholder(),
       );
     }
-    return _buildPlaceholder(isDark);
+    return _buildPlaceholder();
   }
 
-  Widget _buildPlaceholder(bool isDark) {
+  Widget _buildPlaceholder() {
     return Container(
-      color: isDark ? AppColors.surfaceVariantDark : AppColors.surfaceVariantLight,
+      color: AppColors.surfaceVariant,
       child: Center(
         child: Icon(
-          Icons.live_tv_rounded,
-          size: 36,
-          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+          Icons.tv,
+          size: 32,
+          color: AppColors.textTertiary,
         ),
       ),
     );
@@ -225,40 +222,21 @@ class _ChannelCardState extends State<ChannelCard>
       animation: _pulseAnimation,
       builder: (context, child) {
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
             color: AppColors.live.withOpacity(_pulseAnimation.value),
             borderRadius: BorderRadius.circular(4),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.live.withOpacity(0.4 * _pulseAnimation.value),
-                blurRadius: 8,
-                spreadRadius: 1,
-              ),
-            ],
           ),
           child: child,
         );
       },
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.circle,
-            size: 6,
-            color: Colors.white,
-          ),
-          SizedBox(width: 4),
-          Text(
-            'LIVE',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
+      child: const Text(
+        'LIVE',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 9,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
