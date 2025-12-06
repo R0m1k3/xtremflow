@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/xtream_provider.dart';
+import '../providers/settings_provider.dart';
 import '../screens/player_screen.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/models/playlist_config.dart';
@@ -64,16 +65,45 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
 
   /// Build the category grid view with box cards
   Widget _buildCategoryGrid(Map<String, List<Channel>> groupedChannels) {
-    final categories = groupedChannels.keys.toList()..sort();
+    // Get filter settings
+    final settings = ref.watch(iptvSettingsProvider);
+    
+    // Filter categories based on keywords
+    var categories = groupedChannels.keys.toList();
+    if (settings.filterKeywords.isNotEmpty) {
+      categories = categories.where((cat) => settings.matchesFilter(cat)).toList();
+    }
+    categories.sort();
+
+    if (categories.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.filter_list_off, size: 48, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(
+              'No categories match the filter',
+              style: GoogleFonts.roboto(color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Filter: ${settings.categoryFilter}',
+              style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Padding(
-      padding: const EdgeInsets.all(12.0),
+      padding: const EdgeInsets.all(8.0),
       child: GridView.builder(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.5,
+          crossAxisCount: 6,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+          childAspectRatio: 1.8,
         ),
         itemCount: categories.length,
         itemBuilder: (context, index) {
@@ -283,32 +313,25 @@ class _CategoryBox extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                Theme.of(context).colorScheme.secondary.withOpacity(0.08),
               ],
             ),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-              width: 1.5,
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.25),
+              width: 1,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
           ),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(8),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -317,20 +340,20 @@ class _CategoryBox extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.live_tv,
-                      size: 24,
+                      size: 16,
                       color: Theme.of(context).colorScheme.primary,
                     ),
                     const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         '$channelCount',
                         style: GoogleFonts.roboto(
-                          fontSize: 12,
+                          fontSize: 10,
                           fontWeight: FontWeight.bold,
                           color: Theme.of(context).colorScheme.primary,
                         ),
@@ -342,7 +365,7 @@ class _CategoryBox extends StatelessWidget {
                 Text(
                   categoryName,
                   style: GoogleFonts.roboto(
-                    fontSize: 14,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
                   maxLines: 2,

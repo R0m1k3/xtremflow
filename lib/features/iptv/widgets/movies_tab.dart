@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/playlist_config.dart';
 import '../models/xtream_models.dart';
 import '../providers/xtream_provider.dart';
-import '../screens/video_player_screen.dart';
+import '../screens/player_screen.dart';
 
 class MoviesTab extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
@@ -86,10 +86,10 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
       controller: _scrollController,
       padding: const EdgeInsets.all(8),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 5,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 0.7,
+        crossAxisCount: 7,
+        crossAxisSpacing: 6,
+        mainAxisSpacing: 6,
+        childAspectRatio: 0.65,
       ),
       itemCount: _movies.length + (_hasMore ? 1 : 0),
       itemBuilder: (context, index) {
@@ -122,19 +122,16 @@ class _MovieCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
-          final streamUrl = movie.getStreamUrl(
-            playlist.dns,
-            playlist.username,
-            playlist.password,
-          );
-          
+          // Use PlayerScreen for VOD (video on demand)
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => VideoPlayerScreen(
-                streamUrl: streamUrl,
+              builder: (context) => PlayerScreen(
+                streamId: movie.streamId,
                 title: movie.name,
-                posterUrl: movie.streamIcon,
+                playlist: playlist,
+                streamType: StreamType.vod,
+                containerExtension: movie.containerExtension ?? 'mp4',
               ),
             ),
           );
