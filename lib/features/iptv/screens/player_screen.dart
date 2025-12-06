@@ -45,7 +45,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   Future<void> _initializePlayer() async {
     try {
+      // Validate playlist before proceeding
+      if (widget.playlist.dns.isEmpty || 
+          widget.playlist.username.isEmpty || 
+          widget.playlist.password.isEmpty) {
+        throw Exception('Invalid playlist configuration: missing credentials');
+      }
+
       final xtreamService = ref.read(xtreamServiceProvider(widget.playlist));
+      
+      // Explicitly ensure playlist is set (defensive programming)
+      xtreamService.setPlaylist(widget.playlist);
       
       // Generate stream URL based on type
       late String streamUrl;
@@ -66,6 +76,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           );
           break;
       }
+      
+      // Debug: Print stream URL to console
+      debugPrint('PlayerScreen: Initializing stream URL: $streamUrl');
 
       _videoPlayerController = VideoPlayerController.networkUrl(
         Uri.parse(streamUrl),
