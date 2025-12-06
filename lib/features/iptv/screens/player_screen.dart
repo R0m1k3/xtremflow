@@ -136,29 +136,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         };
         final modeParam = settings.modeString; // direct, transcode, or auto
         
-        final streamEndpoint = '$baseUrl/api/stream/${widget.streamId}?url=$encodedUrl&quality=$qualityParam&buffer=$bufferParam&timeout=$timeoutParam&mode=$modeParam';
+        // Construct the stream URL directly using fMP4 format
+        // We add &ext=.mp4 to force the web player to use Direct Play instead of HLS/MPEGTS
+        final streamEndpoint = '$baseUrl/api/stream/${widget.streamId}?url=$encodedUrl&quality=$qualityParam&buffer=$bufferParam&timeout=$timeoutParam&mode=$modeParam&ext=.mp4';
         
-        debugPrint('PlayerScreen: Starting FFmpeg stream: $streamEndpoint');
+        debugPrint('PlayerScreen: Starting Direct Stream: $streamEndpoint');
         
-        // Call the FFmpeg streaming endpoint
-        final response = await http.get(Uri.parse(streamEndpoint));
-        
-        if (response.statusCode != 200) {
-          throw Exception('Failed to start stream: ${response.body}');
-        }
-        
-        final data = jsonDecode(response.body);
-        if (data['status'] != 'started') {
-          throw Exception('Stream failed to start: ${data['error'] ?? 'Unknown error'}');
-        }
-        
-        // Get the local HLS URL
-        hlsUrl = '$baseUrl${data['hlsUrl']}';
-        debugPrint('PlayerScreen: FFmpeg HLS URL: $hlsUrl');
+        // Use the stream endpoint directly as the video source
+        // The server now pipelines fMP4 directly to this URL
+        hlsUrl = streamEndpoint;
         
       } else {
         // For VOD and Series - use direct proxy streaming with Range support
-        // This allows seeking via HTTP Range requests
+        // This allows seeking via Range requests
         final streamUrl = widget.streamType == StreamType.vod
             ? xtreamService.getVodStreamUrl(widget.streamId, widget.containerExtension)
             : xtreamService.getSeriesStreamUrl(widget.streamId, widget.containerExtension);
