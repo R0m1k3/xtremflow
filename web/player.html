@@ -76,6 +76,8 @@
         }
 
         #debug {
+            display: none;
+            /* Hidden in production */
             position: absolute;
             bottom: 10px;
             left: 10px;
@@ -116,14 +118,59 @@
         const errorMessage = document.getElementById('error-message');
         const debug = document.getElementById('debug');
 
-        // Get stream URL from query parameter
+        // Get parameters from query string
         const urlParams = new URLSearchParams(window.location.search);
         let streamUrl = urlParams.get('url');
+        const startTime = parseFloat(urlParams.get('startTime') || '0');
+        let lastReportedTime = 0;
 
         function log(msg) {
             console.log(msg);
             debug.textContent = msg;
         }
+
+        // Report current playback position to parent (for resume feature)
+        function reportPosition() {
+            if (video.currentTime > 0 && !video.paused && video.readyState > 2) {
+                // Only report every 5 seconds or if time changed significantly
+                if (Math.abs(video.currentTime - lastReportedTime) >= 5) {
+                    lastReportedTime = video.currentTime;
+                    window.parent.postMessage({
+                        type: 'playback_position',
+                        currentTime: video.currentTime,
+                        duration: video.duration || 0
+                    }, '*');
+                }
+            }
+        }
+
+        // Set up periodic position reporting
+        setInterval(reportPosition, 5000);
+
+        // Also report on pause
+        video.addEventListener('pause', () => {
+            window.parent.postMessage({
+                type: 'playback_position',
+                currentTime: video.currentTime,
+                duration: video.duration || 0
+            }, '*');
+        });
+
+        // Report when video ends
+        video.addEventListener('ended', () => {
+            window.parent.postMessage({
+                type: 'playback_ended',
+                duration: video.duration || 0
+            }, '*');
+        });
+
+        // Seek to startTime when video is ready
+        video.addEventListener('loadedmetadata', () => {
+            if (startTime > 0 && startTime < video.duration) {
+                video.currentTime = startTime;
+                log('Resuming from ' + Math.floor(startTime / 60) + 'm ' + Math.floor(startTime % 60) + 's');
+            }
+        });
 
         function showLoading(msg) {
             loading.style.display = 'block';
@@ -161,10 +208,41 @@
                 return false;
             }
 
+            // Optimized HLS.js configuration for stable live streaming
             const hls = new Hls({
-                xhrSetup: function (xhr, url) {
-                    // Don't add extra headers - the proxy already handles this
-                }
+                // Increase buffer for smoother playback
+                maxBufferLength: 30,           // Max 30 seconds of buffer
+                maxMaxBufferLength: 60,        // Allow up to 60 seconds in stressed conditions
+                maxBufferSize: 60 * 1000000,   // 60MB max buffer size
+                maxBufferHole: 0.5,            // Tolerate 0.5s gaps in buffer
+
+                // Low latency settings (balanced)
+                liveSyncDurationCount: 3,      // Sync to 3 segments behind live
+                liveMaxLatencyDurationCount: 6, // Max 6 segments behind before seeking
+                liveDurationInfinity: true,    // Treat live streams as infinite
+
+                // Faster recovery from errors
+                manifestLoadingTimeOut: 15000,  // 15s timeout for manifest
+                manifestLoadingMaxRetry: 4,     // Retry manifest 4 times
+                manifestLoadingRetryDelay: 1000, // 1s between retries
+                levelLoadingTimeOut: 15000,     // 15s for level playlist
+                levelLoadingMaxRetry: 4,
+                levelLoadingRetryDelay: 1000,
+                fragLoadingTimeOut: 20000,      // 20s for fragments
+                fragLoadingMaxRetry: 6,         // Retry fragments 6 times
+                fragLoadingRetryDelay: 1000,
+
+                // Better quality selection
+                startLevel: -1,                 // Auto-select start level
+                abrEwmaDefaultEstimate: 500000, // Start assuming 500kbps
+                abrBandWidthFactor: 0.95,       // Use 95% of measured bandwidth
+                abrBandWidthUpFactor: 0.7,      // Be cautious when upgrading quality
+
+                // Enable worker for better performance
+                enableWorker: true,
+
+                // Don't add extra headers
+                xhrSetup: function (xhr, url) { }
             });
 
             hls.loadSource(url);
@@ -176,10 +254,25 @@
                 video.play().catch(e => log('Autoplay prevented: ' + e));
             });
 
+            // Better error recovery
             hls.on(Hls.Events.ERROR, (event, data) => {
                 log('HLS Error: ' + data.type + ' - ' + data.details);
+
                 if (data.fatal) {
-                    showError('HLS Error: ' + data.details);
+                    switch (data.type) {
+                        case Hls.ErrorTypes.NETWORK_ERROR:
+                            log('Network error, attempting recovery...');
+                            hls.startLoad(); // Try to recover network errors
+                            break;
+                        case Hls.ErrorTypes.MEDIA_ERROR:
+                            log('Media error, attempting recovery...');
+                            hls.recoverMediaError(); // Try to recover media errors
+                            break;
+                        default:
+                            showError('HLS Error: ' + data.details);
+                            hls.destroy();
+                            break;
+                    }
                 }
             });
 
