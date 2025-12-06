@@ -321,16 +321,59 @@
 
         async function playDirect(url) {
             log('Trying direct playback: ' + url);
-            showLoading('Loading stream directly...');
+            showLoading('Loading video...');
 
-            video.src = url;
+            // Configure video for better buffering
+            video.preload = 'auto';
+
+            // Handle buffering events
+            video.addEventListener('waiting', () => {
+                log('Buffering...');
+                showLoading('Buffering...');
+            });
+
+            video.addEventListener('playing', () => {
+                hideLoading();
+            });
+
             video.addEventListener('canplay', () => {
                 hideLoading();
                 video.play().catch(e => log('Autoplay prevented: ' + e));
+            }, { once: true });
+
+            video.addEventListener('error', (e) => {
+                const error = video.error;
+                let msg = 'Playback error';
+                if (error) {
+                    switch (error.code) {
+                        case MediaError.MEDIA_ERR_NETWORK:
+                            msg = 'Network error - retrying...';
+                            log(msg);
+                            // Retry after network error
+                            setTimeout(() => {
+                                video.load();
+                                video.play().catch(() => { });
+                            }, 2000);
+                            return;
+                        case MediaError.MEDIA_ERR_DECODE:
+                            msg = 'Video decode error';
+                            break;
+                        case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                            msg = 'Format not supported';
+                            break;
+                    }
+                }
+                showError(msg);
             });
-            video.addEventListener('error', () => {
-                showError('Direct playback error');
+
+            // Handle stalled playback (prevent rollback)
+            video.addEventListener('stalled', () => {
+                log('Stream stalled, waiting for data...');
             });
+
+            // Set source and start loading
+            video.src = url;
+            video.load();
         }
 
         async function initPlayer() {
@@ -344,28 +387,74 @@
             // Determine stream type and try appropriate player
             const lowerUrl = streamUrl.toLowerCase();
 
-            // Check for standard video files that should be played directly
-            if (lowerUrl.includes('.mp4') || lowerUrl.includes('.mkv') ||
-                lowerUrl.includes('.avi') || lowerUrl.includes('.webm') ||
-                lowerUrl.includes('.mov')) {
-                log('Detected direct video file, playing directly');
-                await playDirect(streamUrl);
-            }
-            // HLS streams
-            else if (lowerUrl.includes('.m3u8')) {
+            // HLS streams first
+            if (lowerUrl.includes('.m3u8') || lowerUrl.includes('/hls/')) {
                 await playWithHLS(streamUrl);
+                return;
             }
-            // MPEG-TS streams
-            else if (lowerUrl.includes('.ts')) {
+
+            // MP4 and WebM - play directly (supports seeking via Range)
+            if (lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('.mov')) {
+                log('Detected MP4/WebM/MOV, playing directly with seek support');
+                await playDirect(streamUrl);
+                return;
+            }
+
+            // MKV, AVI - not natively supported, try anyway with fallback
+            if (lowerUrl.includes('.mkv') || lowerUrl.includes('.avi') || lowerUrl.includes('.wmv') || lowerUrl.includes('.flv')) {
+                log('Detected MKV/AVI - limited browser support, trying direct play...');
+                showLoading('Loading video (format may not support seeking)...');
+
+                // Try direct first, some browsers/servers may transcode on the fly
+                video.src = streamUrl;
+
+                let playStarted = false;
+                const onCanPlay = () => {
+                    playStarted = true;
+                    hideLoading();
+                    video.play().catch(e => log('Autoplay prevented: ' + e));
+                };
+
+                const onError = async () => {
+                    if (!playStarted) {
+                        log('Direct play failed for MKV/AVI, trying HLS fallback...');
+                        video.removeEventListener('canplay', onCanPlay);
+                        video.removeEventListener('error', onError);
+                        // Try HLS as fallback (in case URL was actually HLS disguised)
+                        const hlsSuccess = await playWithHLS(streamUrl);
+                        if (!hlsSuccess) {
+                            showError('Format not supported by browser. Try MP4 version if available.');
+                        }
+                    }
+                };
+
+                video.addEventListener('canplay', onCanPlay, { once: true });
+                video.addEventListener('error', onError, { once: true });
+                return;
+            }
+
+            // MPEG-TS streams (live)
+            if (lowerUrl.includes('.ts')) {
                 const success = await playWithMpegTS(streamUrl);
                 if (!success) {
                     await playDirect(streamUrl);
                 }
+                return;
             }
-            // Unknown format - try HLS first (for FFmpeg generated streams)
-            else {
+
+            // Unknown format - try direct first (for VOD with Range support), then HLS
+            log('Unknown format, trying direct first then HLS fallback');
+            video.src = streamUrl;
+
+            video.addEventListener('canplay', () => {
+                hideLoading();
+                video.play().catch(e => log('Autoplay prevented: ' + e));
+            }, { once: true });
+
+            video.addEventListener('error', async () => {
+                log('Direct play failed, trying HLS...');
                 await playWithHLS(streamUrl);
-            }
+            }, { once: true });
         }
 
         initPlayer();

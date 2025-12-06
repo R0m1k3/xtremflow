@@ -7,6 +7,7 @@ import '../providers/settings_provider.dart';
 import '../screens/player_screen.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/models/playlist_config.dart';
+import 'epg_widget.dart';
 
 /// Live TV tab with category box grid navigation
 class LiveTVTab extends ConsumerStatefulWidget {
@@ -219,7 +220,6 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
         Expanded(
           child: ListView.builder(
             itemCount: paginatedChannels.length,
-            itemExtent: 72,
             itemBuilder: (context, index) {
               final channel = paginatedChannels[index];
               return _buildChannelTile(context, channel);
@@ -231,9 +231,14 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
   }
 
   Widget _buildChannelTile(BuildContext context, Channel channel) {
-    // Check if image URL is HTTP (will be blocked by Mixed Content on HTTPS site)
-    final bool hasValidImage = channel.streamIcon.isNotEmpty && 
-        channel.streamIcon.startsWith('https://');
+    // Accept both HTTP and HTTPS icons - use proxy for HTTP
+    final bool hasIcon = channel.streamIcon.isNotEmpty;
+    String iconUrl = channel.streamIcon;
+    
+    // Proxy HTTP images through our server to avoid Mixed Content blocking
+    if (hasIcon && channel.streamIcon.startsWith('http://')) {
+      iconUrl = '/api/xtream/${Uri.encodeComponent(channel.streamIcon)}';
+    }
     
     final Widget placeholder = Container(
       width: 48,
@@ -245,52 +250,83 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
       child: const Icon(Icons.tv, color: Colors.white54),
     );
 
-    return ListTile(
-      leading: hasValidImage
-          ? ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: CachedNetworkImage(
-                imageUrl: channel.streamIcon,
-                width: 48,
-                height: 48,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => placeholder,
-                errorWidget: (context, url, error) => placeholder,
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => PlayerScreen(
+                streamId: channel.streamId,
+                title: channel.name,
+                playlist: widget.playlist,
+                streamType: StreamType.live,
               ),
-            )
-          : placeholder,
-      title: Text(
-        channel.name,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: GoogleFonts.roboto(fontWeight: FontWeight.w500),
-      ),
-      subtitle: channel.num.isNotEmpty
-          ? Text('Ch. ${channel.num}', style: const TextStyle(fontSize: 12))
-          : null,
-      trailing: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(
-          Icons.play_arrow,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-      ),
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => PlayerScreen(
-              streamId: channel.streamId,
-              title: channel.name,
-              playlist: widget.playlist,
-              streamType: StreamType.live,
             ),
+          );
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Row(
+            children: [
+              // Channel icon
+              hasIcon
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: CachedNetworkImage(
+                        imageUrl: iconUrl,
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => placeholder,
+                        errorWidget: (context, url, error) => placeholder,
+                      ),
+                    )
+                  : placeholder,
+              const SizedBox(width: 12),
+              
+              // Channel info + EPG
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      channel.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.roboto(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    // EPG info
+                    EPGWidget(
+                      channelId: channel.streamId,
+                      playlist: widget.playlist,
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Play button
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.play_arrow,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

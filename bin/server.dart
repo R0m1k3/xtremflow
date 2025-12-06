@@ -166,9 +166,10 @@ Handler _createXtreamProxyHandler() {
 
       print('Proxying request to: $targetUrl (video streaming: $isVideoFile)');
 
-      // For video files, use streaming to avoid loading entire file in memory
+      // For video files, use streaming with Range support for seeking
       if (isVideoFile) {
-        return _streamVideoFile(targetUrl);
+        final rangeHeader = request.headers['range'];
+        return _streamVideoFile(targetUrl, rangeHeader);
       }
 
       // Headers to simulate a legitimate IPTV client (VLC/Kodi style)
@@ -244,33 +245,56 @@ Handler _createXtreamProxyHandler() {
   };
 }
 
-/// Stream video file using HttpClient (avoids loading entire file in memory)
-Future<Response> _streamVideoFile(Uri targetUrl) async {
+/// Stream video file using HttpClient with Range support for seeking
+Future<Response> _streamVideoFile(Uri targetUrl, String? rangeHeader) async {
   try {
     final client = HttpClient();
-    client.connectionTimeout = const Duration(seconds: 30);
+    // Increase timeouts for large video files
+    client.connectionTimeout = const Duration(seconds: 60);
+    client.idleTimeout = const Duration(minutes: 5);  // Keep connection alive longer
     
     final req = await client.getUrl(targetUrl);
     req.headers.set('User-Agent', 'VLC/3.0.18 LibVLC/3.0.18');
     req.headers.set('Accept', '*/*');
     req.headers.set('Connection', 'keep-alive');
+    req.headers.set('Accept-Encoding', 'identity');  // Don't compress video
+    
+    // Forward the Range header for seeking support
+    if (rangeHeader != null && rangeHeader.isNotEmpty) {
+      req.headers.set('Range', rangeHeader);
+      print('Video streaming with Range: $rangeHeader');
+    }
     
     final response = await req.close();
     
     // Get content type from response
     final contentType = response.headers.contentType?.mimeType ?? 'video/mp4';
     
-    // Create a streaming response
+    // Build response headers for optimal streaming/buffering
+    final responseHeaders = <String, String>{
+      'content-type': contentType,
+      'access-control-allow-origin': '*',
+      'accept-ranges': 'bytes',
+      'cache-control': 'no-cache',  // Allow browser to cache but revalidate
+      'connection': 'keep-alive',
+    };
+    
+    // Add Content-Length if available (critical for seeking)
+    if (response.contentLength > 0) {
+      responseHeaders['content-length'] = response.contentLength.toString();
+    }
+    
+    // Add Content-Range if this is a partial response (206)
+    final contentRange = response.headers.value('content-range');
+    if (contentRange != null) {
+      responseHeaders['content-range'] = contentRange;
+    }
+    
+    // Return appropriate status code (200 for full, 206 for partial)
     return Response(
       response.statusCode,
       body: response,
-      headers: {
-        'content-type': contentType,
-        'access-control-allow-origin': '*',
-        'accept-ranges': 'bytes',
-        if (response.contentLength > 0) 
-          'content-length': response.contentLength.toString(),
-      },
+      headers: responseHeaders,
     );
   } catch (e) {
     print('Video streaming error: $e');

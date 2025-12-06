@@ -1,10 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/playlist_config.dart';
 import '../providers/xtream_provider.dart';
 
-/// EPG overlay widget showing "Now" and "Next" programs
-class EpgOverlay extends ConsumerWidget {
+/// Minimal EPG overlay - shows briefly then fades out
+class EpgOverlay extends ConsumerStatefulWidget {
   final String streamId;
   final PlaylistConfig playlist;
 
@@ -15,9 +16,46 @@ class EpgOverlay extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EpgOverlay> createState() => _EpgOverlayState();
+}
+
+class _EpgOverlayState extends ConsumerState<EpgOverlay>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _fadeController;
+  Timer? _hideTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+      value: 1.0, // Start visible
+    );
+    // Auto-hide after 5 seconds
+    _startHideTimer();
+  }
+
+  void _startHideTimer() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 5), () {
+      if (mounted) {
+        _fadeController.reverse(); // Fade out
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _hideTimer?.cancel();
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final epgAsync = ref.watch(epgByPlaylistProvider(
-      EpgRequestKey(playlist: playlist, streamId: streamId),
+      EpgRequestKey(playlist: widget.playlist, streamId: widget.streamId),
     ));
 
     return epgAsync.when(
@@ -26,7 +64,7 @@ class EpgOverlay extends ConsumerWidget {
           return const SizedBox.shrink();
         }
 
-        // Get "Now" and "Next" programs
+        // Get "Now" program
         final now = DateTime.now();
         final currentProgram = epgEntries.firstWhere(
           (entry) {
@@ -37,100 +75,58 @@ class EpgOverlay extends ConsumerWidget {
           orElse: () => epgEntries.first,
         );
 
-        final progress = currentProgram.getProgress();
-
-        return Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.7),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Current program
-              Text(
-                'NOW: ${currentProgram.title}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+        // Minimal info display - just title and time
+        return FadeTransition(
+          opacity: _fadeController,
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(6),
               ),
-              const SizedBox(height: 4),
-              // Progress bar
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  backgroundColor: Colors.white24,
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
-                  minHeight: 4,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: const Text(
+                      'LIVE',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 300),
+                    child: Text(
+                      currentProgram.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
-              // Time info
-              Text(
-                '${_formatTime(currentProgram.start)} - ${_formatTime(currentProgram.end)}',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 11,
-                ),
-              ),
-              // Description if available
-              if (currentProgram.description.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  currentProgram.description,
-                  style: const TextStyle(
-                    color: Colors.white60,
-                    fontSize: 11,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-              // Next program
-              if (epgEntries.length > 1) ...[
-                const SizedBox(height: 8),
-                const Divider(color: Colors.white24, height: 1),
-                const SizedBox(height: 8),
-                Text(
-                  'NEXT: ${epgEntries[1].title}',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  _formatTime(epgEntries[1].start),
-                  style: const TextStyle(
-                    color: Colors.white60,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-            ],
+            ),
           ),
         );
       },
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
     );
-  }
-
-  String _formatTime(String isoString) {
-    try {
-      final dateTime = DateTime.parse(isoString);
-      return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
-    } catch (e) {
-      return isoString;
-    }
   }
 }
