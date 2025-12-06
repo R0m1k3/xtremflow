@@ -7,6 +7,9 @@ import '../../features/iptv/screens/playlist_selection_screen.dart';
 import '../../features/iptv/screens/dashboard_screen.dart';
 import '../../features/admin/screens/admin_panel.dart';
 import '../models/playlist_config.dart';
+import '../../mobile/features/auth/screens/mobile_login_screen.dart';
+import '../../mobile/features/iptv/screens/mobile_playlist_selection_screen.dart';
+import '../../mobile/features/iptv/screens/mobile_dashboard_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -43,24 +46,37 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/login',
-        builder: (context, state) => const LoginScreen(),
+        builder: (context, state) {
+          if (MediaQuery.of(context).size.width < 768) {
+            return const MobileLoginScreen();
+          }
+          return const LoginScreen();
+        },
       ),
       GoRoute(
         path: '/playlists',
-        builder: (context, state) => const PlaylistSelectionScreen(),
+        builder: (context, state) {
+          if (MediaQuery.of(context).size.width < 768) {
+            return const MobilePlaylistSelectionScreen();
+          }
+          return const PlaylistSelectionScreen();
+        },
       ),
       GoRoute(
         path: '/dashboard',
         builder: (context, state) {
           final playlist = state.extra as PlaylistConfig?;
           if (playlist == null) {
-            // Redirect back if no playlist provided
             WidgetsBinding.instance.addPostFrameCallback((_) {
               context.go('/playlists');
             });
             return const Scaffold(
               body: Center(child: CircularProgressIndicator()),
             );
+          }
+          
+          if (MediaQuery.of(context).size.width < 768) {
+             return MobileDashboardScreen(playlist: playlist);
           }
           return DashboardScreen(playlist: playlist);
         },
