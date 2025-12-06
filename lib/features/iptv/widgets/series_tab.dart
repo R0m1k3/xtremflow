@@ -205,9 +205,10 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                       Expanded(
                         child: TextField(
                           controller: _searchController,
-                          style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                          style: const TextStyle(fontSize: 14, color: Colors.white),
                           decoration: const InputDecoration(
-                            hintText: 'Search',
+                            hintText: 'Rechercher...',
+                            hintStyle: TextStyle(color: Colors.white54),
                             border: InputBorder.none,
                             enabledBorder: InputBorder.none,
                             focusedBorder: InputBorder.none,
