@@ -36,12 +36,14 @@ FROM dart:stable
 
 WORKDIR /app
 
-# Copy server code and pubspec
-COPY bin/server.dart ./bin/
-COPY bin/pubspec.yaml ./
+# Install SQLite3 library for FFI
+RUN apt-get update && apt-get install -y sqlite3 libsqlite3-dev && rm -rf /var/lib/apt/lists/*
+
+# Copy entire bin directory (API, database, etc.)
+COPY bin/ ./bin/
 
 # Get dependencies
-RUN dart pub get
+RUN dart pub get --directory=bin
 
 # Copy built web application from builder stage
 COPY --from=builder /app/build/web /app/web

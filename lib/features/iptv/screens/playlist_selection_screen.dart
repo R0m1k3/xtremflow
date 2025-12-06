@@ -2,8 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../core/database/hive_service.dart';
+import '../../../core/services/playlist_api_service.dart';
+import '../../../core/models/playlist_config.dart';
 import '../../auth/providers/auth_provider.dart';
+
+/// Provider for fetching playlists from API
+final playlistsProvider = FutureProvider<List<PlaylistConfig>>((ref) async {
+  final service = PlaylistApiService();
+  return service.getPlaylists();
+});
 
 class PlaylistSelectionScreen extends ConsumerWidget {
   const PlaylistSelectionScreen({super.key});
@@ -11,15 +18,7 @@ class PlaylistSelectionScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentUser = ref.watch(authProvider).currentUser;
-    final playlistsBox = HiveService.playlistsBox;
-
-    // Filter playlists assigned to current user (or all if admin)
-    final availablePlaylists = playlistsBox.values.where((playlist) {
-      if (currentUser == null) return false;
-      if (currentUser.isAdmin) return playlist.isActive;
-      return currentUser.assignedPlaylistIds.contains(playlist.id) &&
-          playlist.isActive;
-    }).toList();
+    final playlistsAsync = ref.watch(playlistsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -36,16 +35,36 @@ class PlaylistSelectionScreen extends ConsumerWidget {
             ),
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () {
-              ref.read(authProvider.notifier).logout();
-              context.go('/login');
+            onPressed: () async {
+              await ref.read(authProvider.notifier).logout();
+              if (context.mounted) {
+                context.go('/login');
+              }
             },
             tooltip: 'Logout',
           ),
         ],
       ),
-      body: availablePlaylists.isEmpty
-          ? Center(
+      body: playlistsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
+              const SizedBox(height: 16),
+              Text('Error loading playlists', style: GoogleFonts.roboto(fontSize: 18)),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () => ref.refresh(playlistsProvider),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+        data: (playlists) {
+          if (playlists.isEmpty) {
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -74,32 +93,36 @@ class PlaylistSelectionScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-            )
-          : GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 1.5,
-              ),
-              itemCount: availablePlaylists.length,
-              itemBuilder: (context, index) {
-                final playlist = availablePlaylists[index];
-                return _PlaylistCard(
-                  playlist: playlist,
-                  onTap: () {
-                    context.go('/dashboard', extra: playlist);
-                  },
-                );
-              },
+            );
+          }
+
+          return GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 1.5,
             ),
+            itemCount: playlists.length,
+            itemBuilder: (context, index) {
+              final playlist = playlists[index];
+              return _PlaylistCard(
+                playlist: playlist,
+                onTap: () {
+                  context.go('/dashboard', extra: playlist);
+                },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
 
 class _PlaylistCard extends StatelessWidget {
-  final dynamic playlist;
+  final PlaylistConfig playlist;
   final VoidCallback onTap;
 
   const _PlaylistCard({
@@ -151,7 +174,7 @@ class _PlaylistCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                Uri.parse(playlist.dns).host,
+                Uri.tryParse(playlist.dns)?.host ?? playlist.dns,
                 style: GoogleFonts.roboto(
                   fontSize: 12,
                   color: Colors.white.withOpacity(0.7),
