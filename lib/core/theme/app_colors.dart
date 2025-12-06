@@ -15,7 +15,7 @@ class AppColors {
   static const Color background = Color(0xFF000000);
   
   /// Very deep grey for surfaces that need to be distinct but subtle (Apple Dark Grey)
-  static const Color surface = Color(0xFF2C2C2E);
+  static const Color surface = Color(0xFF1C1C1E);
   
   /// Slightly lighter grey for secondary surfaces or hover states
   static const Color surfaceVariant = Color(0xFF3A3A3C);
