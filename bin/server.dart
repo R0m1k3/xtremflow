@@ -433,9 +433,8 @@ Handler _createStreamHandler() {
         
         '-i', iptvUrl,
         
-        // Output format: fragmented MP4 (fMP4) for streaming
-        '-f', 'mp4',
-        '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
+        // Output format: MPEG-TS for streaming (compatible with mpegts.js)
+        '-f', 'mpegts',
         
         // Video: Copy is BEST for performance (0% CPU)
         // Browsers support H.264 well.
@@ -495,7 +494,7 @@ Handler _createStreamHandler() {
       return Response.ok(
         controller.stream,
         headers: {
-          'Content-Type': 'video/mp4',
+          'Content-Type': 'video/MP2T',
           'Access-Control-Allow-Origin': '*',
           'Cache-Control': 'no-cache, no-store',
           'Connection': 'keep-alive',
