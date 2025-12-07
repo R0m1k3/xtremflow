@@ -166,6 +166,67 @@
             }, '*');
         });
 
+        // Listen for commands from parent (Flutter)
+        window.addEventListener('message', (event) => {
+            const data = event.data;
+            if (!data) return;
+
+            if (data.type === 'set_aspect_ratio') {
+                log('Setting aspect ratio: ' + data.value);
+                // value: 'contain', 'cover', 'fill' (fill = 100% 100%)
+                if (data.value === 'fill') {
+                    video.style.objectFit = 'fill';
+                } else if (data.value === 'cover') {
+                    video.style.objectFit = 'cover';
+                } else {
+                    video.style.objectFit = 'contain';
+                }
+            } else if (data.type === 'set_audio_track') {
+                // Not standard in HTML5 Video API across all browsers universally for MP4
+                // But HLS.js and mpegts.js have specific APIs.
+                // For native "video.audioTracks", it is experimental.
+                // We will try to handle HLS.js switching if active.
+                log('Switching audio track index: ' + data.index);
+                if (window.hlsInstance) {
+                    window.hlsInstance.audioTrack = data.index;
+                }
+            }
+        });
+
+        // Report available audio tracks
+        function reportAudioTracks() {
+            let tracks = [];
+            if (window.hlsInstance && window.hlsInstance.audioTracks) {
+                tracks = window.hlsInstance.audioTracks.map((t, i) => ({
+                    id: i,
+                    label: t.name || t.lang || ('Track ' + (i + 1)),
+                    lang: t.lang || ''
+                }));
+            } else if (video.audioTracks) {
+                // Standard HTML5 (Safari/experimental)
+                for (let i = 0; i < video.audioTracks.length; i++) {
+                    const t = video.audioTracks[i];
+                    tracks.push({
+                        id: i,
+                        label: t.label || t.language || ('Track ' + (i + 1)),
+                        lang: t.language || ''
+                    });
+                }
+            }
+
+            if (tracks.length > 0) {
+                window.parent.postMessage({
+                    type: 'audio_tracks',
+                    tracks: tracks
+                }, '*');
+            }
+        }
+
+        // Hook reporting into playback start
+        video.addEventListener('loadedmetadata', () => {
+            setTimeout(reportAudioTracks, 1000); // Wait a bit for tracks to parse
+        });
+
         // Report user activity (mouse movement) to parent
         let lastActivityTime = 0;
         document.addEventListener('mousemove', () => {
@@ -258,6 +319,8 @@
                 // Don't add extra headers
                 xhrSetup: function (xhr, url) { }
             });
+
+            window.hlsInstance = hls; // Expose for external control (audio tracks)
 
             hls.loadSource(url);
             hls.attachMedia(video);

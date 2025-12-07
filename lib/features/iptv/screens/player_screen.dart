@@ -11,7 +11,9 @@ import '../providers/settings_provider.dart';
 import '../widgets/epg_overlay.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/models/iptv_models.dart';
+
 import '../../../core/widgets/themed_loading_screen.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 /// Stream type enum for player
 enum StreamType { live, vod, series }
@@ -53,6 +55,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _showControls = false;
   Timer? _controlsTimer;
   StreamSubscription? _messageSubscription;
+  
+  // Premium Features State
+  List<Map<String, dynamic>> _audioTracks = [];
+  String _aspectRatio = 'contain';
 
   @override
   void initState() {
@@ -78,15 +84,37 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               _contentId, currentTime, duration
             );
           } else if (type == 'playback_ended' && _contentId.isNotEmpty) {
-            ref.read(playbackPositionsProvider.notifier).clearPosition(_contentId);
           } else if (type == 'user_activity') {
             _onHover();
+          } else if (type == 'audio_tracks') {
+            final tracks = List<Map<String, dynamic>>.from(data['tracks']);
+            setState(() {
+              _audioTracks = tracks;
+            });
           }
         }
       } catch (e) {
         debugPrint('Error handling postMessage: $e');
       }
     });
+  }
+
+  void _sendMessage(Map<String, dynamic> message) {
+    // Helper to send message to iframe
+    final iframe = html.document.getElementById(_viewId) as html.IFrameElement?;
+    iframe?.contentWindow?.postMessage(message, '*');
+  }
+
+  void _setAspectRatio(String mode) {
+    setState(() {
+      _aspectRatio = mode;
+    });
+    _sendMessage({'type': 'set_aspect_ratio', 'value': mode});
+  }
+
+  void _setAudioTrack(int index) {
+    _sendMessage({'type': 'set_audio_track', 'index': index});
+    Navigator.pop(context); // Close settings
   }
 
   @override
@@ -262,6 +290,75 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
+  void _showSettingsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => PointerInterceptor(
+        child: AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          title: const Text('Réglages du Lecteur', style: TextStyle(color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Format d\'image', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  _buildAspectRatioChip('Original', 'contain'),
+                  _buildAspectRatioChip('Remplir', 'cover'),
+                  _buildAspectRatioChip('Étirer', 'fill'),
+                ],
+              ),
+              if (_audioTracks.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                const Text('Pistes Audio', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Container(
+                  constraints: const BoxConstraints(maxHeight: 200),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: _audioTracks.map((track) {
+                        return ListTile(
+                          title: Text(track['label'] ?? 'Piste ${track['id']}', style: const TextStyle(color: Colors.white)),
+                          subtitle: Text(track['lang'] ?? '', style: const TextStyle(color: Colors.white54)),
+                          onTap: () => _setAudioTrack(track['id']),
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.audiotrack, color: Colors.white54),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Fermer'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAspectRatioChip(String label, String value) {
+    final isSelected = _aspectRatio == value;
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) => _setAspectRatio(value),
+      backgroundColor: Colors.black26,
+      selectedColor: Theme.of(context).primaryColor,
+      labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.white70),
+      side: BorderSide.none,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -272,6 +369,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          PointerInterceptor(
+            child: IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: _showSettingsDialog,
+              tooltip: 'Réglages',
+            ),
+          ),
+          const SizedBox(width: 16),
+        ],
       ) : null,
       extendBodyBehindAppBar: true,
       backgroundColor: Colors.black,
@@ -312,34 +419,40 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           
                           // Hover Controls Layer
                           if (_showControls) ...[
-                            // Previous Channel (Left Zone)
+                            // Previous Channel (Left Top Zone)
                             if (widget.channels != null && widget.channels!.isNotEmpty)
                               Positioned(
                                 left: 0,
-                                top: 0,
-                                bottom: 0,
+                                top: 80, // Moved to top
+                                bottom: null,
+                                height: 200,
                                 width: 100,
-                                child: InkWell(
-                                  onTap: _playPrevious,
-                                  hoverColor: Colors.black12,
-                                  child: const Center(
-                                    child: Icon(Icons.arrow_back_ios, color: Colors.white, size: 48),
+                                child: PointerInterceptor(
+                                  child: InkWell(
+                                    onTap: _playPrevious,
+                                    hoverColor: Colors.black12,
+                                    child: const Center(
+                                      child: Icon(Icons.arrow_back_ios, color: Colors.white, size: 48),
+                                    ),
                                   ),
                                 ),
                               ),
 
-                            // Next Channel (Right Zone)
+                            // Next Channel (Right Top Zone)
                             if (widget.channels != null && widget.channels!.isNotEmpty)
                               Positioned(
                                 right: 0,
-                                top: 0,
-                                bottom: 0,
+                                top: 80, // Moved to top
+                                bottom: null,
+                                height: 200,
                                 width: 100,
-                                child: InkWell(
-                                  onTap: _playNext,
-                                  hoverColor: Colors.black12,
-                                  child: const Center(
-                                    child: Icon(Icons.arrow_forward_ios, color: Colors.white, size: 48),
+                                child: PointerInterceptor(
+                                  child: InkWell(
+                                    onTap: _playNext,
+                                    hoverColor: Colors.black12,
+                                    child: const Center(
+                                      child: Icon(Icons.arrow_forward_ios, color: Colors.white, size: 48),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -359,11 +472,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                       colors: [Colors.black87, Colors.transparent],
                                     ),
                                   ),
-                                  child: EpgOverlay(
-                                    streamId: widget.channels != null 
-                                        ? widget.channels![_currentIndex].streamId
-                                        : widget.streamId,
-                                    playlist: widget.playlist,
+                                  child: PointerInterceptor(
+                                    child: EpgOverlay(
+                                      streamId: widget.channels != null 
+                                          ? widget.channels![_currentIndex].streamId
+                                          : widget.streamId,
+                                      playlist: widget.playlist,
+                                    ),
                                   ),
                                 ),
                               ),
