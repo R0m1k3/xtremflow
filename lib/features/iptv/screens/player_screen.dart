@@ -58,7 +58,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _showControls = false;
   bool _isPlaying = true;
   double _currentPosition = 0;
+  bool _isPlaying = true;
+  double _currentPosition = 0;
   double _totalDuration = 1;
+  double _volume = 1.0;
   Timer? _controlsTimer;
   StreamSubscription? _messageSubscription;
 
@@ -172,7 +175,42 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     setState(() {
       _currentPosition = value;
     });
-    _sendMessage({'type': 'seek', 'value': value});
+    
+    // Check if we are using server-side transcoding for VOD/Series
+    // If so, we must reload the player because we can't seek in a piped stream directly via JS
+    final settings = ref.read(iptvSettingsProvider);
+    final isTranscoding = widget.streamType != StreamType.live && settings.streamQuality != StreamQuality.high;
+    
+    if (isTranscoding) {
+       debugPrint('Seeking in transcoded VOD - reloading player at ${value.round()}s');
+       // Reload player with new start time
+       // This will trigger _initializePlayer with the current position effectively
+       // But _initializePlayer reads from _currentPosition? No, it reads from provider OR starts at 0.
+       // We need to force it to start at 'value'.
+       // Best way is to just call _initializePlayer which builds the URL.
+       // But _initializePlayer checks logic.
+       
+       // Actually _initializePlayer uses: startTime = positions.getPosition(_contentId);
+       // So if we save the position first, it might pick it up?
+       // Let's pass the seek time explicitly to a reload method or updating state.
+       
+       // Simplest: Update the provider, then re-init.
+       ref.read(playbackPositionsProvider.notifier).savePosition(_contentId, value, _totalDuration);
+       _initializePlayer(startTimeOverride: value);
+       
+    } else {
+       // Direct play or Live - standard seeking
+       _sendMessage({'type': 'seek', 'value': value});
+    }
+    
+    _onHover();
+  }
+
+  void _setVolume(double value) {
+    setState(() {
+      _volume = value;
+    });
+    _sendMessage({'type': 'set_volume', 'value': value});
     _onHover();
   }
 
@@ -199,7 +237,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     Future.microtask(() => _initializePlayer());
   }
 
-  Future<void> _initializePlayer() async {
+  Future<void> _initializePlayer({double? startTimeOverride}) async {
     try {
       setState(() {
         _isLoading = true;
@@ -265,12 +303,55 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         hlsUrl = streamEndpoint;
         
       } else {
-        // For VOD and Series - use direct proxy streaming with Range support
-        final streamUrl = widget.streamType == StreamType.vod
-            ? xtreamService.getVodStreamUrl(currentStreamId, widget.containerExtension)
-            : xtreamService.getSeriesStreamUrl(currentStreamId, widget.containerExtension);
-        hlsUrl = streamUrl;
-        debugPrint('PlayerScreen: Direct playback URL: $hlsUrl');
+        // For VOD and Series
+        
+        // CHECK QUALITY SETTING
+        // If Quality is NOT High, we force transcoding to ensure audio compatibility (AAC)
+        // This solves "No Sound" issues with AC3/DTS on mobile/web.
+        final settings = ref.read(iptvSettingsProvider);
+        final useTranscoding = settings.streamQuality != StreamQuality.high;
+        
+        if (useTranscoding) {
+           setState(() {
+            _statusMessage = 'Starting VOD Transcoding (Audio Fix)...';
+           });
+           
+           final baseUrl = html.window.location.origin;
+           final vodStreamUrl = widget.streamType == StreamType.vod 
+               ? xtreamService.getVodStreamUrl(currentStreamId, widget.containerExtension)
+               : xtreamService.getSeriesStreamUrl(currentStreamId, widget.containerExtension);
+           
+           final encodedUrl = Uri.encodeComponent(vodStreamUrl);
+           final qualityParam = switch (settings.streamQuality) {
+              StreamQuality.low => 'low',
+              StreamQuality.medium => 'medium',
+              StreamQuality.high => 'high',
+           };
+           
+           // Calculate start time for seeking support
+           // If override provided (seeking), use it. Else check provider resume.
+           double startSeconds = startTimeOverride ?? 0;
+           if (startTimeOverride == null && _contentId.isNotEmpty) {
+              final positions = ref.read(playbackPositionsProvider);
+              final saved = positions.getPosition(_contentId);
+              if (saved > 0) startSeconds = saved;
+           }
+           
+           // Construct URL with start param
+           // Note: We force extension to .ts for mpegts.js compatibility
+           final streamEndpoint = '$baseUrl/api/stream/$currentStreamId?url=$encodedUrl&quality=$qualityParam&start=${startSeconds.round()}&ext=.ts';
+           
+           debugPrint('PlayerScreen: Streaming Transcoded VOD: $streamEndpoint');
+           hlsUrl = streamEndpoint;
+           
+        } else {
+          // Direct Play (High Quality) - Original behavior
+          final streamUrl = widget.streamType == StreamType.vod
+              ? xtreamService.getVodStreamUrl(currentStreamId, widget.containerExtension)
+              : xtreamService.getSeriesStreamUrl(currentStreamId, widget.containerExtension);
+          hlsUrl = streamUrl;
+          debugPrint('PlayerScreen: Direct playback URL (High Quality): $hlsUrl');
+        }
       }
       
       setState(() {
@@ -278,8 +359,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       });
       
       // Get resume position for VOD/Series
-      double startTime = 0;
-      if (widget.streamType != StreamType.live && _contentId.isNotEmpty) {
+      double startTime = startTimeOverride ?? 0;
+      if (startTime <= 0 && widget.streamType != StreamType.live && _contentId.isNotEmpty) {
         final positions = ref.read(playbackPositionsProvider);
         startTime = positions.getPosition(_contentId);
         if (startTime > 0) {
@@ -287,9 +368,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         }
       }
       
-      // Register the HTML view with an iframe pointing to our player.html
+      // If we are Transcoding VOD, the start time is handled by the server (burned into stream)
+      // So we should NOT pass startTime to player.html, otherwise it might try to seek 
+      // on a stream that already starts at X.
+      // EXCEPTION: If player.html receives an MPEG-TS stream that has timestamps starting at X,
+      // setting currentTime might be redundant or needed depending on player impl.
+      // Safest: If Transcoding, don't pass startTime to player.html (server handles it).
+      // If Direct Play, pass startTime.
+      
+      final settings = ref.read(iptvSettingsProvider);
+      final isTranscoding = widget.streamType != StreamType.live && settings.streamQuality != StreamQuality.high;
+      
       final encodedHlsUrl = Uri.encodeComponent(hlsUrl);
-      final playerUrl = startTime > 0 
+      final playerUrl = (!isTranscoding && startTime > 0)
           ? 'player.html?url=$encodedHlsUrl&startTime=${startTime.toStringAsFixed(0)}'
           : 'player.html?url=$encodedHlsUrl';
       
@@ -618,6 +709,50 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           
                           // Hover Controls Layer
                           if (_showControls) ...[
+                            // Volume Slider (Left Side)
+                            Positioned(
+                              left: 24,
+                              top: 0,
+                              bottom: 0,
+                              child: Center(
+                                child: Container(
+                                  height: 200,
+                                  width: 40,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black45,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  child: Column(
+                                    children: [
+                                      const Icon(Icons.volume_up, color: Colors.white, size: 20),
+                                      const SizedBox(height: 8),
+                                      Expanded(
+                                        child: RotatedBox(
+                                          quarterTurns: 3,
+                                          child: SliderTheme(
+                                            data: SliderThemeData(
+                                              trackHeight: 4,
+                                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                                              overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                                              activeTrackColor: Colors.white,
+                                              inactiveTrackColor: Colors.white24,
+                                              thumbColor: AppColors.primary,
+                                              overlayColor: AppColors.primary.withOpacity(0.2),
+                                            ),
+                                            child: Slider(
+                                              value: _volume,
+                                              onChanged: _setVolume,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+
                             // Play/Pause Button (Centered)
                             Positioned(
                               top: 0,

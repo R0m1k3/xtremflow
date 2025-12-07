@@ -198,6 +198,13 @@
                 if (isFinite(data.value)) {
                     video.currentTime = data.value;
                 }
+            } else if (data.type === 'set_volume') {
+                // value is 0.0 to 1.0
+                log('Setting volume: ' + data.value);
+                if (isFinite(data.value)) {
+                    video.volume = Math.max(0, Math.min(1, data.value));
+                    video.muted = (data.value === 0);
+                }
             }
         });
 
