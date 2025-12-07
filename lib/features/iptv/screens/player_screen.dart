@@ -61,6 +61,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   double _totalDuration = 1;
   double _volume = 1.0;
+  double _previousVolume = 1.0;
   Timer? _controlsTimer;
   StreamSubscription? _messageSubscription;
 
@@ -208,8 +209,29 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void _setVolume(double value) {
     setState(() {
       _volume = value;
+      if (value > 0) {
+        _previousVolume = value;
+      }
     });
     _sendMessage({'type': 'set_volume', 'value': value});
+    _onHover();
+  }
+
+  void _toggleMute() {
+    if (_volume > 0) {
+      // Mute
+      setState(() {
+        _previousVolume = _volume;
+        _volume = 0;
+      });
+      _sendMessage({'type': 'set_volume', 'value': 0.0});
+    } else {
+      // Unmute (restore previous volume)
+      setState(() {
+        _volume = _previousVolume > 0 ? _previousVolume : 0.5;
+      });
+      _sendMessage({'type': 'set_volume', 'value': _volume});
+    }
     _onHover();
   }
 
@@ -724,7 +746,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                   padding: const EdgeInsets.symmetric(vertical: 12),
                                   child: Column(
                                     children: [
-                                      const Icon(Icons.volume_up, color: Colors.white, size: 20),
+                                      PointerInterceptor(
+                                        child: IconButton(
+                                          icon: Icon(
+                                            _volume == 0 
+                                                ? Icons.volume_off 
+                                                : _volume < 0.5 ? Icons.volume_down : Icons.volume_up,
+                                            color: Colors.white, 
+                                            size: 20
+                                          ),
+                                          onPressed: _toggleMute,
+                                          tooltip: _volume == 0 ? 'Unmute' : 'Mute',
+                                        ),
+                                      ),
                                       const SizedBox(height: 8),
                                       Expanded(
                                         child: RotatedBox(
@@ -764,7 +798,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                     onTap: _togglePlayPause,
                                     borderRadius: BorderRadius.circular(50),
                                     child: Container(
-                                      padding: const EdgeInsets.all(20),
+                                      padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
                                         color: Colors.black.withOpacity(0.5),
                                         shape: BoxShape.circle,
@@ -773,7 +807,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                       child: Icon(
                                         _isPlaying ? Icons.pause : Icons.play_arrow,
                                         color: Colors.white,
-                                        size: 64,
+                                        size: 48,
                                       ),
                                     ),
                                   ),
@@ -896,10 +930,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           // Clock Widget (Always visible if enabled, or only with controls? User asked "met l'heure dans les options")
                           // Positioned in top right
                           if (settings.showClock)
-                             const Positioned(
-                              top: 24,
-                              right: 24,
-                              child: IgnorePointer(
+                             AnimatedPositioned(
+                               duration: const Duration(milliseconds: 300),
+                               curve: Curves.easeInOut,
+                               top: _showControls ? 80 : 24,
+                               right: 24,
+                               child: const IgnorePointer(
                                 child: ClockWidget(
                                   style: TextStyle(
                                     color: Colors.white,
