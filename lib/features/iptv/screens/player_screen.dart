@@ -735,11 +735,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             // EPG Overlay
                             if (widget.streamType == StreamType.live)
                               Positioned(
-                                bottom: 0,
+                                bottom: 100, // Move up above progress bar area/OS safe area
                                 left: 0,
                                 right: 0,
                                 child: Container(
-                                  padding: const EdgeInsets.only(bottom: 20),
+                                  padding: const EdgeInsets.only(bottom: 8),
                                   decoration: const BoxDecoration(
                                     gradient: LinearGradient(
                                       begin: Alignment.bottomCenter,

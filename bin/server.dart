@@ -279,9 +279,16 @@ Future<Response> _streamVideoFile(Uri targetUrl, String? rangeHeader) async {
     
     // Forward the Range header for seeking support
     if (rangeHeader != null && rangeHeader.isNotEmpty) {
-      req.headers.set('Range', rangeHeader);
+      // Ensure we request bytes
+      if (!rangeHeader.startsWith('bytes=')) {
+        rangeHeader = 'bytes=$rangeHeader';
+      }
+      req.headers.set(HttpHeaders.rangeHeader, rangeHeader);
       print('Video streaming with Range: $rangeHeader');
     }
+    
+    // Disable auto-decompression to strictly proxy the stream
+    client.autoUncompress = false;
     
     final response = await req.close();
     
@@ -303,10 +310,13 @@ Future<Response> _streamVideoFile(Uri targetUrl, String? rangeHeader) async {
     }
     
     // Add Content-Range if this is a partial response (206)
-    final contentRange = response.headers.value('content-range');
+    final contentRange = response.headers.value(HttpHeaders.contentRangeHeader);
     if (contentRange != null) {
-      responseHeaders['content-range'] = contentRange;
+      responseHeaders[HttpHeaders.contentRangeHeader] = contentRange;
     }
+    
+    // Propagate Accept-Ranges
+    responseHeaders[HttpHeaders.acceptRangesHeader] = 'bytes';
     
     // Return appropriate status code (200 for full, 206 for partial)
     return Response(
