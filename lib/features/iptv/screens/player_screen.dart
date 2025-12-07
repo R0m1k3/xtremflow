@@ -788,8 +788,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
                             // Play/Pause Button (Centered)
                             Positioned(
-                              top: 0,
-                              bottom: 0,
+                              top: null, // Removed top: 0
+                              bottom: 150, // Moved lower
                               left: 0,
                               right: 0,
                               child: Center(
@@ -798,7 +798,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                     onTap: _togglePlayPause,
                                     borderRadius: BorderRadius.circular(50),
                                     child: Container(
-                                      padding: const EdgeInsets.all(12),
+                                      padding: const EdgeInsets.all(10), // Reduced from 12
                                       decoration: BoxDecoration(
                                         color: Colors.black.withOpacity(0.5),
                                         shape: BoxShape.circle,
@@ -807,7 +807,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                       child: Icon(
                                         _isPlaying ? Icons.pause : Icons.play_arrow,
                                         color: Colors.white,
-                                        size: 48,
+                                        size: 40, // Reduced from 48
                                       ),
                                     ),
                                   ),
@@ -933,8 +933,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                              AnimatedPositioned(
                                duration: const Duration(milliseconds: 300),
                                curve: Curves.easeInOut,
-                               top: _showControls ? 80 : 24,
-                               right: 24,
+                               top: 24, // Fixed top
+                               right: _showControls ? 80 : 24, // Shift left when settings visible
                                child: const IgnorePointer(
                                 child: ClockWidget(
                                   style: TextStyle(
