@@ -38,6 +38,7 @@ dependencies:
   # UI Components
   google_fonts: ^6.2.1
   cached_network_image: ^3.3.1
+  pointer_interceptor: ^0.10.1
   
   # Security
   crypto: ^3.0.3
