@@ -162,8 +162,8 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
           : _movies.where((m) => settings.matchesMoviesFilter(m.categoryName)).toList();
     }
 
-    // Hero Items (Take 5 random or first 5)
-    final heroItems = _movies.take(5).map((m) => HeroItem(
+    // Hero Items (Take 5 random or first 5 from filtered list)
+    final heroItems = displayMovies.take(5).map((m) => HeroItem(
       id: m.streamId,
       title: m.name,
       imageUrl: m.streamIcon ?? '',
