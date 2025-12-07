@@ -97,7 +97,8 @@
 
 <body>
     <div id="player-container">
-        <video id="video" autoplay></video>
+        <!-- paysinline is CRITICAL for iOS to play inline instead of fullscreen -->
+        <video id="video" autoplay playsinline></video>
         <div id="loading">
             <div class="spinner"></div>
             <div id="loading-text">Loading stream...</div>
@@ -344,7 +345,10 @@
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
                 log('HLS manifest parsed, starting playback');
                 hideLoading();
-                video.play().catch(e => log('Autoplay prevented: ' + e));
+                video.play().catch(e => {
+                    log('Autoplay prevented: ' + e);
+                    window.parent.postMessage({ type: 'playback_status', status: 'paused' }, '*');
+                });
             });
 
             // Better error recovery
@@ -406,7 +410,10 @@
             video.addEventListener('canplay', () => {
                 log('MPEG-TS stream ready');
                 hideLoading();
-                video.play().catch(e => log('Autoplay prevented: ' + e));
+                video.play().catch(e => {
+                    log('Autoplay prevented: ' + e);
+                    window.parent.postMessage({ type: 'playback_status', status: 'paused' }, '*');
+                });
             });
 
             video.addEventListener('error', (e) => {
@@ -440,7 +447,10 @@
 
             video.addEventListener('canplay', () => {
                 hideLoading();
-                video.play().catch(e => log('Autoplay prevented: ' + e));
+                video.play().catch(e => {
+                    log('Autoplay prevented: ' + e);
+                    window.parent.postMessage({ type: 'playback_status', status: 'paused' }, '*');
+                });
             }, { once: true });
 
             video.addEventListener('error', (e) => {
@@ -514,7 +524,10 @@
                 const onCanPlay = () => {
                     playStarted = true;
                     hideLoading();
-                    video.play().catch(e => log('Autoplay prevented: ' + e));
+                    video.play().catch(e => {
+                        log('Autoplay prevented: ' + e);
+                        window.parent.postMessage({ type: 'playback_status', status: 'paused' }, '*');
+                    });
                 };
 
                 const onError = async () => {
@@ -550,7 +563,10 @@
 
             video.addEventListener('canplay', () => {
                 hideLoading();
-                video.play().catch(e => log('Autoplay prevented: ' + e));
+                video.play().catch(e => {
+                    log('Autoplay prevented: ' + e);
+                    window.parent.postMessage({ type: 'playback_status', status: 'paused' }, '*');
+                });
             }, { once: true });
 
             video.addEventListener('error', async () => {
