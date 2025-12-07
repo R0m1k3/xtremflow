@@ -116,6 +116,15 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
     }
   }
 
+  String? _formatRating(String? rating) {
+    if (rating == null || rating.isEmpty) return null;
+    final value = double.tryParse(rating);
+    if (value != null) {
+      return value.toStringAsFixed(1);
+    }
+    return rating;
+  }
+
   void _playMovie(Movie movie) {
     ref.read(watchHistoryProvider.notifier).markMovieWatched(movie.streamId);
     
@@ -152,7 +161,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
       id: m.streamId,
       title: m.name,
       imageUrl: m.streamIcon ?? '',
-      subtitle: m.rating != null ? '${m.rating} ★' : null,
+      subtitle: m.rating != null ? '${_formatRating(m.rating)} ★' : null,
       onMoreInfo: () => _playMovie(m),
     )).toList();
 
@@ -243,8 +252,9 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                   return MediaCard(
                     title: movie.name,
                     imageUrl: movie.streamIcon,
-                    subtitle: movie.rating != null ? '${movie.rating} ★' : null,
-                    rating: movie.rating,
+                    imageUrl: movie.streamIcon,
+                    subtitle: movie.rating != null ? '${_formatRating(movie.rating)} ★' : null,
+                    rating: _formatRating(movie.rating),
                     isWatched: isWatched,
                     onTap: () => _playMovie(movie),
                     onLongPress: () {

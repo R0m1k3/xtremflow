@@ -24,21 +24,6 @@ class MobileSeriesDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _MobileSeriesDetailScreenState extends ConsumerState<MobileSeriesDetailScreen> {
-  SeriesInfo? _seriesInfo;
-  bool _isLoading = true;
-  String? _error;
-  int _selectedSeason = 1;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSeriesInfo();
-  }
-
-  Future<void> _loadSeriesInfo() async {
-    try {
-      setState(() {
-        _isLoading = true;
         _error = null;
       });
 
@@ -159,7 +144,7 @@ class _MobileSeriesDetailScreenState extends ConsumerState<MobileSeriesDetailScr
                             const Icon(Icons.star, size: 16, color: Colors.amber),
                             const SizedBox(width: 4),
                             Text(
-                              _seriesInfo!.rating!,
+                              _formatRating(_seriesInfo!.rating!)!,
                               style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
                             ),
                             const SizedBox(width: 16),
