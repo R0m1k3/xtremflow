@@ -17,7 +17,7 @@ Middleware securityHeadersMiddleware() {
       
       return response.change(headers: {
         'X-Content-Type-Options': 'nosniff',
-        'X-Frame-Options': 'DENY',
+        'X-Frame-Options': 'SAMEORIGIN', // Changed from DENY to allow embedding player.html
         'X-XSS-Protection': '1; mode=block',
         'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
         'Referrer-Policy': 'strict-origin-when-cross-origin',
