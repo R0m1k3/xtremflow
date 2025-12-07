@@ -505,10 +505,22 @@
 
             // Determine stream type and try appropriate player
             const lowerUrl = streamUrl.toLowerCase();
+            const ext = urlParams.get('ext') ? urlParams.get('ext').toLowerCase() : '';
 
             // HLS streams first
             if (lowerUrl.includes('.m3u8') || lowerUrl.includes('/hls/')) {
                 await playWithHLS(streamUrl);
+                return;
+            }
+
+            // MPEG-TS streams (live or forced TS via ext param)
+            // Checked BEFORE generic MP4/MKV to handle transcoded streams correctly
+            if (ext === '.ts' || lowerUrl.includes('.ts')) {
+                log('Detected MPEG-TS (via extension or URL), using mpegts.js');
+                const success = await playWithMpegTS(streamUrl);
+                if (!success) {
+                    await playDirect(streamUrl);
+                }
                 return;
             }
 
@@ -552,15 +564,6 @@
 
                 video.addEventListener('canplay', onCanPlay, { once: true });
                 video.addEventListener('error', onError, { once: true });
-                return;
-            }
-
-            // MPEG-TS streams (live)
-            if (lowerUrl.includes('.ts')) {
-                const success = await playWithMpegTS(streamUrl);
-                if (!success) {
-                    await playDirect(streamUrl);
-                }
                 return;
             }
 
