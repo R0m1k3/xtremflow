@@ -416,6 +416,29 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         children: [
                           // HTML5 video player via iframe
                           HtmlElementView(viewType: _viewId),
+
+                          // GLOBAL INTERACTION LAYER (Fixes Click/Hover issues)
+                          // This transparent layer sits ABOVE the iframe but BELOW the controls.
+                          // It intercepts all pointer events, enabling Flutter to handle them.
+                          Positioned.fill(
+                            child: PointerInterceptor(
+                              child: MouseRegion(
+                                onHover: (_) => _onHover(),
+                                child: GestureDetector(
+                                  // Toggle controls on tap
+                                  onTap: () {
+                                    if (_showControls) {
+                                      _hideControls();
+                                    } else {
+                                      _onHover();
+                                    }
+                                  },
+                                  behavior: HitTestBehavior.translucent,
+                                  child: Container(color: Colors.transparent),
+                                ),
+                              ),
+                            ),
+                          ),
                           
                           // Hover Controls Layer
                           if (_showControls) ...[
