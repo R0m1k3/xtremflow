@@ -58,8 +58,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _showControls = false;
   bool _isPlaying = true;
   double _currentPosition = 0;
-  bool _isPlaying = true;
-  double _currentPosition = 0;
+
   double _totalDuration = 1;
   double _volume = 1.0;
   Timer? _controlsTimer;
