@@ -429,6 +429,7 @@ Handler _createStreamHandler() {
       // Get parameters
       final iptvUrl = request.url.queryParameters['url'];
       final quality = request.url.queryParameters['quality'] ?? 'high';
+      final start = request.url.queryParameters['start']; // Start time in seconds
       
       if (iptvUrl == null || iptvUrl.isEmpty) {
         return Response.badRequest(body: 'Missing url parameter');
@@ -464,6 +465,15 @@ Handler _createStreamHandler() {
         // Output format: MPEG-TS for streaming (compatible with mpegts.js)
         '-f', 'mpegts',
       ];
+
+      // Add seeking support if start time is provided
+      if (start != null && start.isNotEmpty) {
+        // Insert -ss before -i for faster seeking (input seeking)
+        final inputIndex = ffmpegArgs.indexOf('-i');
+        if (inputIndex != -1) {
+          ffmpegArgs.insertAll(inputIndex, ['-ss', start]);
+        }
+      }
 
       // Video: Transcode based on quality
       // High = Copy (efficient), Low/Medium = Transcode to H.264 (compatible)

@@ -137,6 +137,69 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                   onChanged: (_) => themeNotifier.toggleTheme(),
                   activeColor: AppColors.primary,
                 ),
+                const Divider(height: 1),
+                SwitchListTile(
+                  title: const Text('Show Clock', style: TextStyle(color: AppColors.textPrimary)),
+                  secondary: const Icon(Icons.access_time, color: AppColors.primary),
+                  value: settings.showClock,
+                  onChanged: (val) => ref.read(iptvSettingsProvider.notifier).setShowClock(val),
+                  activeColor: AppColors.primary,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Streaming Settings
+          _SectionHeader(title: 'Streaming'),
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              children: [
+                _DropdownSetting<StreamQuality>(
+                  label: 'Quality',
+                  icon: Icons.high_quality,
+                  value: settings.streamQuality,
+                  items: StreamQuality.values,
+                  labelBuilder: (v) => v.name.toUpperCase(),
+                  onChanged: (v) {
+                    if (v != null) ref.read(iptvSettingsProvider.notifier).setStreamQuality(v);
+                  },
+                ),
+                const Divider(height: 1),
+                _DropdownSetting<BufferSize>(
+                  label: 'Buffer Size',
+                  icon: Icons.memory,
+                  value: settings.bufferSize,
+                  items: BufferSize.values,
+                  labelBuilder: (v) => v.name.toUpperCase(),
+                  onChanged: (v) {
+                    if (v != null) ref.read(iptvSettingsProvider.notifier).setBufferSize(v);
+                  },
+                ),
+                const Divider(height: 1),
+                _DropdownSetting<ConnectionTimeout>(
+                   label: 'Timeout',
+                   icon: Icons.timer,
+                   value: settings.connectionTimeout,
+                   items: ConnectionTimeout.values,
+                   labelBuilder: (v) => '${v.name.toUpperCase()} (${ref.read(iptvSettingsProvider).timeoutSeconds}s)',
+                   onChanged: (v) {
+                     if (v != null) ref.read(iptvSettingsProvider.notifier).setConnectionTimeout(v);
+                   },
+                ),
+                const Divider(height: 1),
+                 SwitchListTile(
+                  title: const Text('Auto Reconnect', style: TextStyle(color: AppColors.textPrimary)),
+                  secondary: const Icon(Icons.refresh, color: AppColors.primary),
+                  value: settings.autoReconnect,
+                  onChanged: (val) => ref.read(iptvSettingsProvider.notifier).setAutoReconnect(val),
+                  activeColor: AppColors.primary,
+                ),
               ],
             ),
           ),
@@ -312,6 +375,60 @@ class _SettingsButton extends StatelessWidget {
             const Icon(Icons.chevron_right, color: AppColors.textSecondary),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _DropdownSetting<T> extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final T value;
+  final List<T> items;
+  final String Function(T) labelBuilder;
+  final ValueChanged<T?> onChanged;
+
+  const _DropdownSetting({
+    required this.label,
+    required this.icon,
+    required this.value,
+    required this.items,
+    required this.labelBuilder,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.primary),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          DropdownButton<T>(
+            value: value,
+            underline: const SizedBox(),
+            dropdownColor: AppColors.surfaceVariant,
+            icon: const Icon(Icons.arrow_drop_down, color: AppColors.textSecondary),
+            style: const TextStyle(color: AppColors.textPrimary),
+            items: items.map((item) {
+              return DropdownMenuItem<T>(
+                value: item,
+                child: Text(labelBuilder(item)),
+              );
+            }).toList(),
+            onChanged: onChanged,
+          ),
+        ],
       ),
     );
   }
