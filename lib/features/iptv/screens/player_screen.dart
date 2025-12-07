@@ -78,8 +78,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               _contentId, currentTime, duration
             );
           } else if (type == 'playback_ended' && _contentId.isNotEmpty) {
-            // Clear position when video ends
             ref.read(playbackPositionsProvider.notifier).clearPosition(_contentId);
+          } else if (type == 'user_activity') {
+            _onHover();
           }
         }
       } catch (e) {
