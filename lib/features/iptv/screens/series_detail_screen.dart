@@ -61,6 +61,15 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
     }
   }
 
+  String? _formatRating(String? rating) {
+    if (rating == null || rating.isEmpty) return null;
+    final value = double.tryParse(rating);
+    if (value != null) {
+      return value.toStringAsFixed(1);
+    }
+    return rating;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -144,7 +153,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                       Icon(Icons.star, size: 16, color: Colors.amber.shade700),
                       const SizedBox(width: 4),
                       Text(
-                        _seriesInfo!.rating!,
+                        _formatRating(_seriesInfo!.rating!)!,
                         style: GoogleFonts.roboto(fontSize: 13, color: Colors.white70),
                       ),
                     ],
