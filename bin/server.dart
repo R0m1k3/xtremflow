@@ -463,43 +463,45 @@ Handler _createStreamHandler() {
         
         // Output format: MPEG-TS for streaming (compatible with mpegts.js)
         '-f', 'mpegts',
-        
-        // Video: Transcode based on quality
-        // High = Copy (efficient), Low/Medium = Transcode to H.264 (compatible)
-        if (quality == 'high') {
-          ffmpegArgs.addAll(['-c:v', 'copy']);
-        } else {
-          // Transcode to H.264 (Baseline profile for max mobile compatibility)
-          ffmpegArgs.addAll([
-            '-c:v', 'libx264',
-            '-preset', 'ultrafast', // Critical for live streaming
-            '-tune', 'zerolatency',
-            '-profile:v', 'baseline',
-            '-level', '3.0',
-            '-pix_fmt', 'yuv420p', // Ensure standard pixel format for web
-            '-g', '60', // Keyframe interval (2s at 30fps) for seeking
-          ]);
+      ];
 
-          if (quality == 'low') {
-            // Low: ~480p, 800k
-            ffmpegArgs.addAll([
-              '-vf', 'scale=-2:480',
-              '-b:v', '800k',
-              '-maxrate', '800k',
-              '-bufsize', '1600k'
-            ]);
-          } else {
-            // Medium: Original res (or cap at 720p?), 2500k
-            ffmpegArgs.addAll([
-              '-b:v', '2500k',
-              '-maxrate', '2500k',
-              '-bufsize', '5000k'
-            ]);
-          }
+      // Video: Transcode based on quality
+      // High = Copy (efficient), Low/Medium = Transcode to H.264 (compatible)
+      if (quality == 'high') {
+        ffmpegArgs.addAll(['-c:v', 'copy']);
+      } else {
+        // Transcode to H.264 (Baseline profile for max mobile compatibility)
+        ffmpegArgs.addAll([
+          '-c:v', 'libx264',
+          '-preset', 'ultrafast', // Critical for live streaming
+          '-tune', 'zerolatency',
+          '-profile:v', 'baseline',
+          '-level', '3.0',
+          '-pix_fmt', 'yuv420p', // Ensure standard pixel format for web
+          '-g', '60', // Keyframe interval (2s at 30fps) for seeking
+        ]);
+
+        if (quality == 'low') {
+          // Low: ~480p, 800k
+          ffmpegArgs.addAll([
+            '-vf', 'scale=-2:480',
+            '-b:v', '800k',
+            '-maxrate', '800k',
+            '-bufsize', '1600k'
+          ]);
+        } else {
+          // Medium: Original res (or cap at 720p?), 2500k
+          ffmpegArgs.addAll([
+            '-b:v', '2500k',
+            '-maxrate', '2500k',
+            '-bufsize', '5000k'
+          ]);
         }
-        
-        // Audio: Transcode to AAC is SAFEST for browsers
-        // (Many IPTV streams typically use MP2/AC3 which browsers hate)
+      }
+      
+      // Audio: Transcode to AAC is SAFEST for browsers
+      // (Many IPTV streams typically use MP2/AC3 which browsers hate)
+      ffmpegArgs.addAll([
         '-c:a', 'aac',
         '-b:a', '128k',
         '-ar', '44100',
@@ -510,7 +512,7 @@ Handler _createStreamHandler() {
         
         // Output to stdout pipe
         'pipe:1'
-      ];
+      ]);
 
       // Start the process
       final process = await Process.start('ffmpeg', ffmpegArgs);
