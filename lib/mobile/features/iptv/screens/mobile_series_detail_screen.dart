@@ -98,6 +98,18 @@ class _MobileSeriesDetailScreenState extends ConsumerState<MobileSeriesDetailScr
           expandedHeight: 400,
           pinned: true,
           backgroundColor: AppColors.background,
+          leading: Container(
+            margin: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(
+              color: Colors.black45,
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+              tooltip: 'Back',
+            ),
+          ),
           flexibleSpace: FlexibleSpaceBar(
             background: Stack(
               fit: StackFit.expand,
