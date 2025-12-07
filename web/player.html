@@ -182,16 +182,32 @@
                     video.style.objectFit = 'contain';
                 }
             } else if (data.type === 'set_audio_track') {
-                // Not standard in HTML5 Video API across all browsers universally for MP4
-                // But HLS.js and mpegts.js have specific APIs.
-                // For native "video.audioTracks", it is experimental.
-                // We will try to handle HLS.js switching if active.
                 log('Switching audio track index: ' + data.index);
                 if (window.hlsInstance) {
                     window.hlsInstance.audioTrack = data.index;
                 }
+            } else if (data.type === 'play') {
+                log('Received play command');
+                video.play().catch(e => log('Play failed: ' + e));
+            } else if (data.type === 'pause') {
+                log('Received pause command');
+                video.pause();
+            } else if (data.type === 'seek') {
+                log('Seeking to: ' + data.value);
+                if (isFinite(data.value)) {
+                    video.currentTime = data.value;
+                }
             }
         });
+
+        // Notify parent about playback state changes
+        video.addEventListener('play', () => {
+            window.parent.postMessage({ type: 'playback_status', status: 'playing' }, '*');
+        });
+        video.addEventListener('pause', () => {
+            window.parent.postMessage({ type: 'playback_status', status: 'paused' }, '*');
+        });
+
 
         // Report available audio tracks
         function reportAudioTracks() {

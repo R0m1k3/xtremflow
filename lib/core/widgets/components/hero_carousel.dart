@@ -165,7 +165,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                                 children: [
                                   _HeroButton(
                                     icon: Icons.play_arrow,
-                                    label: 'Play',
+                                    label: 'Lecture',
                                     onPressed: () => widget.onTap(item),
                                     isPrimary: true,
                                   ),
@@ -173,7 +173,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                                   if (item.onMoreInfo != null)
                                     _HeroButton(
                                       icon: Icons.info_outline,
-                                      label: 'More Info',
+                                      label: 'Plus d\'infos',
                                       onPressed: item.onMoreInfo!,
                                       isPrimary: false,
                                     ),

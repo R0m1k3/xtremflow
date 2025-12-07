@@ -161,7 +161,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
     }
 
     // Hero Items
-    final heroItems = _series.take(5).map((s) => HeroItem(
+    final heroItems = displaySeries.take(5).map((s) => HeroItem(
       id: s.seriesId.toString(), // ID logic might differ for Series
       title: s.name,
       imageUrl: s.cover ?? '',
