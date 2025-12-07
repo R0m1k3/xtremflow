@@ -279,9 +279,16 @@ Future<Response> _streamVideoFile(Uri targetUrl, String? rangeHeader) async {
     
     // Forward the Range header for seeking support
     if (rangeHeader != null && rangeHeader.isNotEmpty) {
-      req.headers.set('Range', rangeHeader);
+      // Ensure we request bytes
+      if (!rangeHeader.startsWith('bytes=')) {
+        rangeHeader = 'bytes=$rangeHeader';
+      }
+      req.headers.set(HttpHeaders.rangeHeader, rangeHeader);
       print('Video streaming with Range: $rangeHeader');
     }
+    
+    // Disable auto-decompression to strictly proxy the stream
+    client.autoUncompress = false;
     
     final response = await req.close();
     
@@ -303,10 +310,13 @@ Future<Response> _streamVideoFile(Uri targetUrl, String? rangeHeader) async {
     }
     
     // Add Content-Range if this is a partial response (206)
-    final contentRange = response.headers.value('content-range');
+    final contentRange = response.headers.value(HttpHeaders.contentRangeHeader);
     if (contentRange != null) {
-      responseHeaders['content-range'] = contentRange;
+      responseHeaders[HttpHeaders.contentRangeHeader] = contentRange;
     }
+    
+    // Propagate Accept-Ranges
+    responseHeaders[HttpHeaders.acceptRangesHeader] = 'bytes';
     
     // Return appropriate status code (200 for full, 206 for partial)
     return Response(
@@ -418,6 +428,8 @@ Handler _createStreamHandler() {
       
       // Get parameters
       final iptvUrl = request.url.queryParameters['url'];
+      final quality = request.url.queryParameters['quality'] ?? 'high';
+      
       if (iptvUrl == null || iptvUrl.isEmpty) {
         return Response.badRequest(body: 'Missing url parameter');
       }
@@ -452,9 +464,39 @@ Handler _createStreamHandler() {
         // Output format: MPEG-TS for streaming (compatible with mpegts.js)
         '-f', 'mpegts',
         
-        // Video: Copy is BEST for performance (0% CPU)
-        // Browsers support H.264 well.
-        '-c:v', 'copy',
+        // Video: Transcode based on quality
+        // High = Copy (efficient), Low/Medium = Transcode to H.264 (compatible)
+        if (quality == 'high') {
+          ffmpegArgs.addAll(['-c:v', 'copy']);
+        } else {
+          // Transcode to H.264 (Baseline profile for max mobile compatibility)
+          ffmpegArgs.addAll([
+            '-c:v', 'libx264',
+            '-preset', 'ultrafast', // Critical for live streaming
+            '-tune', 'zerolatency',
+            '-profile:v', 'baseline',
+            '-level', '3.0',
+            '-pix_fmt', 'yuv420p', // Ensure standard pixel format for web
+            '-g', '60', // Keyframe interval (2s at 30fps) for seeking
+          ]);
+
+          if (quality == 'low') {
+            // Low: ~480p, 800k
+            ffmpegArgs.addAll([
+              '-vf', 'scale=-2:480',
+              '-b:v', '800k',
+              '-maxrate', '800k',
+              '-bufsize', '1600k'
+            ]);
+          } else {
+            // Medium: Original res (or cap at 720p?), 2500k
+            ffmpegArgs.addAll([
+              '-b:v', '2500k',
+              '-maxrate', '2500k',
+              '-bufsize', '5000k'
+            ]);
+          }
+        }
         
         // Audio: Transcode to AAC is SAFEST for browsers
         // (Many IPTV streams typically use MP2/AC3 which browsers hate)
