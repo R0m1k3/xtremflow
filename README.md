@@ -27,11 +27,13 @@ High-performance, containerized IPTV Web Application using Flutter Web and Xtrea
 ✅ **VOD & Series**
 - Movies and Series organized by categories
 - Grid layout with posters
-- Ratings display
+- Optimized ratings display (1 decimal place)
 
 ✅ **Docker Deployment**
 - Multi-stage build with Flutter and Dart
-- `dhttpd` static server (minimal footprint)
+- Custom Dart Server (`bin/server.dart`)
+- **FFmpeg Transcoding** for mobile compatibility
+- **Cache Management** system for temporary files
 - External network support (`nginx_default`)
 
 ## Tech Stack

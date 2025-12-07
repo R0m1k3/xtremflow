@@ -115,6 +115,15 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
     }
   }
 
+  String? _formatRating(String? rating) {
+    if (rating == null || rating.isEmpty) return null;
+    final value = double.tryParse(rating);
+    if (value != null) {
+      return value.toStringAsFixed(1);
+    }
+    return rating;
+  }
+
   void _openSeries(Series series) {
     Navigator.push(
       context,
@@ -145,7 +154,7 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
       id: s.seriesId.toString(),
       title: s.name,
       imageUrl: s.cover ?? '',
-      subtitle: s.rating != null ? '${s.rating} ★' : null,
+      subtitle: s.rating != null ? '${_formatRating(s.rating)} ★' : null,
       onMoreInfo: () => _openSeries(s),
     )).toList();
 
@@ -243,8 +252,9 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                   return MediaCard(
                     title: series.name,
                     imageUrl: series.cover,
-                    subtitle: series.rating != null ? '${series.rating} ★' : null,
-                    rating: series.rating,
+                    imageUrl: series.cover,
+                    subtitle: series.rating != null ? '${_formatRating(series.rating)} ★' : null,
+                    rating: _formatRating(series.rating),
                     placeholderIcon: Icons.tv,
                     onTap: () => _openSeries(series),
                   );
