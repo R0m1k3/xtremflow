@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/theme/app_colors.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
   final String streamUrl;
@@ -19,11 +20,10 @@ class VideoPlayerScreen extends StatefulWidget {
   State<VideoPlayerScreen> createState() => _VideoPlayerScreenState();
 }
 
-class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
-  late final Player _player;
-  late final VideoController _controller;
-  bool _isFullscreen = false;
-  bool _showControls = true;
+  // Premium Features State
+  BoxFit _fit = BoxFit.contain;
+  List<AudioTrack> _audioTracks = [];
+  AudioTrack? _currentAudioTrack;
 
   @override
   void initState() {
@@ -36,40 +36,120 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     // Load stream
     _player.open(Media(widget.streamUrl));
     _player.play();
-  }
 
-  @override
-  void dispose() {
-    _player.dispose();
-    super.dispose();
-  }
-
-  void _toggleFullscreen() {
-    setState(() {
-      _isFullscreen = !_isFullscreen;
+    // Listen to tracks
+    _player.stream.tracks.listen((tracks) {
+      setState(() {
+        _audioTracks = tracks.audio;
+        _currentAudioTrack = _player.state.track.audio;
+      });
     });
   }
 
-  void _toggleControls() {
+  void _cycleAspectRatio() {
     setState(() {
-      _showControls = !_showControls;
+      if (_fit == BoxFit.contain) {
+        _fit = BoxFit.cover;
+      } else if (_fit == BoxFit.cover) {
+        _fit = BoxFit.fill;
+      } else {
+        _fit = BoxFit.contain;
+      }
     });
+  }
+
+  void _showSettingsDialog() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Format d\'image', style: TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Wrap(
+               spacing: 8,
+               children: [
+                 _buildRatioChip('Original', BoxFit.contain),
+                 _buildRatioChip('Remplir', BoxFit.cover),
+                 _buildRatioChip('Étirer', BoxFit.fill),
+               ],
+            ),
+            if (_audioTracks.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              const Text('Pistes Audio', style: TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _audioTracks.length,
+                  itemBuilder: (context, index) {
+                    final track = _audioTracks[index];
+                    final isSelected = track == _currentAudioTrack;
+                    return ListTile(
+                      title: Text(track.language ?? track.label ?? 'Piste ${index + 1}', style: const TextStyle(color: Colors.white)),
+                      subtitle: Text(track.id, style: const TextStyle(color: Colors.white54, fontSize: 10)),
+                      trailing: isSelected ? const Icon(Icons.check, color: AppColors.primary) : null,
+                      onTap: () {
+                        _player.setAudioTrack(track);
+                        setState(() => _currentAudioTrack = track);
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRatioChip(String label, BoxFit fit) {
+    final isSelected = _fit == fit;
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) {
+         setState(() => _fit = fit);
+         Navigator.pop(context);
+      },
+      backgroundColor: Colors.white10,
+      selectedColor: AppColors.primary,
+      labelStyle: TextStyle(color: isSelected ? Colors.black : Colors.white),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.background,
       appBar: _isFullscreen
           ? null
           : AppBar(
               title: Text(
                 widget.title,
-                style: GoogleFonts.roboto(fontWeight: FontWeight.w600),
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
               ),
-              backgroundColor: Colors.black,
+              backgroundColor: Colors.transparent, // Glass effect handled by body
+              elevation: 0,
               foregroundColor: Colors.white,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.settings),
+                  onPressed: _showSettingsDialog,
+                ),
+                const SizedBox(width: 8),
+              ],
             ),
+      extendBodyBehindAppBar: true,
       body: GestureDetector(
         onTap: _toggleControls,
         child: Stack(
@@ -79,6 +159,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               child: Video(
                 controller: _controller,
                 controls: NoVideoControls,
+                fit: _fit,
               ),
             ),
 
@@ -91,7 +172,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Colors.black54,
+                        Colors.black87,
                         Colors.transparent,
                         Colors.transparent,
                         Colors.black87,
@@ -102,41 +183,16 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Top bar with title
+                      // SAFE AREA SPACER FOR APPBAR
                       if (!_isFullscreen)
-                        const SizedBox.shrink()
-                      else
-                        SafeArea(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Row(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                                  onPressed: () => Navigator.pop(context),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    widget.title,
-                                    style: GoogleFonts.roboto(
-                                      color: Colors.white,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                         const SizedBox(height: 80)
+                      else 
+                         const SizedBox.shrink(),
 
                       // Bottom controls
                       SafeArea(
                         child: Padding(
-                          padding: const EdgeInsets.all(16.0),
+                          padding: const EdgeInsets.all(24.0),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -159,7 +215,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                             value: progress.clamp(0.0, 1.0),
                                             backgroundColor: Colors.white24,
                                             valueColor: const AlwaysStoppedAnimation<Color>(
-                                              Colors.red,
+                                              AppColors.primary,
                                             ),
                                           ),
                                           const SizedBox(height: 8),
@@ -170,15 +226,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                                 Text(
                                                   _formatDuration(position),
                                                   style: const TextStyle(
-                                                    color: Colors.white,
+                                                    color: Colors.white70,
                                                     fontSize: 12,
+                                                    fontWeight: FontWeight.w500,
                                                   ),
                                                 ),
                                                 Text(
                                                   _formatDuration(duration),
                                                   style: const TextStyle(
-                                                    color: Colors.white,
+                                                    color: Colors.white70,
                                                     fontSize: 12,
+                                                    fontWeight: FontWeight.w500,
                                                   ),
                                                 ),
                                               ],
@@ -189,7 +247,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                   );
                                 },
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 32),
 
                               // Playback controls
                               Row(
@@ -197,54 +255,65 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                 children: [
                                   // Rewind
                                   IconButton(
-                                    icon: const Icon(Icons.replay_10, size: 32),
+                                    icon: const Icon(Icons.replay_10, size: 36),
                                     color: Colors.white,
                                     onPressed: () {
                                       final currentPos = _player.state.position;
                                       _player.seek(currentPos - const Duration(seconds: 10));
                                     },
                                   ),
-                                  const SizedBox(width: 24),
+                                  const SizedBox(width: 32),
 
                                   // Play/Pause
                                   StreamBuilder<bool>(
                                     stream: _player.stream.playing,
                                     builder: (context, snapshot) {
                                       final isPlaying = snapshot.data ?? false;
-                                      return IconButton(
-                                        icon: Icon(
-                                          isPlaying ? Icons.pause : Icons.play_arrow,
-                                          size: 48,
+                                      return Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.1),
+                                          shape: BoxShape.circle,
+                                          border: Border.all(color: Colors.white24),
                                         ),
-                                        color: Colors.white,
-                                        onPressed: () {
-                                          _player.playOrPause();
-                                        },
+                                        child: IconButton(
+                                          icon: Icon(
+                                            isPlaying ? Icons.pause : Icons.play_arrow,
+                                            size: 48,
+                                          ),
+                                          color: Colors.white,
+                                          onPressed: () {
+                                            _player.playOrPause();
+                                          },
+                                        ),
                                       );
                                     },
                                   ),
-                                  const SizedBox(width: 24),
+                                  const SizedBox(width: 32),
 
                                   // Forward
                                   IconButton(
-                                    icon: const Icon(Icons.forward_10, size: 32),
+                                    icon: const Icon(Icons.forward_10, size: 36),
                                     color: Colors.white,
                                     onPressed: () {
                                       final currentPos = _player.state.position;
                                       _player.seek(currentPos + const Duration(seconds: 10));
                                     },
                                   ),
-                                  const Spacer(),
-
-                                  // Fullscreen toggle
+                                ],
+                              ),
+                              
+                              const SizedBox(height: 24),
+                              
+                              // Footer Utils
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
                                   IconButton(
                                     icon: Icon(
-                                      _isFullscreen
-                                          ? Icons.fullscreen_exit
-                                          : Icons.fullscreen,
-                                      size: 32,
+                                      _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                                      color: Colors.white70,
                                     ),
-                                    color: Colors.white,
                                     onPressed: _toggleFullscreen,
                                   ),
                                 ],
@@ -267,7 +336,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 
                 return const Center(
                   child: CircularProgressIndicator(
-                    color: Colors.red,
+                    color: AppColors.primary,
                     strokeWidth: 3,
                   ),
                 );

@@ -14,6 +14,8 @@ import '../../../core/models/iptv_models.dart';
 
 import '../../../core/widgets/themed_loading_screen.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
+import 'dart:ui' as ui; // Essential for BackdropFilter
+import '../../../core/theme/app_colors.dart';
 
 /// Stream type enum for player
 enum StreamType { live, vod, series }
@@ -100,8 +102,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   void _sendMessage(Map<String, dynamic> message) {
     // Helper to send message to iframe
+    debugPrint('Sending message to iframe ($_viewId): $message');
     final iframe = html.document.getElementById(_viewId) as html.IFrameElement?;
-    iframe?.contentWindow?.postMessage(message, '*');
+    if (iframe == null) {
+       debugPrint('ERROR: Iframe with ID $_viewId not found!');
+    } else {
+       iframe.contentWindow?.postMessage(message, '*');
+    }
   }
 
   void _setAspectRatio(String mode) {
@@ -296,87 +303,160 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void _showSettingsDialog() {
     showDialog(
       context: context,
-      useRootNavigator: true, // Ensure it's on top
+      useRootNavigator: true,
       builder: (context) => PointerInterceptor(
-        child: Theme(
-          data: Theme.of(context).copyWith(dialogBackgroundColor: const Color(0xFF1C1C1E)),
-          child: AlertDialog(
-            backgroundColor: const Color(0xFF1C1C1E).withOpacity(0.95),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: Colors.white.withOpacity(0.1)),
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(24),
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, child) => Transform.scale(
+              scale: 0.9 + (0.1 * value),
+              child: Opacity(
+                opacity: value,
+                child: child,
+              ),
             ),
-            title: const Text('Réglages', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-            content: SizedBox(
+            child: Container(
               width: 400,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Format d\'image', style: TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _buildAspectRatioChip('Original', 'contain'),
-                      _buildAspectRatioChip('Remplir', 'cover'),
-                      _buildAspectRatioChip('Étirer', 'fill'),
-                    ],
+              decoration: BoxDecoration(
+                color: AppColors.surface.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.white.withOpacity(0.1)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.5),
+                    blurRadius: 30,
+                    offset: const Offset(0, 10),
                   ),
-                  if (_audioTracks.isNotEmpty) ...[
-                    const SizedBox(height: 24),
-                    const Text('Pistes Audio', style: TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    Container(
-                      constraints: const BoxConstraints(maxHeight: 200),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          children: _audioTracks.map((track) {
-                            return ListTile(
-                              title: Text(track['label'] ?? 'Piste ${track['id']}', style: const TextStyle(color: Colors.white, fontSize: 14)),
-                              subtitle: Text(track['lang'] ?? '', style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                              onTap: () => _setAudioTrack(track['id']),
-                              dense: true,
-                              leading: const Icon(Icons.audiotrack, size: 20, color: Colors.white54),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              hoverColor: Colors.white.withOpacity(0.1),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                style: TextButton.styleFrom(foregroundColor: Colors.white),
-                child: const Text('Fermer'),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Réglages',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close, color: Colors.white54),
+                              onPressed: () => Navigator.pop(context),
+                              tooltip: 'Fermer',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        const Text('FORMAT D\'IMAGE', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.black26,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                               _buildRatioOption('Original', 'contain', Icons.crop_original),
+                               _buildRatioOption('Remplir', 'cover', Icons.crop_free),
+                               _buildRatioOption('Étirer', 'fill', Icons.aspect_ratio),
+                            ],
+                          ),
+                        ),
+                        if (_audioTracks.isNotEmpty) ...[
+                          const SizedBox(height: 32),
+                          const Text('AUDIO', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                          const SizedBox(height: 12),
+                          Container(
+                            constraints: const BoxConstraints(maxHeight: 200),
+                            decoration: BoxDecoration(
+                              color: Colors.black26,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.white.withOpacity(0.05)),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: SingleChildScrollView(
+                                child: Column(
+                                  children: _audioTracks.map((track) {
+                                    return Material(
+                                      color: Colors.transparent,
+                                      child: ListTile(
+                                        title: Text(track['label'] ?? 'Piste ${track['id']}', style: const TextStyle(color: Colors.white, fontSize: 14)),
+                                        subtitle: Text(track['lang'] ?? '', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                                        onTap: () => _setAudioTrack(track['id']),
+                                        dense: true,
+                                        leading: const Icon(Icons.audiotrack, size: 18, color: Colors.white54),
+                                        hoverColor: Colors.white.withOpacity(0.1),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildAspectRatioChip(String label, String value) {
+  Widget _buildRatioOption(String label, String value, IconData icon) {
     final isSelected = _aspectRatio == value;
-    return ChoiceChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (_) => _setAspectRatio(value),
-      backgroundColor: Colors.black26,
-      selectedColor: Theme.of(context).primaryColor,
-      labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.white70),
-      side: BorderSide.none,
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          debugPrint('Changing Aspect Ratio to: $value');
+          _setAspectRatio(value);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.surfaceVariant : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            border: isSelected ? Border.all(color: Colors.white12) : null,
+            boxShadow: isSelected ? [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, 2))] : null,
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: isSelected ? Colors.white : Colors.white54, size: 20),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.white54,
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

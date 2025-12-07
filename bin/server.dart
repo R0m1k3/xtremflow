@@ -12,6 +12,7 @@ import 'api/auth_handler.dart';
 import 'api/users_handler.dart';
 import 'api/playlists_handler.dart';
 import 'middleware/auth_middleware.dart';
+import 'middleware/security_middleware.dart';
 
 void main(List<String> args) async {
   // Parse command line arguments
@@ -62,9 +63,14 @@ void main(List<String> args) async {
     .add(staticHandler)
     .handler;
 
+
+
   // Add middleware
   final pipeline = Pipeline()
     .addMiddleware(logRequests())
+    .addMiddleware(securityHeadersMiddleware()) // Basic Headers
+    .addMiddleware(honeypotMiddleware())        // Trap Bots
+    .addMiddleware(rateLimitMiddleware())       // Anti-DoS
     .addMiddleware(_corsMiddleware())
     .addHandler(handler);
 
