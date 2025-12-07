@@ -8,6 +8,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../../core/widgets/components/hero_carousel.dart';
 import '../../../core/widgets/components/ui_components.dart';
+import '../../../core/widgets/themed_loading_screen.dart';
+
 import '../models/xtream_models.dart';
 import '../providers/xtream_provider.dart';
 import '../providers/settings_provider.dart';
@@ -287,7 +289,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
           const SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.all(24),
-              child: Center(child: CircularProgressIndicator()),
+              child: ThemedLoading(),
             ),
           ),
       ],

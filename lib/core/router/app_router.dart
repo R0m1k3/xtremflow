@@ -10,6 +10,7 @@ import '../models/playlist_config.dart';
 import '../../mobile/features/auth/screens/mobile_login_screen.dart';
 import '../../mobile/features/iptv/screens/mobile_playlist_selection_screen.dart';
 import '../../mobile/features/iptv/screens/mobile_dashboard_screen.dart';
+import '../widgets/themed_loading_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -71,7 +72,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               context.go('/playlists');
             });
             return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
+              body: ThemedLoading(),
             );
           }
           

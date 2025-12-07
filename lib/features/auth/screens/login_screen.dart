@@ -140,12 +140,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             const SizedBox(height: 32),
                             TextFormField(
                               controller: _usernameController,
-                              style: const TextStyle(color: AppColors.textPrimary),
+                              style: const TextStyle(color: Colors.white),
                               decoration: InputDecoration(
                                 labelText: 'Username',
-                                prefixIcon: const Icon(Icons.person_outline),
-                                fillColor: AppColors.surface,
-                                hoverColor: AppColors.surface.withOpacity(0.8),
+                                labelStyle: const TextStyle(color: Colors.white70),
+                                prefixIcon: const Icon(Icons.person_outline, color: Colors.white70),
+                                filled: true,
+                                fillColor: Colors.white.withOpacity(0.05),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: AppColors.primary),
+                                ),
                               ),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
@@ -160,16 +173,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             TextFormField(
                               controller: _passwordController,
                               obscureText: _obscurePassword,
-                              style: const TextStyle(color: AppColors.textPrimary),
+                              style: const TextStyle(color: Colors.white),
                               decoration: InputDecoration(
                                 labelText: 'Password',
-                                prefixIcon: const Icon(Icons.lock_outline),
-                                fillColor: AppColors.surface,
+                                labelStyle: const TextStyle(color: Colors.white70),
+                                prefixIcon: const Icon(Icons.lock_outline, color: Colors.white70),
+                                filled: true,
+                                fillColor: Colors.white.withOpacity(0.05),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: AppColors.primary),
+                                ),
                                 suffixIcon: IconButton(
                                   icon: Icon(
                                     _obscurePassword
                                         ? Icons.visibility_outlined
                                         : Icons.visibility_off_outlined,
+                                    color: Colors.white70,
                                   ),
                                   onPressed: () {
                                     setState(() {

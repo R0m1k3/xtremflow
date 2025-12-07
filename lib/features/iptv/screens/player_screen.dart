@@ -10,6 +10,8 @@ import '../providers/playback_positions_provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/epg_overlay.dart';
 import '../../../core/models/playlist_config.dart';
+import '../../../core/models/iptv_models.dart';
+import '../../../core/widgets/themed_loading_screen.dart';
 
 /// Stream type enum for player
 enum StreamType { live, vod, series }
@@ -21,6 +23,8 @@ class PlayerScreen extends ConsumerStatefulWidget {
   final StreamType streamType;
   final String containerExtension;
   final PlaylistConfig playlist;
+  final List<Channel>? channels;
+  final int initialIndex;
 
   const PlayerScreen({
     super.key,
@@ -29,6 +33,8 @@ class PlayerScreen extends ConsumerStatefulWidget {
     required this.playlist,
     this.streamType = StreamType.live,
     this.containerExtension = 'mp4',
+    this.channels,
+    this.initialIndex = 0,
   });
 
   @override
@@ -41,18 +47,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   String? _statusMessage;
   late String _viewId;
   late String _contentId;
+  late int _currentIndex;
   bool _isInitialized = false;
   bool _isLoading = true;
+  bool _showControls = false;
+  Timer? _controlsTimer;
   StreamSubscription? _messageSubscription;
 
   @override
   void initState() {
     super.initState();
+    _currentIndex = widget.initialIndex;
     _viewId = 'iptv-player-${widget.streamId}-${DateTime.now().millisecondsSinceEpoch}';
-    // Content ID for resume feature
-    _contentId = widget.streamType == StreamType.live 
-        ? '' // Live streams don't need resume
-        : '${widget.streamType.name}_${widget.streamId}';
+    
     _initializePlayer();
     _setupMessageListener();
   }
@@ -84,7 +91,48 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   @override
   void dispose() {
     _messageSubscription?.cancel();
+    _controlsTimer?.cancel();
     super.dispose();
+  }
+
+  void _hideControls() {
+    if (!mounted) return;
+    setState(() {
+      _showControls = false;
+    });
+  }
+
+  void _onHover() {
+    if (!_showControls) {
+      setState(() {
+        _showControls = true;
+      });
+    }
+    _controlsTimer?.cancel();
+    _controlsTimer = Timer(const Duration(seconds: 3), _hideControls);
+  }
+
+  void _playNext() {
+    if (widget.channels == null || widget.channels!.isEmpty) return;
+    final nextIndex = (_currentIndex + 1) % widget.channels!.length;
+    _switchChannel(nextIndex);
+  }
+
+  void _playPrevious() {
+    if (widget.channels == null || widget.channels!.isEmpty) return;
+    final prevIndex = (_currentIndex - 1 + widget.channels!.length) % widget.channels!.length;
+    _switchChannel(prevIndex);
+  }
+
+  void _switchChannel(int index) {
+    setState(() {
+      _currentIndex = index;
+      _isLoading = true;
+      _isInitialized = false;
+      _errorMessage = null;
+    });
+    // Give UI a moment to clear before re-initializing
+    Future.microtask(() => _initializePlayer());
   }
 
   Future<void> _initializePlayer() async {
@@ -104,6 +152,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       final xtreamService = ref.read(xtreamServiceProvider(widget.playlist));
       xtreamService.setPlaylist(widget.playlist);
       
+      // Determine effective Stream ID (from navigation or initial)
+      final currentStreamId = widget.channels != null && widget.channels!.isNotEmpty
+          ? widget.channels![_currentIndex].streamId 
+          : widget.streamId;
+
+      // Set content ID for resume features
+      _contentId = widget.streamType == StreamType.live 
+          ? '' 
+          : '${widget.streamType.name}_$currentStreamId';
+
       String hlsUrl;
       
       if (widget.streamType == StreamType.live) {
@@ -115,7 +173,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         // Build the FFmpeg endpoint URL with streaming settings
         final settings = ref.read(iptvSettingsProvider);
         final baseUrl = html.window.location.origin;
-        final iptvUrl = '${widget.playlist.dns}/live/${widget.playlist.username}/${widget.playlist.password}/${widget.streamId}.ts';
+        final iptvUrl = '${widget.playlist.dns}/live/${widget.playlist.username}/${widget.playlist.password}/$currentStreamId.ts';
         final encodedUrl = Uri.encodeComponent(iptvUrl);
         
         // Map enum values to string params
@@ -137,21 +195,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         final modeParam = settings.modeString; // direct, transcode, or auto
         
         // Construct the stream URL directly using MPEG-TS format
-        // We add &ext=.ts to force the web player to use mpegts.js which is perfect for low-latency live streams
-        final streamEndpoint = '$baseUrl/api/stream/${widget.streamId}?url=$encodedUrl&quality=$qualityParam&buffer=$bufferParam&timeout=$timeoutParam&mode=$modeParam&ext=.ts';
+        final streamEndpoint = '$baseUrl/api/stream/$currentStreamId?url=$encodedUrl&quality=$qualityParam&buffer=$bufferParam&timeout=$timeoutParam&mode=$modeParam&ext=.ts';
         
         debugPrint('PlayerScreen: Starting Direct Stream: $streamEndpoint');
-        
-        // Use the stream endpoint directly as the video source
-        // The server now pipelines fMP4 directly to this URL
         hlsUrl = streamEndpoint;
         
       } else {
         // For VOD and Series - use direct proxy streaming with Range support
-        // This allows seeking via Range requests
         final streamUrl = widget.streamType == StreamType.vod
-            ? xtreamService.getVodStreamUrl(widget.streamId, widget.containerExtension)
-            : xtreamService.getSeriesStreamUrl(widget.streamId, widget.containerExtension);
+            ? xtreamService.getVodStreamUrl(currentStreamId, widget.containerExtension)
+            : xtreamService.getSeriesStreamUrl(currentStreamId, widget.containerExtension);
         hlsUrl = streamUrl;
         debugPrint('PlayerScreen: Direct playback URL: $hlsUrl');
       }
@@ -211,89 +264,112 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-        backgroundColor: Colors.black,
+      appBar: _showControls ? AppBar(
+        title: Text(widget.channels != null && widget.channels!.isNotEmpty 
+            ? widget.channels![_currentIndex].name 
+            : widget.title),
+        backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
-      ),
+        elevation: 0,
+      ) : null,
+      extendBodyBehindAppBar: true,
       backgroundColor: Colors.black,
-      body: _errorMessage != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Colors.red,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Failed to load stream',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+      body: MouseRegion(
+        onHover: (_) => _onHover(),
+        child: _errorMessage != null
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                    const SizedBox(height: 16),
+                    const Text('Failed to load stream', style: TextStyle(color: Colors.white, fontSize: 18)),
+                    const SizedBox(height: 8),
+                    Text(_errorMessage!, style: const TextStyle(color: Colors.white70)),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          _errorMessage = null;
+                          _isLoading = true;
+                        });
+                        _initializePlayer();
+                      },
+                      child: const Text('Retry'),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Text(
-                      _errorMessage!,
-                      style: const TextStyle(color: Colors.white70),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        _errorMessage = null;
-                        _isLoading = true;
-                      });
-                      _initializePlayer();
-                    },
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            )
-          : _isLoading
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const CircularProgressIndicator(),
-                      const SizedBox(height: 16),
-                      Text(
-                        _statusMessage ?? 'Loading...',
-                        style: const TextStyle(color: Colors.white70),
+                  ],
+                ),
+              )
+            : _isLoading
+                ? const ThemedLoading()
+                : !_isInitialized
+                    ? const ThemedLoading()
+                    : Stack(
+                        children: [
+                          // HTML5 video player via iframe
+                          HtmlElementView(viewType: _viewId),
+                          
+                          // Hover Controls Layer
+                          if (_showControls) ...[
+                            // Previous Channel (Left Zone)
+                            if (widget.channels != null && widget.channels!.isNotEmpty)
+                              Positioned(
+                                left: 0,
+                                top: 0,
+                                bottom: 0,
+                                width: 100,
+                                child: InkWell(
+                                  onTap: _playPrevious,
+                                  hoverColor: Colors.black12,
+                                  child: const Center(
+                                    child: Icon(Icons.arrow_back_ios, color: Colors.white, size: 48),
+                                  ),
+                                ),
+                              ),
+
+                            // Next Channel (Right Zone)
+                            if (widget.channels != null && widget.channels!.isNotEmpty)
+                              Positioned(
+                                right: 0,
+                                top: 0,
+                                bottom: 0,
+                                width: 100,
+                                child: InkWell(
+                                  onTap: _playNext,
+                                  hoverColor: Colors.black12,
+                                  child: const Center(
+                                    child: Icon(Icons.arrow_forward_ios, color: Colors.white, size: 48),
+                                  ),
+                                ),
+                              ),
+                              
+                            // EPG Overlay
+                            if (widget.streamType == StreamType.live)
+                              Positioned(
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.only(bottom: 20),
+                                  decoration: const BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.bottomCenter,
+                                      end: Alignment.topCenter,
+                                      colors: [Colors.black87, Colors.transparent],
+                                    ),
+                                  ),
+                                  child: EpgOverlay(
+                                    streamId: widget.channels != null 
+                                        ? widget.channels![_currentIndex].streamId
+                                        : widget.streamId,
+                                    playlist: widget.playlist,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ],
                       ),
-                    ],
-                  ),
-                )
-              : !_isInitialized
-                  ? const Center(
-                      child: CircularProgressIndicator(),
-                    )
-                  : Stack(
-                      children: [
-                        // HTML5 video player via iframe
-                        HtmlElementView(viewType: _viewId),
-                        // EPG overlay for live streams
-                        if (widget.streamType == StreamType.live)
-                          Positioned(
-                            bottom: 80,
-                            left: 0,
-                            right: 0,
-                            child: EpgOverlay(
-                              streamId: widget.streamId,
-                              playlist: widget.playlist,
-                            ),
-                          ),
-                      ],
-                    ),
+      ),
     );
   }
 }
