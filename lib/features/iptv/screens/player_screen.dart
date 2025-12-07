@@ -9,6 +9,7 @@ import '../providers/xtream_provider.dart';
 import '../providers/playback_positions_provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/epg_overlay.dart';
+import '../widgets/clock_widget.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/models/iptv_models.dart';
 
@@ -62,14 +63,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   List<Map<String, dynamic>> _audioTracks = [];
   String _aspectRatio = 'contain';
 
-  @override
-  void initState() {
-    super.initState();
-    _currentIndex = widget.initialIndex;
-    
-    _initializePlayer();
-    _setupMessageListener();
-  }
+
 
   void _setupMessageListener() {
     // Listen for postMessage from player.html iframe
@@ -300,7 +294,26 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    
+    // Load preferred aspect ratio from settings
+    final settings = ref.read(iptvSettingsProvider);
+    _aspectRatio = settings.preferredAspectRatio;
+    
+    _initializePlayer();
+    _setupMessageListener();
+  }
+
   void _showSettingsDialog() {
+    // Read current settings
+    final settingsNotifier = ref.read(iptvSettingsProvider.notifier);
+    // We use a local state variable for the switch in the dialog, 
+    // initialized from the provider.
+    bool showClock = ref.read(iptvSettingsProvider).showClock;
+
     showDialog(
       context: context,
       useRootNavigator: true,
@@ -308,129 +321,155 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         child: Dialog(
           backgroundColor: Colors.transparent,
           insetPadding: const EdgeInsets.all(24),
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.0, end: 1.0),
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            builder: (context, value, child) => Transform.scale(
-              scale: 0.9 + (0.1 * value),
-              child: Opacity(
-                opacity: value,
-                child: child,
-              ),
-            ),
-            child: Container(
-              width: 400,
-              decoration: BoxDecoration(
-                color: AppColors.surface.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.5),
-                    blurRadius: 30,
-                    offset: const Offset(0, 10),
+          child: StatefulBuilder(
+            builder: (context, setDialogState) {
+              return TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, child) => Transform.scale(
+                  scale: 0.9 + (0.1 * value),
+                  child: Opacity(
+                    opacity: value,
+                    child: child,
                   ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                ),
+                child: Container(
+                  width: 400,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.5),
+                        blurRadius: 30,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: BackdropFilter(
+                      filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Réglages',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                letterSpacing: -0.5,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Réglages',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    letterSpacing: -0.5,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close, color: Colors.white54),
+                                  onPressed: () => Navigator.pop(context),
+                                  tooltip: 'Fermer',
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+                            const Text('FORMAT D\'IMAGE', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.black26,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                   _buildRatioOption('Original', 'contain', Icons.crop_original, setDialogState),
+                                   _buildRatioOption('Remplir', 'cover', Icons.crop_free, setDialogState),
+                                   _buildRatioOption('Étirer', 'fill', Icons.aspect_ratio, setDialogState),
+                                ],
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.close, color: Colors.white54),
-                              onPressed: () => Navigator.pop(context),
-                              tooltip: 'Fermer',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        const Text('FORMAT D\'IMAGE', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.black26,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                               _buildRatioOption('Original', 'contain', Icons.crop_original),
-                               _buildRatioOption('Remplir', 'cover', Icons.crop_free),
-                               _buildRatioOption('Étirer', 'fill', Icons.aspect_ratio),
-                            ],
-                          ),
-                        ),
-                        if (_audioTracks.isNotEmpty) ...[
-                          const SizedBox(height: 32),
-                          const Text('AUDIO', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                          const SizedBox(height: 12),
-                          Container(
-                            constraints: const BoxConstraints(maxHeight: 200),
-                            decoration: BoxDecoration(
-                              color: Colors.black26,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: Colors.white.withOpacity(0.05)),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: SingleChildScrollView(
-                                child: Column(
-                                  children: _audioTracks.map((track) {
-                                    return Material(
-                                      color: Colors.transparent,
-                                      child: ListTile(
-                                        title: Text(track['label'] ?? 'Piste ${track['id']}', style: const TextStyle(color: Colors.white, fontSize: 14)),
-                                        subtitle: Text(track['lang'] ?? '', style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                                        onTap: () => _setAudioTrack(track['id']),
-                                        dense: true,
-                                        leading: const Icon(Icons.audiotrack, size: 18, color: Colors.white54),
-                                        hoverColor: Colors.white.withOpacity(0.1),
-                                      ),
-                                    );
-                                  }).toList(),
+                          if (_audioTracks.isNotEmpty) ...[
+                            const SizedBox(height: 32),
+                            const Text('AUDIO', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                            const SizedBox(height: 12),
+                            Container(
+                              constraints: const BoxConstraints(maxHeight: 150),
+                              decoration: BoxDecoration(
+                                color: Colors.black26,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: Colors.white.withOpacity(0.05)),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: SingleChildScrollView(
+                                  child: Column(
+                                    children: _audioTracks.map((track) {
+                                      return Material(
+                                        color: Colors.transparent,
+                                        child: ListTile(
+                                          title: Text(track['label'] ?? 'Piste ${track['id']}', style: const TextStyle(color: Colors.white, fontSize: 14)),
+                                          subtitle: Text(track['lang'] ?? '', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                                          onTap: () {
+                                            _setAudioTrack(track['id']);
+                                            setDialogState(() {});
+                                          },
+                                          dense: true,
+                                          leading: const Icon(Icons.audiotrack, size: 18, color: Colors.white54),
+                                          hoverColor: Colors.white.withOpacity(0.1),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
+                          ],
+                          const SizedBox(height: 32),
+                            const Text('AFFICHAGE', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                            const SizedBox(height: 12),
+                            SwitchListTile(
+                              value: showClock,
+                              onChanged: (val) {
+                                setDialogState(() {
+                                  showClock = val;
+                                });
+                                settingsNotifier.setShowClock(val);
+                              },
+                              title: const Text('Afficher l\'heure', style: TextStyle(color: Colors.white, fontSize: 14)),
+                              secondary: const Icon(Icons.access_time, color: Colors.white54),
+                              activeColor: AppColors.primary,
+                              contentPadding: EdgeInsets.zero,
+                            ),
                         ],
-                      ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),
     );
   }
 
-  Widget _buildRatioOption(String label, String value, IconData icon) {
+  Widget _buildRatioOption(String label, String value, IconData icon, StateSetter setDialogState) {
     final isSelected = _aspectRatio == value;
     return Expanded(
       child: GestureDetector(
         onTap: () {
           debugPrint('Changing Aspect Ratio to: $value');
           _setAspectRatio(value);
+          // Save preference
+          ref.read(iptvSettingsProvider.notifier).setPreferredAspectRatio(value);
+          setDialogState(() {}); // Force rebuild of the dialog content
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
@@ -462,6 +501,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = ref.watch(iptvSettingsProvider);
     return Scaffold(
       appBar: _showControls ? AppBar(
         title: Text(widget.channels != null && widget.channels!.isNotEmpty 
@@ -607,6 +647,24 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                 ),
                               ),
                           ],
+                          
+                          // Clock Widget (Always visible if enabled, or only with controls? User asked "met l'heure dans les options")
+                          // Positioned in top right
+                          if (settings.showClock)
+                             const Positioned(
+                              top: 24,
+                              right: 24,
+                              child: IgnorePointer(
+                                child: ClockWidget(
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    shadows: [Shadow(color: Colors.black, blurRadius: 8)],
+                                  ),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
       ),

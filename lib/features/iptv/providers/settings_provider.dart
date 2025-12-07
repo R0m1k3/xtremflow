@@ -51,6 +51,9 @@ class _SettingsKeys {
   static const String epgCacheDuration = 'epg_cache_duration';
   static const String transcodingMode = 'transcoding_mode';
   static const String preferDirectPlay = 'prefer_direct_play';
+  // Player Display Settings
+  static const String showClock = 'show_clock';
+  static const String preferredAspectRatio = 'aspect_ratio';
 }
 
 /// Settings state for IPTV preferences with persistence
@@ -68,6 +71,10 @@ class IptvSettings {
   final EpgCacheDuration epgCacheDuration;
   final TranscodingMode transcodingMode;
   final bool preferDirectPlay;
+  
+  // Player Display Settings
+  final bool showClock;
+  final String preferredAspectRatio;
 
   const IptvSettings({
     // Filters
@@ -82,6 +89,9 @@ class IptvSettings {
     this.epgCacheDuration = EpgCacheDuration.medium,
     this.transcodingMode = TranscodingMode.auto,
     this.preferDirectPlay = false,
+    // Player defaults
+    this.showClock = false,
+    this.preferredAspectRatio = 'contain',
   });
 
   IptvSettings copyWith({
@@ -95,6 +105,8 @@ class IptvSettings {
     EpgCacheDuration? epgCacheDuration,
     TranscodingMode? transcodingMode,
     bool? preferDirectPlay,
+    bool? showClock,
+    String? preferredAspectRatio,
   }) {
     return IptvSettings(
       liveTvCategoryFilter: liveTvCategoryFilter ?? this.liveTvCategoryFilter,
@@ -107,6 +119,8 @@ class IptvSettings {
       epgCacheDuration: epgCacheDuration ?? this.epgCacheDuration,
       transcodingMode: transcodingMode ?? this.transcodingMode,
       preferDirectPlay: preferDirectPlay ?? this.preferDirectPlay,
+      showClock: showClock ?? this.showClock,
+      preferredAspectRatio: preferredAspectRatio ?? this.preferredAspectRatio,
     );
   }
 
@@ -251,6 +265,10 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
       ];
       final directPlay = _prefs?.getBool(_SettingsKeys.preferDirectPlay) ?? false;
       
+      // Load Player Display Settings
+      final showClock = _prefs?.getBool(_SettingsKeys.showClock) ?? false;
+      final aspectRatio = _prefs?.getString(_SettingsKeys.preferredAspectRatio) ?? 'contain';
+
       state = IptvSettings(
         liveTvCategoryFilter: liveTv,
         moviesCategoryFilter: movies,
@@ -262,10 +280,12 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
         epgCacheDuration: epgCache,
         transcodingMode: transcoding,
         preferDirectPlay: directPlay,
+        showClock: showClock,
+        preferredAspectRatio: aspectRatio,
       );
       
       _initialized = true;
-      print('Settings loaded: LiveTV="$liveTv", Quality=${quality.name}');
+      print('Settings loaded: Clock=$showClock, Ratio=$aspectRatio');
     } catch (e) {
       print('Error loading settings: $e');
     }
@@ -362,6 +382,18 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
   void setPreferDirectPlay(bool value) {
     state = state.copyWith(preferDirectPlay: value);
     _saveBool(_SettingsKeys.preferDirectPlay, value);
+  }
+
+  // ===== Player Display Setters =====
+
+  void setShowClock(bool value) {
+    state = state.copyWith(showClock: value);
+    _saveBool(_SettingsKeys.showClock, value);
+  }
+
+  void setPreferredAspectRatio(String value) {
+    state = state.copyWith(preferredAspectRatio: value);
+    _saveString(_SettingsKeys.preferredAspectRatio, value);
   }
 
   // Legacy methods

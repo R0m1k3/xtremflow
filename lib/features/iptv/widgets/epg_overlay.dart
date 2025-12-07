@@ -4,8 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/playlist_config.dart';
 import '../providers/xtream_provider.dart';
 
-/// Minimal EPG overlay - shows briefly then fades out
-class EpgOverlay extends ConsumerStatefulWidget {
+
+/// Minimal EPG overlay - shows program title and info
+class EpgOverlay extends ConsumerWidget {
   final String streamId;
   final PlaylistConfig playlist;
 
@@ -16,46 +17,9 @@ class EpgOverlay extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<EpgOverlay> createState() => _EpgOverlayState();
-}
-
-class _EpgOverlayState extends ConsumerState<EpgOverlay>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _fadeController;
-  Timer? _hideTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _fadeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-      value: 1.0, // Start visible
-    );
-    // Auto-hide after 5 seconds
-    _startHideTimer();
-  }
-
-  void _startHideTimer() {
-    _hideTimer?.cancel();
-    _hideTimer = Timer(const Duration(seconds: 5), () {
-      if (mounted) {
-        _fadeController.reverse(); // Fade out
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _hideTimer?.cancel();
-    _fadeController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final epgAsync = ref.watch(epgByPlaylistProvider(
-      EpgRequestKey(playlist: widget.playlist, streamId: widget.streamId),
+      EpgRequestKey(playlist: playlist, streamId: streamId),
     ));
 
     return epgAsync.when(
@@ -75,54 +39,69 @@ class _EpgOverlayState extends ConsumerState<EpgOverlay>
           orElse: () => epgEntries.first,
         );
 
-        // Minimal info display - just title and time
-        return FadeTransition(
-          opacity: _fadeController,
-          child: Align(
-            alignment: Alignment.topLeft,
+        // Enhanced info display
+        return Align(
+            alignment: Alignment.bottomLeft, // Align to bottom left near controls
             child: Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              margin: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.6),
-                borderRadius: BorderRadius.circular(6),
+                color: Colors.black.withOpacity(0.5), // Semi-transparent backing for readability
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(0.1)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.red,
-                      borderRadius: BorderRadius.circular(3),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     child: const Text(
                       'LIVE',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 10,
+                        fontSize: 12, // Larger
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
                   ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 300),
-                    child: Text(
-                      currentProgram.title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    constraints: const BoxConstraints(maxWidth: 500), // Wider
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          currentProgram.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18, // Much Larger
+                            fontWeight: FontWeight.bold,
+                            shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (currentProgram.description.isNotEmpty)
+                           Text(
+                            currentProgram.description,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13, // Larger desc
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-          ),
         );
       },
       loading: () => const SizedBox.shrink(),
