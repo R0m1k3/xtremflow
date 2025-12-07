@@ -56,8 +56,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _isInitialized = false;
   bool _isLoading = true;
   bool _showControls = false;
+  bool _isPlaying = true;
+  double _currentPosition = 0;
+  double _totalDuration = 1;
   Timer? _controlsTimer;
   StreamSubscription? _messageSubscription;
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+    return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
+  }
   
   // Premium Features State
   List<Map<String, dynamic>> _audioTracks = [];
@@ -75,9 +85,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           if (type == 'playback_position' && _contentId.isNotEmpty) {
             final currentTime = (data['currentTime'] as num).toDouble();
             final duration = (data['duration'] as num).toDouble();
+            setState(() {
+              _currentPosition = currentTime;
+              _totalDuration = duration > 0 ? duration : 1;
+            });
             ref.read(playbackPositionsProvider.notifier).savePosition(
               _contentId, currentTime, duration
             );
+          } else if (type == 'playback_status') {
+            final status = data['status'];
+            setState(() {
+              _isPlaying = status == 'playing';
+            });
           } else if (type == 'playback_ended' && _contentId.isNotEmpty) {
           } else if (type == 'user_activity') {
             _onHover();
@@ -138,7 +157,23 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       });
     }
     _controlsTimer?.cancel();
-    _controlsTimer = Timer(const Duration(seconds: 3), _hideControls);
+    _controlsTimer = Timer(const Duration(seconds: 4), _hideControls);
+  }
+
+  void _togglePlayPause() {
+    setState(() {
+      _isPlaying = !_isPlaying;
+    });
+    _sendMessage({'type': _isPlaying ? 'play' : 'pause'});
+    _onHover(); // Keep controls visible
+  }
+
+  void _seekTo(double value) {
+    setState(() {
+      _currentPosition = value;
+    });
+    _sendMessage({'type': 'seek', 'value': value});
+    _onHover();
   }
 
   void _playNext() {
@@ -583,11 +618,87 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           
                           // Hover Controls Layer
                           if (_showControls) ...[
+                            // Play/Pause Button (Centered)
+                            Positioned(
+                              top: 0,
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              child: Center(
+                                child: PointerInterceptor(
+                                  child: InkWell(
+                                    onTap: _togglePlayPause,
+                                    borderRadius: BorderRadius.circular(50),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(20),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.5),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: Colors.white, width: 2),
+                                      ),
+                                      child: Icon(
+                                        _isPlaying ? Icons.pause : Icons.play_arrow,
+                                        color: Colors.white,
+                                        size: 64,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // Progress Bar (Bottom) - Only for VOD/Series
+                            if (widget.streamType != StreamType.live)
+                              Positioned(
+                                bottom: 80,
+                                left: 24,
+                                right: 24,
+                                child: PointerInterceptor(
+                                  child: Column(
+                                    children: [
+                                      SliderTheme(
+                                        data: SliderThemeData(
+                                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+                                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+                                          activeTrackColor: AppColors.primary,
+                                          inactiveTrackColor: Colors.white24,
+                                          thumbColor: AppColors.primary,
+                                          overlayColor: AppColors.primary.withOpacity(0.2),
+                                        ),
+                                        child: Slider(
+                                          value: _currentPosition,
+                                          max: _totalDuration,
+                                          onChanged: (value) {
+                                            _seekTo(value);
+                                          },
+                                        ),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              _formatDuration(Duration(seconds: _currentPosition.toInt())),
+                                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                                            ),
+                                            Text(
+                                              _formatDuration(Duration(seconds: _totalDuration.toInt())),
+                                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
                             // Previous Channel (Left Top Zone)
                             if (widget.channels != null && widget.channels!.isNotEmpty)
                               Positioned(
                                 left: 0,
-                                top: 80, // Moved to top
+                                top: 80, 
                                 bottom: null,
                                 height: 200,
                                 width: 100,
