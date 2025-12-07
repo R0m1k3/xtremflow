@@ -24,6 +24,30 @@ class MobileSeriesDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _MobileSeriesDetailScreenState extends ConsumerState<MobileSeriesDetailScreen> {
+  SeriesInfo? _seriesInfo;
+  bool _isLoading = true;
+  String? _error;
+  int _selectedSeason = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSeriesInfo();
+  }
+
+  String? _formatRating(String? rating) {
+    if (rating == null || rating.isEmpty) return null;
+    final value = double.tryParse(rating);
+    if (value != null) {
+      return value.toStringAsFixed(1);
+    }
+    return rating;
+  }
+
+  Future<void> _loadSeriesInfo() async {
+    try {
+      setState(() {
+        _isLoading = true;
         _error = null;
       });
 

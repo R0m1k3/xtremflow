@@ -282,7 +282,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                 return MediaCard(
                   title: serie.name,
                   imageUrl: serie.cover,
-                  imageUrl: serie.cover,
+
                   subtitle: serie.rating != null ? '${_formatRating(serie.rating)} ★' : null,
                   rating: _formatRating(serie.rating),
                   placeholderIcon: Icons.tv,

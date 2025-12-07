@@ -252,7 +252,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                   return MediaCard(
                     title: movie.name,
                     imageUrl: movie.streamIcon,
-                    imageUrl: movie.streamIcon,
+
                     subtitle: movie.rating != null ? '${_formatRating(movie.rating)} ★' : null,
                     rating: _formatRating(movie.rating),
                     isWatched: isWatched,
