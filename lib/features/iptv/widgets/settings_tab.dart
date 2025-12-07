@@ -7,6 +7,7 @@ import '../providers/settings_provider.dart';
 import 'streaming_settings_tab.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../admin/screens/admin_panel.dart';
 
 /// Main Settings tab with sub-tabs for Filters, Streaming, and Appearance
 class SettingsTab extends ConsumerStatefulWidget {
@@ -26,7 +27,8 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    final isAdmin = ref.read(authProvider).currentUser?.isAdmin ?? false;
+    _tabController = TabController(length: isAdmin ? 4 : 3, vsync: this);
     _liveTvController = TextEditingController();
     _moviesController = TextEditingController();
     _seriesController = TextEditingController();
@@ -83,10 +85,12 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
             unselectedLabelColor: Colors.white54,
             dividerColor: Colors.transparent,
             overlayColor: MaterialStateProperty.all(Colors.transparent),
-            tabs: const [
-              Tab(icon: Icon(Icons.filter_list), text: 'Filtres'),
-              Tab(icon: Icon(Icons.stream), text: 'Streaming'),
-              Tab(icon: Icon(Icons.palette), text: 'Apparence'),
+            tabs: [
+              const Tab(icon: Icon(Icons.filter_list), text: 'Filtres'),
+              const Tab(icon: Icon(Icons.stream), text: 'Streaming'),
+              const Tab(icon: Icon(Icons.palette), text: 'Apparence'),
+              if (currentUser?.isAdmin ?? false)
+                const Tab(icon: Icon(Icons.admin_panel_settings), text: 'Administration'),
             ],
           ),
         ),
@@ -104,6 +108,10 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
               
               // Appearance Tab
               _buildAppearanceTab(context),
+
+              // Admin Tab
+              if (currentUser?.isAdmin ?? false)
+                const AdminContent(),
             ],
           ),
         ),
@@ -389,23 +397,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
         ),
         const SizedBox(height: 16),
         
-        // Admin panel
-        if (currentUser?.isAdmin ?? false) ...[
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
-            ),
-            child: ListTile(
-              leading: const Icon(Icons.admin_panel_settings, color: Colors.white),
-              title: Text('Panneau Admin', style: GoogleFonts.roboto(color: Colors.white)),
-              trailing: const Icon(Icons.chevron_right, color: Colors.white54),
-              onTap: () => context.go('/admin'),
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
+
         
         // Change playlist
         Container(

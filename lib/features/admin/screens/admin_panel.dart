@@ -17,28 +17,8 @@ final usersProvider = FutureProvider<List<AppUser>>((ref) async {
   return service.getAllUsers();
 });
 
-class AdminPanel extends ConsumerStatefulWidget {
+class AdminPanel extends StatelessWidget {
   const AdminPanel({super.key});
-
-  @override
-  ConsumerState<AdminPanel> createState() => _AdminPanelState();
-}
-
-class _AdminPanelState extends ConsumerState<AdminPanel>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,64 +36,94 @@ class _AdminPanelState extends ConsumerState<AdminPanel>
             stops: [0.0, 1.0],
           ),
         ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Custom Glass Header
-              Container(
-                padding: const EdgeInsets.all(24),
-                child: Row(
-                  children: [
-                    GlassCard(
-                      borderRadius: 12,
-                      padding: const EdgeInsets.all(8),
-                      showBorder: false,
-                      onTap: () => context.go('/playlists'),
-                      child: const Icon(Icons.arrow_back, color: Colors.white70),
-                    ),
-                    const SizedBox(width: 16),
-                    Text(
-                      'Administration',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Spacer(),
-                    // Custom Tab Bar Indicator
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(50),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildTabButton(0, 'Playlists', Icons.playlist_play),
-                          const SizedBox(width: 4),
-                          _buildTabButton(1, 'Users', Icons.people),
-                        ],
-                      ),
-                    ),
-                  ],
+        child: const AdminContent(),
+      ),
+    );
+  }
+}
+
+class AdminContent extends ConsumerStatefulWidget {
+  const AdminContent({super.key});
+
+  @override
+  ConsumerState<AdminContent> createState() => _AdminContentState();
+}
+
+class _AdminContentState extends ConsumerState<AdminContent>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Column(
+        children: [
+          // Custom Glass Header
+          Container(
+            padding: const EdgeInsets.all(24),
+            child: Row(
+              children: [
+                // Back button only if standalone (optional, keeping for now)
+                GlassCard(
+                  borderRadius: 12,
+                  padding: const EdgeInsets.all(8),
+                  showBorder: false,
+                  onTap: () => context.go('/playlists'),
+                  child: const Icon(Icons.arrow_back, color: Colors.white70),
                 ),
-              ),
-              
-              // Content
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  physics: const NeverScrollableScrollPhysics(), // Custom tabs handle ref
-                  children: const [
-                    _PlaylistsTab(),
-                    _UsersTab(),
-                  ],
+                const SizedBox(width: 16),
+                Text(
+                  'Administration',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-            ],
+                const Spacer(),
+                // Custom Tab Bar Indicator
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildTabButton(0, 'Playlists', Icons.playlist_play),
+                      const SizedBox(width: 4),
+                      _buildTabButton(1, 'Users', Icons.people),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+          
+          // Content
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              physics: const NeverScrollableScrollPhysics(), // Custom tabs handle ref
+              children: const [
+                _PlaylistsTab(),
+                _UsersTab(),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
