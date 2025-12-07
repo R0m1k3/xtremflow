@@ -76,6 +76,10 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
       appBar: AppBar(
         title: Text(widget.series.name),
         backgroundColor: Colors.black87,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       backgroundColor: Colors.grey.shade900,
       body: _isLoading
