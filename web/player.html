@@ -166,6 +166,18 @@
             }, '*');
         });
 
+        // Report user activity (mouse movement) to parent
+        let lastActivityTime = 0;
+        document.addEventListener('mousemove', () => {
+            const now = Date.now();
+            if (now - lastActivityTime > 100) { // Throttle to 100ms
+                lastActivityTime = now;
+                window.parent.postMessage({
+                    type: 'user_activity'
+                }, '*');
+            }
+        });
+
         // Seek to startTime when video is ready
         video.addEventListener('loadedmetadata', () => {
             if (startTime > 0 && startTime < video.duration) {

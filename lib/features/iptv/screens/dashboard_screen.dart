@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/digital_clock.dart';
 import '../widgets/live_tv_tab.dart';
 import '../widgets/movies_tab.dart';
 import '../widgets/series_tab.dart';
@@ -132,7 +133,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                            // Global search trigger
                         },
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 16),
+                      const DigitalClock(),
+                      const SizedBox(width: 16),
                       const CircleAvatar(
                         radius: 16,
                         backgroundColor: Colors.white24,
