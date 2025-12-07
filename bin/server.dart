@@ -8,11 +8,13 @@ import 'package:shelf_router/shelf_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:args/args.dart';
 import 'database/database.dart';
+import 'models/user.dart';
 import 'api/auth_handler.dart';
 import 'api/users_handler.dart';
 import 'api/playlists_handler.dart';
 import 'middleware/auth_middleware.dart';
 import 'middleware/security_middleware.dart';
+import 'services/cleanup_service.dart';
 
 void main(List<String> args) async {
   // Parse command line arguments
@@ -46,6 +48,39 @@ void main(List<String> args) async {
     ..mount('/api/users', Pipeline()
       .addMiddleware(authMiddleware(db))
       .addHandler(usersHandler.router.call));
+
+  // Initialize Cleanup Service
+  final cleanupService = CleanupService();
+  // Target system temp directory (often used by FFmpeg/Dart)
+  cleanupService.addTarget(Directory.systemTemp);
+  // Target local logs/cache if they exist
+  cleanupService.addTarget(Directory('/app/data/logs'));
+  cleanupService.addTarget(Directory('/app/data/tmp'));
+  
+  cleanupService.start();
+
+  // Admin Routes (protected)
+  apiRouter.mount('/api/admin', Pipeline()
+      .addMiddleware(authMiddleware(db))
+      .addHandler((Request request) {
+        final router = Router();
+        
+        // POST /api/admin/purge
+        router.post('/purge', (Request req) async {
+          final user = req.context['user'] as User?;
+          if (user == null || !user.isAdmin) {
+             return Response.forbidden(jsonEncode({'error': 'Admin access required'}));
+          }
+          
+          final result = await cleanupService.runCleanup();
+          return Response.ok(
+            jsonEncode(result),
+            headers: {'content-type': 'application/json'}
+          );
+        });
+        
+        return router(request);
+      }));
 
   // Create handlers
   final staticHandler = createStaticHandler(
