@@ -11,6 +11,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../../core/widgets/components/ui_components.dart';
+import '../../../core/widgets/themed_loading_screen.dart';
 import 'channel_card.dart';
 
 /// Live TV tab - Apple TV Style with Horizontal Category Filter
@@ -69,7 +70,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: channelsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const ThemedLoading(),
         error: (e, s) => Center(child: Text('Error: $e')),
         data: (groupedChannels) {
            // Groups
@@ -337,7 +338,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
           iconUrl: _getProxiedIconUrl(channel.streamIcon),
           currentProgram: null,
           playlist: widget.playlist,
-          onTap: () => _playChannel(channel),
+          onTap: () => _playChannel(channel, channels),
         );
       },
     );
@@ -360,7 +361,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
             height: 70,
             width: double.infinity,
             playlist: widget.playlist,
-            onTap: () => _playChannel(channel),
+            onTap: () => _playChannel(channel, channels),
           ),
         );
       },
@@ -375,7 +376,8 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
     return originalUrl;
   }
 
-  void _playChannel(Channel channel) {
+  void _playChannel(Channel channel, List<Channel> contextList) {
+    final index = contextList.indexOf(channel);
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => PlayerScreen(
@@ -383,6 +385,8 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
           title: channel.name,
           playlist: widget.playlist,
           streamType: StreamType.live,
+          channels: contextList,
+          initialIndex: index,
         ),
       ),
     );
