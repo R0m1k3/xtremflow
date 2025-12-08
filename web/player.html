@@ -254,9 +254,9 @@
             setTimeout(reportAudioTracks, 1000); // Wait a bit for tracks to parse
         });
 
-        // Report user activity (mouse movement) to parent
+        // Report user activity (mouse movement or touch) to parent
         let lastActivityTime = 0;
-        document.addEventListener('mousemove', () => {
+        function reportActivity() {
             const now = Date.now();
             if (now - lastActivityTime > 100) { // Throttle to 100ms
                 lastActivityTime = now;
@@ -264,7 +264,12 @@
                     type: 'user_activity'
                 }, '*');
             }
-        });
+        }
+        document.addEventListener('mousemove', reportActivity);
+        document.addEventListener('touchstart', reportActivity);
+        document.addEventListener('touchmove', reportActivity);
+        document.addEventListener('click', reportActivity);
+        document.addEventListener('touchend', reportActivity);
 
         // Seek to startTime when video is ready
         video.addEventListener('loadedmetadata', () => {
