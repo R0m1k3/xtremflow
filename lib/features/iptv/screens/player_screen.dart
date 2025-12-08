@@ -353,47 +353,59 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       } else {
         // For VOD and Series
         
-        // FORCE API STREAMING (FFMPEG)
-        // We always use the backend /api/stream endpoint because it handles audio transcoding (to AAC)
-        // which is required for browsers to play content with AC3/DTS audio.
-        // For 'High' quality, the backend uses '-c:v copy', so video quality is preserved (Direct Stream).
-        setState(() {
-          _statusMessage = 'Preparing stream...';
-        });
+        // For VOD and Series
         
-        final baseUrl = html.window.location.origin;
-        final vodStreamUrl = widget.streamType == StreamType.vod 
-            ? xtreamService.getVodStreamUrl(currentStreamId, widget.containerExtension)
-            : xtreamService.getSeriesStreamUrl(currentStreamId, widget.containerExtension);
-        
-        final encodedUrl = Uri.encodeComponent(vodStreamUrl);
-        
-        // Read settings for VOD quality
+        // Determine play mode: Direct (Proxy) vs Transcode (FFmpeg)
+        // Default to Direct/Proxy because it preserves duration metadata and seeking capability (via Range headers)
+        // Only use Transcode if explicitly FORCED (e.g. for audio compatibility issues like AC3/DTS on some browsers)
         final settings = ref.read(iptvSettingsProvider);
-        
-        // Map quality enum to string (using if-else to avoid switch exhaustivity issues)
-        String qualityParam = 'medium';
-        if (settings.streamQuality == StreamQuality.low) {
-          qualityParam = 'low';
-        } else if (settings.streamQuality == StreamQuality.high) {
-          qualityParam = 'high';
+        final baseUrl = html.window.location.origin;
+        bool useTranscode = settings.transcodingMode == TranscodingMode.forced;
+
+        setState(() {
+          _statusMessage = useTranscode ? 'Preparing stream...' : 'Loading video...';
+        });
+
+        if (useTranscode) {
+           // Transcoding Mode (FFmpeg pipe)
+           final encodedUrl = Uri.encodeComponent(
+              widget.streamType == StreamType.vod 
+                ? xtreamService.getVodStreamUrl(currentStreamId, widget.containerExtension)
+                : xtreamService.getSeriesStreamUrl(currentStreamId, widget.containerExtension)
+           );
+           
+           String qualityParam = 'medium';
+           if (settings.streamQuality == StreamQuality.low) qualityParam = 'low';
+           else if (settings.streamQuality == StreamQuality.high) qualityParam = 'high';
+           
+           // Calculate start time for seeking support
+           double startSeconds = startTimeOverride ?? 0;
+           if (startTimeOverride == null && _contentId.isNotEmpty) {
+               final positions = ref.read(playbackPositionsProvider);
+               final saved = positions.getPosition(_contentId);
+               if (saved > 0) startSeconds = saved;
+           }
+           
+           // We force extension to .ts for mpegts.js compatibility
+           hlsUrl = '$baseUrl/api/stream/$currentStreamId?url=$encodedUrl&quality=$qualityParam&start=${startSeconds.round()}&ext=.ts';
+           debugPrint('PlayerScreen: Streaming VOD (Transcoded): $hlsUrl');
+           
+        } else {
+           // Direct/Proxy Mode (Preserves Duration)
+           final rawUrl = widget.streamType == StreamType.vod 
+                ? '${widget.playlist.dns}/movie/${widget.playlist.username}/${widget.playlist.password}/$currentStreamId.${widget.containerExtension}'
+                : '${widget.playlist.dns}/series/${widget.playlist.username}/${widget.playlist.password}/$currentStreamId.${widget.containerExtension}';
+           
+           // Force use of local proxy /api/xtream/ to handle CORS and Range headers correctly
+           final proxyPath = '/api/xtream/$rawUrl';
+           hlsUrl = '$baseUrl$proxyPath';
+           
+           // Append start time for direct play? 
+           // HTML5 video handles seeking naturally via headers, but if we want to resume:
+           // We have to seek AFTER metadata is loaded via JS (_seekTo called in onMessage logic).
+           
+           debugPrint('PlayerScreen: Streaming VOD (Direct Proxy): $hlsUrl');
         }
-        
-        // Calculate start time for seeking support
-        // If override provided (seeking), use it. Else check provider resume.
-        double startSeconds = startTimeOverride ?? 0;
-        if (startTimeOverride == null && _contentId.isNotEmpty) {
-            final positions = ref.read(playbackPositionsProvider);
-            final saved = positions.getPosition(_contentId);
-            if (saved > 0) startSeconds = saved;
-        }
-        
-        // Construct URL with start param
-        // Note: We force extension to .ts for mpegts.js compatibility
-        final streamEndpoint = '$baseUrl/api/stream/$currentStreamId?url=$encodedUrl&quality=$qualityParam&start=${startSeconds.round()}&ext=.ts';
-        
-        debugPrint('PlayerScreen: Streaming VOD (Audio Fix enabled): $streamEndpoint');
-        hlsUrl = streamEndpoint;
       }
       
       setState(() {
