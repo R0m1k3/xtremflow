@@ -689,7 +689,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       ) : null,
       extendBodyBehindAppBar: true,
       backgroundColor: Colors.black,
-      body: MouseRegion(
+      body: ClipRect(
+        child: MouseRegion(
         onHover: (_) => _onHover(),
         child: _errorMessage != null
             ? Center(
@@ -956,16 +957,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                 bottom: 100, // Move up above progress bar area/OS safe area
                                 left: 0,
                                 right: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  decoration: const BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.bottomCenter,
-                                      end: Alignment.topCenter,
-                                      colors: [Colors.black87, Colors.transparent],
-                                    ),
-                                  ),
-                                  child: PointerInterceptor(
+                                child: PointerInterceptor(
                                     child: EpgOverlay(
                                       streamId: widget.channels != null 
                                           ? widget.channels![_currentIndex].streamId
@@ -973,7 +965,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                       playlist: widget.playlist,
                                     ),
                                   ),
-                                ),
                               ),
                           ],
                           
@@ -998,6 +989,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             ),
                         ],
                       ),
+        ),
       ),
     );
   }
