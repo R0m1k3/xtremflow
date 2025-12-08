@@ -179,31 +179,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     });
     
     // Check if we are using server-side transcoding for VOD/Series
-    // If so, we must reload the player because we can't seek in a piped stream directly via JS
     final settings = ref.read(iptvSettingsProvider);
-    // We now force transcoding (API stream) for ALL VOD content to ensure audio compatibility.
-    // So isTranscoding is effectively true for all non-live content.
-    final isTranscoding = widget.streamType != StreamType.live;
+    // Only reload for seeking if we are rigorously Transcoding (FFmpeg pipe)
+    // If we are in Direct Proxy mode (default), we can seek natively via JS.
+    final bool usingTranscoding = settings.transcodingMode == TranscodingMode.forced;
     
-    if (isTranscoding) {
+    if (usingTranscoding) {
        debugPrint('Seeking in transcoded VOD - reloading player at ${value.round()}s');
-       // Reload player with new start time
-       // This will trigger _initializePlayer with the current position effectively
-       // But _initializePlayer reads from _currentPosition? No, it reads from provider OR starts at 0.
-       // We need to force it to start at 'value'.
-       // Best way is to just call _initializePlayer which builds the URL.
-       // But _initializePlayer checks logic.
-       
-       // Actually _initializePlayer uses: startTime = positions.getPosition(_contentId);
-       // So if we save the position first, it might pick it up?
-       // Let's pass the seek time explicitly to a reload method or updating state.
-       
-       // Simplest: Update the provider, then re-init.
        ref.read(playbackPositionsProvider.notifier).savePosition(_contentId, value, _totalDuration);
        _initializePlayer(startTimeOverride: value);
        
     } else {
-       // Direct play or Live - standard seeking
+       // Direct play (Proxy) or Live - standard seeking happens in the browser via Range headers
        _sendMessage({'type': 'seek', 'value': value});
     }
     
@@ -432,10 +419,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       
       final settings = ref.read(iptvSettingsProvider);
       // We force transcoding/proxy usage for all VOD/Series now
-      final isTranscoding = widget.streamType != StreamType.live;
+      final bool usingTranscoding = settings.transcodingMode == TranscodingMode.forced;
       
       final encodedHlsUrl = Uri.encodeComponent(hlsUrl);
-      final playerUrl = (!isTranscoding && startTime > 0)
+      // Pass startTime to player.html if we are NOT using server-side transcoding (Direct/Proxy mode)
+      // For Transcoding, the server handles start time via the 'start' query param in hlsUrl.
+      final playerUrl = (!usingTranscoding && startTime > 0)
           ? 'player.html?url=$encodedHlsUrl&startTime=${startTime.toStringAsFixed(0)}'
           : 'player.html?url=$encodedHlsUrl';
       
