@@ -140,6 +140,15 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
     return rating;
   }
 
+  /// Proxy HTTP images through backend to avoid CORS/mixed-content issues
+  String? _getProxiedImageUrl(String? originalUrl) {
+    if (originalUrl == null || originalUrl.isEmpty) return null;
+    if (originalUrl.startsWith('http://')) {
+      return '/api/xtream/$originalUrl';
+    }
+    return originalUrl;
+  }
+
   void _playMovie(Movie movie) {
     ref.read(watchHistoryProvider.notifier).markMovieWatched(movie.streamId);
     
@@ -175,7 +184,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
     final heroItems = displayMovies.take(5).map((m) => HeroItem(
       id: m.streamId,
       title: m.name,
-      imageUrl: m.streamIcon ?? '',
+      imageUrl: _getProxiedImageUrl(m.streamIcon),
       subtitle: m.rating != null ? '${_formatRating(m.rating)} ★' : null,
       onMoreInfo: () {
          _playMovie(m);
@@ -291,7 +300,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                 
                 return MediaCard(
                   title: movie.name,
-                  imageUrl: movie.streamIcon,
+                  imageUrl: _getProxiedImageUrl(movie.streamIcon),
 
                   subtitle: movie.rating != null ? '${_formatRating(movie.rating)} ★' : null,
                   rating: _formatRating(movie.rating),

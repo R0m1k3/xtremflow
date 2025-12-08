@@ -88,7 +88,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           final type = data['type'];
           if (type == 'playback_position' && _contentId.isNotEmpty) {
             final currentTime = (data['currentTime'] as num).toDouble();
-            final duration = (data['duration'] as num).toDouble();
+            final rawDuration = (data['duration'] as num).toDouble();
+            final duration = rawDuration.isFinite ? rawDuration : 0.0;
             setState(() {
               _currentPosition = currentTime;
               _totalDuration = duration > 0 ? duration : 1;
@@ -936,11 +937,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
                                             Text(
-                                              _formatDuration(Duration(seconds: _currentPosition.toInt())),
+                                              _formatDuration(Duration(seconds: _currentPosition.isFinite ? _currentPosition.toInt() : 0)),
                                               style: const TextStyle(color: Colors.white, fontSize: 12),
                                             ),
                                             Text(
-                                              _formatDuration(Duration(seconds: _totalDuration.toInt())),
+                                              _formatDuration(Duration(seconds: _totalDuration.isFinite ? _totalDuration.toInt() : 0)),
                                               style: const TextStyle(color: Colors.white, fontSize: 12),
                                             ),
                                           ],

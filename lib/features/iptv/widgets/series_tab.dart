@@ -140,6 +140,15 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
     return rating;
   }
 
+  /// Proxy HTTP images through backend to avoid CORS/mixed-content issues
+  String? _getProxiedImageUrl(String? originalUrl) {
+    if (originalUrl == null || originalUrl.isEmpty) return null;
+    if (originalUrl.startsWith('http://')) {
+      return '/api/xtream/$originalUrl';
+    }
+    return originalUrl;
+  }
+
   void _openSeries(Series series) {
     Navigator.push(
       context,
@@ -173,7 +182,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
     final heroItems = displaySeries.take(5).map((s) => HeroItem(
       id: s.seriesId.toString(), // ID logic might differ for Series
       title: s.name,
-      imageUrl: s.cover ?? '',
+      imageUrl: _getProxiedImageUrl(s.cover),
       subtitle: s.rating != null ? '${_formatRating(s.rating)} ★' : null,
       onMoreInfo: () => _openSeries(s),
     )).toList();
@@ -281,7 +290,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                 final serie = displaySeries[index];
                 return MediaCard(
                   title: serie.name,
-                  imageUrl: serie.cover,
+                  imageUrl: _getProxiedImageUrl(serie.cover),
 
                   subtitle: serie.rating != null ? '${_formatRating(serie.rating)} ★' : null,
                   rating: _formatRating(serie.rating),
