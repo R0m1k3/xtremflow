@@ -106,7 +106,7 @@ void main(List<String> args) async {
     final path = request.url.path;
     if (path.isEmpty || 
         path == 'index.html' || 
-        path == 'flutter_service_worker.js' || 
+        path.endsWith('.js') ||  // Disable cache for ALL JS files (main.dart.js, bootstrap, etc)
         path.endsWith('.json')) { // version.json etc
       return response.change(headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',

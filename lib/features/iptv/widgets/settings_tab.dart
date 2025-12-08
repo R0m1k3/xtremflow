@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:html' as html; // For reloading
 import '../../auth/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import 'streaming_settings_tab.dart';
@@ -428,6 +429,66 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
             subtitle: Text(
               'XtremFlow IPTV v1.0.0',
               style: GoogleFonts.roboto(fontSize: 12, color: Colors.white54),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        
+        // Maintenance Section
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.orange.withOpacity(0.3)),
+          ),
+          child: ListTile(
+            leading: const Icon(Icons.cleaning_services, color: Colors.orange),
+            title: Text('Maintenance', style: GoogleFonts.roboto(color: Colors.white)),
+            subtitle: Text(
+              'En cas de problèmes d\'affichage ou de mise à jour',
+              style: GoogleFonts.roboto(fontSize: 12, color: Colors.white54),
+            ),
+            trailing: FilledButton.icon(
+              onPressed: () {
+                 // Show confirmation dialog
+                 showDialog(
+                   context: context, 
+                   builder: (context) => AlertDialog(
+                     backgroundColor: const Color(0xFF1E1E1E),
+                     title: const Text('Vider le cache ?', style: TextStyle(color: Colors.white)),
+                     content: const Text(
+                       'Cette action va recharger l\'application et effacer les données temporaires.\n'
+                       'Vos réglages et favoris sont sauvegardés sur le serveur.',
+                       style: TextStyle(color: Colors.white70),
+                     ),
+                     actions: [
+                       TextButton(
+                         onPressed: () => Navigator.pop(context),
+                         child: const Text('Annuler'),
+                       ),
+                       FilledButton(
+                         style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+                         onPressed: () {
+                           Navigator.pop(context);
+                           // Clear PaintingCache
+                           PaintingBinding.instance.imageCache.clear();
+                           PaintingBinding.instance.imageCache.clearLiveImages();
+                           
+                           // Reload application
+                           html.window.location.reload();
+                         },
+                         child: const Text('Vider et Recharger'),
+                       ),
+                     ],
+                   )
+                 );
+              },
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('Vider le Cache'),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.orange.withOpacity(0.2),
+                foregroundColor: Colors.orange,
+              ),
             ),
           ),
         ),
