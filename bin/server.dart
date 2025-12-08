@@ -83,11 +83,36 @@ void main(List<String> args) async {
       }),);
 
   // Create handlers
-  final staticHandler = createStaticHandler(
+  // Create static handler
+  final baseStaticHandler = createStaticHandler(
     webPath,
     defaultDocument: 'index.html',
     listDirectories: false,
   );
+
+  // Wrap static handler to enforce cache policies
+  Handler staticHandler = (Request request) async {
+    final response = await baseStaticHandler(request);
+    
+    // Disable cache for entry points to ensure updates are seen immediately
+    final path = request.url.path;
+    if (path.isEmpty || 
+        path == 'index.html' || 
+        path == 'flutter_service_worker.js' || 
+        path.endsWith('.json')) { // version.json etc
+      return response.change(headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      });
+    }
+    
+    // Allow aggressive caching for hashed assets (images, compiled JS)
+    // Flutter web builds usually hash main.dart.js, but let's be safe with 1 day
+    return response.change(headers: {
+      'Cache-Control': 'public, max-age=86400', 
+    });
+  };
 
   // Main handler with API proxy and FFmpeg streaming
   final handler = Cascade()
@@ -285,6 +310,15 @@ Handler _createXtreamProxyHandler() {
         headers: {
           'content-type': response.headers['content-type'] ?? 'application/json',
           'access-control-allow-origin': '*',
+          // Forward cache headers from upstream
+          if (response.headers.containsKey('cache-control'))
+            'cache-control': response.headers['cache-control']!,
+          if (response.headers.containsKey('expires'))
+            'expires': response.headers['expires']!,
+          if (response.headers.containsKey('etag'))
+            'etag': response.headers['etag']!,
+          if (response.headers.containsKey('last-modified'))
+            'last-modified': response.headers['last-modified']!,
         },
       );
     } catch (e, stackTrace) {
