@@ -180,7 +180,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // Check if we are using server-side transcoding for VOD/Series
     // If so, we must reload the player because we can't seek in a piped stream directly via JS
     final settings = ref.read(iptvSettingsProvider);
-    final isTranscoding = widget.streamType != StreamType.live && settings.streamQuality != StreamQuality.high;
+    // We now force transcoding (API stream) for ALL VOD content to ensure audio compatibility.
+    // So isTranscoding is effectively true for all non-live content.
+    final isTranscoding = widget.streamType != StreamType.live;
     
     if (isTranscoding) {
        debugPrint('Seeking in transcoded VOD - reloading player at ${value.round()}s');
@@ -345,54 +347,41 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       } else {
         // For VOD and Series
         
-        // CHECK QUALITY SETTING
-        // If Quality is NOT High, we force transcoding to ensure audio compatibility (AAC)
-        // This solves "No Sound" issues with AC3/DTS on mobile/web.
-        // NOTE: For MKV files with unsupported audio, user should select Low/Medium quality.
-        final settings = ref.read(iptvSettingsProvider);
-        final useTranscoding = settings.streamQuality != StreamQuality.high;
+        // FORCE API STREAMING (FFMPEG)
+        // We always use the backend /api/stream endpoint because it handles audio transcoding (to AAC)
+        // which is required for browsers to play content with AC3/DTS audio.
+        // For 'High' quality, the backend uses '-c:v copy', so video quality is preserved (Direct Stream).
+        setState(() {
+          _statusMessage = 'Preparing stream...';
+        });
         
-        if (useTranscoding) {
-           setState(() {
-            _statusMessage = 'Starting VOD Transcoding (Audio Fix)...';
-           });
-           
-           final baseUrl = html.window.location.origin;
-           final vodStreamUrl = widget.streamType == StreamType.vod 
-               ? xtreamService.getVodStreamUrl(currentStreamId, widget.containerExtension)
-               : xtreamService.getSeriesStreamUrl(currentStreamId, widget.containerExtension);
-           
-           final encodedUrl = Uri.encodeComponent(vodStreamUrl);
-           final qualityParam = switch (settings.streamQuality) {
-              StreamQuality.low => 'low',
-              StreamQuality.medium => 'medium',
-              StreamQuality.high => 'high',
-           };
-           
-           // Calculate start time for seeking support
-           // If override provided (seeking), use it. Else check provider resume.
-           double startSeconds = startTimeOverride ?? 0;
-           if (startTimeOverride == null && _contentId.isNotEmpty) {
-              final positions = ref.read(playbackPositionsProvider);
-              final saved = positions.getPosition(_contentId);
-              if (saved > 0) startSeconds = saved;
-           }
-           
-           // Construct URL with start param
-           // Note: We force extension to .ts for mpegts.js compatibility
-           final streamEndpoint = '$baseUrl/api/stream/$currentStreamId?url=$encodedUrl&quality=$qualityParam&start=${startSeconds.round()}&ext=.ts';
-           
-           debugPrint('PlayerScreen: Streaming Transcoded VOD: $streamEndpoint');
-           hlsUrl = streamEndpoint;
-           
-        } else {
-          // Direct Play (High Quality) - Original behavior
-          final streamUrl = widget.streamType == StreamType.vod
-              ? xtreamService.getVodStreamUrl(currentStreamId, widget.containerExtension)
-              : xtreamService.getSeriesStreamUrl(currentStreamId, widget.containerExtension);
-          hlsUrl = streamUrl;
-          debugPrint('PlayerScreen: Direct playback URL (High Quality): $hlsUrl');
+        final baseUrl = html.window.location.origin;
+        final vodStreamUrl = widget.streamType == StreamType.vod 
+            ? xtreamService.getVodStreamUrl(currentStreamId, widget.containerExtension)
+            : xtreamService.getSeriesStreamUrl(currentStreamId, widget.containerExtension);
+        
+        final encodedUrl = Uri.encodeComponent(vodStreamUrl);
+        final qualityParam = switch (settings.streamQuality) {
+            StreamQuality.low => 'low',
+            StreamQuality.medium => 'medium',
+            StreamQuality.high => 'high',
+        };
+        
+        // Calculate start time for seeking support
+        // If override provided (seeking), use it. Else check provider resume.
+        double startSeconds = startTimeOverride ?? 0;
+        if (startTimeOverride == null && _contentId.isNotEmpty) {
+            final positions = ref.read(playbackPositionsProvider);
+            final saved = positions.getPosition(_contentId);
+            if (saved > 0) startSeconds = saved;
         }
+        
+        // Construct URL with start param
+        // Note: We force extension to .ts for mpegts.js compatibility
+        final streamEndpoint = '$baseUrl/api/stream/$currentStreamId?url=$encodedUrl&quality=$qualityParam&start=${startSeconds.round()}&ext=.ts';
+        
+        debugPrint('PlayerScreen: Streaming VOD (Audio Fix enabled): $streamEndpoint');
+        hlsUrl = streamEndpoint;
       }
       
       setState(() {
@@ -418,7 +407,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // If Direct Play, pass startTime.
       
       final settings = ref.read(iptvSettingsProvider);
-      final isTranscoding = widget.streamType != StreamType.live && settings.streamQuality != StreamQuality.high;
+      // We force transcoding/proxy usage for all VOD/Series now
+      final isTranscoding = widget.streamType != StreamType.live;
       
       final encodedHlsUrl = Uri.encodeComponent(hlsUrl);
       final playerUrl = (!isTranscoding && startTime > 0)
