@@ -94,12 +94,10 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
   }
 
   Future<void> _loadMoreMovies() async {
-    // Double-check conditions to prevent race conditions
+    // Prevent race conditions
     if (_isLoading || !_hasMore || !mounted) return;
 
-    // Set loading flag immediately before any async operation
-    _isLoading = true;
-    if (mounted) setState(() {});
+    setState(() => _isLoading = true);
 
     try {
       final service = ref.read(xtreamServiceProvider(widget.playlist));
