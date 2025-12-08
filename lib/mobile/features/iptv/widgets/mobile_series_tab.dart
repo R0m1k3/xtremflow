@@ -125,8 +125,8 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
   }
 
   /// Proxy HTTP images through backend to avoid CORS/mixed-content issues
-  String? _getProxiedImageUrl(String? originalUrl) {
-    if (originalUrl == null || originalUrl.isEmpty) return null;
+  String _getProxiedImageUrl(String? originalUrl) {
+    if (originalUrl == null || originalUrl.isEmpty) return '';
     if (originalUrl.startsWith('http://')) {
       return '/api/xtream/$originalUrl';
     }

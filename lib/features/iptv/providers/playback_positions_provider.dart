@@ -48,7 +48,7 @@ class PlaybackPositionsNotifier extends StateNotifier<PlaybackPositions> {
       if (positionsJson != null) {
         final decoded = jsonDecode(positionsJson) as Map<String, dynamic>;
         final positions = decoded.map((key, value) => 
-          MapEntry(key, (value as num).toDouble())
+          MapEntry(key, (value as num).toDouble()),
         );
         
         state = PlaybackPositions(positions: positions);

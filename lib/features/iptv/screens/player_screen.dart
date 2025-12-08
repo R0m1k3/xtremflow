@@ -95,7 +95,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               _totalDuration = duration > 0 ? duration : 1;
             });
             ref.read(playbackPositionsProvider.notifier).savePosition(
-              _contentId, currentTime, duration
+              _contentId, currentTime, duration,
             );
           } else if (type == 'playback_status') {
             final status = data['status'];
@@ -674,7 +674,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       appBar: _showControls ? AppBar(
         title: Text(widget.channels != null && widget.channels!.isNotEmpty 
             ? widget.channels![_currentIndex].name 
-            : widget.title),
+            : widget.title,),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -775,7 +775,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                                 ? Icons.volume_off 
                                                 : _volume < 0.5 ? Icons.volume_down : Icons.volume_up,
                                             color: Colors.white, 
-                                            size: 20
+                                            size: 20,
                                           ),
                                           onPressed: _toggleMute,
                                           tooltip: _volume == 0 ? 'Unmute' : 'Mute',

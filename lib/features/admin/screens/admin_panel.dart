@@ -410,7 +410,7 @@ class _UsersTab extends ConsumerWidget {
                           child: Icon(
                             user.isAdmin ? Icons.admin_panel_settings : Icons.person,
                             color: user.isAdmin ? Colors.black : AppColors.textPrimary,
-                            size: 24
+                            size: 24,
                           ),
                         ),
                         const SizedBox(width: 16),

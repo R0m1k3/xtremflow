@@ -20,7 +20,7 @@ class EpgOverlay extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final epgAsync = ref.watch(epgByPlaylistProvider(
       EpgRequestKey(playlist: playlist, streamId: streamId),
-    ));
+    ),);
 
     return epgAsync.when(
       data: (epgEntries) {

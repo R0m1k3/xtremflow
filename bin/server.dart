@@ -43,11 +43,11 @@ void main(List<String> args) async {
     // Playlists endpoints (with auth middleware)
     ..mount('/api/playlists', Pipeline()
       .addMiddleware(authMiddleware(db))
-      .addHandler(playlistsHandler.router.call))
+      .addHandler(playlistsHandler.router.call),)
     // Users endpoints (with auth middleware)
     ..mount('/api/users', Pipeline()
       .addMiddleware(authMiddleware(db))
-      .addHandler(usersHandler.router.call));
+      .addHandler(usersHandler.router.call),);
 
   // Initialize Cleanup Service
   final cleanupService = CleanupService();
@@ -75,12 +75,12 @@ void main(List<String> args) async {
           final result = await cleanupService.runCleanup();
           return Response.ok(
             jsonEncode(result),
-            headers: {'content-type': 'application/json'}
+            headers: {'content-type': 'application/json'},
           );
         });
         
         return router(request);
-      }));
+      }),);
 
   // Create handlers
   final staticHandler = createStaticHandler(
@@ -532,14 +532,14 @@ Handler _createStreamHandler() {
             '-vf', 'scale=-2:480',
             '-b:v', '800k',
             '-maxrate', '800k',
-            '-bufsize', '1600k'
+            '-bufsize', '1600k',
           ]);
         } else {
           // Medium: Original res (or cap at 720p?), 2500k
           ffmpegArgs.addAll([
             '-b:v', '2500k',
             '-maxrate', '2500k',
-            '-bufsize', '5000k'
+            '-bufsize', '5000k',
           ]);
         }
       }
@@ -556,7 +556,7 @@ Handler _createStreamHandler() {
         '-fflags', '+genpts',
         
         // Output to stdout pipe
-        'pipe:1'
+        'pipe:1',
       ]);
 
       // Start the process

@@ -37,7 +37,7 @@ class UsersHandler {
       return Response.ok(jsonEncode({
         'success': true,
         'users': users.map((u) => u.toJson()).toList(),
-      }), headers: {'Content-Type': 'application/json'});
+      }), headers: {'Content-Type': 'application/json'},);
     } catch (e) {
       return Response.internalServerError(
         body: jsonEncode({'success': false, 'error': e.toString()}),
@@ -62,21 +62,21 @@ class UsersHandler {
         return Response.badRequest(body: jsonEncode({
           'success': false,
           'error': 'Missing required fields',
-        }), headers: {'Content-Type': 'application/json'});
+        }), headers: {'Content-Type': 'application/json'},);
       }
 
       if (db.findUserByUsername(username) != null) {
          return Response.badRequest(body: jsonEncode({
           'success': false,
           'error': 'Username already exists',
-        }), headers: {'Content-Type': 'application/json'});
+        }), headers: {'Content-Type': 'application/json'},);
       }
 
       final user = db.createUser(username, password, isAdmin: isAdmin);
       return Response.ok(jsonEncode({
         'success': true,
         'user': user.toJson(),
-      }), headers: {'Content-Type': 'application/json'});
+      }), headers: {'Content-Type': 'application/json'},);
 
     } catch (e) {
       return Response.internalServerError(
@@ -100,7 +100,7 @@ class UsersHandler {
         return Response.badRequest(body: jsonEncode({
           'success': false,
           'error': 'Missing password',
-        }), headers: {'Content-Type': 'application/json'});
+        }), headers: {'Content-Type': 'application/json'},);
       }
 
       db.updateUserPassword(id, password);
@@ -151,7 +151,7 @@ class UsersHandler {
           return Response.badRequest(body: jsonEncode({
             'success': false,
             'error': 'Cannot delete yourself',
-          }), headers: {'Content-Type': 'application/json'});
+          }), headers: {'Content-Type': 'application/json'},);
        }
 
        db.deleteUser(id);

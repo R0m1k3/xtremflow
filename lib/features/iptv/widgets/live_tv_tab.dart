@@ -165,7 +165,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                           if (_searchQuery.isNotEmpty)
                           GestureDetector(
                             onTap: () => _searchController.clear(),
-                            child: const Icon(Icons.close, size: 16, color: AppColors.textSecondary)
+                            child: const Icon(Icons.close, size: 16, color: AppColors.textSecondary),
                           ),
                         ],
                       ),

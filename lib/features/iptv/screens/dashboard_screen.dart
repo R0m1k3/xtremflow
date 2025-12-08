@@ -210,7 +210,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                 fontWeight: FontWeight.w300, 
                 fontSize: 16, 
                 color: Colors.white.withOpacity(0.8),
-                height: 0.8
+                height: 0.8,
               ),
             ),
           ],

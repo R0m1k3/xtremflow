@@ -11,7 +11,7 @@ class AuthApiService {
       final response = await _api.post('/api/auth/login', data: {
         'username': username,
         'password': password,
-      });
+      },);
 
       final data = response.data as Map<String, dynamic>;
       

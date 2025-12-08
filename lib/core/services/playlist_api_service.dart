@@ -43,7 +43,7 @@ class PlaylistApiService {
         'username': username,
         'password': password,
         'dns': dns,
-      });
+      },);
 
       final data = response.data as Map<String, dynamic>;
       
@@ -80,7 +80,7 @@ class PlaylistApiService {
         'username': username,
         'password': password,
         'dns': dns,
-      });
+      },);
 
       final data = response.data as Map<String, dynamic>;
       

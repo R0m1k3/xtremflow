@@ -373,14 +373,14 @@ class _MediaCardState extends State<MediaCard>
                               color: Colors.black.withOpacity(0.5),
                               blurRadius: 20,
                               offset: const Offset(0, 10),
-                            )
+                            ),
                           ]
                         : [
                              BoxShadow(
                               color: Colors.black.withOpacity(0.2),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
-                            )
+                            ),
                           ],
                   ),
                   child: ClipRRect(

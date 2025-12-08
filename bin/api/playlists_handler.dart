@@ -27,14 +27,14 @@ class PlaylistsHandler {
         return Response(401, body: jsonEncode({
           'success': false,
           'error': 'Unauthorized',
-        }), headers: {'Content-Type': 'application/json'});
+        }), headers: {'Content-Type': 'application/json'},);
       }
 
       final playlists = db.getPlaylists(userId);
 
       return Response.ok(jsonEncode({
         'playlists': playlists.map((p) => p.toJson()).toList(),
-      }), headers: {'Content-Type': 'application/json'});
+      }), headers: {'Content-Type': 'application/json'},);
     } catch (e) {
       return Response.internalServerError(
         body: jsonEncode({'success': false, 'error': e.toString()}),
@@ -51,7 +51,7 @@ class PlaylistsHandler {
         return Response(401, body: jsonEncode({
           'success': false,
           'error': 'Unauthorized',
-        }), headers: {'Content-Type': 'application/json'});
+        }), headers: {'Content-Type': 'application/json'},);
       }
 
       final payload = jsonDecode(await request.readAsString()) as Map<String, dynamic>;
@@ -65,7 +65,7 @@ class PlaylistsHandler {
         return Response(400, body: jsonEncode({
           'success': false,
           'error': 'Missing required fields',
-        }), headers: {'Content-Type': 'application/json'});
+        }), headers: {'Content-Type': 'application/json'},);
       }
 
       final playlist = db.createPlaylist(
@@ -80,7 +80,7 @@ class PlaylistsHandler {
       return Response.ok(jsonEncode({
         'success': true,
         'playlist': playlist.toJson(),
-      }), headers: {'Content-Type': 'application/json'});
+      }), headers: {'Content-Type': 'application/json'},);
     } catch (e) {
       return Response.internalServerError(
         body: jsonEncode({'success': false, 'error': e.toString()}),
@@ -97,7 +97,7 @@ class PlaylistsHandler {
         return Response(401, body: jsonEncode({
           'success': false,
           'error': 'Unauthorized',
-        }), headers: {'Content-Type': 'application/json'});
+        }), headers: {'Content-Type': 'application/json'},);
       }
 
       // Verify playlist belongs to user
@@ -106,14 +106,14 @@ class PlaylistsHandler {
         return Response(404, body: jsonEncode({
           'success': false,
           'error': 'Playlist not found',
-        }), headers: {'Content-Type': 'application/json'});
+        }), headers: {'Content-Type': 'application/json'},);
       }
 
       if (existing.userId != userId) {
         return Response(403, body: jsonEncode({
           'success': false,
           'error': 'Forbidden',
-        }), headers: {'Content-Type': 'application/json'});
+        }), headers: {'Content-Type': 'application/json'},);
       }
 
       final payload = jsonDecode(await request.readAsString()) as Map<String, dynamic>;
@@ -135,7 +135,7 @@ class PlaylistsHandler {
       return Response.ok(jsonEncode({
         'success': true,
         'playlist': playlist.toJson(),
-      }), headers: {'Content-Type': 'application/json'});
+      }), headers: {'Content-Type': 'application/json'},);
     } catch (e) {
       return Response.internalServerError(
         body: jsonEncode({'success': false, 'error': e.toString()}),
@@ -152,7 +152,7 @@ class PlaylistsHandler {
         return Response(401, body: jsonEncode({
           'success': false,
           'error': 'Unauthorized',
-        }), headers: {'Content-Type': 'application/json'});
+        }), headers: {'Content-Type': 'application/json'},);
       }
 
       // Verify playlist belongs to user
@@ -161,21 +161,21 @@ class PlaylistsHandler {
         return Response(404,body: jsonEncode({
           'success': false,
           'error': 'Playlist not found',
-        }), headers: {'Content-Type': 'application/json'});
+        }), headers: {'Content-Type': 'application/json'},);
       }
 
       if (existing.userId != userId) {
         return Response(403, body: jsonEncode({
           'success': false,
           'error': 'Forbidden',
-        }), headers: {'Content-Type': 'application/json'});
+        }), headers: {'Content-Type': 'application/json'},);
       }
 
       db.deletePlaylist(id);
 
       return Response.ok(jsonEncode({
         'success': true,
-      }), headers: {'Content-Type': 'application/json'});
+      }), headers: {'Content-Type': 'application/json'},);
     } catch (e) {
       return Response.internalServerError(
         body: jsonEncode({'success': false, 'error': e.toString()}),

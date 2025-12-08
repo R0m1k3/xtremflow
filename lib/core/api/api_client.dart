@@ -15,13 +15,13 @@ class ApiClient {
       headers: {'Content-Type': 'application/json'},
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
-    ));
+    ),);
     
     // Add interceptor for logging
     _dio.interceptors.add(LogInterceptor(
       requestBody: true,
       responseBody: true,
-    ));
+    ),);
   }
 
   /// Get base URL (same origin for production)

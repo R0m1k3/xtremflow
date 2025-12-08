@@ -86,7 +86,7 @@ class AppDatabase {
       _db.execute('''
         INSERT INTO users (id, username, password_hash, is_admin)
         VALUES (?, ?, ?, 1)
-      ''', [adminId, 'admin', passwordHash]);
+      ''', [adminId, 'admin', passwordHash],);
 
       print('Default admin user created (username: admin, password: admin)');
     }
@@ -141,7 +141,7 @@ class AppDatabase {
     _db.execute('''
       INSERT INTO users (id, username, password_hash, is_admin)
       VALUES (?, ?, ?, ?)
-    ''', [userId, username, passwordHash, isAdmin ? 1 : 0]);
+    ''', [userId, username, passwordHash, isAdmin ? 1 : 0],);
 
     return User(
       id: userId,
@@ -190,7 +190,7 @@ class AppDatabase {
     _db.execute('''
       INSERT INTO sessions (id, user_id, token, expires_at)
       VALUES (?, ?, ?, ?)
-    ''', [sessionId, userId, token, expiresAt.toIso8601String()]);
+    ''', [sessionId, userId, token, expiresAt.toIso8601String()],);
 
     return models.Session(
       id: sessionId,
@@ -272,7 +272,7 @@ class AppDatabase {
     _db.execute('''
       INSERT INTO playlists (id, user_id, name, server_url, username, password, dns, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', [playlistId, userId, name, serverUrl, username, password, dns, now, now]);
+    ''', [playlistId, userId, name, serverUrl, username, password, dns, now, now],);
 
     return Playlist(
       id: playlistId,
@@ -302,7 +302,7 @@ class AppDatabase {
       UPDATE playlists 
       SET name = ?, server_url = ?, username = ?, password = ?, dns = ?, updated_at = ?
       WHERE id = ?
-    ''', [name, serverUrl, username, password, dns, now, playlistId]);
+    ''', [name, serverUrl, username, password, dns, now, playlistId],);
 
     return getPlaylistById(playlistId)!;
   }

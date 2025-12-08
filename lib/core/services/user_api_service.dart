@@ -20,7 +20,7 @@ class UserApiService {
           passwordHash: '',
           isAdmin: u['isAdmin'] as bool? ?? false,
           createdAt: DateTime.tryParse(u['createdAt'] ?? '') ?? DateTime.now(),
-        )).toList();
+        ),).toList();
       }
       return [];
     } catch (e) {
@@ -40,7 +40,7 @@ class UserApiService {
         'username': username,
         'password': password,
         'isAdmin': isAdmin,
-      });
+      },);
 
       final data = response.data as Map<String, dynamic>;
       
@@ -75,7 +75,7 @@ class UserApiService {
       _api.restoreToken();
       final response = await _api.put('/api/users/$userId/password', data: {
         'password': newPassword,
-      });
+      },);
 
       final data = response.data as Map<String, dynamic>;
       
@@ -117,7 +117,7 @@ class UserApiService {
       _api.restoreToken();
       final response = await _api.put('/api/users/$userId', data: {
         'isAdmin': isAdmin,
-      });
+      },);
 
       final data = response.data as Map<String, dynamic>;
       

@@ -26,7 +26,7 @@ Middleware authMiddleware(AppDatabase db) {
       final updatedRequest = request.change(context: {
         ...request.context,
         'userId': session.userId,
-      });
+      },);
 
       return handler(updatedRequest);
     };

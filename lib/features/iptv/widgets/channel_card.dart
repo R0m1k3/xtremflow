@@ -50,7 +50,7 @@ class _ChannelCardState extends ConsumerState<ChannelCard>
     super.initState();
     _pulseController = AnimationController(
        vsync: this, 
-       duration: const Duration(milliseconds: 1000)
+       duration: const Duration(milliseconds: 1000),
     )..repeat(reverse: true);
     
     // Fetch EPG immediately when card is built

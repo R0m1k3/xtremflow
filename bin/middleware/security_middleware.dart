@@ -23,7 +23,7 @@ Middleware securityHeadersMiddleware() {
         'Referrer-Policy': 'strict-origin-when-cross-origin',
         // Note: CSP is tricky with Flutter Web (requires 'unsafe-eval' for Dart),
         // so we omit it here to avoid breaking the app, or use a permissive one.
-      });
+      },);
     };
   };
 }
@@ -42,7 +42,7 @@ Middleware honeypotMiddleware() {
     '/config.php',
     '/api/.env',
     '/console',
-    '/actuator/health'
+    '/actuator/health',
   ];
 
   return (Handler handler) {

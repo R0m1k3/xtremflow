@@ -19,7 +19,7 @@ class XtreamService {
     _dio = Dio(BaseOptions(
       connectTimeout: const Duration(seconds: 15),
       receiveTimeout: const Duration(seconds: 15),
-    ));
+    ),);
 
     // Setup caching for API responses
     _cacheOptions = CacheOptions(

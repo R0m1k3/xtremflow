@@ -122,7 +122,7 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
           const SizedBox(height: 24),
 
           // Appearance
-          _SectionHeader(title: 'Appearance'),
+          const _SectionHeader(title: 'Appearance'),
           Container(
             decoration: BoxDecoration(
               color: AppColors.surface,
@@ -151,7 +151,7 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
           const SizedBox(height: 24),
 
           // Streaming Settings
-          _SectionHeader(title: 'Streaming'),
+          const _SectionHeader(title: 'Streaming'),
           Container(
             decoration: BoxDecoration(
               color: AppColors.surface,
@@ -206,7 +206,7 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
           const SizedBox(height: 24),
 
           // Content Filters
-          _SectionHeader(title: 'Content Filters'),
+          const _SectionHeader(title: 'Content Filters'),
           Container(
             decoration: BoxDecoration(
               color: AppColors.surface,

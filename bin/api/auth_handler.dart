@@ -29,7 +29,7 @@ class AuthHandler {
         return Response(400, body: jsonEncode({
           'success': false,
           'error': 'Username and password are required',
-        }), headers: {'Content-Type': 'application/json'});
+        }), headers: {'Content-Type': 'application/json'},);
       }
 
       // Verify credentials
@@ -38,7 +38,7 @@ class AuthHandler {
         return Response(401, body: jsonEncode({
           'success': false,
           'error': 'Invalid credentials',
-        }), headers: {'Content-Type': 'application/json'});
+        }), headers: {'Content-Type': 'application/json'},);
       }
 
       // Create session
@@ -48,7 +48,7 @@ class AuthHandler {
         'success': true,
         'user': user.toJson(),
         'token': session.token,
-      }), headers: {'Content-Type': 'application/json'});
+      }), headers: {'Content-Type': 'application/json'},);
     } catch (e) {
       return Response.internalServerError(
         body: jsonEncode({'success': false, 'error': e.toString()}),
@@ -65,14 +65,14 @@ class AuthHandler {
         return Response(401, body: jsonEncode({
           'success': false,
           'error': 'Unauthorized',
-        }), headers: {'Content-Type': 'application/json'});
+        }), headers: {'Content-Type': 'application/json'},);
       }
 
       db.deleteSession(token);
 
       return Response.ok(jsonEncode({
         'success': true,
-      }), headers: {'Content-Type': 'application/json'});
+      }), headers: {'Content-Type': 'application/json'},);
     } catch (e) {
       return Response.internalServerError(
         body: jsonEncode({'success': false, 'error': e.toString()}),
@@ -89,7 +89,7 @@ class AuthHandler {
         return Response(401, body: jsonEncode({
           'success': false,
           'error': 'Unauthorized',
-        }), headers: {'Content-Type': 'application/json'});
+        }), headers: {'Content-Type': 'application/json'},);
       }
 
       final session = db.findSessionByToken(token);
@@ -97,7 +97,7 @@ class AuthHandler {
         return Response(401, body: jsonEncode({
           'success': false,
           'error': 'Invalid or expired session',
-        }), headers: {'Content-Type': 'application/json'});
+        }), headers: {'Content-Type': 'application/json'},);
       }
 
       final user = db.findUserById(session.userId);
@@ -105,12 +105,12 @@ class AuthHandler {
         return Response(404, body: jsonEncode({
           'success': false,
           'error': 'User not found',
-        }), headers: {'Content-Type': 'application/json'});
+        }), headers: {'Content-Type': 'application/json'},);
       }
 
       return Response.ok(jsonEncode({
         'user': user.toJson(),
-      }), headers: {'Content-Type': 'application/json'});
+      }), headers: {'Content-Type': 'application/json'},);
     } catch (e) {
       return Response.internalServerError(
         body: jsonEncode({'success': false, 'error': e.toString()}),

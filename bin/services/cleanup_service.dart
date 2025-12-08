@@ -66,7 +66,7 @@ class CleanupService {
       'deleted_files': deletedCount,
       'freed_bytes': freedBytes,
       'timestamp': DateTime.now().toIso8601String(),
-      'errors': errors
+      'errors': errors,
     };
 
     print('CleanupService: Cleanup complete. Deleted $deletedCount files, freed ${(freedBytes / 1024 / 1024).toStringAsFixed(2)} MB');
