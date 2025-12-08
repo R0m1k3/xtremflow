@@ -344,7 +344,11 @@ Handler _createXtreamProxyHandler() {
 Future<Response> _streamVideoFile(Uri targetUrl, String? rangeHeader) async {
   final maxRedirects = 5;
   var currentUrl = targetUrl;
+  final cookies = <String, String>{}; // Cookie Jar for redirects
   
+  print('Stream Request: $targetUrl');
+  if (rangeHeader != null) print('Client Requested Range: $rangeHeader');
+
   for (var i = 0; i < maxRedirects; i++) {
     try {
       final client = HttpClient();
@@ -353,26 +357,37 @@ Future<Response> _streamVideoFile(Uri targetUrl, String? rangeHeader) async {
       client.idleTimeout = const Duration(minutes: 5);
       
       final req = await client.getUrl(currentUrl);
-      req.followRedirects = false; // We handle redirects manually to preserve Range header
+      req.followRedirects = false; // We handle redirects manually
       
       req.headers.set('User-Agent', 'VLC/3.0.18 LibVLC/3.0.18');
       req.headers.set('Accept', '*/*');
       req.headers.set('Connection', 'keep-alive');
       req.headers.set('Accept-Encoding', 'identity');
       
-      // Forward the Range header for seeking support
+      // Apply collected cookies
+      if (cookies.isNotEmpty) {
+        final cookieHeader = cookies.entries.map((e) => '${e.key}=${e.value}').join('; ');
+        req.headers.set(HttpHeaders.cookieHeader, cookieHeader);
+      }
+
+      // Forward request headers
       if (rangeHeader != null && rangeHeader.isNotEmpty) {
         if (!rangeHeader.startsWith('bytes=')) {
           rangeHeader = 'bytes=$rangeHeader';
         }
         req.headers.set(HttpHeaders.rangeHeader, rangeHeader);
-        print('Video streaming with Range: $rangeHeader (Redirect $i)');
       }
       
       client.autoUncompress = false;
       
       final response = await req.close();
+      print('Upstream Response: ${response.statusCode} (Redirect $i)');
       
+      // Collect Cookies from response
+      response.cookies.forEach((cookie) {
+        cookies[cookie.name] = cookie.value;
+      });
+
       // Handle Redirects (301, 302, 303, 307, 308)
       if (response.statusCode >= 300 && response.statusCode < 400) {
         final location = response.headers.value(HttpHeaders.locationHeader);
@@ -384,10 +399,10 @@ Future<Response> _streamVideoFile(Uri targetUrl, String? rangeHeader) async {
         }
       }
       
-      // Get content type from response
+      // Get content type
       final contentType = response.headers.contentType?.mimeType ?? 'video/mp4';
       
-      // Build response headers for optimal streaming/buffering
+      // Build response headers
       final responseHeaders = <String, String>{
         'content-type': contentType,
         'access-control-allow-origin': '*',
@@ -395,6 +410,13 @@ Future<Response> _streamVideoFile(Uri targetUrl, String? rangeHeader) async {
         'cache-control': 'no-cache',
         'connection': 'keep-alive',
       };
+      
+      // Checks for 206 vs 200
+      if (response.statusCode == 200 && rangeHeader != null) {
+        print('WARNING: Upstream ignored Range header and returned 200. Seeking might fail.');
+      } else if (response.statusCode == 206) {
+        print('SUCCESS: Upstream returned 206 Partial Content.');
+      }
       
       // Add Content-Length if available
       if (response.contentLength > 0) {
