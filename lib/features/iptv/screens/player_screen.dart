@@ -440,7 +440,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             ..style.border = 'none'
             ..style.width = '100%'
             ..style.height = '100%'
-            ..style.height = '100%'
             ..allow = 'autoplay; fullscreen; picture-in-picture';
           return iframe;
         },
