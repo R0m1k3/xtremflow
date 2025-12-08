@@ -193,6 +193,23 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                    },
                 ),
                 const Divider(height: 1),
+                _DropdownSetting<TranscodingMode>(
+                  label: 'Mode',
+                  icon: Icons.settings_input_component,
+                  value: settings.transcodingMode,
+                  items: TranscodingMode.values,
+                  labelBuilder: (v) {
+                    switch (v) {
+                      case TranscodingMode.auto: return 'AUTO';
+                      case TranscodingMode.forced: return 'TRANSCODE';
+                      case TranscodingMode.disabled: return 'DIRECT';
+                    }
+                  },
+                  onChanged: (v) {
+                    if (v != null) ref.read(iptvSettingsProvider.notifier).setTranscodingMode(v);
+                  },
+                ),
+                const Divider(height: 1),
                  SwitchListTile(
                   title: const Text('Auto Reconnect', style: TextStyle(color: AppColors.textPrimary)),
                   secondary: const Icon(Icons.refresh, color: AppColors.primary),
