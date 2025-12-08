@@ -470,9 +470,14 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
                          style: FilledButton.styleFrom(backgroundColor: Colors.orange),
                          onPressed: () {
                            Navigator.pop(context);
-                           // Clear PaintingCache
+                           
+                           // Clear Flutter Image Cache
                            PaintingBinding.instance.imageCache.clear();
                            PaintingBinding.instance.imageCache.clearLiveImages();
+                           
+                           // Clear Browser Local Storage (SharedPreferences backend for Web)
+                           html.window.localStorage.clear();
+                           html.window.sessionStorage.clear();
                            
                            // Reload application
                            html.window.location.reload();

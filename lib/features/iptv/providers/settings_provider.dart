@@ -236,6 +236,16 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
 
   IptvSettingsNotifier(this._ref) : super(const IptvSettings()) {
     _loadSettings();
+    _setupAuthListener();
+  }
+
+  void _setupAuthListener() {
+    _ref.listen<AuthState>(authProvider, (previous, next) {
+      if (previous?.isAuthenticated == false && next.isAuthenticated) {
+        // User just logged in, sync settings from API
+        _fetchFromApi();
+      }
+    });
   }
 
   /// Load settings from SharedPreferences and then API
