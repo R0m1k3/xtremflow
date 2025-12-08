@@ -805,11 +805,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               ),
                             ),
 
-<<<<<<< HEAD
-                            // Playback Controls (Centered Row: Previous - Play/Pause - Next)
-=======
                             // Playback Controls (Centered Row: Previous - Play/Pause - Next - Fullscreen)
->>>>>>> antigravity
                             Positioned(
                               top: null,
                               bottom: 150,
@@ -952,11 +948,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                   ),
                                 ),
                               ),
-<<<<<<< HEAD
 
-
-=======
->>>>>>> antigravity
                               
                             // EPG Overlay
                             if (widget.streamType == StreamType.live)
