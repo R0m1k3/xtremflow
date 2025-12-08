@@ -524,11 +524,24 @@
             // MPEG-TS streams (live or forced TS via ext param)
             // Checked BEFORE generic MP4/MKV to handle transcoded streams correctly
             if (ext === '.ts' || lowerUrl.includes('.ts')) {
-                log('Detected MPEG-TS (via extension or URL), using mpegts.js');
-                const success = await playWithMpegTS(streamUrl);
-                if (!success) {
-                    await playDirect(streamUrl);
+                log('Detected MPEG-TS (via extension or URL)');
+
+                // Check if mpegts.js is supported (may not work on mobile)
+                if (mpegts.isSupported()) {
+                    log('Using mpegts.js');
+                    const success = await playWithMpegTS(streamUrl);
+                    if (success) return;
+                    log('mpegts.js failed, trying fallbacks...');
                 }
+
+                // Fallback 1: Try HLS.js for better mobile compatibility
+                log('Trying HLS.js as fallback for MPEG-TS');
+                const hlsSuccess = await playWithHLS(streamUrl);
+                if (hlsSuccess) return;
+
+                // Fallback 2: Try direct play as last resort
+                log('Trying direct play as last resort');
+                await playDirect(streamUrl);
                 return;
             }
 
