@@ -1,7 +1,8 @@
 # ============================================
 # Stage 1: Build Flutter Web Application
 # ============================================
-FROM ghcr.io/cirruslabs/flutter:stable AS builder
+# Using a specific Flutter version to ensure consistent builds
+FROM ghcr.io/cirruslabs/flutter:3.27.4 AS builder
 
 USER root
 
@@ -9,6 +10,9 @@ WORKDIR /app
 
 # Safe directory configuration for git
 RUN git config --global --add safe.directory /app
+
+# Diagnostic: Show Flutter version
+RUN flutter --version
 
 # Enable web support (idempotent)
 RUN flutter config --enable-web
@@ -26,8 +30,11 @@ COPY . .
 # Re-run pub get after copying source to ensure lockfile consistency
 RUN flutter pub get
 
+# Diagnostic: Analyze for errors before building
+RUN flutter analyze --no-fatal-warnings || true
+
 # Build web application (CanvasKit renderer is now default)
-RUN flutter build web --release --base-href="/" --verbose
+RUN flutter build web --release --base-href="/"
 
 # ============================================
 # Stage 2: Serve with custom Dart server (with API proxy)
