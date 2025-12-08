@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/settings_api_service.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -38,7 +37,7 @@ enum TranscodingMode {
   disabled, // Direct stream (no transcoding)
 }
 
-/// Keys for SharedPreferences storage
+/// Keys for API JSON storage
 class _SettingsKeys {
   // Filters
   static const String liveTvFilter = 'filter_live_tv';
@@ -227,93 +226,44 @@ class IptvSettings {
   bool matchesFilter(String categoryName) => matchesLiveTvFilter(categoryName);
 }
 
-/// IPTV Settings notifier with SharedPreferences and API persistence
+/// Settings notifier with API persistence only (No Local Cache)
 class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
-  SharedPreferences? _prefs;
   final SettingsApiService _apiService = SettingsApiService();
   final Ref _ref;
+  // ignore: unused_field
   bool _initialized = false;
 
   IptvSettingsNotifier(this._ref) : super(const IptvSettings()) {
-    _loadSettings();
+    _init();
     _setupAuthListener();
+  }
+
+  void _init() {
+    final authState = _ref.read(authProvider);
+    if (authState.isAuthenticated) {
+      _fetchFromApi();
+    }
   }
 
   void _setupAuthListener() {
     _ref.listen<AuthState>(authProvider, (previous, next) {
+      // Sync on login
       if (previous?.isAuthenticated == false && next.isAuthenticated) {
-        // User just logged in, sync settings from API
         _fetchFromApi();
       }
-    });
-  }
-
-  /// Load settings from SharedPreferences and then API
-  Future<void> _loadSettings() async {
-    if (_initialized) return;
-    
-    try {
-      _prefs = await SharedPreferences.getInstance();
-      
-      // Load local settings first (fastest)
-      final liveTv = _prefs?.getString(_SettingsKeys.liveTvFilter) ?? '';
-      final movies = _prefs?.getString(_SettingsKeys.moviesFilter) ?? '';
-      final series = _prefs?.getString(_SettingsKeys.seriesFilter) ?? '';
-      
-      final quality = StreamQuality.values[
-        _prefs?.getInt(_SettingsKeys.streamQuality) ?? StreamQuality.medium.index
-      ];
-      final buffer = BufferSize.values[
-        _prefs?.getInt(_SettingsKeys.bufferSize) ?? BufferSize.medium.index
-      ];
-      final timeout = ConnectionTimeout.values[
-        _prefs?.getInt(_SettingsKeys.connectionTimeout) ?? ConnectionTimeout.medium.index
-      ];
-      final reconnect = _prefs?.getBool(_SettingsKeys.autoReconnect) ?? true;
-      final epgCache = EpgCacheDuration.values[
-        _prefs?.getInt(_SettingsKeys.epgCacheDuration) ?? EpgCacheDuration.medium.index
-      ];
-      final transcoding = TranscodingMode.values[
-        _prefs?.getInt(_SettingsKeys.transcodingMode) ?? TranscodingMode.auto.index
-      ];
-      final directPlay = _prefs?.getBool(_SettingsKeys.preferDirectPlay) ?? false;
-      
-      final showClock = _prefs?.getBool(_SettingsKeys.showClock) ?? false;
-      final aspectRatio = _prefs?.getString(_SettingsKeys.preferredAspectRatio) ?? 'contain';
-
-      state = IptvSettings(
-        liveTvCategoryFilter: liveTv,
-        moviesCategoryFilter: movies,
-        seriesCategoryFilter: series,
-        streamQuality: quality,
-        bufferSize: buffer,
-        connectionTimeout: timeout,
-        autoReconnect: reconnect,
-        epgCacheDuration: epgCache,
-        transcodingMode: transcoding,
-        preferDirectPlay: directPlay,
-        showClock: showClock,
-        preferredAspectRatio: aspectRatio,
-      );
-      
-      _initialized = true;
-
-      // Sync from API if logged in
-      final authState = _ref.read(authProvider);
-      if (authState.isAuthenticated) {
-        await _fetchFromApi();
+      // Reset on logout
+      if (previous?.isAuthenticated == true && !next.isAuthenticated) {
+        state = const IptvSettings();
+        _initialized = false;
       }
-
-    } catch (e) {
-      print('Error loading settings: $e');
-    }
+    });
   }
 
   Future<void> _fetchFromApi() async {
     try {
       final remoteSettings = await _apiService.getSettings();
       if (remoteSettings != null && remoteSettings.isNotEmpty) {
-        // Update state with remote settings if they exist
+        // Helper to safely cast dynamic types from JSON
         T? getValue<T>(String key) => remoteSettings[key] as T?;
 
         state = state.copyWith(
@@ -336,10 +286,8 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
           showClock: getValue<bool>(_SettingsKeys.showClock),
           preferredAspectRatio: getValue<String>(_SettingsKeys.preferredAspectRatio),
         );
-        
-        // Save to local prefs to keep in sync
-        _saveToPrefs();
       }
+      _initialized = true;
     } catch (e) {
        print('Error syncing settings from API: $e');
     }
@@ -368,72 +316,21 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
     await _apiService.saveSettings(settingsMap);
   }
 
-  // ===== Save Helpers =====
-
-  Future<void> _saveString(String key, String value) async {
-    try {
-      _prefs ??= await SharedPreferences.getInstance();
-      await _prefs?.setString(key, value);
-      await _saveToApi();
-    } catch (e) {
-      print('Error saving setting $key: $e');
-    }
-  }
-
-  Future<void> _saveInt(String key, int value) async {
-    try {
-      _prefs ??= await SharedPreferences.getInstance();
-      await _prefs?.setInt(key, value);
-      await _saveToApi();
-    } catch (e) {
-      print('Error saving setting $key: $e');
-    }
-  }
-
-  Future<void> _saveBool(String key, bool value) async {
-    try {
-      _prefs ??= await SharedPreferences.getInstance();
-      await _prefs?.setBool(key, value);
-      await _saveToApi();
-    } catch (e) {
-      print('Error saving setting $key: $e');
-    }
-  }
-
-  Future<void> _saveToPrefs() async {
-     // Helper to bulk save state to prefs (after API fetch)
-     _prefs ??= await SharedPreferences.getInstance();
-     await _prefs?.setString(_SettingsKeys.liveTvFilter, state.liveTvCategoryFilter);
-     await _prefs?.setString(_SettingsKeys.moviesFilter, state.moviesCategoryFilter);
-     await _prefs?.setString(_SettingsKeys.seriesFilter, state.seriesCategoryFilter);
-     
-     await _prefs?.setInt(_SettingsKeys.streamQuality, state.streamQuality.index);
-     await _prefs?.setInt(_SettingsKeys.bufferSize, state.bufferSize.index);
-     await _prefs?.setInt(_SettingsKeys.connectionTimeout, state.connectionTimeout.index);
-     await _prefs?.setBool(_SettingsKeys.autoReconnect, state.autoReconnect);
-     await _prefs?.setInt(_SettingsKeys.epgCacheDuration, state.epgCacheDuration.index);
-     await _prefs?.setInt(_SettingsKeys.transcodingMode, state.transcodingMode.index);
-     await _prefs?.setBool(_SettingsKeys.preferDirectPlay, state.preferDirectPlay);
-     
-     await _prefs?.setBool(_SettingsKeys.showClock, state.showClock);
-     await _prefs?.setString(_SettingsKeys.preferredAspectRatio, state.preferredAspectRatio);
-  }
-
-  // ===== Filter Setters =====
+  // ===== Setters with Auto-Save =====
 
   void setLiveTvFilter(String filter) {
     state = state.copyWith(liveTvCategoryFilter: filter);
-    _saveString(_SettingsKeys.liveTvFilter, filter);
+    _saveToApi();
   }
 
   void setMoviesFilter(String filter) {
     state = state.copyWith(moviesCategoryFilter: filter);
-    _saveString(_SettingsKeys.moviesFilter, filter);
+    _saveToApi();
   }
 
   void setSeriesFilter(String filter) {
     state = state.copyWith(seriesCategoryFilter: filter);
-    _saveString(_SettingsKeys.seriesFilter, filter);
+    _saveToApi();
   }
 
   void clearLiveTvFilter() => setLiveTvFilter('');
@@ -441,58 +338,61 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
   void clearSeriesFilter() => setSeriesFilter('');
 
   void clearAllFilters() {
-    clearLiveTvFilter();
-    clearMoviesFilter();
-    clearSeriesFilter();
+    state = state.copyWith(
+      liveTvCategoryFilter: '',
+      moviesCategoryFilter: '',
+      seriesCategoryFilter: '',
+    );
+    _saveToApi();
   }
 
   // ===== Streaming Setters =====
 
   void setStreamQuality(StreamQuality quality) {
     state = state.copyWith(streamQuality: quality);
-    _saveInt(_SettingsKeys.streamQuality, quality.index);
+    _saveToApi();
   }
 
   void setBufferSize(BufferSize buffer) {
     state = state.copyWith(bufferSize: buffer);
-    _saveInt(_SettingsKeys.bufferSize, buffer.index);
+    _saveToApi();
   }
 
   void setConnectionTimeout(ConnectionTimeout timeout) {
     state = state.copyWith(connectionTimeout: timeout);
-    _saveInt(_SettingsKeys.connectionTimeout, timeout.index);
+    _saveToApi();
   }
 
   void setAutoReconnect(bool value) {
     state = state.copyWith(autoReconnect: value);
-    _saveBool(_SettingsKeys.autoReconnect, value);
+    _saveToApi();
   }
 
   void setEpgCacheDuration(EpgCacheDuration duration) {
     state = state.copyWith(epgCacheDuration: duration);
-    _saveInt(_SettingsKeys.epgCacheDuration, duration.index);
+    _saveToApi();
   }
 
   void setTranscodingMode(TranscodingMode mode) {
     state = state.copyWith(transcodingMode: mode);
-    _saveInt(_SettingsKeys.transcodingMode, mode.index);
+    _saveToApi();
   }
 
   void setPreferDirectPlay(bool value) {
     state = state.copyWith(preferDirectPlay: value);
-    _saveBool(_SettingsKeys.preferDirectPlay, value);
+    _saveToApi();
   }
 
   // ===== Player Display Setters =====
 
   void setShowClock(bool value) {
     state = state.copyWith(showClock: value);
-    _saveBool(_SettingsKeys.showClock, value);
+    _saveToApi();
   }
 
   void setPreferredAspectRatio(String value) {
     state = state.copyWith(preferredAspectRatio: value);
-    _saveString(_SettingsKeys.preferredAspectRatio, value);
+    _saveToApi();
   }
 
   // Legacy methods
@@ -504,12 +404,7 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
 final iptvSettingsProvider =
     StateNotifierProvider<IptvSettingsNotifier, IptvSettings>((ref) {
   // Watch auth provider to re-fetch settings on login/logout
-  final authState = ref.watch(authProvider);
-  final notifier = IptvSettingsNotifier(ref);
-  
-  // Note: Since we watch authProvider, this provider will be disposed and recreated
-  // whenever authState changes. This automatically handles fetching settings for
-  // the new user on creation.
-  
-  return notifier;
+  // We just watch it to ensure the provider tree updates, but the listener above handles logic
+  ref.watch(authProvider);
+  return IptvSettingsNotifier(ref);
 });
