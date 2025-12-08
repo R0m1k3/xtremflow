@@ -295,7 +295,10 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
 
   Future<void> _saveToApi() async {
     final authState = _ref.read(authProvider);
-    if (!authState.isAuthenticated) return;
+    if (!authState.isAuthenticated) {
+      print('[SettingsProvider] _saveToApi: Not authenticated, skipping save');
+      return;
+    }
 
     // Create map from state
     final settingsMap = {
@@ -313,7 +316,9 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
       _SettingsKeys.preferredAspectRatio: state.preferredAspectRatio,
     };
 
-    await _apiService.saveSettings(settingsMap);
+    print('[SettingsProvider] _saveToApi: Saving settings...');
+    final success = await _apiService.saveSettings(settingsMap);
+    print('[SettingsProvider] _saveToApi: Save result: $success');
   }
 
   // ===== Setters with Auto-Save =====

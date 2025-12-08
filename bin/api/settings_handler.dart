@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 import '../database/database.dart';
-import '../models/user.dart';
 
 class SettingsHandler {
   final AppDatabase db;
@@ -14,12 +13,13 @@ class SettingsHandler {
 
     // GET /api/settings
     router.get('/', (Request req) {
-      final user = req.context['user'] as User?;
-      if (user == null) {
+      // Get userId from context (set by auth middleware)
+      final userId = req.context['userId'] as String?;
+      if (userId == null) {
         return Response.forbidden(jsonEncode({'error': 'Authentication required'}));
       }
 
-      final settingsJson = db.getUserSettings(user.id);
+      final settingsJson = db.getUserSettings(userId);
       
       // If no settings exist, return empty object or default
       return Response.ok(
@@ -30,8 +30,9 @@ class SettingsHandler {
 
     // POST /api/settings
     router.post('/', (Request req) async {
-      final user = req.context['user'] as User?;
-      if (user == null) {
+      // Get userId from context (set by auth middleware)
+      final userId = req.context['userId'] as String?;
+      if (userId == null) {
         return Response.forbidden(jsonEncode({'error': 'Authentication required'}));
       }
 
@@ -44,7 +45,7 @@ class SettingsHandler {
           return Response.badRequest(body: jsonEncode({'error': 'Invalid JSON'}));
         }
 
-        db.updateUserSettings(user.id, body);
+        db.updateUserSettings(userId, body);
 
         return Response.ok(
           body,

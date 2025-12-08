@@ -1,50 +1,59 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'dart:html' as html;
-import '../models/app_user.dart';
+import '../api/api_client.dart';
 
+/// Service for user settings API
 class SettingsApiService {
-  final String _baseUrl = html.window.location.origin;
+  final ApiClient _api = ApiClient();
 
+  /// Get settings from API
   Future<Map<String, dynamic>?> getSettings() async {
-    final token = html.window.localStorage['auth_token'];
-    if (token == null) return null;
+    // Restore token from localStorage before making the request
+    _api.restoreToken();
+    
+    if (_api.getStoredToken() == null) {
+      print('[SettingsAPI] getSettings: No auth token found');
+      return null;
+    }
 
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/settings'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
-
+      print('[SettingsAPI] getSettings: Fetching settings...');
+      final response = await _api.get('/api/settings');
+      
+      print('[SettingsAPI] getSettings: Response status ${response.statusCode}');
       if (response.statusCode == 200) {
-        if (response.body.isEmpty) return {};
-        return jsonDecode(response.body) as Map<String, dynamic>;
+        if (response.data == null) return {};
+        final decoded = response.data as Map<String, dynamic>;
+        print('[SettingsAPI] getSettings: Loaded ${decoded.length} settings');
+        return decoded;
       }
+      print('[SettingsAPI] getSettings: Failed with data: ${response.data}');
       return null;
     } catch (e) {
+      print('[SettingsAPI] getSettings: Exception: $e');
       return null;
     }
   }
 
+  /// Save settings to API
   Future<bool> saveSettings(Map<String, dynamic> settings) async {
-    final token = html.window.localStorage['auth_token'];
-    if (token == null) return false;
+    // Restore token from localStorage before making the request
+    _api.restoreToken();
+    
+    if (_api.getStoredToken() == null) {
+      print('[SettingsAPI] saveSettings: No auth token found');
+      return false;
+    }
 
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/settings'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(settings),
-      );
-
+      print('[SettingsAPI] saveSettings: Saving ${settings.length} settings...');
+      final response = await _api.post('/api/settings', data: settings);
+      
+      print('[SettingsAPI] saveSettings: Response status ${response.statusCode}');
+      if (response.statusCode != 200) {
+        print('[SettingsAPI] saveSettings: Failed with data: ${response.data}');
+      }
       return response.statusCode == 200;
     } catch (e) {
+      print('[SettingsAPI] saveSettings: Exception: $e');
       return false;
     }
   }
