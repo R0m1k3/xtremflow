@@ -1,8 +1,7 @@
 # ============================================
 # Stage 1: Build Flutter Web Application
 # ============================================
-# Using a specific Flutter version to ensure consistent builds
-FROM ghcr.io/cirruslabs/flutter:3.27.4 AS builder
+FROM ghcr.io/cirruslabs/flutter:stable AS builder
 
 USER root
 
@@ -31,10 +30,12 @@ COPY . .
 RUN flutter pub get
 
 # Diagnostic: Analyze for errors before building
+# Using || true to prevent build failure on warnings, as we want to see the error in build step if any
 RUN flutter analyze --no-fatal-warnings || true
 
 # Build web application (CanvasKit renderer is now default)
-RUN flutter build web --release --base-href="/"
+# Added --no-tree-shake-icons to prevent potential font issues in some environments
+RUN flutter build web --release --base-href="/" --no-tree-shake-icons --verbose
 
 # ============================================
 # Stage 2: Serve with custom Dart server (with API proxy)
