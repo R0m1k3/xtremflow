@@ -752,6 +752,25 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           
                           // Hover Controls Layer
                           if (_showControls) ...[
+                            // EPG Overlay (Moved behind controls for Z-ordering)
+                            if (widget.streamType == StreamType.live)
+                              Positioned(
+                                bottom: 100, // Move up above progress bar area/OS safe area
+                                left: 0,
+                                right: 0,
+                                child: PointerInterceptor(
+                                  // Wrap with IgnorePointer so EPG text doesn't steal clicks from controls
+                                  child: IgnorePointer(
+                                    child: EpgOverlay(
+                                      streamId: widget.channels != null 
+                                          ? widget.channels![_currentIndex].streamId
+                                          : widget.streamId,
+                                      playlist: widget.playlist,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
                             // Volume Slider (Left Side)
                             Positioned(
                               left: 24,
@@ -953,21 +972,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               ),
 
                               
-                            // EPG Overlay
-                            if (widget.streamType == StreamType.live)
-                              Positioned(
-                                bottom: 100, // Move up above progress bar area/OS safe area
-                                left: 0,
-                                right: 0,
-                                child: PointerInterceptor(
-                                    child: EpgOverlay(
-                                      streamId: widget.channels != null 
-                                          ? widget.channels![_currentIndex].streamId
-                                          : widget.streamId,
-                                      playlist: widget.playlist,
-                                    ),
-                                  ),
-                              ),
+
                           ],
                           
                           // Clock Widget (Always visible if enabled, or only with controls? User asked "met l'heure dans les options")
