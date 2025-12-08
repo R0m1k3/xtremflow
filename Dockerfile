@@ -10,8 +10,8 @@ WORKDIR /app
 # Safe directory configuration for git
 RUN git config --global --add safe.directory /app
 
-# Diagnostic: Show Flutter version
-RUN flutter --version
+# Optimize DART VM Memory for build to prevent OOM
+ENV DART_VM_OPTIONS="--old_gen_heap_size=2048"
 
 # Enable web support (idempotent)
 RUN flutter config --enable-web
@@ -29,13 +29,9 @@ COPY . .
 # Re-run pub get after copying source to ensure lockfile consistency
 RUN flutter pub get
 
-# Diagnostic: Analyze for errors before building
-# Using || true to prevent build failure on warnings, as we want to see the error in build step if any
-RUN flutter analyze --no-fatal-warnings || true
-
 # Build web application (CanvasKit renderer is now default)
 # Added --no-tree-shake-icons to prevent potential font issues in some environments
-RUN flutter build web --release --base-href="/" --no-tree-shake-icons --verbose
+RUN flutter build web --release --base-href="/" --no-tree-shake-icons
 
 # ============================================
 # Stage 2: Serve with custom Dart server (with API proxy)
