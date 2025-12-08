@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/services/settings_api_service.dart';
+import '../../auth/providers/auth_provider.dart';
 
 /// Streaming quality presets for Live TV
 enum StreamQuality {
@@ -225,28 +227,29 @@ class IptvSettings {
   bool matchesFilter(String categoryName) => matchesLiveTvFilter(categoryName);
 }
 
-/// IPTV Settings notifier with SharedPreferences persistence
+/// IPTV Settings notifier with SharedPreferences and API persistence
 class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
   SharedPreferences? _prefs;
+  final SettingsApiService _apiService = SettingsApiService();
+  final Ref _ref;
   bool _initialized = false;
 
-  IptvSettingsNotifier() : super(const IptvSettings()) {
+  IptvSettingsNotifier(this._ref) : super(const IptvSettings()) {
     _loadSettings();
   }
 
-  /// Load settings from SharedPreferences
+  /// Load settings from SharedPreferences and then API
   Future<void> _loadSettings() async {
     if (_initialized) return;
     
     try {
       _prefs = await SharedPreferences.getInstance();
       
-      // Load filters
+      // Load local settings first (fastest)
       final liveTv = _prefs?.getString(_SettingsKeys.liveTvFilter) ?? '';
       final movies = _prefs?.getString(_SettingsKeys.moviesFilter) ?? '';
       final series = _prefs?.getString(_SettingsKeys.seriesFilter) ?? '';
       
-      // Load streaming settings
       final quality = StreamQuality.values[
         _prefs?.getInt(_SettingsKeys.streamQuality) ?? StreamQuality.medium.index
       ];
@@ -265,7 +268,6 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
       ];
       final directPlay = _prefs?.getBool(_SettingsKeys.preferDirectPlay) ?? false;
       
-      // Load Player Display Settings
       final showClock = _prefs?.getBool(_SettingsKeys.showClock) ?? false;
       final aspectRatio = _prefs?.getString(_SettingsKeys.preferredAspectRatio) ?? 'contain';
 
@@ -285,10 +287,75 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
       );
       
       _initialized = true;
-      print('Settings loaded: Clock=$showClock, Ratio=$aspectRatio');
+
+      // Sync from API if logged in
+      final authState = _ref.read(authProvider);
+      if (authState.isAuthenticated) {
+        await _fetchFromApi();
+      }
+
     } catch (e) {
       print('Error loading settings: $e');
     }
+  }
+
+  Future<void> _fetchFromApi() async {
+    try {
+      final remoteSettings = await _apiService.getSettings();
+      if (remoteSettings != null && remoteSettings.isNotEmpty) {
+        // Update state with remote settings if they exist
+        T? getValue<T>(String key) => remoteSettings[key] as T?;
+
+        state = state.copyWith(
+          liveTvCategoryFilter: getValue<String>(_SettingsKeys.liveTvFilter),
+          moviesCategoryFilter: getValue<String>(_SettingsKeys.moviesFilter),
+          seriesCategoryFilter: getValue<String>(_SettingsKeys.seriesFilter),
+          
+          streamQuality: remoteSettings[_SettingsKeys.streamQuality] != null 
+              ? StreamQuality.values[remoteSettings[_SettingsKeys.streamQuality] as int] : null,
+          bufferSize: remoteSettings[_SettingsKeys.bufferSize] != null
+              ? BufferSize.values[remoteSettings[_SettingsKeys.bufferSize] as int] : null,
+          connectionTimeout: remoteSettings[_SettingsKeys.connectionTimeout] != null
+              ? ConnectionTimeout.values[remoteSettings[_SettingsKeys.connectionTimeout] as int] : null,
+          autoReconnect: getValue<bool>(_SettingsKeys.autoReconnect),
+          epgCacheDuration: remoteSettings[_SettingsKeys.epgCacheDuration] != null
+              ? EpgCacheDuration.values[remoteSettings[_SettingsKeys.epgCacheDuration] as int] : null,
+          transcodingMode: remoteSettings[_SettingsKeys.transcodingMode] != null
+              ? TranscodingMode.values[remoteSettings[_SettingsKeys.transcodingMode] as int] : null,
+          preferDirectPlay: getValue<bool>(_SettingsKeys.preferDirectPlay),
+          showClock: getValue<bool>(_SettingsKeys.showClock),
+          preferredAspectRatio: getValue<String>(_SettingsKeys.preferredAspectRatio),
+        );
+        
+        // Save to local prefs to keep in sync
+        _saveToPrefs();
+      }
+    } catch (e) {
+       print('Error syncing settings from API: $e');
+    }
+  }
+
+  Future<void> _saveToApi() async {
+    final authState = _ref.read(authProvider);
+    if (!authState.isAuthenticated) return;
+
+    // Create map from state
+    final settingsMap = {
+      _SettingsKeys.liveTvFilter: state.liveTvCategoryFilter,
+      _SettingsKeys.moviesFilter: state.moviesCategoryFilter,
+      _SettingsKeys.seriesFilter: state.seriesCategoryFilter,
+      _SettingsKeys.streamQuality: state.streamQuality.index,
+      _SettingsKeys.bufferSize: state.bufferSize.index,
+      _SettingsKeys.connectionTimeout: state.connectionTimeout.index,
+      _SettingsKeys.autoReconnect: state.autoReconnect,
+      _SettingsKeys.epgCacheDuration: state.epgCacheDuration.index,
+      _SettingsKeys.transcodingMode: state.transcodingMode.index,
+      _SettingsKeys.preferDirectPlay: state.preferDirectPlay,
+      _SettingsKeys.showClock: state.showClock,
+      _SettingsKeys.preferredAspectRatio: state.preferredAspectRatio,
+    };
+
+    await _apiService.saveSettings(settingsMap);
   }
 
   // ===== Save Helpers =====
@@ -297,6 +364,7 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
     try {
       _prefs ??= await SharedPreferences.getInstance();
       await _prefs?.setString(key, value);
+      await _saveToApi();
     } catch (e) {
       print('Error saving setting $key: $e');
     }
@@ -306,6 +374,7 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
     try {
       _prefs ??= await SharedPreferences.getInstance();
       await _prefs?.setInt(key, value);
+      await _saveToApi();
     } catch (e) {
       print('Error saving setting $key: $e');
     }
@@ -315,9 +384,29 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
     try {
       _prefs ??= await SharedPreferences.getInstance();
       await _prefs?.setBool(key, value);
+      await _saveToApi();
     } catch (e) {
       print('Error saving setting $key: $e');
     }
+  }
+
+  Future<void> _saveToPrefs() async {
+     // Helper to bulk save state to prefs (after API fetch)
+     _prefs ??= await SharedPreferences.getInstance();
+     await _prefs?.setString(_SettingsKeys.liveTvFilter, state.liveTvCategoryFilter);
+     await _prefs?.setString(_SettingsKeys.moviesFilter, state.moviesCategoryFilter);
+     await _prefs?.setString(_SettingsKeys.seriesFilter, state.seriesCategoryFilter);
+     
+     await _prefs?.setInt(_SettingsKeys.streamQuality, state.streamQuality.index);
+     await _prefs?.setInt(_SettingsKeys.bufferSize, state.bufferSize.index);
+     await _prefs?.setInt(_SettingsKeys.connectionTimeout, state.connectionTimeout.index);
+     await _prefs?.setBool(_SettingsKeys.autoReconnect, state.autoReconnect);
+     await _prefs?.setInt(_SettingsKeys.epgCacheDuration, state.epgCacheDuration.index);
+     await _prefs?.setInt(_SettingsKeys.transcodingMode, state.transcodingMode.index);
+     await _prefs?.setBool(_SettingsKeys.preferDirectPlay, state.preferDirectPlay);
+     
+     await _prefs?.setBool(_SettingsKeys.showClock, state.showClock);
+     await _prefs?.setString(_SettingsKeys.preferredAspectRatio, state.preferredAspectRatio);
   }
 
   // ===== Filter Setters =====
@@ -404,5 +493,13 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
 /// Provider for IPTV settings
 final iptvSettingsProvider =
     StateNotifierProvider<IptvSettingsNotifier, IptvSettings>((ref) {
-  return IptvSettingsNotifier();
+  // Watch auth provider to re-fetch settings on login/logout
+  final authState = ref.watch(authProvider);
+  final notifier = IptvSettingsNotifier(ref);
+  
+  // Note: Since we watch authProvider, this provider will be disposed and recreated
+  // whenever authState changes. This automatically handles fetching settings for
+  // the new user on creation.
+  
+  return notifier;
 });

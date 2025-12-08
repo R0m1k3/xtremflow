@@ -11,7 +11,10 @@ import 'database/database.dart';
 import 'models/user.dart';
 import 'api/auth_handler.dart';
 import 'api/users_handler.dart';
+import 'api/auth_handler.dart';
+import 'api/users_handler.dart';
 import 'api/playlists_handler.dart';
+import 'api/settings_handler.dart';
 import 'middleware/auth_middleware.dart';
 import 'middleware/security_middleware.dart';
 import 'services/cleanup_service.dart';
@@ -35,6 +38,7 @@ void main(List<String> args) async {
   final authHandler = AuthHandler(db);
   final playlistsHandler = PlaylistsHandler(db);
   final usersHandler = UsersHandler(db);
+  final settingsHandler = SettingsHandler(db);
 
   // Setup router
   final apiRouter = Router()
@@ -43,11 +47,15 @@ void main(List<String> args) async {
     // Playlists endpoints (with auth middleware)
     ..mount('/api/playlists', Pipeline()
       .addMiddleware(authMiddleware(db))
-      .addHandler(playlistsHandler.router.call),)
+      .addHandler(playlistsHandler.router.call))
     // Users endpoints (with auth middleware)
     ..mount('/api/users', Pipeline()
       .addMiddleware(authMiddleware(db))
-      .addHandler(usersHandler.router.call),);
+      .addHandler(usersHandler.router.call))
+    // Settings endpoints (with auth middleware)
+    ..mount('/api/settings', Pipeline()
+      .addMiddleware(authMiddleware(db))
+      .addHandler(settingsHandler.router.call));
 
   // Initialize Cleanup Service
   final cleanupService = CleanupService();

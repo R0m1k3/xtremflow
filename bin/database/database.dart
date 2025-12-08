@@ -68,6 +68,16 @@ class AppDatabase {
       )
     ''');
 
+    // User Settings table
+    _db.execute('''
+      CREATE TABLE IF NOT EXISTS user_settings (
+        user_id TEXT PRIMARY KEY,
+        settings_json TEXT NOT NULL,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    ''');
+
     // Indexes
     _db.execute('CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)');
     _db.execute('CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)');
@@ -310,6 +320,33 @@ class AppDatabase {
   /// Delete playlist
   void deletePlaylist(String playlistId) {
     _db.execute('DELETE FROM playlists WHERE id = ?', [playlistId]);
+  }
+
+  // ==================== User Settings ====================
+
+  /// Get user settings as JSON string
+  String? getUserSettings(String userId) {
+    final result = _db.select(
+      'SELECT settings_json FROM user_settings WHERE user_id = ?',
+      [userId],
+    );
+
+    if (result.isEmpty) return null;
+    return result.first['settings_json'] as String;
+  }
+
+  /// Update user settings
+  void updateUserSettings(String userId, String settingsJson) {
+    final now = DateTime.now().toIso8601String();
+    
+    // UPSERT (Insert or Replace)
+    _db.execute('''
+      INSERT INTO user_settings (user_id, settings_json, updated_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(user_id) DO UPDATE SET
+        settings_json = excluded.settings_json,
+        updated_at = excluded.updated_at
+    ''', [userId, settingsJson, now]);
   }
 
   /// Close database connection
