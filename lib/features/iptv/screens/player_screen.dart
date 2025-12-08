@@ -320,22 +320,27 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         final iptvUrl = '${widget.playlist.dns}/live/${widget.playlist.username}/${widget.playlist.password}/$currentStreamId.ts';
         final encodedUrl = Uri.encodeComponent(iptvUrl);
         
-        // Map enum values to string params
-        final qualityParam = switch (settings.streamQuality) {
-          StreamQuality.low => 'low',
-          StreamQuality.medium => 'medium',
-          StreamQuality.high => 'high',
-        };
-        final bufferParam = switch (settings.bufferSize) {
-          BufferSize.low => 'low',
-          BufferSize.medium => 'medium',
-          BufferSize.high => 'high',
-        };
-        final timeoutParam = switch (settings.connectionTimeout) {
-          ConnectionTimeout.short => 'short',
-          ConnectionTimeout.medium => 'medium',
-          ConnectionTimeout.long => 'long',
-        };
+        // Map enum values to string params using if-else (avoids switch exhaustivity issues)
+        String qualityParam = 'medium';
+        if (settings.streamQuality == StreamQuality.low) {
+          qualityParam = 'low';
+        } else if (settings.streamQuality == StreamQuality.high) {
+          qualityParam = 'high';
+        }
+        
+        String bufferParam = 'medium';
+        if (settings.bufferSize == BufferSize.low) {
+          bufferParam = 'low';
+        } else if (settings.bufferSize == BufferSize.high) {
+          bufferParam = 'high';
+        }
+        
+        String timeoutParam = 'medium';
+        if (settings.connectionTimeout == ConnectionTimeout.short) {
+          timeoutParam = 'short';
+        } else if (settings.connectionTimeout == ConnectionTimeout.long) {
+          timeoutParam = 'long';
+        }
         final modeParam = settings.modeString; // direct, transcode, or auto
         
         // Construct the stream URL directly using MPEG-TS format
@@ -361,11 +366,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             : xtreamService.getSeriesStreamUrl(currentStreamId, widget.containerExtension);
         
         final encodedUrl = Uri.encodeComponent(vodStreamUrl);
-        final qualityParam = switch (settings.streamQuality) {
-            StreamQuality.low => 'low',
-            StreamQuality.medium => 'medium',
-            StreamQuality.high => 'high',
-        };
+        
+        // Read settings for VOD quality
+        final settings = ref.read(iptvSettingsProvider);
+        
+        // Map quality enum to string (using if-else to avoid switch exhaustivity issues)
+        String qualityParam = 'medium';
+        if (settings.streamQuality == StreamQuality.low) {
+          qualityParam = 'low';
+        } else if (settings.streamQuality == StreamQuality.high) {
+          qualityParam = 'high';
+        }
         
         // Calculate start time for seeking support
         // If override provided (seeking), use it. Else check provider resume.
