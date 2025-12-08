@@ -342,72 +342,93 @@ Handler _createXtreamProxyHandler() {
 
 /// Stream video file using HttpClient with Range support for seeking
 Future<Response> _streamVideoFile(Uri targetUrl, String? rangeHeader) async {
-  try {
-    final client = HttpClient();
-    // Increase timeouts for large video files
-    client.connectionTimeout = const Duration(seconds: 60);
-    client.idleTimeout = const Duration(minutes: 5);  // Keep connection alive longer
-    
-    final req = await client.getUrl(targetUrl);
-    req.headers.set('User-Agent', 'VLC/3.0.18 LibVLC/3.0.18');
-    req.headers.set('Accept', '*/*');
-    req.headers.set('Connection', 'keep-alive');
-    req.headers.set('Accept-Encoding', 'identity');  // Don't compress video
-    
-    // Forward the Range header for seeking support
-    if (rangeHeader != null && rangeHeader.isNotEmpty) {
-      // Ensure we request bytes
-      if (!rangeHeader.startsWith('bytes=')) {
-        rangeHeader = 'bytes=$rangeHeader';
+  final maxRedirects = 5;
+  var currentUrl = targetUrl;
+  
+  for (var i = 0; i < maxRedirects; i++) {
+    try {
+      final client = HttpClient();
+      // Increase timeouts for large video files
+      client.connectionTimeout = const Duration(seconds: 60);
+      client.idleTimeout = const Duration(minutes: 5);
+      
+      final req = await client.getUrl(currentUrl);
+      req.followRedirects = false; // We handle redirects manually to preserve Range header
+      
+      req.headers.set('User-Agent', 'VLC/3.0.18 LibVLC/3.0.18');
+      req.headers.set('Accept', '*/*');
+      req.headers.set('Connection', 'keep-alive');
+      req.headers.set('Accept-Encoding', 'identity');
+      
+      // Forward the Range header for seeking support
+      if (rangeHeader != null && rangeHeader.isNotEmpty) {
+        if (!rangeHeader.startsWith('bytes=')) {
+          rangeHeader = 'bytes=$rangeHeader';
+        }
+        req.headers.set(HttpHeaders.rangeHeader, rangeHeader);
+        print('Video streaming with Range: $rangeHeader (Redirect $i)');
       }
-      req.headers.set(HttpHeaders.rangeHeader, rangeHeader);
-      print('Video streaming with Range: $rangeHeader');
+      
+      client.autoUncompress = false;
+      
+      final response = await req.close();
+      
+      // Handle Redirects (301, 302, 303, 307, 308)
+      if (response.statusCode >= 300 && response.statusCode < 400) {
+        final location = response.headers.value(HttpHeaders.locationHeader);
+        if (location != null) {
+          print('Redirecting stream to: $location');
+          currentUrl = Uri.parse(location);
+          await response.drain(); // Drain body to release connection
+          continue; // Loop to next request
+        }
+      }
+      
+      // Get content type from response
+      final contentType = response.headers.contentType?.mimeType ?? 'video/mp4';
+      
+      // Build response headers for optimal streaming/buffering
+      final responseHeaders = <String, String>{
+        'content-type': contentType,
+        'access-control-allow-origin': '*',
+        'accept-ranges': 'bytes',
+        'cache-control': 'no-cache',
+        'connection': 'keep-alive',
+      };
+      
+      // Add Content-Length if available
+      if (response.contentLength > 0) {
+        responseHeaders['content-length'] = response.contentLength.toString();
+      }
+      
+      // Add Content-Range if this is a partial response (206)
+      final contentRange = response.headers.value(HttpHeaders.contentRangeHeader);
+      if (contentRange != null) {
+        responseHeaders[HttpHeaders.contentRangeHeader] = contentRange;
+      }
+      
+      // Propagate Accept-Ranges
+      responseHeaders[HttpHeaders.acceptRangesHeader] = 'bytes';
+      
+      // Return appropriate status code
+      return Response(
+        response.statusCode,
+        body: response,
+        headers: responseHeaders,
+      );
+      
+    } catch (e) {
+      print('Video streaming exception: $e');
+      if (i == maxRedirects - 1) {
+         return Response.internalServerError(
+           body: jsonEncode({'error': 'Video streaming error', 'message': e.toString()}),
+           headers: {'content-type': 'application/json'},
+         );
+      }
     }
-    
-    // Disable auto-decompression to strictly proxy the stream
-    client.autoUncompress = false;
-    
-    final response = await req.close();
-    
-    // Get content type from response
-    final contentType = response.headers.contentType?.mimeType ?? 'video/mp4';
-    
-    // Build response headers for optimal streaming/buffering
-    final responseHeaders = <String, String>{
-      'content-type': contentType,
-      'access-control-allow-origin': '*',
-      'accept-ranges': 'bytes',
-      'cache-control': 'no-cache',  // Allow browser to cache but revalidate
-      'connection': 'keep-alive',
-    };
-    
-    // Add Content-Length if available (critical for seeking)
-    if (response.contentLength > 0) {
-      responseHeaders['content-length'] = response.contentLength.toString();
-    }
-    
-    // Add Content-Range if this is a partial response (206)
-    final contentRange = response.headers.value(HttpHeaders.contentRangeHeader);
-    if (contentRange != null) {
-      responseHeaders[HttpHeaders.contentRangeHeader] = contentRange;
-    }
-    
-    // Propagate Accept-Ranges
-    responseHeaders[HttpHeaders.acceptRangesHeader] = 'bytes';
-    
-    // Return appropriate status code (200 for full, 206 for partial)
-    return Response(
-      response.statusCode,
-      body: response,
-      headers: responseHeaders,
-    );
-  } catch (e) {
-    print('Video streaming error: $e');
-    return Response.internalServerError(
-      body: jsonEncode({'error': 'Video streaming error', 'message': e.toString()}),
-      headers: {'content-type': 'application/json'},
-    );
   }
+  
+  return Response.internalServerError(body: 'Too many redirects');
 }
 
 /// Rewrite URLs in M3U8 playlist to go through the proxy
