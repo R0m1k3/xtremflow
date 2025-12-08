@@ -34,7 +34,7 @@ RUN flutter clean
 
 # Build web application (CanvasKit renderer is now default)
 # Added --no-tree-shake-icons to prevent potential font issues in some environments
-RUN flutter build web --release --base-href="/" --no-tree-shake-icons
+RUN flutter build web --release --base-href="/" --no-tree-shake-icons --verbose
 
 # ============================================
 # Stage 2: Serve with custom Dart server (with API proxy)
