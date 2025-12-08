@@ -62,6 +62,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   double _totalDuration = 1;
   double _volume = 1.0;
   double _previousVolume = 1.0;
+  bool _isFullscreen = false;
   Timer? _controlsTimer;
   StreamSubscription? _messageSubscription;
 
@@ -256,6 +257,26 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     });
     // Give UI a moment to clear before re-initializing
     Future.microtask(() => _initializePlayer());
+  }
+
+  void _toggleFullscreen() {
+    final document = html.document;
+    final docElement = document.documentElement;
+    
+    if (_isFullscreen) {
+      // Exit fullscreen
+      document.exitFullscreen();
+      setState(() {
+        _isFullscreen = false;
+      });
+    } else {
+      // Enter fullscreen
+      docElement?.requestFullscreen();
+      setState(() {
+        _isFullscreen = true;
+      });
+    }
+    _onHover();
   }
 
   Future<void> _initializePlayer({double? startTimeOverride}) async {
@@ -786,30 +807,98 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               ),
                             ),
 
-                            // Play/Pause Button (Centered)
+                            // Playback Controls (Centered Row: Previous - Play/Pause - Next)
                             Positioned(
-                              top: null, // Removed top: 0
-                              bottom: 150, // Moved lower
+                              top: null,
+                              bottom: 150,
                               left: 0,
                               right: 0,
                               child: Center(
                                 child: PointerInterceptor(
-                                  child: InkWell(
-                                    onTap: _togglePlayPause,
-                                    borderRadius: BorderRadius.circular(50),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(10), // Reduced from 12
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.5),
-                                        shape: BoxShape.circle,
-                                        border: Border.all(color: Colors.white, width: 2),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      // Previous Channel Button
+                                      if (widget.channels != null && widget.channels!.isNotEmpty)
+                                        InkWell(
+                                          onTap: _playPrevious,
+                                          borderRadius: BorderRadius.circular(50),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(12),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withOpacity(0.5),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.skip_previous,
+                                              color: Colors.white,
+                                              size: 32,
+                                            ),
+                                          ),
+                                        ),
+                                      if (widget.channels != null && widget.channels!.isNotEmpty)
+                                        const SizedBox(width: 24),
+                                      
+                                      // Play/Pause Button
+                                      InkWell(
+                                        onTap: _togglePlayPause,
+                                        borderRadius: BorderRadius.circular(50),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(0.5),
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: Colors.white, width: 2),
+                                          ),
+                                          child: Icon(
+                                            _isPlaying ? Icons.pause : Icons.play_arrow,
+                                            color: Colors.white,
+                                            size: 40,
+                                          ),
+                                        ),
                                       ),
-                                      child: Icon(
-                                        _isPlaying ? Icons.pause : Icons.play_arrow,
-                                        color: Colors.white,
-                                        size: 40, // Reduced from 48
+                                      
+                                      // Next Channel Button
+                                      if (widget.channels != null && widget.channels!.isNotEmpty)
+                                        const SizedBox(width: 24),
+                                      if (widget.channels != null && widget.channels!.isNotEmpty)
+                                        InkWell(
+                                          onTap: _playNext,
+                                          borderRadius: BorderRadius.circular(50),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(12),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withOpacity(0.5),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.skip_next,
+                                              color: Colors.white,
+                                              size: 32,
+                                            ),
+                                          ),
+                                        ),
+                                      
+                                      // Fullscreen Button
+                                      const SizedBox(width: 32),
+                                      InkWell(
+                                        onTap: _toggleFullscreen,
+                                        borderRadius: BorderRadius.circular(50),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(0.5),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(
+                                            _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                                            color: Colors.white,
+                                            size: 28,
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -862,43 +951,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                 ),
                               ),
 
-                            // Previous Channel (Left Top Zone)
-                            if (widget.channels != null && widget.channels!.isNotEmpty)
-                              Positioned(
-                                left: 0,
-                                top: 80, 
-                                bottom: null,
-                                height: 200,
-                                width: 100,
-                                child: PointerInterceptor(
-                                  child: InkWell(
-                                    onTap: _playPrevious,
-                                    hoverColor: Colors.black12,
-                                    child: const Center(
-                                      child: Icon(Icons.arrow_back_ios, color: Colors.white, size: 48),
-                                    ),
-                                  ),
-                                ),
-                              ),
 
-                            // Next Channel (Right Top Zone)
-                            if (widget.channels != null && widget.channels!.isNotEmpty)
-                              Positioned(
-                                right: 0,
-                                top: 80, // Moved to top
-                                bottom: null,
-                                height: 200,
-                                width: 100,
-                                child: PointerInterceptor(
-                                  child: InkWell(
-                                    onTap: _playNext,
-                                    hoverColor: Colors.black12,
-                                    child: const Center(
-                                      child: Icon(Icons.arrow_forward_ios, color: Colors.white, size: 48),
-                                    ),
-                                  ),
-                                ),
-                              ),
                               
                             // EPG Overlay
                             if (widget.streamType == StreamType.live)
