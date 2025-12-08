@@ -348,6 +348,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         // CHECK QUALITY SETTING
         // If Quality is NOT High, we force transcoding to ensure audio compatibility (AAC)
         // This solves "No Sound" issues with AC3/DTS on mobile/web.
+        // NOTE: For MKV files with unsupported audio, user should select Low/Medium quality.
         final settings = ref.read(iptvSettingsProvider);
         final useTranscoding = settings.streamQuality != StreamQuality.high;
         
