@@ -755,7 +755,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             // EPG Overlay (Moved behind controls for Z-ordering)
                             if (widget.streamType == StreamType.live)
                               Positioned(
-                                bottom: 100, // Move up above progress bar area/OS safe area
+                                bottom: 15, // Moves EPG down to avoid blocking controls
                                 left: 0,
                                 right: 0,
                                 child: PointerInterceptor(
