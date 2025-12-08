@@ -169,14 +169,6 @@ class _HeroCarouselState extends State<HeroCarousel> {
                                     onPressed: () => widget.onTap(item),
                                     isPrimary: true,
                                   ),
-                                  const SizedBox(width: 12),
-                                  if (item.onMoreInfo != null)
-                                    _HeroButton(
-                                      icon: Icons.info_outline,
-                                      label: 'Plus d\'infos',
-                                      onPressed: item.onMoreInfo!,
-                                      isPrimary: false,
-                                    ),
                                 ],
                               ),
                             ],

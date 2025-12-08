@@ -49,7 +49,9 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >=
+    // Only trigger load when near bottom and not already loading
+    if (!_isLoading && _hasMore &&
+        _scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent * 0.8) {
       _loadMoreMovies();
     }
@@ -92,9 +94,12 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
   }
 
   Future<void> _loadMoreMovies() async {
-    if (_isLoading || !_hasMore) return;
+    // Double-check conditions to prevent race conditions
+    if (_isLoading || !_hasMore || !mounted) return;
 
-    setState(() => _isLoading = true);
+    // Set loading flag immediately before any async operation
+    _isLoading = true;
+    if (mounted) setState(() {});
 
     try {
       final service = ref.read(xtreamServiceProvider(widget.playlist));
@@ -112,7 +117,9 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -165,8 +172,8 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
           : _movies.where((m) => settings.matchesMoviesFilter(m.categoryName)).toList();
     }
 
-    // Hero Items
-    final heroItems = _movies.take(3).map((m) => HeroItem(
+    // Hero Items (use filtered movies)
+    final heroItems = displayMovies.take(3).map((m) => HeroItem(
       id: m.streamId,
       title: m.name,
       imageUrl: _getProxiedImageUrl(m.streamIcon),

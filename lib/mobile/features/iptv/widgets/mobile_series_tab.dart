@@ -48,7 +48,9 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >=
+    // Only trigger load when near bottom and not already loading
+    if (!_isLoading && _hasMore &&
+        _scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent * 0.8) {
       _loadMoreSeries();
     }
@@ -91,9 +93,12 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
   }
 
   Future<void> _loadMoreSeries() async {
-    if (_isLoading || !_hasMore) return;
+    // Double-check conditions to prevent race conditions
+    if (_isLoading || !_hasMore || !mounted) return;
 
-    setState(() => _isLoading = true);
+    // Set loading flag immediately before any async operation
+    _isLoading = true;
+    if (mounted) setState(() {});
 
     try {
       final service = ref.read(xtreamServiceProvider(widget.playlist));
@@ -111,7 +116,9 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -158,8 +165,8 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
           : _series.where((s) => settings.matchesSeriesFilter(s.categoryName)).toList();
     }
 
-    // Hero Items
-    final heroItems = _series.take(3).map((s) => HeroItem(
+    // Hero Items (use filtered series)
+    final heroItems = displaySeries.take(3).map((s) => HeroItem(
       id: s.seriesId.toString(),
       title: s.name,
       imageUrl: _getProxiedImageUrl(s.cover),
