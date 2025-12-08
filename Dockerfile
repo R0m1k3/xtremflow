@@ -64,4 +64,5 @@ COPY --from=builder /app/build/web /app/web
 EXPOSE 8089
 
 # Serve web application with API proxy
-CMD ["dart", "run", "bin/server.dart", "--port", "8089", "--path", "/app/web"]
+WORKDIR /app/bin
+CMD ["dart", "run", "server.dart", "--port", "8089", "--path", "/app/web"]
