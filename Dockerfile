@@ -11,7 +11,7 @@ WORKDIR /app
 RUN git config --global --add safe.directory /app
 
 # Optimize DART VM Memory for build to prevent OOM
-ENV DART_VM_OPTIONS="--old_gen_heap_size=2048"
+ENV DART_VM_OPTIONS="--old_gen_heap_size=4096"
 
 # Enable web support (idempotent)
 RUN flutter config --enable-web
@@ -28,6 +28,9 @@ COPY . .
 
 # Re-run pub get after copying source to ensure lockfile consistency
 RUN flutter pub get
+
+# Clean build environment to avoid conflicts
+RUN flutter clean
 
 # Build web application (CanvasKit renderer is now default)
 # Added --no-tree-shake-icons to prevent potential font issues in some environments
