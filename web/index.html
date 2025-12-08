@@ -36,6 +36,17 @@
       overflow: hidden;
     }
 
+    /* Fullscreen mode - prevent scrollbars */
+    :fullscreen,
+    ::backdrop {
+      overflow: hidden !important;
+    }
+
+    *:fullscreen,
+    *:fullscreen * {
+      overflow: hidden !important;
+    }
+
     .loading-container {
       text-align: center;
       animation: fadeIn 0.5s ease-out;
