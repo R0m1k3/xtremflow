@@ -152,15 +152,6 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
     );
   }
 
-  String? _getProxiedIconUrl(String? originalUrl) {
-    if (originalUrl == null || originalUrl.isEmpty) return null;
-    // Proxy toutes les URLs externes (http et https) via notre serveur
-    if (originalUrl.startsWith('http://') || originalUrl.startsWith('https://')) {
-      return '/api/xtream/$originalUrl';
-    }
-    return originalUrl;
-  }
-
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(iptvSettingsProvider);
@@ -182,7 +173,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
     final heroItems = displaySeries.take(5).map((s) => HeroItem(
       id: s.seriesId.toString(), // ID logic might differ for Series
       title: s.name,
-      imageUrl: _getProxiedIconUrl(s.cover) ?? '',
+      imageUrl: s.cover ?? '',
       subtitle: s.rating != null ? '${_formatRating(s.rating)} ★' : null,
       onMoreInfo: () => _openSeries(s),
     )).toList();
@@ -290,7 +281,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                 final serie = displaySeries[index];
                 return MediaCard(
                   title: serie.name,
-                  imageUrl: _getProxiedIconUrl(serie.cover),
+                  imageUrl: serie.cover,
 
                   subtitle: serie.rating != null ? '${_formatRating(serie.rating)} ★' : null,
                   rating: _formatRating(serie.rating),

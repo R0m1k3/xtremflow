@@ -55,10 +55,16 @@ class Movie {
   });
 
   factory Movie.fromJson(Map<String, dynamic> json) {
+    // Essayer plusieurs champs possibles pour l'image (différentes API Xtream utilisent différents noms)
+    final imageUrl = json['stream_icon']?.toString() ?? 
+                     json['cover']?.toString() ?? 
+                     json['movie_image']?.toString() ??
+                     json['cover_big']?.toString();
+    
     return Movie(
       streamId: json['stream_id']?.toString() ?? '',
       name: json['name']?.toString() ?? 'Unknown',
-      streamIcon: json['stream_icon']?.toString(),
+      streamIcon: imageUrl,
       categoryId: json['category_id']?.toString(),
       categoryName: json['category_name']?.toString() ?? '',
       containerExtension: json['container_extension']?.toString() ?? 'mp4',

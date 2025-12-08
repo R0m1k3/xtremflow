@@ -157,15 +157,6 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
     );
   }
 
-  String? _getProxiedIconUrl(String? originalUrl) {
-    if (originalUrl == null || originalUrl.isEmpty) return null;
-    // Proxy toutes les URLs externes (http et https) via notre serveur
-    if (originalUrl.startsWith('http://') || originalUrl.startsWith('https://')) {
-      return '/api/xtream/$originalUrl';
-    }
-    return originalUrl;
-  }
-
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(iptvSettingsProvider);
@@ -184,7 +175,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
     final heroItems = displayMovies.take(5).map((m) => HeroItem(
       id: m.streamId,
       title: m.name,
-      imageUrl: _getProxiedIconUrl(m.streamIcon) ?? '',
+      imageUrl: m.streamIcon ?? '',
       subtitle: m.rating != null ? '${_formatRating(m.rating)} ★' : null,
       onMoreInfo: () {
          _playMovie(m);
@@ -300,7 +291,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                 
                 return MediaCard(
                   title: movie.name,
-                  imageUrl: _getProxiedIconUrl(movie.streamIcon),
+                  imageUrl: movie.streamIcon,
 
                   subtitle: movie.rating != null ? '${_formatRating(movie.rating)} ★' : null,
                   rating: _formatRating(movie.rating),
