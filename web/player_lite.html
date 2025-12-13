@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>IPTV Player Lite</title>
+    <!-- HLS.js and mpegts.js for MPEG-TS support -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.12/dist/hls.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            background: #000;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #player-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        #error {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            text-align: center;
+            font-family: Arial, sans-serif;
+        }
+
+        #error-icon {
+            font-size: 64px;
+            color: #f44336;
+            margin-bottom: 16px;
+        }
+
+        #loading {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            text-align: center;
+            font-family: Arial, sans-serif;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #fff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="player-container">
+        <!-- Native HTML5 controls enabled with 'controls' attribute -->
+        <video id="video" autoplay playsinline controls></video>
+        <div id="loading">
+            <div class="spinner"></div>
+            <div id="loading-text">Loading stream...</div>
+        </div>
+        <div id="error">
+            <div id="error-icon">⚠</div>
+            <div id="error-message">Failed to load stream</div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const loading = document.getElementById('loading');
+        const loadingText = document.getElementById('loading-text');
+        const error = document.getElementById('error');
+        const errorMessage = document.getElementById('error-message');
+
+        // Get parameters from query string
+        const urlParams = new URLSearchParams(window.location.search);
+        let streamUrl = urlParams.get('url');
+        const startTime = parseFloat(urlParams.get('t') || '0');
+
+        function log(msg) {
+            console.log('[LitePlayer] ' + msg);
+        }
+
+        function showLoading(msg) {
+            loading.style.display = 'block';
+            loadingText.textContent = msg || 'Loading stream...';
+            error.style.display = 'none';
+        }
+
+        function hideLoading() {
+            loading.style.display = 'none';
+        }
+
+        function showError(message) {
+            hideLoading();
+            error.style.display = 'block';
+            errorMessage.textContent = message || 'Failed to load stream';
+        }
+
+        // Seek to startTime when video is ready
+        video.addEventListener('loadedmetadata', () => {
+            if (startTime > 0 && startTime < video.duration) {
+                video.currentTime = startTime;
+                log('Resuming from ' + Math.floor(startTime / 60) + 'm ' + Math.floor(startTime % 60) + 's');
+            }
+        });
+
+        // Report position to parent for resume feature
+        let lastReportedTime = 0;
+        function reportPosition() {
+            if (video.currentTime > 0 && !video.paused && video.readyState > 2) {
+                if (Math.abs(video.currentTime - lastReportedTime) >= 5) {
+                    lastReportedTime = video.currentTime;
+                    window.parent.postMessage({
+                        type: 'playback_position',
+                        currentTime: video.currentTime,
+                        duration: isFinite(video.duration) ? video.duration : 0
+                    }, '*');
+                }
+            }
+        }
+        setInterval(reportPosition, 5000);
+
+        // Report on pause and end
+        video.addEventListener('pause', () => {
+            window.parent.postMessage({
+                type: 'playback_position',
+                currentTime: video.currentTime,
+                duration: isFinite(video.duration) ? video.duration : 0
+            }, '*');
+        });
+
+        video.addEventListener('ended', () => {
+            window.parent.postMessage({
+                type: 'playback_ended',
+                duration: isFinite(video.duration) ? video.duration : 0
+            }, '*');
+        });
+
+        async function playWithHLS(url) {
+            log('Trying HLS.js with: ' + url);
+            showLoading('Loading HLS stream...');
+
+            if (!Hls.isSupported()) {
+                if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = url;
+                    video.addEventListener('canplay', () => {
+                        hideLoading();
+                        video.play().catch(e => log('Autoplay prevented: ' + e));
+                    });
+                    return true;
+                }
+                return false;
+            }
+
+            const hls = new Hls({
+                maxBufferLength: 30,
+                maxMaxBufferLength: 60,
+                liveSyncDurationCount: 3,
+                liveMaxLatencyDurationCount: 6,
+                liveDurationInfinity: true,
+                enableWorker: true
+            });
+
+            window.hlsInstance = hls;
+            hls.loadSource(url);
+            hls.attachMedia(video);
+
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                log('HLS manifest parsed');
+                hideLoading();
+                video.play().catch(e => log('Autoplay prevented: ' + e));
+            });
+
+            hls.on(Hls.Events.ERROR, (event, data) => {
+                log('HLS Error: ' + data.type + ' - ' + data.details);
+                if (data.fatal) {
+                    if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                        hls.startLoad();
+                    } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                        hls.recoverMediaError();
+                    } else {
+                        showError('HLS Error: ' + data.details);
+                        hls.destroy();
+                    }
+                }
+            });
+
+            return true;
+        }
+
+        async function playWithMpegTS(url) {
+            log('Trying mpegts.js with: ' + url);
+            showLoading('Loading MPEG-TS stream...');
+
+            if (!mpegts.isSupported()) {
+                return false;
+            }
+
+            if (mpegts.getLoggingControl) {
+                mpegts.getLoggingControl().enableAll = false;
+                mpegts.getLoggingControl().enableError = true;
+            }
+
+            const player = mpegts.createPlayer({
+                type: 'mpegts',
+                isLive: true,
+                url: url,
+            }, {
+                enableWorker: true,
+                enableStashBuffer: true,
+                stashInitialSize: 384 * 1024,
+                autoCleanupSourceBuffer: true,
+                fixAudioTimestampGap: true
+            });
+
+            player.attachMediaElement(video);
+            player.load();
+
+            video.addEventListener('canplay', () => {
+                log('MPEG-TS stream ready');
+                hideLoading();
+                video.play().catch(e => log('Autoplay prevented: ' + e));
+            });
+
+            video.addEventListener('error', () => {
+                showError('Video error: ' + (video.error?.message || 'Unknown error'));
+            });
+
+            player.on(mpegts.Events.ERROR, (errType, errDetail) => {
+                log('mpegts error: ' + errType + ' - ' + errDetail);
+                showError('Stream error: ' + errDetail);
+            });
+
+            return true;
+        }
+
+        async function playDirect(url) {
+            log('Trying direct playback: ' + url);
+            showLoading('Loading video...');
+
+            video.preload = 'auto';
+
+            video.addEventListener('waiting', () => {
+                log('Buffering...');
+                showLoading('Buffering...');
+            });
+
+            video.addEventListener('playing', hideLoading);
+
+            video.addEventListener('canplay', () => {
+                hideLoading();
+                video.play().catch(e => log('Autoplay prevented: ' + e));
+            }, { once: true });
+
+            video.addEventListener('error', () => {
+                const err = video.error;
+                let msg = 'Playback error';
+                if (err) {
+                    switch (err.code) {
+                        case MediaError.MEDIA_ERR_NETWORK: msg = 'Network error'; break;
+                        case MediaError.MEDIA_ERR_DECODE: msg = 'Video decode error'; break;
+                        case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: msg = 'Format not supported'; break;
+                    }
+                }
+                showError(msg);
+            });
+
+            video.src = url;
+            return true;
+        }
+
+        async function initPlayer() {
+            if (!streamUrl) {
+                showError('No stream URL provided');
+                return;
+            }
+
+            log('Stream URL: ' + streamUrl);
+            const lowerUrl = streamUrl.toLowerCase();
+
+            // Route to appropriate player
+            if (lowerUrl.includes('.m3u8') || lowerUrl.includes('/hls/')) {
+                log('Detected HLS stream');
+                await playWithHLS(streamUrl);
+            } else if (lowerUrl.includes('.ts') || lowerUrl.includes('/live/') || lowerUrl.includes('mpegts')) {
+                log('Detected MPEG-TS (via extension or URL)');
+                log('Using mpegts.js');
+                await playWithMpegTS(streamUrl);
+            } else {
+                // Try direct playback (mp4, etc.)
+                log('Trying direct playback');
+                await playDirect(streamUrl);
+            }
+        }
+
+        // Start player
+        initPlayer();
+    </script>
+</body>
+
+</html>

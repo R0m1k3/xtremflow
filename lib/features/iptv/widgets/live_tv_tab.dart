@@ -434,7 +434,6 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
           playlist: widget.playlist,
           streamType: StreamType.live,
           channels: contextList,
-          initialIndex: contextList.indexOf(channel),
         ),
       ),
     );
