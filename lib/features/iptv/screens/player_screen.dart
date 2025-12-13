@@ -11,6 +11,39 @@ import '../providers/settings_provider.dart';
 import '../widgets/lite_player_view.dart';
 
 // ... (existing imports)
+// ... (existing imports)
+import '../../../core/models/playlist_config.dart';
+import '../../../core/widgets/tv_focusable_card.dart';
+import '../../../core/widgets/glass_container.dart';
+import '../../../core/theme/app_colors.dart';
+import '../models/xtream_models.dart';
+import '../widgets/epg_overlay.dart';
+
+enum StreamType { live, vod, series }
+
+class PlayerScreen extends ConsumerStatefulWidget {
+  final String streamId;
+  final String title;
+  final PlaylistConfig playlist;
+  final StreamType streamType;
+  final String containerExtension;
+  final List<LiveChannel>? channels;
+  final double? startTime;
+
+  const PlayerScreen({
+    super.key,
+    required this.streamId,
+    required this.title,
+    required this.playlist,
+    this.streamType = StreamType.live,
+    this.containerExtension = 'mp4',
+    this.channels,
+    this.startTime,
+  });
+
+  @override
+  ConsumerState<PlayerScreen> createState() => _PlayerScreenState();
+}
 
 class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _isPlaying = true;
@@ -24,6 +57,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   StreamSubscription? _messageSubscription;
   String _aspectRatio = 'contain';
   bool _isSeeking = false;
+  String _viewId = 'iptv-player';
+  String? _currentStreamUrl;
+  String _statusMessage = 'Loading...';
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -129,9 +166,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         // Update watch history if relevant
         if (currentTime > 0) {
            ref.read(playbackPositionsProvider.notifier).savePosition(
-              widget.playlist.id, 
               widget.streamId, 
-              currentTime
+              currentTime,
+              duration
            );
         }
 
