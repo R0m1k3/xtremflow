@@ -70,6 +70,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       _currentIndex = widget.channels!.indexWhere((c) => c.streamId == widget.streamId);
       if (_currentIndex == -1) _currentIndex = 0;
     }
+    // Show controls at start, then auto-hide after timeout
+    _showControls = true;
+    _onHover(); // Start the auto-hide timer
     _initializePlayer(startTimeOverride: widget.startTime);
     _setupMessageListener();
   }
@@ -253,36 +256,127 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Widget build(BuildContext context) {
     final settings = ref.watch(iptvSettingsProvider);
 
-    // LITE PLAYER MODE: Simple iframe with native HTML5 controls, no Flutter overlay
+    // LITE PLAYER MODE: Simple iframe with native HTML5 controls, minimal Flutter overlay
     if (settings.playerType == PlayerType.lite) {
       return Scaffold(
         backgroundColor: Colors.black,
-        body: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Video Player (iframe with native controls) - player_lite.html has its own loading indicator
-            if (_isInitialized)
-              HtmlElementView(viewType: _viewId),
+        body: MouseRegion(
+          onHover: (_) => _onHover(),
+          child: GestureDetector(
+            onTap: () {
+              if (_showControls) {
+                setState(() => _showControls = false);
+              } else {
+                _onHover();
+              }
+            },
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Video Player (iframe with native controls)
+                if (_isInitialized)
+                  HtmlElementView(viewType: _viewId),
 
-            // Simple Back Button - wrapped in PointerInterceptor to work above iframe
-            Positioned(
-              top: 24,
-              left: 24,
-              child: PointerInterceptor(
-                child: GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      shape: BoxShape.circle,
+                // Top Bar: Back Button + Title (with auto-hide)
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 200),
+                  top: _showControls ? 24 : -80,
+                  left: 24,
+                  right: 24,
+                  child: PointerInterceptor(
+                    child: Row(
+                      children: [
+                        Material(
+                          color: Colors.black54,
+                          shape: const CircleBorder(),
+                          child: InkWell(
+                            onTap: () => Navigator.pop(context),
+                            customBorder: const CircleBorder(),
+                            child: const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: Icon(Icons.arrow_back_rounded, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            widget.title,
+                            style: const TextStyle(
+                              color: Colors.white, 
+                              fontSize: 18, 
+                              fontWeight: FontWeight.bold,
+                              shadows: [Shadow(blurRadius: 4, color: Colors.black)],
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
-                    child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
                   ),
                 ),
-              ),
+
+                // Channel Zapping Controls (with auto-hide)
+                if (widget.channels != null && widget.channels!.length > 1)
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 200),
+                    bottom: 100,
+                    right: _showControls ? 24 : -80,
+                    child: PointerInterceptor(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Previous Channel
+                          Material(
+                            color: Colors.black54,
+                            shape: const CircleBorder(),
+                            child: InkWell(
+                              onTap: _previousChannel,
+                              customBorder: const CircleBorder(),
+                              child: const Padding(
+                                padding: EdgeInsets.all(14),
+                                child: Icon(Icons.keyboard_arrow_up, color: Colors.white, size: 28),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // Next Channel
+                          Material(
+                            color: Colors.black54,
+                            shape: const CircleBorder(),
+                            child: InkWell(
+                              onTap: _nextChannel,
+                              customBorder: const CircleBorder(),
+                              child: const Padding(
+                                padding: EdgeInsets.all(14),
+                                child: Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 28),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                // EPG Overlay (for Live TV, with auto-hide, higher position)
+                if (widget.streamType == StreamType.live)
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 200),
+                    bottom: _showControls ? 60 : -120,
+                    left: 0,
+                    right: 0,
+                    child: PointerInterceptor(
+                      child: EpgOverlay(
+                        playlist: widget.playlist,
+                        streamId: widget.channels != null 
+                            ? widget.channels![_currentIndex].streamId 
+                            : widget.streamId,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-          ],
+          ),
         ),
       );
     }

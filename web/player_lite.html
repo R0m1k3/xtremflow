@@ -169,6 +169,23 @@
             }, '*');
         });
 
+        // Report user activity (mouse movement or touch) to parent for auto-hide controls
+        let lastActivityTime = 0;
+        function reportActivity() {
+            const now = Date.now();
+            if (now - lastActivityTime > 100) { // Throttle to 100ms
+                lastActivityTime = now;
+                window.parent.postMessage({
+                    type: 'user_activity'
+                }, '*');
+            }
+        }
+        document.addEventListener('mousemove', reportActivity);
+        document.addEventListener('touchstart', reportActivity);
+        document.addEventListener('touchmove', reportActivity);
+        document.addEventListener('click', reportActivity);
+        document.addEventListener('touchend', reportActivity);
+
         async function playWithHLS(url) {
             log('Trying HLS.js with: ' + url);
             showLoading('Loading HLS stream...');
