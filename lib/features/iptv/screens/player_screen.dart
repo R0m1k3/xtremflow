@@ -13,6 +13,7 @@ import '../widgets/lite_player_view.dart';
 // ... (existing imports)
 // ... (existing imports)
 import '../../../core/models/playlist_config.dart';
+import '../../../core/models/iptv_models.dart';
 import '../../../core/widgets/tv_focusable_card.dart';
 import '../../../core/widgets/glass_container.dart';
 import '../../../core/theme/app_colors.dart';
@@ -27,7 +28,7 @@ class PlayerScreen extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
   final StreamType streamType;
   final String containerExtension;
-  final List<LiveChannel>? channels;
+  final List<Channel>? channels;
   final double? startTime;
 
   const PlayerScreen({
@@ -110,7 +111,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       _currentStreamUrl = streamUrl;
 
       final encodedUrl = Uri.encodeComponent(streamUrl);
-      var playerSrc = 'player.html?url=$encodedUrl';
+      final playerSettings = ref.read(iptvSettingsProvider);
+      var playerSrc = playerSettings.playerType == PlayerType.lite 
+          ? 'player_lite.html?url=$encodedUrl' 
+          : 'player.html?url=$encodedUrl';
       
       if (startTimeOverride != null) {
         playerSrc += '&t=$startTimeOverride';
@@ -249,45 +253,41 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Widget build(BuildContext context) {
     final settings = ref.watch(iptvSettingsProvider);
 
-    // LITE PLAYER MODE
+    // LITE PLAYER MODE: Simple iframe with native HTML5 controls, no Flutter overlay
     if (settings.playerType == PlayerType.lite) {
-       return Scaffold(
+      return Scaffold(
         backgroundColor: Colors.black,
         body: Stack(
+          fit: StackFit.expand,
           children: [
-             if (_isInitialized && _currentStreamUrl != null)
-                LitePlayerView(
-                  streamUrl: _currentStreamUrl!,
-                  isLive: widget.streamType == StreamType.live,
-                  onNext: widget.channels != null ? _nextChannel : null,
-                  onPrevious: widget.channels != null ? _previousChannel : null,
-                )
-             else 
-                const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+            // Video Player (iframe with native controls) - player_lite.html has its own loading indicator
+            if (_isInitialized)
+              HtmlElementView(viewType: _viewId),
 
-             // Simple Back Button Overlay
-             Positioned(
-               top: 24,
-               left: 24,
-               child: TvFocusableCard(
-                 onTap: () => Navigator.pop(context),
-                 borderRadius: 50,
-                 child: Container(
-                   padding: const EdgeInsets.all(12),
-                   decoration: BoxDecoration(
-                     color: Colors.black45,
-                     shape: BoxShape.circle,
-                   ),
-                   child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-                 ),
-               ),
-             ),
+            // Simple Back Button - wrapped in PointerInterceptor to work above iframe
+            Positioned(
+              top: 24,
+              left: 24,
+              child: PointerInterceptor(
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       );
     }
 
-    // STANDARD PLAYER MODE (Custom HTML Overlay)
+    // STANDARD PLAYER MODE (Custom Flutter Overlay)
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
