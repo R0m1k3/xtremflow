@@ -368,9 +368,29 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      Text(
-                        'Channel #${channel.num}',
-                        style: GoogleFonts.inter(color: Colors.white54, fontSize: 10),
+                      const SizedBox(height: 4),
+                      Consumer(
+                        builder: (context, ref, _) {
+                            final epgAsync = ref.watch(epgByPlaylistProvider(
+                              EpgRequestKey(playlist: widget.playlist, streamId: channel.streamId)
+                            ));
+                            
+                            return epgAsync.when(
+                              data: (epgList) {
+                                if (epgList.isEmpty) {
+                                  return Text('No Info', style: GoogleFonts.inter(color: Colors.white54, fontSize: 10));
+                                }
+                                return Text(
+                                  epgList.first.title,
+                                  style: GoogleFonts.inter(color: const Color(0xFFFFD700), fontSize: 10, fontWeight: FontWeight.w600),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                );
+                              },
+                              loading: () => Text('...', style: GoogleFonts.inter(color: Colors.white24, fontSize: 10)),
+                              error: (_,__) => Text('Err', style: GoogleFonts.inter(color: Colors.red, fontSize: 10)),
+                            );
+                        }
                       ),
                     ],
                   ),

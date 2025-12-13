@@ -122,7 +122,7 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                             duration: const Duration(milliseconds: 200),
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                             decoration: BoxDecoration(
-                              color: isSelected ? Colors.white : Colors.white.withOpacity(0.1),
+                              color: isSelected ? Colors.white : Colors.black.withOpacity(0.4),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
@@ -199,6 +199,7 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                             final channel = displayedChannels[index];
                             return _MobileChannelTile(
                               channel: channel,
+                              playlist: widget.playlist,
                               onTap: () => _playChannel(context, channel),
                             );
                           },
@@ -226,21 +227,31 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
   }
 }
 
-class _MobileChannelTile extends StatelessWidget {
+class _MobileChannelTile extends ConsumerWidget {
   final Channel channel;
+  final PlaylistConfig playlist;
   final VoidCallback onTap;
 
-  const _MobileChannelTile({required this.channel, required this.onTap});
+  const _MobileChannelTile({
+    required this.channel,
+    required this.playlist,
+    required this.onTap,
+  });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final iconUrl = channel.streamIcon.isNotEmpty && channel.streamIcon.startsWith('http') 
         ? '/api/xtream/${channel.streamIcon}' 
         : null;
 
+    // Fetch EPG
+    final epgAsync = ref.watch(epgByPlaylistProvider(
+      EpgRequestKey(playlist: playlist, streamId: channel.streamId)
+    ));
+
     return GlassContainer(
       borderRadius: 12,
-      opacity: 0.15, // Slightly more visible
+      opacity: 0.15,
       padding: EdgeInsets.zero,
       child: InkWell(
         onTap: onTap,
@@ -280,12 +291,33 @@ class _MobileChannelTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    Text(
-                      '#${channel.num}',
-                      style: GoogleFonts.inter(
-                        color: Colors.white38,
-                        fontSize: 12,
-                      ),
+                    
+                    // EPG Only (Replaces Channel Number)
+                    epgAsync.when(
+                      data: (epgList) {
+                        if (epgList.isEmpty) {
+                          return Text(
+                            'No Info',
+                            style: GoogleFonts.inter(
+                              color: Colors.white38,
+                              fontSize: 12,
+                            ),
+                          );
+                        }
+                        final current = epgList.first;
+                        return Text(
+                          current.title,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFFFD700), // Gold/Amber for visibility check
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        );
+                      },
+                      loading: () => Text('...', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                      error: (err, stack) => Text('Err', style: TextStyle(color: Colors.red, fontSize: 10)),
                     ),
                   ],
                 ),

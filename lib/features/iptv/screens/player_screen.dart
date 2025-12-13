@@ -143,36 +143,89 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     setState(() => _isFullscreen = !_isFullscreen);
   }
 
-  Future<void> _initializePlayer({double? startTimeOverride}) async {
-    // ... (Keep existing initialization logic, effectively unchanged)
-    // Generating ViewFactory...
-             setState(() {
-        _isLoading = true;
-        _statusMessage = 'Loading...';
-      });
-      
-      // Simulate init for UI demo purposes (User already has logic)
-      // in real implementation, copy full logic from previous file or assume context.
-       _viewId = 'iptv-player-${widget.streamId}-${DateTime.now().millisecondsSinceEpoch}';
-       
-       // ... Logic to build URL ...
-       final settings = ref.read(iptvSettingsProvider);
-       final baseUrl = html.window.location.origin;
-       // ... (Simplify for this rewrite to focus on UI)
-       
-       ui_web.platformViewRegistry.registerViewFactory(_viewId, (int viewId) {
-          final iframe = html.IFrameElement()
-            ..id = _viewId
-            ..src = 'player.html' // simplified
-            ..style.border = 'none'
-            ..allow = 'autoplay; fullscreen; picture-in-picture';
-          return iframe;
-       });
+  void _nextChannel() {
+    if (widget.channels == null || widget.channels!.isEmpty) return;
+    
+    setState(() {
+      _currentIndex = (_currentIndex + 1) % widget.channels!.length;
+      _isInitialized = false; // Trigger reload
+    });
+    
+    // Update player for new stream
+    // We need to re-initialize with the new stream ID from the list
+    _initializePlayer(isChannelSwitch: true);
+  }
 
-       setState(() {
-         _isInitialized = true;
-         _isLoading = false;
-       });
+  void _previousChannel() {
+     if (widget.channels == null || widget.channels!.isEmpty) return;
+
+    setState(() {
+      _currentIndex = (_currentIndex - 1 + widget.channels!.length) % widget.channels!.length;
+      _isInitialized = false;
+    });
+
+    _initializePlayer(isChannelSwitch: true);
+  }
+
+  Future<void> _initializePlayer({double? startTimeOverride, bool isChannelSwitch = false}) async {
+    setState(() {
+      _isLoading = true;
+      _statusMessage = 'Loading...';
+    });
+
+    try {
+      // Determine Stream ID (Initial or Current Index)
+      final currentStreamId = isChannelSwitch && widget.channels != null
+          ? widget.channels![_currentIndex].streamId 
+          : widget.streamId;
+
+      _viewId = 'iptv-player-$currentStreamId-${DateTime.now().millisecondsSinceEpoch}';
+      
+      final service = ref.read(xtreamServiceProvider(widget.playlist));
+      String streamUrl = '';
+
+      // Generate Stream URL based on type
+      if (widget.streamType == StreamType.live) {
+        streamUrl = service.getLiveStreamUrl(currentStreamId);
+      } else if (widget.streamType == StreamType.vod) {
+        streamUrl = service.getVodStreamUrl(currentStreamId, widget.containerExtension);
+      } else if (widget.streamType == StreamType.series) {
+        streamUrl = service.getSeriesStreamUrl(currentStreamId, widget.containerExtension);
+      }
+
+      final encodedUrl = Uri.encodeComponent(streamUrl);
+      var playerSrc = 'player.html?url=$encodedUrl';
+      
+      if (startTimeOverride != null) {
+        playerSrc += '&t=$startTimeOverride';
+      }
+
+      // Register View Factory
+      ui_web.platformViewRegistry.registerViewFactory(_viewId, (int viewId) {
+        final iframe = html.IFrameElement()
+          ..id = _viewId
+          ..src = playerSrc
+          ..style.border = 'none'
+          ..style.width = '100%'
+          ..style.height = '100%'
+          ..allow = 'autoplay; fullscreen; picture-in-picture; encrypted-media';
+        return iframe;
+      });
+
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load stream: $e';
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -192,7 +245,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               child: MouseRegion(
                 onHover: (_) => _onHover(),
                 child: GestureDetector(
-                  onTap: () => setState(() => _showControls = !_showControls),
+                  onTap: () {
+                    if (_showControls) {
+                      setState(() => _showControls = false);
+                    } else {
+                      _onHover(); // Shows controls and starts timer
+                    }
+                  },
                   behavior: HitTestBehavior.translucent,
                   child: Container(color: Colors.transparent),
                 ),
@@ -278,12 +337,25 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                              ),
                        ),
 
+                       // EPG Overlay (Moved out of controls box)
+                       if (widget.streamType == StreamType.live)
+                         Positioned(
+                           bottom: 140, // Positioned above the controls bar
+                           left: 40,
+                           child: EpgOverlay(
+                             streamId: widget.channels != null 
+                              ? widget.channels![_currentIndex].streamId 
+                              : widget.streamId,
+                             playlist: widget.playlist,
+                           ),
+                         ),
+
                        // Bottom Control Bar
                        Positioned(
                          bottom: 40,
                          left: 40,
                          right: 40,
-                         child: GlassContainer(
+                          child: GlassContainer(
                            borderRadius: 24,
                            opacity: 0.8,
                            padding: const EdgeInsets.all(24),
@@ -292,53 +364,46 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                              children: [
                                // Progress Bar (if not live)
                                if (widget.streamType != StreamType.live)
-                                 Row(
-                                   children: [
-                                     Text(_formatDuration(Duration(seconds: _currentPosition.toInt())), style: const TextStyle(color: Colors.white70)),
-                                     const SizedBox(width: 16),
-                                     Expanded(
-                                       child: SliderTheme(
-                                         data: SliderThemeData(
-                                           trackHeight: 4,
-                                           thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-                                           overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
-                                           activeTrackColor: AppColors.primary,
-                                           inactiveTrackColor: Colors.white24,
-                                           thumbColor: Colors.white,
-                                         ),
-                                         child: Slider(
-                                           value: _currentPosition,
-                                           min: 0,
-                                           max: _totalDuration,
-                                           onChanged: (v) {
-                                                // Seek logic
-                                                _sendMessage({'type': 'seek', 'value': v});
-                                           },
+                                 Padding(
+                                   padding: const EdgeInsets.only(bottom: 16),
+                                   child: Row(
+                                     children: [
+                                       Text(_formatDuration(Duration(seconds: _currentPosition.toInt())), style: const TextStyle(color: Colors.white70)),
+                                       const SizedBox(width: 16),
+                                       Expanded(
+                                         child: SliderTheme(
+                                           data: SliderThemeData(
+                                             trackHeight: 4,
+                                             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+                                             overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+                                             activeTrackColor: AppColors.primary,
+                                             inactiveTrackColor: Colors.white24,
+                                             thumbColor: Colors.white,
+                                           ),
+                                           child: Slider(
+                                             value: _currentPosition,
+                                             min: 0,
+                                             max: _totalDuration,
+                                             onChanged: (v) {
+                                                  _sendMessage({'type': 'seek', 'value': v});
+                                             },
+                                           ),
                                          ),
                                        ),
-                                     ),
-                                     const SizedBox(width: 16),
-                                     Text(_formatDuration(Duration(seconds: _totalDuration.toInt())), style: const TextStyle(color: Colors.white70)),
-                                   ],
+                                       const SizedBox(width: 16),
+                                       Text(_formatDuration(Duration(seconds: _totalDuration.toInt())), style: const TextStyle(color: Colors.white70)),
+                                     ],
+                                   ),
                                  ),
-                               
-                               const SizedBox(height: 16),
                                
                                // Controls Row
                                Row(
                                  mainAxisAlignment: MainAxisAlignment.center,
                                  children: [
-                                   _buildTvControl(Icons.skip_previous_rounded, () {}), // Prev
-                                   const SizedBox(width: 24),
-                                   _buildTvControl(Icons.replay_10_rounded, () {
-                                       _sendMessage({'type': 'seek', 'value': _currentPosition - 10});
-                                   }),
-                                   const SizedBox(width: 24),
-                                    _buildTvControl(Icons.forward_10_rounded, () {
-                                       _sendMessage({'type': 'seek', 'value': _currentPosition + 10});
-                                   }),
-                                   const SizedBox(width: 24),
-                                   _buildTvControl(Icons.skip_next_rounded, () {}), // Next
+                                   _buildTvControl(Icons.skip_previous_rounded, _previousChannel), 
+                                   const SizedBox(width: 32), // Increased spacing
+                                   _buildTvControl(Icons.skip_next_rounded, _nextChannel),
+                                   
                                    const Spacer(),
                                     _buildTvControl(Icons.subtitles_rounded, () {}),
                                     const SizedBox(width: 16),
