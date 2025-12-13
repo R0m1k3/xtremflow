@@ -380,8 +380,22 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                                 if (epgList.isEmpty) {
                                   return Text('No Info', style: GoogleFonts.inter(color: Colors.white54, fontSize: 10));
                                 }
+                                final now = DateTime.now();
+                                final currentProgram = epgList.firstWhere(
+                                  (entry) {
+                                    try {
+                                      final start = DateTime.parse(entry.start);
+                                      final end = DateTime.parse(entry.end);
+                                      return now.isAfter(start) && now.isBefore(end);
+                                    } catch (e) {
+                                      return false;
+                                    }
+                                  },
+                                  orElse: () => epgList.first,
+                                );
+
                                 return Text(
-                                  epgList.first.title,
+                                  currentProgram.title,
                                   style: GoogleFonts.inter(color: const Color(0xFFFFD700), fontSize: 10, fontWeight: FontWeight.w600),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,

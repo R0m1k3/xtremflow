@@ -37,6 +37,12 @@ enum TranscodingMode {
   disabled, // Direct stream (no transcoding)
 }
 
+/// Player Type Preference
+enum PlayerType {
+  standard, // Heavily customized HTML5 player (default)
+  lite,     // Lightweight native/video_player based
+}
+
 /// Keys for API JSON storage
 class _SettingsKeys {
   // Filters
@@ -55,6 +61,7 @@ class _SettingsKeys {
   // Player Display Settings
   static const String showClock = 'show_clock';
   static const String preferredAspectRatio = 'aspect_ratio';
+  static const String playerType = 'player_type';
 }
 
 /// Settings state for IPTV preferences with persistence
@@ -76,6 +83,7 @@ class IptvSettings {
   // Player Display Settings
   final bool showClock;
   final String preferredAspectRatio;
+  final PlayerType playerType;
 
   const IptvSettings({
     // Filters
@@ -93,6 +101,7 @@ class IptvSettings {
     // Player defaults
     this.showClock = false,
     this.preferredAspectRatio = 'contain',
+    this.playerType = PlayerType.standard,
   });
 
   IptvSettings copyWith({
@@ -108,6 +117,7 @@ class IptvSettings {
     bool? preferDirectPlay,
     bool? showClock,
     String? preferredAspectRatio,
+    PlayerType? playerType,
   }) {
     return IptvSettings(
       liveTvCategoryFilter: liveTvCategoryFilter ?? this.liveTvCategoryFilter,
@@ -122,6 +132,7 @@ class IptvSettings {
       preferDirectPlay: preferDirectPlay ?? this.preferDirectPlay,
       showClock: showClock ?? this.showClock,
       preferredAspectRatio: preferredAspectRatio ?? this.preferredAspectRatio,
+      playerType: playerType ?? this.playerType,
     );
   }
 
@@ -285,6 +296,8 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
           preferDirectPlay: getValue<bool>(_SettingsKeys.preferDirectPlay),
           showClock: getValue<bool>(_SettingsKeys.showClock),
           preferredAspectRatio: getValue<String>(_SettingsKeys.preferredAspectRatio),
+          playerType: remoteSettings[_SettingsKeys.playerType] != null
+              ? PlayerType.values[remoteSettings[_SettingsKeys.playerType] as int] : null,
         );
       }
       _initialized = true;
@@ -314,6 +327,7 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
       _SettingsKeys.preferDirectPlay: state.preferDirectPlay,
       _SettingsKeys.showClock: state.showClock,
       _SettingsKeys.preferredAspectRatio: state.preferredAspectRatio,
+      _SettingsKeys.playerType: state.playerType.index,
     };
 
     print('[SettingsProvider] _saveToApi: Saving settings...');
@@ -397,6 +411,11 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
 
   void setPreferredAspectRatio(String value) {
     state = state.copyWith(preferredAspectRatio: value);
+    _saveToApi();
+  }
+
+  void setPlayerType(PlayerType type) {
+    state = state.copyWith(playerType: type);
     _saveToApi();
   }
 

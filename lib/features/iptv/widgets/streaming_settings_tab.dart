@@ -34,6 +34,27 @@ class StreamingSettingsTab extends ConsumerWidget {
         ),
         const SizedBox(height: 24),
 
+        // Player Type Section
+        _buildSectionCard(
+          context: context,
+          title: 'Lecteur Vidéo',
+          icon: Icons.play_circle_outline,
+          children: [
+            _buildDropdownTile<PlayerType>(
+              title: 'Type de lecteur',
+              subtitle: 'Changer si vous rencontrez des problèmes de lecture',
+              value: settings.playerType,
+              items: PlayerType.values,
+              onChanged: (v) => notifier.setPlayerType(v!),
+              labelBuilder: (v) => switch (v) {
+                PlayerType.standard => 'Standard (Avancé)',
+                PlayerType.lite => 'Lite (Compatibilité max)',
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
         // Quality Section
         _buildSectionCard(
           context: context,
