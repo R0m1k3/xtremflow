@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/models/playlist_config.dart';
 import '../../../../core/theme/app_colors.dart';
-
 import '../../../../core/widgets/components/hero_carousel.dart';
-import '../../../../core/widgets/components/ui_components.dart';
+import '../../../../core/widgets/glass_container.dart';
 import '../../../../features/iptv/models/xtream_models.dart';
 import '../../../../features/iptv/providers/xtream_provider.dart';
 import '../../../../features/iptv/providers/settings_provider.dart';
@@ -48,7 +48,6 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
   }
 
   void _onScroll() {
-    // Only trigger load when near bottom and not already loading
     if (!_isLoading && _hasMore &&
         _scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent * 0.8) {
@@ -93,7 +92,6 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
   }
 
   Future<void> _loadMoreSeries() async {
-    // Prevent race conditions
     if (_isLoading || !_hasMore || !mounted) return;
 
     setState(() => _isLoading = true);
@@ -129,7 +127,6 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
     return rating;
   }
 
-  /// Proxy HTTP images through backend to avoid CORS/mixed-content issues
   String _getProxiedImageUrl(String? originalUrl) {
     if (originalUrl == null || originalUrl.isEmpty) return '';
     if (originalUrl.startsWith('http://')) {
@@ -163,7 +160,6 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
           : _series.where((s) => settings.matchesSeriesFilter(s.categoryName)).toList();
     }
 
-    // Hero Items (use filtered series)
     final heroItems = displaySeries.take(3).map((s) => HeroItem(
       id: s.seriesId.toString(),
       title: s.name,
@@ -177,44 +173,41 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
       child: CustomScrollView(
         controller: _scrollController,
         slivers: [
-          // Header & Search
+          // Glass Header & Search
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Container(
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: GlassContainer(
+                borderRadius: 100,
+                opacity: 0.1,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Row(
                   children: [
-                    const Icon(Icons.search, size: 20, color: AppColors.textSecondary),
+                    const Icon(Icons.search, size: 20, color: Colors.white54),
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
                         controller: _searchController,
-                        style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
-                        decoration: const InputDecoration(
-                          hintText: 'Search Series',
+                        style: GoogleFonts.inter(fontSize: 14, color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'Search Series...',
+                          hintStyle: GoogleFonts.inter(color: Colors.white54),
                           border: InputBorder.none,
                           isDense: true,
-                          contentPadding: EdgeInsets.only(bottom: 11),
+                          contentPadding: const EdgeInsets.only(bottom: 11),
                         ),
                         onChanged: _onSearchChanged,
                       ),
                     ),
                     if (_isSearching)
-                      const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)),
+                      const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
                     if (_searchQuery.isNotEmpty)
                       GestureDetector(
                         onTap: () {
                            _searchController.clear();
                            _onSearchChanged('');
                         },
-                        child: const Icon(Icons.close, size: 16, color: AppColors.textSecondary),
+                        child: const Icon(Icons.close, size: 16, color: Colors.white),
                       ),
                   ],
                 ),
@@ -226,21 +219,17 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
           if (_searchQuery.isEmpty && heroItems.isNotEmpty)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.only(bottom: 24),
                 child: SizedBox(
                    height: 250,
                    child: HeroCarousel(
                      items: heroItems,
                      onTap: (item) {
-                       // Find series by title fallback if ID logic differs (Series ID is int usually, Hero is Str)
-                       // But here we rely on passing the correct string ID or using the closure directly if possible.
-                       // HeroCarousel onTap returns HeroItem. 
-                       // We must map it back. 
                        try {
                          final series = _series.firstWhere((s) => s.seriesId.toString() == item.id);
                          _openSeries(series);
                        } catch (e) {
-                         // Fallback logic not critical for now, assume ID matches
+                         // Fallback
                        }
                      },
                    ),
@@ -263,14 +252,74 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                   if (index >= displaySeries.length) return null;
                   final series = displaySeries[index];
                   
-                  return MediaCard(
-                    title: series.name,
-                    imageUrl: _getProxiedImageUrl(series.cover),
-
-                    subtitle: series.rating != null ? '${_formatRating(series.rating)} ★' : null,
-                    rating: _formatRating(series.rating),
-                    placeholderIcon: Icons.tv,
+                  return GestureDetector(
                     onTap: () => _openSeries(series),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // Poster
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: series.cover != null && series.cover!.isNotEmpty
+                            ? Image.network(
+                                _getProxiedImageUrl(series.cover),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(color: Colors.white10),
+                              )
+                            : Container(color: Colors.white10, child: const Icon(Icons.tv, color: Colors.white24)),
+                        ),
+                        
+                        // Gradient Overlay
+                        Positioned(
+                          bottom: 0, left: 0, right: 0,
+                          height: 80,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Colors.transparent, Colors.black.withOpacity(0.9)],
+                              ),
+                              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                            ),
+                          ),
+                        ),
+
+                        // Title
+                        Positioned(
+                          bottom: 12, left: 12, right: 12,
+                          child: Text(
+                            series.name,
+                            style: GoogleFonts.inter(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+
+                        // Rating
+                        if (series.rating != null && series.rating!.isNotEmpty)
+                          Positioned(
+                            top: 8, right: 8,
+                            child: GlassContainer(
+                              borderRadius: 4,
+                              opacity: 0.6,
+                              color: Colors.black,
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.star, size: 10, color: Colors.amber),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _formatRating(series.rating)!,
+                                    style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   );
                 },
                 childCount: displaySeries.length,
@@ -282,7 +331,7 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
             const SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
+                child: Center(child: CircularProgressIndicator(color: Colors.white)),
               ),
             ),
         ],
