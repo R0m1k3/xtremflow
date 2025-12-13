@@ -6,6 +6,7 @@ import '../../../../core/models/playlist_config.dart';
 import '../../../../features/iptv/models/xtream_models.dart';
 import '../../../../features/iptv/providers/xtream_provider.dart';
 import '../../../../features/iptv/providers/watch_history_provider.dart';
+import '../../../../features/iptv/screens/player_screen.dart'; // Explicit import for StreamType
 import 'mobile_player_screen.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/glass_container.dart';

@@ -55,7 +55,7 @@ class _LitePlayerViewState extends ConsumerState<LitePlayerView> {
         looping: false,
         isLive: widget.isLive,
         aspectRatio: _videoController.value.aspectRatio > 0 ? _videoController.value.aspectRatio : 16/9,
-        colors: ChewieProgressColors(
+        materialProgressColors: ChewieProgressColors(
           playedColor: AppColors.primary,
           handleColor: Colors.white,
           backgroundColor: Colors.white24,
@@ -67,13 +67,19 @@ class _LitePlayerViewState extends ConsumerState<LitePlayerView> {
           return <OptionItem>[
              if (widget.onNext != null)
               OptionItem(
-                onTap: widget.onNext!,
+                onTap: (context) {
+                  widget.onNext!();
+                  Navigator.of(context).pop(); // Close options menu
+                },
                 iconData: Icons.skip_next,
                 title: 'Next Channel',
               ),
              if (widget.onPrevious != null)
               OptionItem(
-                onTap: widget.onPrevious!,
+                onTap: (context) {
+                  widget.onPrevious!();
+                  Navigator.of(context).pop(); // Close options menu
+                },
                 iconData: Icons.skip_previous,
                 title: 'Previous Channel',
               ),
