@@ -8,8 +8,7 @@ import '../screens/mobile_player_screen.dart';
 import '../../../../core/models/iptv_models.dart';
 import '../../../../core/models/playlist_config.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../theme/mobile_theme.dart';
-import '../../../../core/widgets/components/ui_components.dart'; // For images/CachedNetworkImage if needed
+import '../../../../core/widgets/glass_container.dart';
 
 class MobileLiveTVTab extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
@@ -29,16 +28,8 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
   void initState() {
     super.initState();
     _searchController.addListener(() {
-      setState(() {
-        _searchQuery = _searchController.text.toLowerCase();
-      });
+      setState(() => _searchQuery = _searchController.text.toLowerCase());
     });
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 
   @override
@@ -48,19 +39,17 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
     final settings = ref.watch(iptvSettingsProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent, // Handled by MobileScaffold
       body: channelsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, s) => Center(child: Text('Error: $e')),
+        error: (e, s) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.white))),
         data: (groupedChannels) {
-          // Prepare categories
           var categories = groupedChannels.keys.toList();
           if (settings.liveTvKeywords.isNotEmpty) {
             categories = categories.where((cat) => settings.matchesLiveTvFilter(cat)).toList();
           }
           categories.sort();
 
-          // Prepare channels
           List<Channel> displayedChannels = [];
           if (_searchQuery.isNotEmpty) {
             displayedChannels = groupedChannels.values.expand((l) => l)
@@ -71,7 +60,6 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                 .where((c) => favorites.contains(c.streamId))
                 .toList();
           } else {
-            // Default to first category if none selected
             if (_selectedCategory == null && categories.isNotEmpty) {
                _selectedCategory = categories.first;
             }
@@ -81,45 +69,42 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
           }
 
           return SafeArea(
-            bottom: false, // For bottom nav
+            bottom: false,
             child: Column(
               children: [
-                // Search Bar
+                // Header & Search
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Container(
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.all(16),
+                  child: GlassContainer(
+                    borderRadius: 16,
+                    opacity: 0.1,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Row(
                       children: [
-                        const Icon(Icons.search, color: AppColors.textSecondary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: _searchController,
-                            style: const TextStyle(color: AppColors.textPrimary),
-                            decoration: const InputDecoration(
-                              hintText: 'Search channels',
-                              border: InputBorder.none,
-                              isDense: true,
-                            ),
-                          ),
-                        ),
-                        if (_searchQuery.isNotEmpty)
-                          GestureDetector(
-                            onTap: () => _searchController.clear(),
-                            child: const Icon(Icons.close, color: AppColors.textSecondary),
-                          ),
+                         Expanded(
+                           child: TextField(
+                             controller: _searchController,
+                             style: GoogleFonts.inter(color: Colors.white),
+                             decoration: InputDecoration(
+                               hintText: 'Search channels...',
+                               hintStyle: GoogleFonts.inter(color: Colors.white54),
+                               border: InputBorder.none,
+                               prefixIcon: const Icon(Icons.search, color: Colors.white54),
+                               isDense: true,
+                             ),
+                           ),
+                         ),
+                         if (_searchQuery.isNotEmpty)
+                           GestureDetector(
+                             onTap: () => _searchController.clear(),
+                             child: const Icon(Icons.close, color: Colors.white54),
+                           ),
                       ],
                     ),
                   ),
                 ),
 
-                // Categories (Chips)
+                // Categories
                 if (_searchQuery.isEmpty && !_showFavoritesOnly)
                   SizedBox(
                     height: 40,
@@ -131,71 +116,85 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                       itemBuilder: (context, index) {
                         final category = categories[index];
                         final isSelected = category == _selectedCategory;
-                        return ChoiceChip(
-                          label: Text(category),
-                          selected: isSelected,
-                          onSelected: (bool selected) {
-                            if (selected) {
-                              setState(() {
-                                _selectedCategory = category;
-                              });
-                            }
-                          },
-                          backgroundColor: AppColors.surface,
-                          selectedColor: AppColors.primary,
-                          labelStyle: TextStyle(
-                            color: isSelected ? Colors.white : AppColors.textSecondary,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                            fontSize: 12,
+                        return GestureDetector(
+                          onTap: () => setState(() => _selectedCategory = category),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isSelected ? Colors.white : Colors.white.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              category,
+                              style: GoogleFonts.inter(
+                                color: isSelected ? Colors.black : Colors.white70,
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                fontSize: 13,
+                              ),
+                            ),
                           ),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          side: BorderSide.none,
-                          showCheckmark: false,
                         );
                       },
                     ),
                   ),
-                
-                // Content Switcher (Favorites button etc)
+
+                // Sub-header
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                   child: Row(
                     children: [
                       Text(
-                        _searchQuery.isNotEmpty ? 'Search Results' : 
+                        _searchQuery.isNotEmpty ? 'Results' : 
                         _showFavoritesOnly ? 'Favorites' : 
-                        _selectedCategory ?? 'All Channels',
-                        style: const TextStyle(
-                          color: AppColors.textPrimary, 
+                        _selectedCategory ?? 'Channels',
+                        style: GoogleFonts.inter(
+                          color: Colors.white, 
                           fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                          fontSize: 18,
                         ),
                       ),
                       const Spacer(),
-                      IconButton(
-                        icon: Icon(
-                          _showFavoritesOnly ? Icons.favorite : Icons.favorite_border,
-                          color: _showFavoritesOnly ? AppColors.error : AppColors.textSecondary,
+                      GestureDetector(
+                        onTap: () => setState(() => _showFavoritesOnly = !_showFavoritesOnly),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: _showFavoritesOnly ? AppColors.live.withOpacity(0.2) : Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: _showFavoritesOnly ? Border.all(color: AppColors.live) : null,
+                          ),
+                          child: Icon(
+                            _showFavoritesOnly ? Icons.favorite : Icons.favorite_border,
+                            color: _showFavoritesOnly ? AppColors.live : Colors.white,
+                            size: 20,
+                          ),
                         ),
-                        onPressed: () => setState(() => _showFavoritesOnly = !_showFavoritesOnly),
                       ),
                     ],
                   ),
                 ),
 
-                // Channel List
+                // List
                 Expanded(
                   child: displayedChannels.isEmpty
                       ? Center(
-                          child: Text(
-                            'No channels found',
-                            style: GoogleFonts.inter(color: AppColors.textSecondary),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.tv_off, color: Colors.white24, size: 48),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No channels found',
+                                style: GoogleFonts.inter(color: Colors.white38),
+                              ),
+                            ],
                           ),
                         )
                       : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 80), // Bottom padding for FAB/Nav
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
                           itemCount: displayedChannels.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
                           itemBuilder: (context, index) {
                             final channel = displayedChannels[index];
                             return _MobileChannelTile(
@@ -239,50 +238,68 @@ class _MobileChannelTile extends StatelessWidget {
         ? '/api/xtream/${channel.streamIcon}' 
         : null;
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            // Icon
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: Colors.black26,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: iconUrl != null
-                  ? Image.network(
-                      iconUrl, 
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.tv, color: Colors.white24),
-                    )
-                  : const Icon(Icons.tv, color: Colors.white24),
-            ),
-            const SizedBox(width: 12),
-            // Name
-            Expanded(
-              child: Text(
-                channel.name,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 14,
+    return GlassContainer(
+      borderRadius: 12,
+      opacity: 0.15, // Slightly more visible
+      padding: EdgeInsets.zero,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                padding: const EdgeInsets.all(4),
+                child: iconUrl != null
+                    ? Image.network(
+                        iconUrl, 
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Icon(Icons.tv, color: Colors.white24),
+                      )
+                    : const Icon(Icons.tv, color: Colors.white24),
               ),
-            ),
-            // Play Icon
-            const Icon(Icons.play_circle_outline, color: AppColors.primary),
-          ],
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      channel.name,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      '#${channel.num}',
+                      style: GoogleFonts.inter(
+                        color: Colors.white38,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16),
+              ),
+            ],
+          ),
         ),
       ),
     );

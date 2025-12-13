@@ -43,25 +43,25 @@ class MobileTheme {
 
       // AppBar: Transparent / Glass
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.surface.withOpacity(0.8), // Slight background for mobile
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: Colors.transparent, // Let GlassContainer handle background
+        foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
         scrolledUnderElevation: 0,
         titleTextStyle: GoogleFonts.inter(
-          fontSize: 16,
+          fontSize: 18,
           fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
+          color: Colors.white,
         ),
       ),
       
       // Bottom Navigation Bar
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: AppColors.surface.withOpacity(0.9),
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.textSecondary,
-        selectedLabelStyle: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w500),
+        backgroundColor: const Color(0xFF1C1C1E).withOpacity(0.9), // Dark glass
+        selectedItemColor: Colors.white,
+        unselectedItemColor: Colors.white38,
+        selectedLabelStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500),
         type: BottomNavigationBarType.fixed,
         elevation: 0,
       ),
