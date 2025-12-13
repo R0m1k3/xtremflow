@@ -511,6 +511,20 @@
 
             log('Stream URL: ' + streamUrl.substring(0, 80) + '...');
 
+            // SPECIAL: /api/stream/ endpoint outputs MPEG-TS, use mpegts.js directly
+            if (streamUrl.includes('/api/stream/')) {
+                log('Detected /api/stream/ endpoint - using MPEG-TS player for transcoded stream');
+                showLoading('Initializing stream (transcoding audio)...');
+
+                if (mpegts.isSupported()) {
+                    await playWithMpegTS(streamUrl);
+                    return;
+                } else {
+                    showError('MPEG-TS playback not supported on this device');
+                    return;
+                }
+            }
+
             // Determine stream type and try appropriate player
             const lowerUrl = streamUrl.toLowerCase();
             const ext = urlParams.get('ext') ? urlParams.get('ext').toLowerCase() : '';
