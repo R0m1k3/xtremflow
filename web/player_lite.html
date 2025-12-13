@@ -239,8 +239,8 @@
             return true;
         }
 
-        async function playWithMpegTS(url) {
-            log('Trying mpegts.js with: ' + url);
+        async function playWithMpegTS(url, isLive = true) {
+            log('Trying mpegts.js with: ' + url + ' (isLive: ' + isLive + ')');
             showLoading('Loading MPEG-TS stream...');
 
             if (!mpegts.isSupported()) {
@@ -252,17 +252,21 @@
                 mpegts.getLoggingControl().enableError = true;
             }
 
+            // Configure player differently for VOD vs Live
+            const playerConfig = {
+                enableWorker: true,
+                enableStashBuffer: !isLive, // Enable for VOD, disable for live
+                stashInitialSize: isLive ? 384 * 1024 : 512 * 1024,
+                autoCleanupSourceBuffer: true,
+                fixAudioTimestampGap: isLive, // Only for live streams
+                liveBufferLatencyChasing: isLive, // Disable for VOD
+            };
+
             const player = mpegts.createPlayer({
                 type: 'mpegts',
-                isLive: true,
+                isLive: isLive, // Use parameter to enable/disable seeking
                 url: url,
-            }, {
-                enableWorker: true,
-                enableStashBuffer: true,
-                stashInitialSize: 384 * 1024,
-                autoCleanupSourceBuffer: true,
-                fixAudioTimestampGap: true
-            });
+            }, playerConfig);
 
             player.attachMediaElement(video);
             player.load();
@@ -356,6 +360,16 @@
             log('Stream URL: ' + streamUrl);
             log('Stream type: ' + streamType);
             const lowerUrl = streamUrl.toLowerCase();
+
+            // SPECIAL: /api/stream/ endpoint outputs MPEG-TS, use mpegts.js directly
+            if (streamUrl.includes('/api/stream/')) {
+                log('Detected /api/stream/ endpoint - using MPEG-TS player for transcoded stream');
+                showLoading('Initializing stream (transcoding audio)...');
+                // For VOD, use isLive:false to enable seeking/duration
+                const isVodStream = (streamType === 'vod');
+                await playWithMpegTS(streamUrl, !isVodStream); // true for live, false for vod
+                return;
+            }
 
             // Use type parameter if available, otherwise detect from URL
             if (streamType === 'vod') {

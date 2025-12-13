@@ -72,16 +72,24 @@ class XtreamService {
   String getVodStreamUrl(String streamId, String containerExtension) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     
+    // Use FFmpeg transcoding to ensure audio compatibility (converts AC3/DTS to AAC)
     final url = '${_currentPlaylist!.dns}/movie/${_currentPlaylist!.username}/${_currentPlaylist!.password}/$streamId.$containerExtension';
-    return _wrapWithProxy(url);
+    
+    final baseUrl = html.window.location.origin;
+    final encodedUrl = Uri.encodeComponent(url);
+    return '$baseUrl/api/stream/$streamId?url=$encodedUrl';
   }
 
   /// Generate stream URL for series episodes
   String getSeriesStreamUrl(String streamId, String containerExtension) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     
+    // Use FFmpeg transcoding to ensure audio compatibility
     final url = '${_currentPlaylist!.dns}/series/${_currentPlaylist!.username}/${_currentPlaylist!.password}/$streamId.$containerExtension';
-    return _wrapWithProxy(url);
+    
+    final baseUrl = html.window.location.origin;
+    final encodedUrl = Uri.encodeComponent(url);
+    return '$baseUrl/api/stream/$streamId?url=$encodedUrl';
   }
 
   /// Authenticate and get server info
