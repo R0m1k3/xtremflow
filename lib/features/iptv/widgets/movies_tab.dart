@@ -7,8 +7,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../../core/widgets/components/hero_carousel.dart';
-import '../../../core/widgets/components/ui_components.dart';
 import '../../../core/widgets/themed_loading_screen.dart';
+import '../../../core/widgets/glass_container.dart';
+import '../../../core/widgets/tv_focusable_card.dart';
 import '../providers/watch_history_provider.dart';
 import '../models/xtream_models.dart';
 import '../providers/xtream_provider.dart';
@@ -140,7 +141,6 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
     return rating;
   }
 
-  /// Proxy HTTP images through backend to avoid CORS/mixed-content issues
   String _getProxiedImageUrl(String? originalUrl) {
     if (originalUrl == null || originalUrl.isEmpty) return '';
     if (originalUrl.startsWith('http://')) {
@@ -180,21 +180,6 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
           : _movies.where((m) => settings.matchesMoviesFilter(m.categoryName)).toList();
     }
 
-    // Hero Items (Take 5 random or first 5 from filtered list)
-    final heroItems = displayMovies.take(5).map((m) => HeroItem(
-      id: m.streamId,
-      title: m.name,
-      imageUrl: _getProxiedImageUrl(m.streamIcon),
-      subtitle: m.rating != null ? '${_formatRating(m.rating)} ★' : null,
-      onMoreInfo: () {
-         _playMovie(m);
-      },
-    )).toList();
-
-    if (_movies.isEmpty && !_isLoading) {
-      return const Center(child: Text('No movies available'));
-    }
-
     final double gridItemRatio = 0.65;
     final int crossAxisCount = ResponsiveLayout.value(
       context,
@@ -203,128 +188,230 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
       desktop: 7,
     );
 
-    return CustomScrollView(
-      controller: _scrollController,
-      slivers: [
-        // Header
-        SliverToBoxAdapter(
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-            child: Row(
-              children: [
-                Text(
-                  'Movies',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  width: 300,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.search, size: 20, color: AppColors.textSecondary),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          style: const TextStyle(fontSize: 14, color: Colors.white),
-                          decoration: const InputDecoration(
-                            hintText: 'Rechercher...',
-                            hintStyle: TextStyle(color: Colors.white54),
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            contentPadding: EdgeInsets.only(bottom: 12),
-                            isDense: true,
-                          ),
-                          onChanged: _onSearchChanged,
-                        ),
-                      ),
-                      if (_isSearching)
-                        const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)),
-                      if (_searchQuery.isNotEmpty)
-                        GestureDetector(
-                          onTap: () {
-                             _searchController.clear();
-                             _onSearchChanged('');
-                          },
-                          child: const Icon(Icons.close, size: 16, color: AppColors.textSecondary),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        // Hero Carousel
-        if (_searchQuery.isEmpty && heroItems.isNotEmpty)
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          // Header (Floating Glass)
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 24),
-              child: HeroCarousel(
-                items: heroItems,
-                onTap: (item) {
-                   final movie = _movies.firstWhere((element) => element.streamId == item.id);
-                   _playMovie(movie);
-                },
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+              child: GlassContainer(
+                borderRadius: 100,
+                opacity: 0.6,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                child: Row(
+                  children: [
+                    Text(
+                      'Movies',
+                      style: GoogleFonts.inter(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const Spacer(),
+                    
+                    // Search Bar
+                    Container(
+                      width: 300,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.search, size: 20, color: Colors.white54),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              style: GoogleFonts.inter(fontSize: 14, color: Colors.white),
+                              decoration: InputDecoration(
+                                hintText: 'Search movies...',
+                                hintStyle: GoogleFonts.inter(color: Colors.white54),
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: const EdgeInsets.only(bottom: 12),
+                              ),
+                              onChanged: _onSearchChanged,
+                            ),
+                          ),
+                          if (_isSearching)
+                             const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                          if (_searchQuery.isNotEmpty)
+                             GestureDetector(
+                               onTap: () {
+                                  _searchController.clear();
+                                  _onSearchChanged('');
+                               },
+                               child: const Icon(Icons.close, size: 16, color: Colors.white),
+                             ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        
-        // Grid
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          sliver: SliverGrid(
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: crossAxisCount,
-              crossAxisSpacing: 24,
-              mainAxisSpacing: 32,
-              childAspectRatio: gridItemRatio,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                if (index >= displayMovies.length) return null;
-                final movie = displayMovies[index];
-                final isWatched = watchHistory.isMovieWatched(movie.streamId);
-                
-                return MediaCard(
-                  title: movie.name,
-                  imageUrl: _getProxiedImageUrl(movie.streamIcon),
 
-                  subtitle: movie.rating != null ? '${_formatRating(movie.rating)} ★' : null,
-                  rating: _formatRating(movie.rating),
-                  isWatched: isWatched,
-                  onTap: () => _playMovie(movie),
-                  onLongPress: () {
-                    ref.read(watchHistoryProvider.notifier).toggleMovieWatched(movie.streamId);
+          // Hero Carousel (Only when not searching)
+          if (_searchQuery.isEmpty && displayMovies.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 32),
+                child: HeroCarousel(
+                  items: displayMovies.take(5).map((m) => HeroItem(
+                    id: m.streamId,
+                    title: m.name,
+                    imageUrl: _getProxiedImageUrl(m.streamIcon),
+                    subtitle: m.rating != null ? '${_formatRating(m.rating)} ★' : null,
+                    onMoreInfo: () => _playMovie(m),
+                  )).toList(),
+                  onTap: (item) {
+                     final movie = _movies.firstWhere((element) => element.streamId == item.id);
+                     _playMovie(movie);
                   },
-                );
-              },
-              childCount: displayMovies.length,
+                ),
+              ),
+            ),
+          
+          // Movies Grid
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            sliver: SliverGrid(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: 20,
+                mainAxisSpacing: 20,
+                childAspectRatio: gridItemRatio,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  if (index >= displayMovies.length) return null;
+                  final movie = displayMovies[index];
+                  final isWatched = watchHistory.isMovieWatched(movie.streamId);
+                  
+                  return TvFocusableCard(
+                    onTap: () => _playMovie(movie),
+                    borderRadius: 12,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // Poster Image
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: movie.streamIcon != null && movie.streamIcon!.isNotEmpty
+                            ? Image.network(
+                                _getProxiedImageUrl(movie.streamIcon),
+                                fit: BoxFit.cover,
+                                errorBuilder: (ctx, err, stack) => Container(
+                                  color: AppColors.surfaceVariant,
+                                  child: const Center(child: Icon(Icons.movie, size: 48, color: Colors.white24)),
+                                ),
+                              )
+                            : Container(
+                                color: AppColors.surfaceVariant,
+                                child: const Center(child: Icon(Icons.movie, size: 48, color: Colors.white24)),
+                              ),
+                        ),
+                        
+                        // Gradient Overlay
+                        Positioned(
+                          left: 0, right: 0, bottom: 0,
+                          height: 80,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Colors.transparent, Colors.black.withOpacity(0.9)],
+                              ),
+                              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                            ),
+                          ),
+                        ),
+                        
+                        // Rating Badge
+                        if (movie.rating != null && movie.rating!.isNotEmpty)
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.7),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.white24),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.star, size: 10, color: Colors.amber),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _formatRating(movie.rating)!,
+                                  style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // Title
+                        Positioned(
+                          left: 12, right: 12, bottom: 12,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                movie.name,
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  shadows: [const Shadow(color: Colors.black, blurRadius: 4)],
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (isWatched)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    'WATCHED',
+                                    style: GoogleFonts.inter(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                childCount: displayMovies.length,
+              ),
             ),
           ),
-        ),
-        
-        // Loader
-        if (_isLoading)
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: ThemedLoading(),
+          
+          // Loader
+          if (_isLoading)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: Center(child: CircularProgressIndicator(color: Colors.white)),
+              ),
             ),
-          ),
-      ],
+            
+          const SliverPadding(padding: EdgeInsets.only(bottom: 50)),
+        ],
+      ),
     );
   }
 }
