@@ -62,6 +62,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   String? _currentStreamUrl;
   String _statusMessage = 'Loading...';
   String? _errorMessage;
+  bool _isMuted = false;
 
   @override
   void initState() {
@@ -115,8 +116,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
       final encodedUrl = Uri.encodeComponent(streamUrl);
       final playerSettings = ref.read(iptvSettingsProvider);
+      final streamTypeParam = widget.streamType == StreamType.live ? 'live' : 'vod';
       var playerSrc = playerSettings.playerType == PlayerType.lite 
-          ? 'player_lite.html?url=$encodedUrl' 
+          ? 'player_lite.html?url=$encodedUrl&type=$streamTypeParam' 
           : 'player.html?url=$encodedUrl';
       
       if (startTimeOverride != null) {
@@ -139,6 +141,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         setState(() {
           _isInitialized = true;
           _isLoading = false;
+        });
+        
+        // Force unmute on load (after a short delay to ensure iframe is ready)
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _sendMessage({'type': 'set_volume', 'value': 1.0});
+          }
         });
       }
     } catch (e) {
@@ -216,6 +225,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     } else {
       html.document.documentElement?.requestFullscreen();
     }
+  }
+
+  void _toggleMute() {
+    setState(() => _isMuted = !_isMuted);
+    _sendMessage({'type': 'set_volume', 'value': _isMuted ? 0.0 : 1.0});
   }
 
   void _previousChannel() {
@@ -298,10 +312,29 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             ),
                           ),
                         ),
+                        const SizedBox(width: 12),
+                        // Mute/Unmute Button
+                        Material(
+                          color: Colors.black54,
+                          shape: const CircleBorder(),
+                          child: InkWell(
+                            onTap: _toggleMute,
+                            customBorder: const CircleBorder(),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Icon(
+                                _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded, 
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
                         const SizedBox(width: 16),
                         Expanded(
                           child: Text(
-                            widget.title,
+                            widget.channels != null 
+                                ? widget.channels![_currentIndex].name 
+                                : widget.title,
                             style: const TextStyle(
                               color: Colors.white, 
                               fontSize: 18, 
