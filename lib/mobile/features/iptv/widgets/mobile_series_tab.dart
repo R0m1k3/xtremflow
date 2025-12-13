@@ -303,7 +303,6 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                             child: GlassContainer(
                               borderRadius: 4,
                               opacity: 0.6,
-                              color: Colors.black,
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
