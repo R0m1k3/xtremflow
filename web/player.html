@@ -315,38 +315,42 @@
                 return false;
             }
 
-            // Optimized HLS.js configuration for stable live streaming
+            // Optimized HLS.js configuration for stable streaming (prevents micro-cutouts)
             const hls = new Hls({
-                // Increase buffer for smoother playback
-                maxBufferLength: 30,           // Max 30 seconds of buffer
-                maxMaxBufferLength: 60,        // Allow up to 60 seconds in stressed conditions
-                maxBufferSize: 60 * 1000000,   // 60MB max buffer size
-                maxBufferHole: 0.5,            // Tolerate 0.5s gaps in buffer
+                // LARGER buffers to prevent stalls
+                maxBufferLength: 60,           // Max 60 seconds of buffer (doubled)
+                maxMaxBufferLength: 120,       // Allow up to 120 seconds in stressed conditions
+                maxBufferSize: 120 * 1000000,  // 120MB max buffer size
+                maxBufferHole: 1.0,            // Tolerate 1s gaps in buffer (more forgiving)
 
-                // Low latency settings (balanced)
-                liveSyncDurationCount: 3,      // Sync to 3 segments behind live
-                liveMaxLatencyDurationCount: 6, // Max 6 segments behind before seeking
+                // Live settings - more tolerant
+                liveSyncDurationCount: 4,      // Sync to 4 segments behind live (more buffer)
+                liveMaxLatencyDurationCount: 10, // Max 10 segments behind before seeking
                 liveDurationInfinity: true,    // Treat live streams as infinite
+                liveBackBufferLength: 30,      // Keep 30s of back buffer
 
-                // Faster recovery from errors
-                manifestLoadingTimeOut: 15000,  // 15s timeout for manifest
-                manifestLoadingMaxRetry: 4,     // Retry manifest 4 times
-                manifestLoadingRetryDelay: 1000, // 1s between retries
-                levelLoadingTimeOut: 15000,     // 15s for level playlist
-                levelLoadingMaxRetry: 4,
-                levelLoadingRetryDelay: 1000,
-                fragLoadingTimeOut: 20000,      // 20s for fragments
-                fragLoadingMaxRetry: 6,         // Retry fragments 6 times
-                fragLoadingRetryDelay: 1000,
+                // AGGRESSIVE retry settings for network issues
+                manifestLoadingTimeOut: 20000,  // 20s timeout for manifest
+                manifestLoadingMaxRetry: 8,     // Retry manifest 8 times
+                manifestLoadingRetryDelay: 500, // 500ms between retries (faster)
+                levelLoadingTimeOut: 20000,     // 20s for level playlist
+                levelLoadingMaxRetry: 8,
+                levelLoadingRetryDelay: 500,
+                fragLoadingTimeOut: 30000,      // 30s for fragments (longer)
+                fragLoadingMaxRetry: 10,        // Retry fragments 10 times
+                fragLoadingRetryDelay: 500,     // 500ms between retries
 
                 // Better quality selection
                 startLevel: -1,                 // Auto-select start level
                 abrEwmaDefaultEstimate: 500000, // Start assuming 500kbps
-                abrBandWidthFactor: 0.95,       // Use 95% of measured bandwidth
-                abrBandWidthUpFactor: 0.7,      // Be cautious when upgrading quality
+                abrBandWidthFactor: 0.9,        // Use 90% of measured bandwidth (more conservative)
+                abrBandWidthUpFactor: 0.6,      // Be more cautious when upgrading quality
 
                 // Enable worker for better performance
                 enableWorker: true,
+
+                // Lowlatency mode disabled for stability
+                lowLatencyMode: false,
 
                 // Don't add extra headers
                 xhrSetup: function (xhr, url) { }
@@ -366,25 +370,38 @@
                 });
             });
 
-            // Better error recovery
+            // Better error recovery (including non-fatal bufferStalledError)
             hls.on(Hls.Events.ERROR, (event, data) => {
                 log('HLS Error: ' + data.type + ' - ' + data.details);
 
-                if (data.fatal) {
-                    switch (data.type) {
-                        case Hls.ErrorTypes.NETWORK_ERROR:
-                            log('Network error, attempting recovery...');
-                            hls.startLoad(); // Try to recover network errors
-                            break;
-                        case Hls.ErrorTypes.MEDIA_ERROR:
-                            log('Media error, attempting recovery...');
-                            hls.recoverMediaError(); // Try to recover media errors
-                            break;
-                        default:
-                            showError('HLS Error: ' + data.details);
-                            hls.destroy();
-                            break;
+                // Handle non-fatal buffer errors (bufferStalledError)
+                if (!data.fatal) {
+                    if (data.details === 'bufferStalledError') {
+                        log('Buffer stalled, attempting recovery...');
+                        // Nudge playback if stuck
+                        if (video.paused) {
+                            video.play().catch(e => log('Resume failed: ' + e));
+                        }
+                        // Force reload from current position
+                        hls.startLoad(video.currentTime);
                     }
+                    return; // Non-fatal errors can often be ignored
+                }
+
+                // Handle fatal errors
+                switch (data.type) {
+                    case Hls.ErrorTypes.NETWORK_ERROR:
+                        log('Network error, attempting recovery...');
+                        hls.startLoad(); // Try to recover network errors
+                        break;
+                    case Hls.ErrorTypes.MEDIA_ERROR:
+                        log('Media error, attempting recovery...');
+                        hls.recoverMediaError(); // Try to recover media errors
+                        break;
+                    default:
+                        showError('HLS Error: ' + data.details);
+                        hls.destroy();
+                        break;
                 }
             });
 
