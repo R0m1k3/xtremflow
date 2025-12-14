@@ -252,20 +252,28 @@
                 mpegts.getLoggingControl().enableError = true;
             }
 
-            // Configure player differently for VOD vs Live
+            // Optimized configuration for stable Live TV playback
             const playerConfig = {
                 enableWorker: true,
-                enableStashBuffer: !isLive, // Enable for VOD, disable for live
-                stashInitialSize: isLive ? 384 * 1024 : 512 * 1024,
+                enableStashBuffer: true, // Enable buffering for stability
+                stashInitialSize: 1024 * 1024, // 1MB initial buffer
                 autoCleanupSourceBuffer: true,
-                fixAudioTimestampGap: isLive, // Only for live streams
-                liveBufferLatencyChasing: isLive, // Disable for VOD
+                autoCleanupMaxBackwardDuration: 60, // Keep 1 min of buffer
+                autoCleanupMinBackwardDuration: 30, // Cleanup after 30s
+                fixAudioTimestampGap: true, // Fix audio sync issues
+                liveBufferLatencyChasing: false, // Disable for stability (prevents skipping)
+                liveSync: false, // Don't auto-sync to edge
+                lazyLoad: false, // Load immediately
+                lazyLoadMaxDuration: 0,
+                lazyLoadRecoverDuration: 0,
             };
 
             const player = mpegts.createPlayer({
                 type: 'mpegts',
-                isLive: isLive, // Use parameter to enable/disable seeking
+                isLive: isLive,
                 url: url,
+                hasAudio: true,
+                hasVideo: true,
             }, playerConfig);
 
             player.attachMediaElement(video);
@@ -361,20 +369,11 @@
             log('Stream type: ' + streamType);
             const lowerUrl = streamUrl.toLowerCase();
 
-            // LIVE TV: Simple MPEG-TS playback with mpegts.js
+            // LIVE TV: Direct MPEG-TS playback with mpegts.js
             if (streamType === 'live') {
-                log('Live TV mode: Using MPEG-TS direct playback');
+                log('Live TV mode - using mpegts.js direct');
                 showLoading('Connecting to live stream...');
-
-                // Check for HLS first (.m3u8)
-                if (lowerUrl.includes('.m3u8') || lowerUrl.includes('/hls/')) {
-                    log('Live HLS detected');
-                    await playWithHLS(streamUrl);
-                } else {
-                    // Default: MPEG-TS with mpegts.js
-                    log('Using mpegts.js for MPEG-TS');
-                    await playWithMpegTS(streamUrl, true); // isLive=true
-                }
+                await playWithMpegTS(streamUrl, true);
                 return;
             }
 

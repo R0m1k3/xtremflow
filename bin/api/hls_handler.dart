@@ -152,18 +152,20 @@ Handler createStreamInitHandler() {
       final isLiveStream = iptvUrl.endsWith('.ts') || iptvUrl.contains('/live/');
       
       if (isLiveStream) {
-        // LIVE TV: Fast transcoding with ultrafast preset
+        // LIVE TV: Transcode to H.264 for browser compatibility
+        // Source may be HEVC/H.265 which browsers don't support
+        // Using superfast preset for minimal CPU usage
         ffmpegArgs.addAll([
           '-c:v', 'libx264',
-          '-preset', 'ultrafast',
-          '-tune', 'zerolatency',
-          '-profile:v', 'main', // Main profile for better quality than baseline
-          '-level', '4.0',
+          '-preset', 'superfast', // Fast encoding to prevent buffering
+          '-tune', 'zerolatency', // Minimize latency
+          '-profile:v', 'baseline', // Maximum browser compatibility
+          '-level', '3.1',
           '-pix_fmt', 'yuv420p',
-          '-g', '48', // 2s GOP at 24fps
-          '-b:v', '4000k', // 4Mbps for good quality live
-          '-maxrate', '4500k',
-          '-bufsize', '8000k',
+          '-g', '30', // Keyframe every second at 30fps
+          '-b:v', '2500k', // 2.5Mbps - balance quality/speed
+          '-maxrate', '3000k',
+          '-bufsize', '5000k',
         ]);
       } else {
         // VOD: Higher quality transcoding

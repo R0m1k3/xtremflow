@@ -541,6 +541,15 @@
             // Determine stream type and try appropriate player
             const lowerUrl = streamUrl.toLowerCase();
             const ext = urlParams.get('ext') ? urlParams.get('ext').toLowerCase() : '';
+            const streamTypeParam = urlParams.get('type');
+
+            // VOD via proxy (/api/xtream/) - use direct playback
+            if (streamUrl.includes('/api/xtream/') && streamTypeParam === 'vod') {
+                log('VOD via proxy - using direct playback');
+                showLoading('Loading video...');
+                await playDirect(streamUrl);
+                return;
+            }
 
             // HLS streams first
             if (lowerUrl.includes('.m3u8') || lowerUrl.includes('/hls/')) {
