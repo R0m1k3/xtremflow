@@ -60,14 +60,14 @@ class XtreamService {
   /// Generate stream URL for live TV
   /// 
   /// Returns the proxy URL for direct MPEG-TS streaming.
-  /// Player will use mpegts.js for playback (no server-side transcoding).
+  /// Player uses mpegts.js for playback.
   String getLiveStreamUrl(String streamId) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     
     // Direct .ts URL for MPEG-TS streaming
     final iptvUrl = '${_currentPlaylist!.dns}/live/${_currentPlaylist!.username}/${_currentPlaylist!.password}/$streamId.ts';
     
-    // Use proxy for direct streaming (no FFmpeg transcoding)
+    // Use proxy for direct streaming
     return _wrapWithProxy(iptvUrl);
   }
 
