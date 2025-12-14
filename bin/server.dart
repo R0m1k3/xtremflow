@@ -164,12 +164,16 @@ void main(List<String> args) async {
 }
 
 /// Create API handler
+/// Create API handler
 Handler _createApiHandler(Router apiRouter) {
   return (Request request) async {
     final path = request.url.path;
     
-    // Only handle /api/* requests (excluding /api/xtream)
-    if (path.startsWith('api/') && !path.startsWith('api/xtream/')) {
+    // Only handle /api/* requests (excluding special handlers)
+    if (path.startsWith('api/') && 
+        !path.startsWith('api/xtream/') && 
+        !path.startsWith('api/stream/') && 
+        !path.startsWith('api/hls/')) {
       return apiRouter(request);
     }
     
@@ -243,18 +247,29 @@ Handler _createXtreamProxyHandler() {
       
       // Check if this is a video file that needs streaming
       final lowerPath = targetUrl.path.toLowerCase();
-      final isVideoFile = lowerPath.endsWith('.mp4') || 
+      
+      // Detect LIVE TV streams (infinite streams)
+      final isLiveStream = lowerPath.contains('/live/') && lowerPath.endsWith('.ts');
+      
+      // Detect VOD files (finite, seekable)
+      final isVodFile = !isLiveStream && (
+                          lowerPath.endsWith('.mp4') || 
                           lowerPath.endsWith('.mkv') || 
                           lowerPath.endsWith('.avi') ||
                           lowerPath.endsWith('.ts') ||
                           lowerPath.endsWith('.m4v') ||
                           lowerPath.contains('/movie/') ||
-                          lowerPath.contains('/series/');
+                          lowerPath.contains('/series/'));
 
-      print('Proxying request to: $targetUrl (video streaming: $isVideoFile)');
+      print('Proxying request to: $targetUrl (live: $isLiveStream, vod: $isVodFile)');
 
-      // For video files, use streaming with Range support for seeking
-      if (isVideoFile) {
+      // For LIVE streams, use infinite streaming handler
+      if (isLiveStream) {
+        return _streamLiveChannel(targetUrl);
+      }
+      
+      // For VOD files, use streaming with Range support for seeking
+      if (isVodFile) {
         final rangeHeader = request.headers['range'];
         return _streamVideoFile(targetUrl, rangeHeader);
       }
@@ -445,6 +460,128 @@ Future<Response> _streamVideoFile(Uri targetUrl, String? rangeHeader) async {
       if (i == maxRedirects - 1) {
          return Response.internalServerError(
            body: jsonEncode({'error': 'Video streaming error', 'message': e.toString()}),
+           headers: {'content-type': 'application/json'},
+         );
+      }
+    }
+  }
+  
+  return Response.internalServerError(body: 'Too many redirects');
+}
+
+/// Stream LIVE TV channel with persistent connection (no Content-Length)
+/// 
+/// Unlike VOD streaming, live streams are infinite and should not close
+/// the connection until the client disconnects.
+Future<Response> _streamLiveChannel(Uri targetUrl) async {
+  final maxRedirects = 5;
+  var currentUrl = targetUrl;
+  final cookies = <String, String>{};
+  
+  print('Live Stream Request: $targetUrl');
+
+  for (var i = 0; i < maxRedirects; i++) {
+    try {
+      final client = HttpClient();
+      // CRITICAL: Very long timeouts for live streaming
+      client.connectionTimeout = const Duration(minutes: 2);
+      client.idleTimeout = const Duration(hours: 2); // Keep alive for 2 hours
+      
+      final req = await client.getUrl(currentUrl);
+      req.followRedirects = false;
+      req.persistentConnection = true; // Keep connection alive
+      
+      // IPTV-compatible headers
+      req.headers.set('User-Agent', 'VLC/3.0.18 LibVLC/3.0.18');
+      req.headers.set('Accept', '*/*');
+      req.headers.set('Connection', 'keep-alive');
+      req.headers.set('Accept-Encoding', 'identity');
+      req.headers.set('Icy-MetaData', '1'); // IPTV metadata support
+      
+      // Apply cookies from redirects
+      if (cookies.isNotEmpty) {
+        final cookieHeader = cookies.entries.map((e) => '${e.key}=${e.value}').join('; ');
+        req.headers.set(HttpHeaders.cookieHeader, cookieHeader);
+      }
+      
+      client.autoUncompress = false;
+      
+      final response = await req.close();
+      print('Live Stream Response: ${response.statusCode} from $currentUrl');
+      
+      // Collect cookies
+      response.cookies.forEach((cookie) {
+        cookies[cookie.name] = cookie.value;
+      });
+
+      // Handle redirects
+      if (response.statusCode >= 300 && response.statusCode < 400) {
+        final location = response.headers.value(HttpHeaders.locationHeader);
+        if (location != null) {
+          print('Live stream redirecting to: $location');
+          currentUrl = Uri.parse(location);
+          await response.drain();
+          continue;
+        }
+      }
+      
+      // Get content type
+      final contentType = response.headers.contentType?.mimeType ?? 'video/MP2T';
+      
+      print('Live stream connected: $contentType');
+      
+      // Use StreamController to pipe the live stream to the client
+      // This keeps the connection open and actively streams data
+      final controller = StreamController<List<int>>();
+      
+      // Listen to the upstream response and forward data to the client
+      response.listen(
+        (data) {
+          if (!controller.isClosed) {
+            controller.add(data);
+          }
+        },
+        onError: (error) {
+          print('Live stream error: $error');
+          if (!controller.isClosed) {
+            controller.addError(error);
+          }
+        },
+        onDone: () {
+          print('Live stream upstream ended');
+          if (!controller.isClosed) {
+            controller.close();
+          }
+        },
+        cancelOnError: false,
+      );
+      
+      // When client disconnects, close the controller
+      controller.onCancel = () {
+        print('Live stream client disconnected');
+        // Note: The response stream will be garbage collected
+      };
+      
+      // Response headers for live streaming (NO Content-Length!)
+      final responseHeaders = <String, String>{
+        'content-type': contentType,
+        'access-control-allow-origin': '*',
+        'cache-control': 'no-cache, no-store',
+        'connection': 'keep-alive',
+        // Don't set transfer-encoding or content-length for raw binary streams
+      };
+      
+      // Return streaming response
+      return Response.ok(
+        controller.stream,
+        headers: responseHeaders,
+      );
+      
+    } catch (e) {
+      print('Live streaming exception: $e');
+      if (i == maxRedirects - 1) {
+         return Response.internalServerError(
+           body: jsonEncode({'error': 'Live streaming error', 'message': e.toString()}),
            headers: {'content-type': 'application/json'},
          );
       }

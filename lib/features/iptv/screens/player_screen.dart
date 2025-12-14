@@ -323,23 +323,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        // Mute/Unmute Button
-                        Material(
-                          color: Colors.black54,
-                          shape: const CircleBorder(),
-                          child: InkWell(
-                            onTap: _toggleMute,
-                            customBorder: const CircleBorder(),
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Icon(
-                                _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded, 
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
                         const SizedBox(width: 16),
                         Expanded(
                           child: Text(
@@ -364,7 +347,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 if (widget.channels != null && widget.channels!.length > 1)
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 200),
-                    bottom: 100,
+                    bottom: 160,
                     right: _showControls ? 24 : -80,
                     child: PointerInterceptor(
                       child: Column(
