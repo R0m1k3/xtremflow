@@ -62,6 +62,7 @@ class _SettingsKeys {
   static const String showClock = 'show_clock';
   static const String preferredAspectRatio = 'aspect_ratio';
   static const String playerType = 'player_type';
+  static const String forceVodTranscoding = 'force_vod_transcoding';
 }
 
 /// Settings state for IPTV preferences with persistence
@@ -84,6 +85,9 @@ class IptvSettings {
   final bool showClock;
   final String preferredAspectRatio;
   final PlayerType playerType;
+  
+  // VOD Settings
+  final bool forceVodTranscoding;
 
   const IptvSettings({
     // Filters
@@ -102,6 +106,8 @@ class IptvSettings {
     this.showClock = false,
     this.preferredAspectRatio = 'contain',
     this.playerType = PlayerType.standard,
+    // VOD defaults
+    this.forceVodTranscoding = false,
   });
 
   IptvSettings copyWith({
@@ -118,6 +124,7 @@ class IptvSettings {
     bool? showClock,
     String? preferredAspectRatio,
     PlayerType? playerType,
+    bool? forceVodTranscoding,
   }) {
     return IptvSettings(
       liveTvCategoryFilter: liveTvCategoryFilter ?? this.liveTvCategoryFilter,
@@ -133,6 +140,7 @@ class IptvSettings {
       showClock: showClock ?? this.showClock,
       preferredAspectRatio: preferredAspectRatio ?? this.preferredAspectRatio,
       playerType: playerType ?? this.playerType,
+      forceVodTranscoding: forceVodTranscoding ?? this.forceVodTranscoding,
     );
   }
 
@@ -298,6 +306,7 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
           preferredAspectRatio: getValue<String>(_SettingsKeys.preferredAspectRatio),
           playerType: remoteSettings[_SettingsKeys.playerType] != null
               ? PlayerType.values[remoteSettings[_SettingsKeys.playerType] as int] : null,
+          forceVodTranscoding: getValue<bool>(_SettingsKeys.forceVodTranscoding),
         );
       }
       _initialized = true;
@@ -328,6 +337,7 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
       _SettingsKeys.showClock: state.showClock,
       _SettingsKeys.preferredAspectRatio: state.preferredAspectRatio,
       _SettingsKeys.playerType: state.playerType.index,
+      _SettingsKeys.forceVodTranscoding: state.forceVodTranscoding,
     };
 
     print('[SettingsProvider] _saveToApi: Saving settings...');
@@ -422,6 +432,12 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
   // Legacy methods
   void setCategoryFilter(String filter) => setLiveTvFilter(filter);
   void clearCategoryFilter() => clearLiveTvFilter();
+
+  // VOD Settings
+  void setForceVodTranscoding(bool value) {
+    state = state.copyWith(forceVodTranscoding: value);
+    _saveToApi();
+  }
 }
 
 /// Provider for IPTV settings

@@ -511,16 +511,27 @@
 
             log('Stream URL: ' + streamUrl.substring(0, 80) + '...');
 
-            // SPECIAL: /api/stream/ endpoint outputs MPEG-TS, use mpegts.js directly
+            // SPECIAL: /api/stream/ returns JSON with HLS playlist URL
             if (streamUrl.includes('/api/stream/')) {
-                log('Detected /api/stream/ endpoint - using MPEG-TS player for transcoded stream');
+                log('Detected /api/stream/ - fetching HLS playlist...');
                 showLoading('Initializing stream (transcoding audio)...');
 
-                if (mpegts.isSupported()) {
-                    await playWithMpegTS(streamUrl);
-                    return;
-                } else {
-                    showError('MPEG-TS playback not supported on this device');
+                try {
+                    const response = await fetch(streamUrl);
+                    const data = await response.json();
+
+                    if (data.playlist) {
+                        const playlistUrl = window.location.origin + data.playlist;
+                        log('Playing HLS: ' + playlistUrl);
+                        await playWithHLS(playlistUrl);
+                        return;
+                    } else {
+                        showError('Invalid stream response');
+                        return;
+                    }
+                } catch (err) {
+                    log('Error: ' + err);
+                    showError('Stream init failed');
                     return;
                 }
             }

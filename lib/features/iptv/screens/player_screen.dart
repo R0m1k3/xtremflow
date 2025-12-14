@@ -102,20 +102,23 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       final service = ref.read(xtreamServiceProvider(widget.playlist));
       String streamUrl = '';
 
+      // Get settings for VOD transcoding preference
+      final playerSettings = ref.read(iptvSettingsProvider);
+      final forceTranscoding = playerSettings.forceVodTranscoding;
+
       // Generate Stream URL based on type
       if (widget.streamType == StreamType.live) {
         streamUrl = service.getLiveStreamUrl(currentStreamId);
       } else if (widget.streamType == StreamType.vod) {
-        streamUrl = service.getVodStreamUrl(currentStreamId, widget.containerExtension);
+        streamUrl = service.getVodStreamUrl(currentStreamId, widget.containerExtension, forceTranscoding: forceTranscoding);
       } else if (widget.streamType == StreamType.series) {
-        streamUrl = service.getSeriesStreamUrl(currentStreamId, widget.containerExtension);
+        streamUrl = service.getSeriesStreamUrl(currentStreamId, widget.containerExtension, forceTranscoding: forceTranscoding);
       }
 
       // Store URL for Lite Player
       _currentStreamUrl = streamUrl;
 
       final encodedUrl = Uri.encodeComponent(streamUrl);
-      final playerSettings = ref.read(iptvSettingsProvider);
       final streamTypeParam = widget.streamType == StreamType.live ? 'live' : 'vod';
       var playerSrc = playerSettings.playerType == PlayerType.lite 
           ? 'player_lite.html?url=$encodedUrl&type=$streamTypeParam' 

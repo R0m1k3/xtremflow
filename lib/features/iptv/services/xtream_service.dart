@@ -69,27 +69,43 @@ class XtreamService {
   }
 
   /// Generate stream URL for VOD (movies)
-  String getVodStreamUrl(String streamId, String containerExtension) {
+  /// 
+  /// [forceTranscoding] - If true, uses FFmpeg to transcode audio (guaranteed sound)
+  ///                       If false, uses direct URL (enables seeking but may lack audio on AC3/DTS)
+  String getVodStreamUrl(String streamId, String containerExtension, {bool forceTranscoding = false}) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     
-    // Use FFmpeg HLS transcoding for guaranteed audio compatibility + seeking
     final url = '${_currentPlaylist!.dns}/movie/${_currentPlaylist!.username}/${_currentPlaylist!.password}/$streamId.$containerExtension';
     
-    final baseUrl = html.window.location.origin;
-    final encodedUrl = Uri.encodeComponent(url);
-    return '$baseUrl/api/stream/$streamId?url=$encodedUrl';
+    if (forceTranscoding) {
+      // Use FFmpeg transcoding for guaranteed audio (no seeking)
+      final baseUrl = html.window.location.origin;
+      final encodedUrl = Uri.encodeComponent(url);
+      return '$baseUrl/api/stream/$streamId?url=$encodedUrl';
+    } else {
+      // Direct URL for seeking (audio only if AAC/MP3)
+      return _wrapWithProxy(url);
+    }
   }
 
   /// Generate stream URL for series episodes
-  String getSeriesStreamUrl(String streamId, String containerExtension) {
+  /// 
+  /// [forceTranscoding] - If true, uses FFmpeg to transcode audio (guaranteed sound)
+  ///                       If false, uses direct URL (enables seeking but may lack audio on AC3/DTS)
+  String getSeriesStreamUrl(String streamId, String containerExtension, {bool forceTranscoding = false}) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     
-    // Use FFmpeg HLS transcoding for guaranteed audio compatibility + seeking
     final url = '${_currentPlaylist!.dns}/series/${_currentPlaylist!.username}/${_currentPlaylist!.password}/$streamId.$containerExtension';
     
-    final baseUrl = html.window.location.origin;
-    final encodedUrl = Uri.encodeComponent(url);
-    return '$baseUrl/api/stream/$streamId?url=$encodedUrl';
+    if (forceTranscoding) {
+      // Use FFmpeg transcoding for guaranteed audio (no seeking)
+      final baseUrl = html.window.location.origin;
+      final encodedUrl = Uri.encodeComponent(url);
+      return '$baseUrl/api/stream/$streamId?url=$encodedUrl';
+    } else {
+      // Direct URL for seeking (audio only if AAC/MP3)
+      return _wrapWithProxy(url);
+    }
   }
 
   /// Authenticate and get server info

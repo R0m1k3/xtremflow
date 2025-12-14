@@ -140,40 +140,39 @@ Handler createStreamInitHandler() {
         
         // Output format: HLS
         '-f', 'hls',
-        '-hls_time', '4', // 4 second segments
-        '-hls_list_size', '0', // Keep all segments
-        '-hls_flags', 'delete_segments+append_list',
+        '-hls_time', '4', 
+        '-hls_list_size', '0', // Keep all segments in playlist
+        '-hls_playlist_type', 'event', // Allow appending new segments, keep old ones
         '-hls_segment_type', 'mpegts',
         '-hls_segment_filename', '${tempDir.path}/segment_%03d.ts',
       ];
 
-      // Video: Copy or transcode
-      if (quality == 'high') {
-        ffmpegArgs.addAll(['-c:v', 'copy']);
-      } else {
-        ffmpegArgs.addAll([
-          '-c:v', 'libx264',
-          '-preset', 'veryfast',
-          '-profile:v', 'baseline',
-          '-level', '3.0',
-          '-pix_fmt', 'yuv420p',
-          '-g', '48',
-        ]);
+      // Video: ALWAYS Transcode to ensure standard HLS/MPEG-TS timestamps
+      // Copying causes DEMUXER_ERROR if source stamps are weird (common in MKV)
+      ffmpegArgs.addAll([
+        '-c:v', 'libx264',
+        '-preset', 'ultrafast', // Fast encoding for live/vod
+        '-tune', 'zerolatency',
+        '-profile:v', 'baseline',
+        '-level', '3.0',
+        '-pix_fmt', 'yuv420p',
+        '-g', '48', // 2s GOP
+      ]);
 
-        if (quality == 'low') {
-          ffmpegArgs.addAll([
-            '-vf', 'scale=-2:480',
-            '-b:v', '800k',
-            '-maxrate', '800k',
-            '-bufsize', '1600k',
-          ]);
-        } else {
-          ffmpegArgs.addAll([
-            '-b:v', '2000k',
-            '-maxrate', '2000k',
-            '-bufsize', '4000k',
-          ]);
-        }
+      if (quality == 'low') {
+        ffmpegArgs.addAll([
+          '-vf', 'scale=-2:480',
+          '-b:v', '800k',
+          '-maxrate', '800k',
+          '-bufsize', '1600k',
+        ]);
+      } else {
+        // High/Medium (default)
+        ffmpegArgs.addAll([
+          '-b:v', '2500k',
+          '-maxrate', '2500k',
+          '-bufsize', '5000k',
+        ]);
       }
       
       // Audio: Always transcode to AAC
@@ -212,6 +211,25 @@ Handler createStreamInitHandler() {
         return Response.internalServerError(
           body: 'FFmpeg failed to create playlist',
         );
+      }
+
+      // CRITICAL: Wait for first segment to exist AND HAVE DATA > 5MB to be safe? 
+      // No, 10KB is enough for header + some data
+      attempts = 0;
+      final firstSegment = File('${tempDir.path}/segment_000.ts');
+      while (attempts < 100) {
+        if (await firstSegment.exists()) {
+          final len = await firstSegment.length();
+          if (len > 10240) break; // Wait for > 10KB
+        }
+        await Future.delayed(const Duration(milliseconds: 100));
+        attempts++;
+      }
+
+      if (!await firstSegment.exists()) {
+        print('Warning: First segment not created yet for $streamId');
+      } else {
+        print('First segment ready for $streamId (${await firstSegment.length()} bytes)');
       }
 
       print('HLS playlist created for $streamId');
