@@ -57,20 +57,18 @@ class XtreamService {
     _currentPlaylist = playlist;
   }
 
-  /// Generate stream URL for live TV via FFmpeg transcoding
+  /// Generate stream URL for live TV
   /// 
-  /// Returns the start URL for FFmpeg transcoding endpoint.
-  /// The endpoint will start FFmpeg and return the local HLS URL.
+  /// Returns the proxy URL for direct MPEG-TS streaming.
+  /// Player will use mpegts.js for playback (no server-side transcoding).
   String getLiveStreamUrl(String streamId) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     
-    // Use .ts format for direct MPEG-TS streaming (FFmpeg handles this better)
+    // Direct .ts URL for MPEG-TS streaming
     final iptvUrl = '${_currentPlaylist!.dns}/live/${_currentPlaylist!.username}/${_currentPlaylist!.password}/$streamId.ts';
     
-    // Use FFmpeg transcoding endpoint
-    final baseUrl = html.window.location.origin;
-    final encodedUrl = Uri.encodeComponent(iptvUrl);
-    return '$baseUrl/api/stream/$streamId?url=$encodedUrl';
+    // Use proxy for direct streaming (no FFmpeg transcoding)
+    return _wrapWithProxy(iptvUrl);
   }
 
   /// Generate stream URL for VOD (movies)
