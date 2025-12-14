@@ -361,59 +361,41 @@
             log('Stream type: ' + streamType);
             const lowerUrl = streamUrl.toLowerCase();
 
-            // SPECIAL: /api/stream/ endpoint handling - ALWAYS returns JSON with HLS playlist
-            if (streamUrl.includes('/api/stream/')) {
-                // Both Live TV and VOD use /api/stream/ which returns JSON with HLS playlist URL
-                log((streamType === 'live' ? 'Live TV' : 'VOD') + ' via /api/stream/ - fetching HLS...');
-                showLoading(streamType === 'live' ? 'Connecting to live stream...' : 'Initializing stream...');
+            // LIVE TV: Simple MPEG-TS playback with mpegts.js
+            if (streamType === 'live') {
+                log('Live TV mode: Using MPEG-TS direct playback');
+                showLoading('Connecting to live stream...');
 
-                try {
-                    const response = await fetch(streamUrl);
-                    const data = await response.json();
-
-                    if (data.playlist) {
-                        const playlistUrl = window.location.origin + data.playlist;
-                        log('Got HLS playlist: ' + playlistUrl);
-                        showLoading('Loading HLS stream...');
-                        await playWithHLS(playlistUrl);
-                        return;
-                    } else {
-                        showError('Invalid stream response');
-                        return;
-                    }
-                } catch (err) {
-                    log('Error fetching playlist: ' + err);
-                    showError('Failed to initialize stream');
-                    return;
-                }
-            }
-
-            // Use type parameter if available, otherwise detect from URL
-            if (streamType === 'vod') {
-                // VOD content - use direct HTML5 playback
-                log('VOD mode: Using direct playback');
-                await playDirect(streamUrl);
-            } else if (streamType === 'live') {
-                // Live TV - check for HLS first, then MPEG-TS
+                // Check for HLS first (.m3u8)
                 if (lowerUrl.includes('.m3u8') || lowerUrl.includes('/hls/')) {
                     log('Live HLS detected');
                     await playWithHLS(streamUrl);
                 } else {
-                    log('Live MPEG-TS mode');
-                    await playWithMpegTS(streamUrl);
+                    // Default: MPEG-TS with mpegts.js
+                    log('Using mpegts.js for MPEG-TS');
+                    await playWithMpegTS(streamUrl, true); // isLive=true
                 }
+                return;
+            }
+
+            // VOD: Direct HTML5 playback with proxy
+            if (streamType === 'vod') {
+                log('VOD mode: Using direct playback');
+                showLoading('Loading video...');
+                await playDirect(streamUrl);
+                return;
+            }
+
+            // Fallback: detect from URL pattern
+            if (lowerUrl.includes('.m3u8') || lowerUrl.includes('/hls/')) {
+                await playWithHLS(streamUrl);
+            } else if (lowerUrl.includes('.mp4') || lowerUrl.includes('.mkv') ||
+                lowerUrl.includes('/movie/') || lowerUrl.includes('/series/')) {
+                await playDirect(streamUrl);
+            } else if (lowerUrl.includes('.ts') || lowerUrl.includes('/live/')) {
+                await playWithMpegTS(streamUrl, true);
             } else {
-                // Fallback: detect from URL pattern
-                if (lowerUrl.includes('.m3u8') || lowerUrl.includes('/hls/')) {
-                    await playWithHLS(streamUrl);
-                } else if (lowerUrl.includes('.mp4') || lowerUrl.includes('.mkv') ||
-                    lowerUrl.includes('/movie/') || lowerUrl.includes('/series/')) {
-                    await playDirect(streamUrl);
-                } else if (lowerUrl.includes('.ts') || lowerUrl.includes('/live/')) {
-                    await playWithMpegTS(streamUrl);
-                } else {
-                    await playDirect(streamUrl);
-                }
+                await playDirect(streamUrl);
             }
         }
 

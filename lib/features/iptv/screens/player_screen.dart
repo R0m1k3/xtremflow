@@ -120,9 +120,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
       final encodedUrl = Uri.encodeComponent(streamUrl);
       final streamTypeParam = widget.streamType == StreamType.live ? 'live' : 'vod';
-      var playerSrc = playerSettings.playerType == PlayerType.lite 
-          ? 'player_lite.html?url=$encodedUrl&type=$streamTypeParam' 
-          : 'player.html?url=$encodedUrl';
+      
+      // Force player choice based on stream type:
+      // - Live TV: Player Lite (simple TS playback with mpegts.js)
+      // - VOD/Series: Player Standard (fuller controls, HLS support)
+      final isLiveTV = widget.streamType == StreamType.live;
+      var playerSrc = isLiveTV 
+          ? 'player_lite.html?url=$encodedUrl&type=live' 
+          : 'player.html?url=$encodedUrl&type=vod';
       
       if (startTimeOverride != null) {
         playerSrc += '&t=$startTimeOverride';
@@ -271,10 +276,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = ref.watch(iptvSettingsProvider);
+    // Use stream type to determine player UI:
+    // - Live TV: Lite player UI (minimal overlay)
+    // - VOD/Series: Standard player UI (full controls)
+    final isLiveTV = widget.streamType == StreamType.live;
 
-    // LITE PLAYER MODE: Simple iframe with native HTML5 controls, minimal Flutter overlay
-    if (settings.playerType == PlayerType.lite) {
+    // LITE PLAYER MODE for Live TV: Simple iframe with native HTML5 controls, minimal Flutter overlay
+    if (isLiveTV) {
       return Scaffold(
         backgroundColor: Colors.black,
         body: MouseRegion(

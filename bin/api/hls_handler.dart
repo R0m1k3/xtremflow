@@ -147,28 +147,34 @@ Handler createStreamInitHandler() {
         '-hls_segment_filename', '${tempDir.path}/segment_%03d.ts',
       ];
 
-      // Detect if this is likely a Live TV stream (TS format) vs VOD (MKV/MP4)
+      // Video encoding: Always transcode for HLS timestamp compatibility
+      // Using ultrafast preset for Live TV to minimize latency
       final isLiveStream = iptvUrl.endsWith('.ts') || iptvUrl.contains('/live/');
       
-      // Video encoding strategy:
-      // - Live TV (.ts): Try to COPY video stream for maximum quality (no re-encoding loss)
-      // - VOD (MKV/MP4): Transcode to ensure timestamp compatibility
       if (isLiveStream) {
-        // LIVE TV: Copy video stream for best quality
-        // Most IPTV live streams are already H.264 and browser-compatible
-        ffmpegArgs.addAll([
-          '-c:v', 'copy', // No re-encoding = best quality
-        ]);
-      } else {
-        // VOD: Transcode to fix timestamp issues in MKV containers
+        // LIVE TV: Fast transcoding with ultrafast preset
         ffmpegArgs.addAll([
           '-c:v', 'libx264',
-          '-preset', 'fast', // Better quality than ultrafast
-          '-tune', 'film', // Better for movies/series
-          '-profile:v', 'high', // High profile for better compression
-          '-level', '4.1', // Supports 1080p60
+          '-preset', 'ultrafast',
+          '-tune', 'zerolatency',
+          '-profile:v', 'main', // Main profile for better quality than baseline
+          '-level', '4.0',
           '-pix_fmt', 'yuv420p',
-          '-g', '48', // 2s GOP
+          '-g', '48', // 2s GOP at 24fps
+          '-b:v', '4000k', // 4Mbps for good quality live
+          '-maxrate', '4500k',
+          '-bufsize', '8000k',
+        ]);
+      } else {
+        // VOD: Higher quality transcoding
+        ffmpegArgs.addAll([
+          '-c:v', 'libx264',
+          '-preset', 'fast',
+          '-tune', 'film',
+          '-profile:v', 'high',
+          '-level', '4.1',
+          '-pix_fmt', 'yuv420p',
+          '-g', '48',
         ]);
 
         if (quality == 'low') {
@@ -179,26 +185,24 @@ Handler createStreamInitHandler() {
             '-bufsize', '3000k',
           ]);
         } else {
-          // High quality (default) - 6Mbps for 1080p
           ffmpegArgs.addAll([
             '-b:v', '6000k',
             '-maxrate', '8000k',
             '-bufsize', '12000k',
-            '-crf', '18', // High quality CRF
+            '-crf', '18',
           ]);
         }
       }
       
-      // Audio: Always transcode to AAC (browsers don't support AC3/DTS)
-      // Higher bitrate for better audio quality
+      // Audio: Always transcode to AAC
       ffmpegArgs.addAll([
         '-c:a', 'aac',
-        '-b:a', '192k', // Higher audio bitrate
-        '-ar', '48000', // Standard sample rate
+        '-b:a', '192k',
+        '-ar', '48000',
         '-ac', '2',
-        
-        playlistPath,
       ]);
+      
+      ffmpegArgs.add(playlistPath);
 
       // Start FFmpeg process
       final process = await Process.start('ffmpeg', ffmpegArgs);
