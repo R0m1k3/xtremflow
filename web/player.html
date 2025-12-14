@@ -511,40 +511,30 @@
 
             log('Stream URL: ' + streamUrl.substring(0, 80) + '...');
 
-            // SPECIAL: /api/stream/ endpoint - differentiate Live vs VOD
+            // SPECIAL: /api/stream/ endpoint - ALWAYS returns JSON with HLS playlist
             if (streamUrl.includes('/api/stream/')) {
-                // Check if this is a live stream (URL param check since player.html doesn't have type param by default)
+                // Both Live TV and VOD use /api/stream/ which returns JSON with HLS playlist URL
                 const isLiveStream = streamUrl.includes('live') || urlParams.get('type') === 'live';
+                log((isLiveStream ? 'Live TV' : 'VOD') + ' via /api/stream/ - fetching HLS...');
+                showLoading(isLiveStream ? 'Connecting to live stream...' : 'Initializing stream...');
 
-                if (isLiveStream) {
-                    // LIVE TV: Use MPEG-TS direct streaming
-                    log('Live TV via /api/stream/ - using MPEG-TS');
-                    showLoading('Connecting to live stream...');
-                    await playWithMpegTS(streamUrl);
-                    return;
-                } else {
-                    // VOD: Fetch JSON to get HLS playlist (transcoding mode)
-                    log('VOD via /api/stream/ - fetching HLS...');
-                    showLoading('Initializing stream (transcoding audio)...');
+                try {
+                    const response = await fetch(streamUrl);
+                    const data = await response.json();
 
-                    try {
-                        const response = await fetch(streamUrl);
-                        const data = await response.json();
-
-                        if (data.playlist) {
-                            const playlistUrl = window.location.origin + data.playlist;
-                            log('Playing HLS: ' + playlistUrl);
-                            await playWithHLS(playlistUrl);
-                            return;
-                        } else {
-                            showError('Invalid stream response');
-                            return;
-                        }
-                    } catch (err) {
-                        log('Error: ' + err);
-                        showError('Stream init failed');
+                    if (data.playlist) {
+                        const playlistUrl = window.location.origin + data.playlist;
+                        log('Got HLS playlist: ' + playlistUrl);
+                        await playWithHLS(playlistUrl);
+                        return;
+                    } else {
+                        showError('Invalid stream response');
                         return;
                     }
+                } catch (err) {
+                    log('Error fetching playlist: ' + err);
+                    showError('Stream init failed');
+                    return;
                 }
             }
 
