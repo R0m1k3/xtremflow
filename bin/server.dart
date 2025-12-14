@@ -18,6 +18,7 @@ import 'api/settings_handler.dart';
 import 'middleware/auth_middleware.dart';
 import 'middleware/security_middleware.dart';
 import 'services/cleanup_service.dart';
+import 'api/hls_handler.dart';
 
 void main(List<String> args) async {
   // Parse command line arguments
@@ -125,9 +126,9 @@ void main(List<String> args) async {
   // Main handler with API proxy and FFmpeg streaming
   final handler = Cascade()
     .add(_createApiHandler(apiRouter))
-    .add(_createStreamHandler())  // FFmpeg streaming endpoint
+    .add(createStreamInitHandler())  // FFmpeg HLS transcoding
+    .add(createHlsFileHandler())     // Serve HLS files (.m3u8, .ts)
     .add(_createXtreamProxyHandler())
-    // .add(_createHlsHandler())  // REMOVED: HLS obsolete with direct stream
     .add(staticHandler)
     .handler;
 

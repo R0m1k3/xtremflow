@@ -72,7 +72,7 @@ class XtreamService {
   String getVodStreamUrl(String streamId, String containerExtension) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     
-    // Use FFmpeg transcoding to ensure audio compatibility (converts AC3/DTS to AAC)
+    // Use FFmpeg HLS transcoding for guaranteed audio compatibility + seeking
     final url = '${_currentPlaylist!.dns}/movie/${_currentPlaylist!.username}/${_currentPlaylist!.password}/$streamId.$containerExtension';
     
     final baseUrl = html.window.location.origin;
@@ -84,7 +84,7 @@ class XtreamService {
   String getSeriesStreamUrl(String streamId, String containerExtension) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     
-    // Use FFmpeg transcoding to ensure audio compatibility
+    // Use FFmpeg HLS transcoding for guaranteed audio compatibility + seeking
     final url = '${_currentPlaylist!.dns}/series/${_currentPlaylist!.username}/${_currentPlaylist!.password}/$streamId.$containerExtension';
     
     final baseUrl = html.window.location.origin;
