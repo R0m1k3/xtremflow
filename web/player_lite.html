@@ -268,16 +268,80 @@
                 lazyLoadRecoverDuration: 0,
             };
 
-            const player = mpegts.createPlayer({
-                type: 'mpegts',
-                isLive: isLive,
-                url: url,
-                hasAudio: true,
-                hasVideo: true,
-            }, playerConfig);
+            let player = null;
+            let reconnectAttempts = 0;
+            const maxReconnectAttempts = 10;
+            let isDestroyed = false;
 
-            player.attachMediaElement(video);
-            player.load();
+            function createPlayer() {
+                if (isDestroyed) return;
+
+                player = mpegts.createPlayer({
+                    type: 'mpegts',
+                    isLive: isLive,
+                    url: url,
+                    hasAudio: true,
+                    hasVideo: true,
+                }, playerConfig);
+
+                player.attachMediaElement(video);
+                player.load();
+
+                // Handle stream end (auto-reconnect for live streams)
+                player.on(mpegts.Events.LOADING_COMPLETE, () => {
+                    if (isLive && !isDestroyed && reconnectAttempts < maxReconnectAttempts) {
+                        log('Stream ended, auto-reconnecting... (' + (reconnectAttempts + 1) + '/' + maxReconnectAttempts + ')');
+                        reconnectAttempts++;
+
+                        // Destroy and recreate player after delay
+                        setTimeout(() => {
+                            if (!isDestroyed) {
+                                try {
+                                    player.unload();
+                                    player.detachMediaElement();
+                                    player.destroy();
+                                } catch (e) { }
+
+                                showLoading('Reconnecting...');
+                                setTimeout(createPlayer, 500);
+                            }
+                        }, 1000);
+                    }
+                });
+
+                // Reset reconnect counter on successful playback
+                video.addEventListener('playing', () => {
+                    reconnectAttempts = 0;
+                    hideLoading();
+                });
+
+                player.on(mpegts.Events.ERROR, (errType, errDetail) => {
+                    log('mpegts error: ' + errType + ' - ' + errDetail);
+
+                    // Try to reconnect on network errors for live streams
+                    if (isLive && !isDestroyed && reconnectAttempts < maxReconnectAttempts) {
+                        log('Error occurred, attempting reconnect...');
+                        reconnectAttempts++;
+
+                        setTimeout(() => {
+                            if (!isDestroyed) {
+                                try {
+                                    player.unload();
+                                    player.detachMediaElement();
+                                    player.destroy();
+                                } catch (e) { }
+
+                                showLoading('Reconnecting...');
+                                setTimeout(createPlayer, 1000);
+                            }
+                        }, 500);
+                    } else {
+                        showError('Stream error: ' + errDetail);
+                    }
+                });
+            }
+
+            createPlayer();
 
             video.addEventListener('canplay', () => {
                 log('MPEG-TS stream ready');
@@ -286,13 +350,22 @@
             });
 
             video.addEventListener('error', () => {
-                showError('Video error: ' + (video.error?.message || 'Unknown error'));
+                if (!isLive || reconnectAttempts >= maxReconnectAttempts) {
+                    showError('Video error: ' + (video.error?.message || 'Unknown error'));
+                }
             });
 
-            player.on(mpegts.Events.ERROR, (errType, errDetail) => {
-                log('mpegts error: ' + errType + ' - ' + errDetail);
-                showError('Stream error: ' + errDetail);
-            });
+            // Cleanup function
+            window.cleanupMpegtsPlayer = () => {
+                isDestroyed = true;
+                if (player) {
+                    try {
+                        player.unload();
+                        player.detachMediaElement();
+                        player.destroy();
+                    } catch (e) { }
+                }
+            };
 
             return true;
         }
