@@ -37,10 +37,15 @@ class XtreamService {
     return html.window.location.protocol == 'https:';
   }
 
-  /// Wrap URL with proxy if needed (for HTTPS to HTTP bridge)
+  /// Wrap URL with proxy for all external IPTV URLs
+  /// 
+  /// Always use proxy for HTTP URLs to:
+  /// 1. Handle HTTPS->HTTP mixed content
+  /// 2. Provide Range header support for seeking
+  /// 3. Normalize headers and handle redirects
   String _wrapWithProxy(String url) {
-    // If we're on HTTPS and the target URL is HTTP, use the proxy
-    if (_isHttps && url.startsWith('http://')) {
+    // Always proxy HTTP URLs for consistent streaming behavior
+    if (url.startsWith('http://')) {
       final baseUrl = html.window.location.origin;
       return '$baseUrl/api/xtream/$url';
     }
