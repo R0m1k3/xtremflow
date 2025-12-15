@@ -345,6 +345,22 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        // Mute button for Live TV
+                        Material(
+                          color: Colors.black54,
+                          shape: const CircleBorder(),
+                          child: InkWell(
+                            onTap: _toggleMute,
+                            customBorder: const CircleBorder(),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Icon(
+                                _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded, 
+                                color: Colors.white
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -616,6 +632,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                    ],
                                    
                                    const Spacer(),
+                                   // Volume/Mute button
+                                   _buildTvControl(
+                                     _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded, 
+                                     _toggleMute
+                                   ),
+                                   const SizedBox(width: 16),
                                     _buildTvControl(Icons.subtitles_rounded, () {}),
                                     const SizedBox(width: 16),
                                     _buildTvControl(Icons.aspect_ratio_rounded, _toggleFullscreen),

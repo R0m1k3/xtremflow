@@ -149,10 +149,11 @@ Handler createVodStreamHandler(Future<PlaylistConfig?> Function(Request) getPlay
     }
 
 
-    // Build Upstream URL (Try MKV first, then generic)
-    // Note: We don't know the extension here easily unless passed. 
-    // Xtream usually allows access via streamId.mkv or streamId.mp4 regardless of actual file
-    // We'll trust the ID.
+    // Build Upstream URL based on content type
+    // Check for type parameter in request URL (?type=series or ?type=movie)
+    final contentType = request.url.queryParameters['type'] ?? 'movie';
+    final basePath = contentType == 'series' ? 'series' : 'movie';
+    
     // Only start FFmpeg if not already running
     if (!_vodProcesses.containsKey(streamId)) {
        // Prepare directory (Only for new session)
@@ -161,13 +162,23 @@ Handler createVodStreamHandler(Future<PlaylistConfig?> Function(Request) getPlay
        }
        streamDir.createSync(recursive: true);
 
-       final targetUrl = '${playlist.dns}/movie/${playlist.username}/${playlist.password}/$streamId.mkv';
-       print('[VOD] Starting Transcode: $targetUrl');
+       final targetUrl = '${playlist.dns}/$basePath/${playlist.username}/${playlist.password}/$streamId.mkv';
+       print('[VOD] Starting Transcode ($contentType): $targetUrl');
 
     // Start FFmpeg
     final ffmpegArgs = [
       '-hide_banner', '-loglevel', 'error',
       '-headers', 'User-Agent: VLC/3.0.18 LibVLC/3.0.18\r\n',
+      
+      // Robustness for network streams
+      '-reconnect', '1',
+      '-reconnect_at_eof', '1',
+      '-reconnect_streamed', '1',
+      '-reconnect_delay_max', '5',
+      '-rw_timeout', '15000000', // 15s timeout for read/write
+      '-analyzeduration', '10000000', // Increase probe duration
+      '-probesize', '10000000',
+      
       '-i', targetUrl,
       
       // Video: H.264 Ultrafast (Low CPU)
@@ -182,9 +193,14 @@ Handler createVodStreamHandler(Future<PlaylistConfig?> Function(Request) getPlay
 
       // Audio: AAC (Browser compatible, improved quality)
       '-c:a', 'aac',
-      '-b:a', '192k',      // Higher bitrate for better quality
-      '-ar', '48000',      // Standard sample rate
-      '-ac', '2',
+      '-b:a', '192k',
+      '-ar', '48000',
+      
+      // Advanced Audio Filtering:
+      // 1. "pan": Downmix 5.1/7.1 to Stereo with center mix (dialogue) boosted.
+      // 2. "dynaudnorm": Dynamic Audio Normalizer to boost quiet dialogue and limit loud explosions (Night Mode effect).
+      '-af', 'pan=stereo|FL=1.0*FL+0.707*FC+0.5*BL+0.5*SL+0.5*LFE|FR=1.0*FR+0.707*FC+0.5*BR+0.5*SR+0.5*LFE,dynaudnorm=f=150:g=15',
+
 
       '-f', 'hls',
       '-hls_time', '4',
@@ -215,10 +231,10 @@ Handler createVodStreamHandler(Future<PlaylistConfig?> Function(Request) getPlay
       });
     }
 
-    // Wait for playlist to appear (max 10s)
+    // Wait for playlist to appear (max 30s)
     final playlistFile = File('${streamDir.path}/playlist.m3u8');
     int retries = 0;
-    while (!playlistFile.existsSync() && retries < 20) {
+    while (!playlistFile.existsSync() && retries < 60) {
       await Future.delayed(const Duration(milliseconds: 500));
       retries++;
     }
