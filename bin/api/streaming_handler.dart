@@ -54,34 +54,71 @@ Handler createLiveStreamHandler(Future<PlaylistConfig?> Function(Request) getPla
       return Response.internalServerError(body: 'No playlist configured');
     }
     
-    final targetUrl = Uri.parse('${playlist.dns}/live/${playlist.username}/${playlist.password}/$streamId.ts');
-    print('[Live] Proxying: $targetUrl');
+    final targetUrl = '${playlist.dns}/live/${playlist.username}/${playlist.password}/$streamId.ts';
+    print('[Live] Streaming via FFmpeg: $targetUrl');
 
-    final client = http.Client();
-    final streamRequest = http.Request('GET', targetUrl);
-    
-    // Spoof User-Agent to avoid 403/405 from providers
-    streamRequest.headers['User-Agent'] = 'VLC/3.0.18 LibVLC/3.0.18'; 
-    streamRequest.headers['Connection'] = 'keep-alive';
-    
+    // Start FFmpeg to proxy and stabilize the stream
+    // We use "-c copy" to avoid transcoding (Low CPU) but gain FFmpeg's network robustness
+    final ffmpegArgs = [
+      '-hide_banner', '-loglevel', 'error',
+      '-headers', 'User-Agent: VLC/3.0.18 LibVLC/3.0.18\r\n',
+      
+      // Robustness flags (Same as VOD)
+      '-reconnect', '1',
+      '-reconnect_at_eof', '1',
+      '-reconnect_streamed', '1',
+      '-reconnect_delay_max', '5',
+      '-rw_timeout', '15000000',
+      '-analyzeduration', '5000000', // Faster probe for live
+      '-probesize', '5000000',
+      
+      '-i', targetUrl,
+      
+      '-c', 'copy', // Direct stream copy (Very low CPU)
+      '-f', 'mpegts',
+      'pipe:1' // Output to stdout
+    ];
+
     try {
-      final streamResponse = await client.send(streamRequest);
-      print('[Live] Upstream response: ${streamResponse.statusCode} ${streamResponse.reasonPhrase}');
+      final process = await Process.start('ffmpeg', ffmpegArgs);
+      
+      // Cleanup handling: Kill FFmpeg when client disconnects
+      final controller = StreamController<List<int>>(
+        onCancel: () {
+          print('[Live] Client disconnected, killing FFmpeg for $streamId');
+          process.kill();
+        },
+      );
+      
+      // Pipe stdout to controller
+      process.stdout.listen(
+        (data) => controller.add(data),
+        onDone: () {
+           print('[Live] FFmpeg stream ended for $streamId');
+           controller.close();
+        },
+        onError: (e) {
+           print('[Live] FFmpeg stream error: $e');
+           controller.addError(e);
+        }
+      );
+      
+      // Log errors
+      process.stderr.transform(utf8.decoder).listen((data) {
+        print('[FFmpeg Live $streamId] $data');
+      });
 
-      // Filter headers to avoid encoding issues with shelf
-      final responseHeaders = Map<String, Object>.from(streamResponse.headers);
-      responseHeaders.remove('content-length');
-      responseHeaders.remove('content-encoding');
-      responseHeaders.remove('transfer-encoding');
-
-      return Response(
-        streamResponse.statusCode,
-        body: streamResponse.stream,
-        headers: responseHeaders,
+      return Response.ok(
+        controller.stream,
+        headers: {
+          'Content-Type': 'video/mp2t',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'no-cache',
+        },
       );
     } catch (e) {
-      print('[Live] Upstream connection error: $e');
-      return Response.internalServerError(body: 'Upstream error: $e');
+      print('[Live] Failed to start FFmpeg: $e');
+      return Response.internalServerError(body: 'Stream start error: $e');
     }
   });
 
@@ -95,6 +132,8 @@ Handler createLiveStreamHandler(Future<PlaylistConfig?> Function(Request) getPla
 // ==========================================
 // 2. VOD HANDLER (FFmpeg HLS Transcoding)
 // ==========================================
+
+final _lastLogTime = <String, int>{};
 
 Handler createVodStreamHandler(Future<PlaylistConfig?> Function(Request) getPlaylist) {
   final router = Router();
@@ -116,7 +155,12 @@ Handler createVodStreamHandler(Future<PlaylistConfig?> Function(Request) getPlay
         final content = playlistFile.readAsStringSync();
         // Check if playlist has segments (healthy transcoding)
         if (content.contains('.ts')) {
-          print('[VOD] Reusing existing session for $streamId');
+          // Only log once per second to avoid spam
+          final now = DateTime.now().millisecondsSinceEpoch;
+          if (!_lastLogTime.containsKey(streamId) || (now - _lastLogTime[streamId]! > 2000)) {
+             print('[VOD] Reusing existing session for $streamId');
+             _lastLogTime[streamId] = now;
+          }
           // Serve existing playlist
           return Response.ok(
             playlistFile.openRead(),
@@ -175,15 +219,16 @@ Handler createVodStreamHandler(Future<PlaylistConfig?> Function(Request) getPlay
       '-reconnect_at_eof', '1',
       '-reconnect_streamed', '1',
       '-reconnect_delay_max', '5',
-      '-rw_timeout', '15000000', // 15s timeout for read/write
-      '-analyzeduration', '10000000', // Increase probe duration
-      '-probesize', '10000000',
+      '-rw_timeout', '15000000', 
+      '-analyzeduration', '2000000', // Reduced from 10M to 2M for faster start
+      '-probesize', '2000000',       // Reduced from 10M to 2M for faster start
       
       '-i', targetUrl,
       
       // Video: H.264 Ultrafast (Low CPU)
       '-c:v', 'libx264',
       '-preset', 'ultrafast',
+      '-tune', 'zerolatency', // Optimize for low latency startup
       '-tune', 'fastdecode',
       '-crf', '23',
       '-maxrate', '3000k',
