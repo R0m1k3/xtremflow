@@ -15,3 +15,5 @@ dependencies:
   sqlite3: ^2.4.0
   crypto: ^3.0.3
   uuid: ^4.3.3
+  hive: ^2.2.3
+  equatable: ^2.0.5

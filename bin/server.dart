@@ -10,7 +10,7 @@ import 'package:args/args.dart';
 import 'database/database.dart';
 import 'models/user.dart';
 import 'models/playlist.dart';
-import 'package:xtremflow/core/models/playlist_config.dart';
+import '../lib/core/models/playlist_config.dart';
 import 'api/auth_handler.dart';
 import 'api/users_handler.dart';
 import 'api/playlists_handler.dart';
@@ -153,12 +153,16 @@ void main(List<String> args) async {
      return null;
   }
 
+  // Create Streaming Router (Mount handlers on correct paths)
+  final streamingRouter = Router()
+    ..mount('/api/live', createLiveStreamHandler(_getPlaylist))
+    ..mount('/api/vod', createVodStreamHandler(_getPlaylist));
+
   // Main handler with API proxy and NEW Streaming Handlers
   final handler = Cascade()
-    .add(_createApiHandler(apiRouter))
+    .add(apiRouter.call)              /* Standard API endpoints */
     .add(_createXtreamProxyHandler()) /* Keep for general API calls */
-    .add(createLiveStreamHandler(_getPlaylist))
-    .add(createVodStreamHandler(_getPlaylist))
+    .add(streamingRouter.call)        /* Streaming endpoints */
     .add(staticHandler)
     .handler;
 
@@ -190,22 +194,7 @@ void main(List<String> args) async {
   });
 }
 
-/// Create API handler
-Handler _createApiHandler(Router apiRouter) {
-  return (Request request) async {
-    final path = request.url.path;
-    
-    // Only handle /api/* requests (excluding special handlers)
-    if (path.startsWith('api/') && 
-        !path.startsWith('api/xtream/') && 
-        !path.startsWith('api/live/') && 
-        !path.startsWith('api/vod/')) {
-      return apiRouter(request);
-    }
-    
-    return Response.notFound('Not found');
-  };
-}
+
 
 /// CORS middleware to allow cross-origin requests
 Middleware _corsMiddleware() {

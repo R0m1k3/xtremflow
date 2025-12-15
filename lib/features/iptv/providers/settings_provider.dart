@@ -299,7 +299,6 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
           preferredAspectRatio: getValue<String>(_SettingsKeys.preferredAspectRatio),
           playerType: remoteSettings[_SettingsKeys.playerType] != null
               ? PlayerType.values[remoteSettings[_SettingsKeys.playerType] as int] : null,
-          forceVodTranscoding: getValue<bool>(_SettingsKeys.forceVodTranscoding),
         );
       }
       _initialized = true;

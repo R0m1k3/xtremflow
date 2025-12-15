@@ -150,20 +150,7 @@ class StreamingSettingsTab extends ConsumerWidget {
               activeColor: Colors.blueAccent,
               onChanged: (v) => notifier.setPreferDirectPlay(v),
             ),
-            Divider(height: 1, color: Colors.white.withOpacity(0.1)),
-            SwitchListTile(
-              title: Text(
-                'Forcer audio VOD (Films/Séries)',
-                style: GoogleFonts.roboto(fontSize: 14, color: Colors.white),
-              ),
-              subtitle: Text(
-                'Active FFmpeg pour garantir le son\n⚠️ Désactive le seeking',
-                style: GoogleFonts.roboto(fontSize: 12, color: Colors.white54),
-              ),
-              value: settings.forceVodTranscoding,
-              activeColor: Colors.orangeAccent,
-              onChanged: (v) => notifier.setForceVodTranscoding(v),
-            ),
+
           ],
         ),
         const SizedBox(height: 16),
