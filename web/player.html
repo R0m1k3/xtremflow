@@ -147,10 +147,14 @@
                     lastReportedTime = video.currentTime;
 
                     let duration = video.duration;
-                    // If video.duration is Infinity, NaN, or significantly smaller than injected (transcoding lag), use injected
-                    // We trust injected duration (from API) more than HLS internal duration for VOD
-                    if (!isFinite(duration) || isNaN(duration) || (injectedDuration > 0 && duration < injectedDuration * 0.9)) {
-                        duration = injectedDuration > 0 ? injectedDuration : 0;
+                    // Priority: 1) HLS dynamic duration, 2) video.duration, 3) injectedDuration
+                    const hlsDuration = window.currentHlsDuration || 0;
+                    if (!isFinite(duration) || isNaN(duration) || duration < 1) {
+                        duration = hlsDuration > 0 ? hlsDuration : (injectedDuration > 0 ? injectedDuration : 0);
+                    } else if (hlsDuration > duration) {
+                        duration = hlsDuration; // Use HLS duration if larger (growing playlist)
+                    } else if (injectedDuration > 0 && duration < injectedDuration * 0.9) {
+                        duration = injectedDuration; // Fallback to injected if significantly larger
                     }
 
                     window.parent.postMessage({
@@ -266,6 +270,21 @@
                 log('HLS manifest parsed');
                 hideLoading();
                 video.play().catch(e => log('Autoplay prevented: ' + e));
+            });
+
+            // Track growing duration as more segments are added (for EVENT playlists)
+            hls.on(Hls.Events.LEVEL_LOADED, (event, data) => {
+                const levelDetails = data.details;
+                if (levelDetails && levelDetails.totalduration) {
+                    const currentLevelDuration = levelDetails.totalduration;
+                    log('Level loaded, current duration: ' + currentLevelDuration);
+
+                    // Update injectedDuration if HLS gives us a better value
+                    // This allows the progress bar to grow as transcoding progresses
+                    if (currentLevelDuration > injectedDuration) {
+                        window.currentHlsDuration = currentLevelDuration;
+                    }
+                }
             });
 
             hls.on(Hls.Events.ERROR, (event, data) => {

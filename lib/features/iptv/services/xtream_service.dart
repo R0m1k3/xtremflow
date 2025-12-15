@@ -501,6 +501,62 @@ class XtreamService {
     }
   }
 
+  /// Get VOD (movie) info including duration
+  /// 
+  /// Returns detailed movie information including duration in seconds
+  Future<int?> getVodDuration(String vodId) async {
+    if (_currentPlaylist == null) return null;
+
+    try {
+      final response = await _dio.get(
+        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
+        queryParameters: {
+          'username': _currentPlaylist!.username,
+          'password': _currentPlaylist!.password,
+          'action': 'get_vod_info',
+          'vod_id': vodId,
+        },
+        options: Options(extra: _cacheOptions.toExtra()),
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      
+      // Try to get duration from movie_properties or info
+      final movieData = data['movie_data'] as Map<String, dynamic>?;
+      final info = data['info'] as Map<String, dynamic>?;
+      
+      // Duration can be in different formats: seconds (int), "HH:MM:SS", or minutes
+      String? durationStr = movieData?['duration']?.toString() ?? 
+                            info?['duration']?.toString() ??
+                            info?['duration_secs']?.toString();
+      
+      if (durationStr == null || durationStr.isEmpty) return null;
+      
+      // Parse duration - could be "01:30:00" format or seconds
+      if (durationStr.contains(':')) {
+        // HH:MM:SS format
+        final parts = durationStr.split(':');
+        if (parts.length == 3) {
+          final hours = int.tryParse(parts[0]) ?? 0;
+          final minutes = int.tryParse(parts[1]) ?? 0;
+          final seconds = int.tryParse(parts[2]) ?? 0;
+          return hours * 3600 + minutes * 60 + seconds;
+        } else if (parts.length == 2) {
+          // MM:SS format
+          final minutes = int.tryParse(parts[0]) ?? 0;
+          final seconds = int.tryParse(parts[1]) ?? 0;
+          return minutes * 60 + seconds;
+        }
+      }
+      
+      // Try parsing as seconds directly
+      return int.tryParse(durationStr);
+    } catch (e) {
+      // Duration is optional, don't fail
+      return null;
+    }
+  }
+
   /// Get short EPG for a specific stream
   /// 
   /// Returns "Now" and "Next" program info

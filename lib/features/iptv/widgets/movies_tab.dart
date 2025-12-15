@@ -149,8 +149,23 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
     return originalUrl;
   }
 
-  void _playMovie(Movie movie) {
+  Future<void> _playMovie(Movie movie) async {
     ref.read(watchHistoryProvider.notifier).markMovieWatched(movie.streamId);
+    
+    // Fetch actual duration from API if not available in movie data
+    Duration? movieDuration;
+    if (movie.durationSecs != null && movie.durationSecs! > 0) {
+      movieDuration = Duration(seconds: movie.durationSecs!);
+    } else {
+      // Try to fetch from API
+      final service = ref.read(xtreamServiceProvider(widget.playlist));
+      final durationSecs = await service.getVodDuration(movie.streamId);
+      if (durationSecs != null && durationSecs > 0) {
+        movieDuration = Duration(seconds: durationSecs);
+      }
+    }
+    
+    if (!mounted) return;
     
     Navigator.push(
       context,
@@ -161,7 +176,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
           playlist: widget.playlist,
           streamType: StreamType.vod,
           containerExtension: movie.containerExtension ?? 'mp4',
-          duration: movie.durationSecs != null ? Duration(seconds: movie.durationSecs!) : null,
+          duration: movieDuration,
         ),
       ),
     );
