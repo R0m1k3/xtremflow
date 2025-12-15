@@ -58,57 +58,30 @@ class XtreamService {
   }
 
   /// Generate stream URL for live TV
-  /// 
-  /// Returns the proxy URL for direct MPEG-TS streaming.
-  /// Player uses mpegts.js for playback.
   String getLiveStreamUrl(String streamId) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     
-    // Direct .ts URL for MPEG-TS streaming
-    final iptvUrl = '${_currentPlaylist!.dns}/live/${_currentPlaylist!.username}/${_currentPlaylist!.password}/$streamId.ts';
-    
-    // Use proxy for direct streaming
-    return _wrapWithProxy(iptvUrl);
+    // Point to new dedicated Live API
+    final baseUrl = html.window.location.origin;
+    return '$baseUrl/api/live/$streamId.ts';
   }
 
   /// Generate stream URL for VOD (movies)
-  /// 
-  /// [forceTranscoding] - If true, uses FFmpeg to transcode audio (guaranteed sound)
-  ///                       If false, uses direct URL (enables seeking but may lack audio on AC3/DTS)
-  String getVodStreamUrl(String streamId, String containerExtension, {bool forceTranscoding = false}) {
+  String getVodStreamUrl(String streamId, String containerExtension) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     
-    final url = '${_currentPlaylist!.dns}/movie/${_currentPlaylist!.username}/${_currentPlaylist!.password}/$streamId.$containerExtension';
-    
-    if (forceTranscoding) {
-      // Use FFmpeg transcoding for guaranteed audio (no seeking)
-      final baseUrl = html.window.location.origin;
-      final encodedUrl = Uri.encodeComponent(url);
-      return '$baseUrl/api/stream/$streamId?url=$encodedUrl';
-    } else {
-      // Direct URL for seeking (audio only if AAC/MP3)
-      return _wrapWithProxy(url);
-    }
+    // Point to new dedicated VOD API (HLS playlist)
+    final baseUrl = html.window.location.origin;
+    return '$baseUrl/api/vod/$streamId/playlist.m3u8';
   }
 
   /// Generate stream URL for series episodes
-  /// 
-  /// [forceTranscoding] - If true, uses FFmpeg to transcode audio (guaranteed sound)
-  ///                       If false, uses direct URL (enables seeking but may lack audio on AC3/DTS)
-  String getSeriesStreamUrl(String streamId, String containerExtension, {bool forceTranscoding = false}) {
+  String getSeriesStreamUrl(String streamId, String containerExtension) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     
-    final url = '${_currentPlaylist!.dns}/series/${_currentPlaylist!.username}/${_currentPlaylist!.password}/$streamId.$containerExtension';
-    
-    if (forceTranscoding) {
-      // Use FFmpeg transcoding for guaranteed audio (no seeking)
-      final baseUrl = html.window.location.origin;
-      final encodedUrl = Uri.encodeComponent(url);
-      return '$baseUrl/api/stream/$streamId?url=$encodedUrl';
-    } else {
-      // Direct URL for seeking (audio only if AAC/MP3)
-      return _wrapWithProxy(url);
-    }
+    // Point to new dedicated VOD API (HLS playlist)
+    final baseUrl = html.window.location.origin;
+    return '$baseUrl/api/vod/$streamId/playlist.m3u8';
   }
 
   /// Authenticate and get server info
