@@ -1,543 +1,97 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <meta charset="UTF-8">
-    <title>IPTV Player</title>
-    <!-- Add HLS.js and mpegts.js dependencies -->
+    <title>XtremFlow Player</title>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
+        #video { width: 100%; height: 100%; object-fit: contain; }
+        #error-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; font-family: sans-serif; }
+        .hidden { display: none !important; }
+    </style>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.12/dist/hls.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        html,
-        body {
-            background: #000;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-family: Arial, sans-serif;
-        }
-
-        #player-container {
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
-
-        #video {
-            width: 100%;
-            height: 100%;
-            background: #000;
-        }
-
-        #error {
-            display: none;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #fff;
-            text-align: center;
-        }
-
-        #error-icon {
-            font-size: 64px;
-            color: #f44336;
-            margin-bottom: 16px;
-        }
-
-        #loading {
-            display: none;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #fff;
-            text-align: center;
-        }
-
-        .spinner {
-            width: 48px;
-            height: 48px;
-            border: 4px solid #fff;
-            border-top-color: transparent;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 16px;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        #debug {
-            display: none;
-            /* Hidden in production */
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            color: #0f0;
-            font-size: 12px;
-            font-family: monospace;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 8px;
-            border-radius: 4px;
-            max-width: 80%;
-            word-break: break-all;
-        }
-    </style>
 </head>
-
 <body>
-    <div id="player-container">
-        <!-- paysinline is CRITICAL for iOS to play inline instead of fullscreen -->
-        <video id="video" autoplay playsinline></video>
-        <div id="loading">
-            <div class="spinner"></div>
-            <div id="loading-text">Loading stream...</div>
-        </div>
-        <div id="error">
-            <div id="error-icon">⚠</div>
-            <div id="error-message">Failed to load stream</div>
-        </div>
-        <div id="debug"></div>
+
+    <video id="video" autoplay playsinline></video>
+    
+    <div id="error-overlay" class="hidden">
+        <h2 id="error-title">Playback Error</h2>
+        <p id="error-msg">Unknown error</p>
     </div>
 
-    <!-- Try HLS.js first, then fall back to mpegts.js -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mpegts.js@latest/dist/mpegts.min.js"></script>
     <script>
         const video = document.getElementById('video');
-        const loading = document.getElementById('loading');
-        const loadingText = document.getElementById('loading-text');
-        const error = document.getElementById('error');
-        const errorMessage = document.getElementById('error-message');
-        const debug = document.getElementById('debug');
+        const errorOverlay = document.getElementById('error-overlay');
+        const errorMsg = document.getElementById('error-msg');
+        
+        let hlsKey = null;
+        let mpegtsPlayer = null;
 
-        // Get parameters from query string
+        // Parse URL params
         const urlParams = new URLSearchParams(window.location.search);
-        let streamUrl = urlParams.get('url');
-        const startTime = parseFloat(urlParams.get('startTime') || '0');
-        let lastReportedTime = 0;
+        const streamUrl = urlParams.get('url');
+        const streamType = urlParams.get('type'); // 'live' or 'vod'
+        const startTime = parseFloat(urlParams.get('t')) || 0;
 
         function log(msg) {
-            console.log(msg);
-            debug.textContent = msg;
+            console.log(`[Player] ${msg}`);
         }
 
-        // Report current playback position to parent (for resume feature)
-        function reportPosition() {
-            if (video.currentTime > 0 && !video.paused && video.readyState > 2) {
-                // Only report every 5 seconds or if time changed significantly
-                if (Math.abs(video.currentTime - lastReportedTime) >= 5) {
-                    lastReportedTime = video.currentTime;
-                    window.parent.postMessage({
-                        type: 'playback_position',
-                        currentTime: video.currentTime,
-                        duration: isFinite(video.duration) ? video.duration : 0
-                    }, '*');
-                }
-            }
+        function showError(msg) {
+            log('Error: ' + msg);
+            errorMsg.innerText = msg;
+            errorOverlay.classList.remove('hidden');
+            // Notify Flutter
+            window.parent.postMessage({ type: 'error', message: msg }, '*');
         }
 
-        // Set up periodic position reporting
-        setInterval(reportPosition, 5000);
-
-        // Also report on pause
-        video.addEventListener('pause', () => {
-            window.parent.postMessage({
-                type: 'playback_position',
-                currentTime: video.currentTime,
-                duration: isFinite(video.duration) ? video.duration : 0
-            }, '*');
-        });
-
-        // Report when video ends
-        video.addEventListener('ended', () => {
-            window.parent.postMessage({
-                type: 'playback_ended',
-                duration: isFinite(video.duration) ? video.duration : 0
-            }, '*');
-        });
-
-        // Listen for commands from parent (Flutter)
+        // --- Communication with Flutter ---
         window.addEventListener('message', (event) => {
             const data = event.data;
             if (!data) return;
 
-            if (data.type === 'set_aspect_ratio') {
-                log('Setting aspect ratio: ' + data.value);
-                // value: 'contain', 'cover', 'fill' (fill = 100% 100%)
-                if (data.value === 'fill') {
-                    video.style.objectFit = 'fill';
-                } else if (data.value === 'cover') {
-                    video.style.objectFit = 'cover';
-                } else {
-                    video.style.objectFit = 'contain';
-                }
-            } else if (data.type === 'set_audio_track') {
-                log('Switching audio track index: ' + data.index);
-                if (window.hlsInstance) {
-                    window.hlsInstance.audioTrack = data.index;
-                }
-            } else if (data.type === 'play') {
-                log('Received play command');
-                video.play().catch(e => log('Play failed: ' + e));
-            } else if (data.type === 'pause') {
-                log('Received pause command');
-                video.pause();
-            } else if (data.type === 'seek') {
-                log('Seeking to: ' + data.value);
-                if (isFinite(data.value)) {
-                    video.currentTime = data.value;
-                }
-            } else if (data.type === 'set_volume') {
-                // value is 0.0 to 1.0
-                log('Setting volume: ' + data.value);
-                if (isFinite(data.value)) {
-                    video.volume = Math.max(0, Math.min(1, data.value));
-                    video.muted = (data.value === 0);
-                }
+            switch(data.type) {
+                case 'play': video.play().catch(e => log('Play fail: ' + e)); break;
+                case 'pause': video.pause(); break;
+                case 'seek': 
+                    if (Number.isFinite(data.value)) video.currentTime = data.value; 
+                    break;
+                case 'set_volume': 
+                    video.volume = Math.max(0, Math.min(1, data.value)); 
+                    break;
             }
         });
 
-        // Notify parent about playback state changes
-        video.addEventListener('play', () => {
-            window.parent.postMessage({ type: 'playback_status', status: 'playing' }, '*');
-        });
-        video.addEventListener('pause', () => {
-            window.parent.postMessage({ type: 'playback_status', status: 'paused' }, '*');
-        });
-
-
-        // Report available audio tracks
-        function reportAudioTracks() {
-            let tracks = [];
-            if (window.hlsInstance && window.hlsInstance.audioTracks) {
-                tracks = window.hlsInstance.audioTracks.map((t, i) => ({
-                    id: i,
-                    label: t.name || t.lang || ('Track ' + (i + 1)),
-                    lang: t.lang || ''
-                }));
-            } else if (video.audioTracks) {
-                // Standard HTML5 (Safari/experimental)
-                for (let i = 0; i < video.audioTracks.length; i++) {
-                    const t = video.audioTracks[i];
-                    tracks.push({
-                        id: i,
-                        label: t.label || t.language || ('Track ' + (i + 1)),
-                        lang: t.language || ''
-                    });
-                }
-            }
-
-            if (tracks.length > 0) {
+        // Report progress to Flutter
+        setInterval(() => {
+            if (!video.paused) {
                 window.parent.postMessage({
-                    type: 'audio_tracks',
-                    tracks: tracks
+                    type: 'playback_position',
+                    currentTime: video.currentTime,
+                    duration: video.duration || 0
+                }, '*');
+                
+                window.parent.postMessage({
+                    type: 'playback_status',
+                    status: 'playing'
+                }, '*');
+            } else {
+                 window.parent.postMessage({
+                    type: 'playback_status',
+                    status: 'paused'
                 }, '*');
             }
-        }
+        }, 1000);
 
-        // Hook reporting into playback start
-        video.addEventListener('loadedmetadata', () => {
-            setTimeout(reportAudioTracks, 1000); // Wait a bit for tracks to parse
-        });
+        // --- Player Logic ---
 
-        // Report user activity (mouse movement or touch) to parent
-        let lastActivityTime = 0;
-        function reportActivity() {
-            const now = Date.now();
-            if (now - lastActivityTime > 100) { // Throttle to 100ms
-                lastActivityTime = now;
-                window.parent.postMessage({
-                    type: 'user_activity'
-                }, '*');
-            }
-        }
-        document.addEventListener('mousemove', reportActivity);
-        document.addEventListener('touchstart', reportActivity);
-        document.addEventListener('touchmove', reportActivity);
-        document.addEventListener('click', reportActivity);
-        document.addEventListener('touchend', reportActivity);
-
-        // Seek to startTime when video is ready
-        video.addEventListener('loadedmetadata', () => {
-            if (startTime > 0 && startTime < video.duration) {
-                video.currentTime = startTime;
-                log('Resuming from ' + Math.floor(startTime / 60) + 'm ' + Math.floor(startTime % 60) + 's');
-            }
-        });
-
-        function showLoading(msg) {
-            loading.style.display = 'block';
-            loadingText.textContent = msg || 'Loading stream...';
-            error.style.display = 'none';
-        }
-
-        function hideLoading() {
-            loading.style.display = 'none';
-        }
-
-        function showError(message) {
-            hideLoading();
-            error.style.display = 'block';
-            errorMessage.textContent = message || 'Failed to load stream';
-        }
-
-        async function playWithHLS(url) {
-            log('Trying HLS.js with: ' + url);
-            showLoading('Loading HLS stream...');
-
-            if (!Hls.isSupported()) {
-                // Try native HLS (Safari)
-                if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                    video.src = url;
-                    video.addEventListener('canplay', () => {
-                        hideLoading();
-                        video.play().catch(e => log('Autoplay prevented: ' + e));
-                    });
-                    video.addEventListener('error', () => {
-                        showError('HLS playback error');
-                    });
-                    return true;
-                }
-                return false;
-            }
-
-            // Optimized HLS.js configuration for stable streaming (prevents micro-cutouts)
-            const hls = new Hls({
-                // LARGER buffers to prevent stalls
-                maxBufferLength: 60,           // Max 60 seconds of buffer (doubled)
-                maxMaxBufferLength: 120,       // Allow up to 120 seconds in stressed conditions
-                maxBufferSize: 120 * 1000000,  // 120MB max buffer size
-                maxBufferHole: 1.0,            // Tolerate 1s gaps in buffer (more forgiving)
-
-                // Live settings - more tolerant
-                liveSyncDurationCount: 4,      // Sync to 4 segments behind live (more buffer)
-                liveMaxLatencyDurationCount: 10, // Max 10 segments behind before seeking
-                liveDurationInfinity: true,    // Treat live streams as infinite
-                liveBackBufferLength: 30,      // Keep 30s of back buffer
-
-                // AGGRESSIVE retry settings for network issues
-                manifestLoadingTimeOut: 20000,  // 20s timeout for manifest
-                manifestLoadingMaxRetry: 8,     // Retry manifest 8 times
-                manifestLoadingRetryDelay: 500, // 500ms between retries (faster)
-                levelLoadingTimeOut: 20000,     // 20s for level playlist
-                levelLoadingMaxRetry: 8,
-                levelLoadingRetryDelay: 500,
-                fragLoadingTimeOut: 30000,      // 30s for fragments (longer)
-                fragLoadingMaxRetry: 10,        // Retry fragments 10 times
-                fragLoadingRetryDelay: 500,     // 500ms between retries
-
-                // Better quality selection
-                startLevel: -1,                 // Auto-select start level
-                abrEwmaDefaultEstimate: 500000, // Start assuming 500kbps
-                abrBandWidthFactor: 0.9,        // Use 90% of measured bandwidth (more conservative)
-                abrBandWidthUpFactor: 0.6,      // Be more cautious when upgrading quality
-
-                // Enable worker for better performance
-                enableWorker: true,
-
-                // Lowlatency mode disabled for stability
-                lowLatencyMode: false,
-
-                // Don't add extra headers
-                xhrSetup: function (xhr, url) { }
-            });
-
-            window.hlsInstance = hls; // Expose for external control (audio tracks)
-
-            hls.loadSource(url);
-            hls.attachMedia(video);
-
-            hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                log('HLS manifest parsed, starting playback');
-                hideLoading();
-                video.play().catch(e => {
-                    log('Autoplay prevented: ' + e);
-                    window.parent.postMessage({ type: 'playback_status', status: 'paused' }, '*');
-                });
-            });
-
-            // Better error recovery (including non-fatal bufferStalledError)
-            hls.on(Hls.Events.ERROR, (event, data) => {
-                log('HLS Error: ' + data.type + ' - ' + data.details);
-
-                // Handle non-fatal buffer errors (bufferStalledError)
-                if (!data.fatal) {
-                    if (data.details === 'bufferStalledError') {
-                        log('Buffer stalled, attempting recovery...');
-                        // Nudge playback if stuck
-                        if (video.paused) {
-                            video.play().catch(e => log('Resume failed: ' + e));
-                        }
-                        // Force reload from current position
-                        hls.startLoad(video.currentTime);
-                    }
-                    return; // Non-fatal errors can often be ignored
-                }
-
-                // Handle fatal errors
-                switch (data.type) {
-                    case Hls.ErrorTypes.NETWORK_ERROR:
-                        log('Network error, attempting recovery...');
-                        hls.startLoad(); // Try to recover network errors
-                        break;
-                    case Hls.ErrorTypes.MEDIA_ERROR:
-                        log('Media error, attempting recovery...');
-                        hls.recoverMediaError(); // Try to recover media errors
-                        break;
-                    default:
-                        showError('HLS Error: ' + data.details);
-                        hls.destroy();
-                        break;
-                }
-            });
-
-            return true;
-        }
-
-        async function playWithMpegTS(url) {
-            log('Trying mpegts.js with: ' + url);
-            showLoading('Loading MPEG-TS stream...');
-
-            if (!mpegts.isSupported()) {
-                return false;
-            }
-
-            if (mpegts.getLoggingControl) {
-                mpegts.getLoggingControl().enableAll = false;
-                mpegts.getLoggingControl().enableError = true;
-            }
-
-            const player = mpegts.createPlayer({
-                type: 'mpegts',
-                isLive: true,
-                url: url,
-            }, {
-                enableWorker: true,
-                enableStashBuffer: true,
-                stashInitialSize: 384 * 1024,
-                autoCleanupSourceBuffer: true,
-                // Make the player more resilient to timestamp gaps without spamming
-                fixAudioTimestampGap: true,
-                lazyLoadMaxDuration: 3 * 60,
-                seekType: 'range',
-            });
-
-            player.attachMediaElement(video);
-            player.load();
-
-            video.addEventListener('canplay', () => {
-                log('MPEG-TS stream ready');
-                hideLoading();
-                video.play().catch(e => {
-                    log('Autoplay prevented: ' + e);
-                    window.parent.postMessage({ type: 'playback_status', status: 'paused' }, '*');
-                });
-            });
-
-            video.addEventListener('error', (e) => {
-                showError('Video error: ' + (video.error?.message || 'Unknown error'));
-            });
-
-            player.on(mpegts.Events.ERROR, (errType, errDetail, errInfo) => {
-                log('mpegts error: ' + errType + ' - ' + errDetail);
-                showError('Stream error: ' + errDetail);
-            });
-
-            return true;
-        }
-
-        async function playDirect(url) {
-            log('Trying direct playback: ' + url);
-            showLoading('Loading video...');
-
-            // Configure video for better buffering
-            video.preload = 'auto';
-
-            // Handle buffering events
-            video.addEventListener('waiting', () => {
-                log('Buffering...');
-                showLoading('Buffering...');
-            });
-
-            video.addEventListener('playing', () => {
-                hideLoading();
-            });
-
-            video.addEventListener('canplay', () => {
-                hideLoading();
-                video.play().catch(e => {
-                    log('Autoplay prevented: ' + e);
-                    window.parent.postMessage({ type: 'playback_status', status: 'paused' }, '*');
-                });
-            }, { once: true });
-
-            video.addEventListener('error', (e) => {
-                const error = video.error;
-                let msg = 'Playback error';
-                if (error) {
-                    switch (error.code) {
-                        case MediaError.MEDIA_ERR_NETWORK:
-                            msg = 'Network error - retrying...';
-                            log(msg);
-                            // Retry after network error
-                            setTimeout(() => {
-                                video.load();
-                                video.play().catch(() => { });
-                            }, 2000);
-                            return;
-                        case MediaError.MEDIA_ERR_DECODE:
-                            msg = 'Video decode error';
-                            break;
-                        case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-                            msg = 'Format not supported';
-                            break;
-                    }
-                }
-                showError(msg);
-            });
-
-            // Handle stalled playback (prevent rollback)
-            video.addEventListener('stalled', () => {
-                log('Stream stalled, waiting for data...');
-            });
-
-            // Set source and start loading
-            video.src = url;
-            video.load();
-        }
-
-        async function initPlayer() {
+        function initPlayer() {
             if (!streamUrl) {
                 showError('No stream URL provided');
                 return;
             }
-
-            log('Stream URL: ' + streamUrl.substring(0, 80) + '...');
-
-            // SPECIAL: /api/stream/ endpoint - ALWAYS returns JSON with HLS playlist
-            if (streamUrl.includes('/api/stream/')) {
-                // Both Live TV and VOD use /api/stream/ which returns JSON with HLS playlist URL
-                const isLiveStream = streamUrl.includes('live') || urlParams.get('type') === 'live';
-                log((isLiveStream ? 'Live TV' : 'VOD') + ' via /api/stream/ - fetching HLS...');
-                showLoading(isLiveStream ? 'Connecting to live stream...' : 'Initializing stream...');
-
-                try {
-                    const response = await fetch(streamUrl);
-                    const data = await response.json();
 
                     if (data.playlist) {
                         const playlistUrl = window.location.origin + data.playlist;

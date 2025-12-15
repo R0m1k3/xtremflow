@@ -99,20 +99,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
       _viewId = 'iptv-player-$currentStreamId-${DateTime.now().millisecondsSinceEpoch}';
       
+      
       final service = ref.read(xtreamServiceProvider(widget.playlist));
       String streamUrl = '';
 
-      // Get settings for VOD transcoding preference
-      final playerSettings = ref.read(iptvSettingsProvider);
-      final forceTranscoding = playerSettings.forceVodTranscoding;
-
       // Generate Stream URL based on type
+      // NOTE: Logic is now handled by the backend routes /api/live/ and /api/vod/
       if (widget.streamType == StreamType.live) {
         streamUrl = service.getLiveStreamUrl(currentStreamId);
       } else if (widget.streamType == StreamType.vod) {
-        streamUrl = service.getVodStreamUrl(currentStreamId, widget.containerExtension, forceTranscoding: forceTranscoding);
+        streamUrl = service.getVodStreamUrl(currentStreamId, widget.containerExtension);
       } else if (widget.streamType == StreamType.series) {
-        streamUrl = service.getSeriesStreamUrl(currentStreamId, widget.containerExtension, forceTranscoding: forceTranscoding);
+        streamUrl = service.getSeriesStreamUrl(currentStreamId, widget.containerExtension);
       }
 
       // Store URL for Lite Player
