@@ -161,6 +161,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
           playlist: widget.playlist,
           streamType: StreamType.vod,
           containerExtension: movie.containerExtension ?? 'mp4',
+          duration: movie.durationSecs != null ? Duration(seconds: movie.durationSecs!) : null,
         ),
       ),
     );

@@ -280,6 +280,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 playlist: widget.playlist,
                 streamType: StreamType.series,
                 containerExtension: episode.containerExtension ?? 'mkv',
+                duration: episode.durationSecs != null ? Duration(seconds: episode.durationSecs!) : null,
               ),
             ),
           );

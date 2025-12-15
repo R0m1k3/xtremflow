@@ -40,8 +40,11 @@ Handler createLiveStreamHandler(Future<PlaylistConfig?> Function(Request) getPla
     print('[Live] Incoming request for streamId: $streamId');
     
     // Remove .ts extension if present
+    // Remove extension if present (handle both .ts and .m3u8 just in case)
     if (streamId.endsWith('.ts')) {
       streamId = streamId.substring(0, streamId.length - 3);
+    } else if (streamId.endsWith('.m3u8')) {
+      streamId = streamId.substring(0, streamId.length - 5);
     }
 
     final playlist = await getPlaylist(request);
@@ -101,27 +104,34 @@ Handler createVodStreamHandler(Future<PlaylistConfig?> Function(Request) getPlay
     final playlist = await getPlaylist(request);
     if (playlist == null) return Response.internalServerError(body: 'No playlist');
 
-    // Clean up old session if exists
+    // Check if session already exists
     if (_vodProcesses.containsKey(streamId)) {
-      print('[VOD] Killing previous session for $streamId');
-      _vodProcesses[streamId]?.kill();
-      _vodProcesses.remove(streamId);
+      print('[VOD] Transcoding already in progress for $streamId');
+      
+      // Allow existing process to continue
+      // Just fall through to serve the playlist
+    } else {
+      // Clean up ANY existing garbage from previous dead runs if process not tracked
+      // (Optional safety, or just rely on overwrite)
     }
     
-    // Prepare directory
     final streamDir = Directory('${_hlsTempDir.path}/$streamId');
-    if (streamDir.existsSync()) {
-      streamDir.deleteSync(recursive: true);
-    }
-    streamDir.createSync(recursive: true);
+
 
     // Build Upstream URL (Try MKV first, then generic)
     // Note: We don't know the extension here easily unless passed. 
     // Xtream usually allows access via streamId.mkv or streamId.mp4 regardless of actual file
     // We'll trust the ID.
-    final targetUrl = '${playlist.dns}/movie/${playlist.username}/${playlist.password}/$streamId.mkv';
+    // Only start FFmpeg if not already running
+    if (!_vodProcesses.containsKey(streamId)) {
+       // Prepare directory (Only for new session)
+       if (streamDir.existsSync()) {
+         streamDir.deleteSync(recursive: true);
+       }
+       streamDir.createSync(recursive: true);
 
-    print('[VOD] Starting Transcode: $targetUrl');
+       final targetUrl = '${playlist.dns}/movie/${playlist.username}/${playlist.password}/$streamId.mkv';
+       print('[VOD] Starting Transcode: $targetUrl');
 
     // Start FFmpeg
     final ffmpegArgs = [
@@ -147,7 +157,9 @@ Handler createVodStreamHandler(Future<PlaylistConfig?> Function(Request) getPlay
       // HLS Output options
       '-f', 'hls',
       '-hls_time', '4',
-      '-hls_list_size', '0', // Keep all segments
+      '-hls_list_size', '0', 
+      '-hls_playlist_type', 'event', // Enable Event mode (VOD that grows)
+      '-hls_allow_cache', '1',
       '-hls_segment_type', 'mpegts',
       '-hls_segment_filename', '${streamDir.path}/segment_%03d.ts',
       '-start_number', '0',
@@ -156,18 +168,21 @@ Handler createVodStreamHandler(Future<PlaylistConfig?> Function(Request) getPlay
       '${streamDir.path}/playlist.m3u8'
     ];
 
-    Process.start('ffmpeg', ffmpegArgs).then((process) {
-      _vodProcesses[streamId] = process;
-      
-      process.stderr.transform(utf8.decoder).listen((data) {
-        if (data.contains('Error')) print('[FFmpeg $streamId] $data');
-      });
+      Process.start('ffmpeg', ffmpegArgs).then((process) {
+        _vodProcesses[streamId] = process;
+        
+        process.stderr.transform(utf8.decoder).listen((data) {
+          // Log only major errors or startup info to keep logs clean(er)
+          // or keep verbose if debugging
+          print('[FFmpeg $streamId] $data'); 
+        });
 
-      process.exitCode.then((code) {
-        print('[VOD] FFmpeg exited with code $code');
-        _vodProcesses.remove(streamId);
+        process.exitCode.then((code) {
+          print('[VOD] FFmpeg exited with code $code');
+          _vodProcesses.remove(streamId);
+        });
       });
-    });
+    }
 
     // Wait for playlist to appear (max 10s)
     final playlistFile = File('${streamDir.path}/playlist.m3u8');
