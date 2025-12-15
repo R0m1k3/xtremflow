@@ -34,13 +34,19 @@ PlaylistConfig? _getCurrentPlaylist(Request request) {
 Handler createLiveStreamHandler(Future<PlaylistConfig?> Function(Request) getPlaylist) {
   final router = Router();
 
-  // Route: /api/live/{streamId}.ts
-  router.get('/<streamId>.ts', (Request request, String streamId) async {
-    final playlist = await getPlaylist(request);
-    if (playlist == null) {
-      return Response.internalServerError(body: 'No playlist configured');
+  // Route: /api/live/{streamId} (Catch all pattern to debug)
+  router.get('/<streamId|.*>', (Request request, String streamId) async {
+    print('[Live] Incoming request for streamId: $streamId');
+    
+    // Remove .ts extension if present
+    if (streamId.endsWith('.ts')) {
+      streamId = streamId.substring(0, streamId.length - 3);
     }
 
+    final playlist = await getPlaylist(request);
+    
+    // ... existing logic ...
+    
     final targetUrl = Uri.parse('${playlist.dns}/live/${playlist.username}/${playlist.password}/$streamId.ts');
     print('[Live] Proxying: $targetUrl');
 

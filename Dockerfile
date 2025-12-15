@@ -54,7 +54,13 @@ RUN apt-get update && apt-get install -y sqlite3 libsqlite3-dev ffmpeg && rm -rf
 # Create directory for HLS stream output
 RUN mkdir -p /tmp/streams && chmod 777 /tmp/streams
 
-# Copy entire bin directory (API, database, etc.)
+# Copy pubspec.yaml (required for dependencies)
+COPY pubspec.yaml ./
+
+# Copy lib directory (required for shared models)
+COPY lib/ ./lib/
+
+# Copy bin directory
 COPY bin/ ./bin/
 
 # Get dependencies
@@ -67,5 +73,5 @@ COPY --from=builder /app/build/web /app/web
 EXPOSE 8089
 
 # Serve web application with API proxy
-WORKDIR /app/bin
-CMD ["dart", "run", "server.dart", "--port", "8089", "--path", "/app/web"]
+WORKDIR /app
+CMD ["dart", "run", "bin/server.dart", "--port", "8089", "--path", "/app/web"]
