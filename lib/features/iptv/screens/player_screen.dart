@@ -123,9 +123,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // - Live TV: Player Lite (simple TS playback with mpegts.js)
       // - VOD/Series: Player Standard (fuller controls, HLS support)
       final isLiveTV = widget.streamType == StreamType.live;
+      // Cache buster to force reload of updated player.html
+      final cacheBuster = DateTime.now().millisecondsSinceEpoch;
+      
       var playerSrc = isLiveTV 
-          ? 'player_lite.html?url=$encodedUrl&type=live' 
-          : 'player.html?url=$encodedUrl&type=vod';
+          ? 'player_lite.html?url=$encodedUrl&type=live&v=$cacheBuster' 
+          : 'player.html?url=$encodedUrl&type=vod&v=$cacheBuster';
       
       if (startTimeOverride != null) {
         playerSrc += '&t=$startTimeOverride';
