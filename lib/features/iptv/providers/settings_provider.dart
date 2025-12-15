@@ -106,8 +106,8 @@ class IptvSettings {
     this.showClock = false,
     this.preferredAspectRatio = 'contain',
     this.playerType = PlayerType.standard,
-    // VOD defaults
-    this.forceVodTranscoding = false,
+    // VOD defaults - true by default to avoid 509 errors from IPTV servers
+    this.forceVodTranscoding = true,
   });
 
   IptvSettings copyWith({

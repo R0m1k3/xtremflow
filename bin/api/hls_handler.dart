@@ -168,30 +168,33 @@ Handler createStreamInitHandler() {
           '-bufsize', '5000k',
         ]);
       } else {
-        // VOD: Higher quality transcoding
+        // VOD: Use ultrafast preset to prevent buffer stalls
+        // FFmpeg must transcode FASTER than realtime to keep the buffer full
         ffmpegArgs.addAll([
           '-c:v', 'libx264',
-          '-preset', 'fast',
-          '-tune', 'film',
-          '-profile:v', 'high',
-          '-level', '4.1',
+          '-preset', 'ultrafast', // CRITICAL: Fast encoding to prevent buffer stalls
+          '-tune', 'fastdecode',  // Optimize for fast decoding in browser
+          '-profile:v', 'main',   // Good compatibility, better than baseline for VOD
+          '-level', '4.0',
           '-pix_fmt', 'yuv420p',
-          '-g', '48',
+          '-g', '48',             // Keyframe every 2s at 24fps
+          '-threads', '0',        // Use all available CPU cores
         ]);
 
         if (quality == 'low') {
           ffmpegArgs.addAll([
             '-vf', 'scale=-2:480',
-            '-b:v', '1500k',
-            '-maxrate', '1500k',
-            '-bufsize', '3000k',
+            '-b:v', '1000k',
+            '-maxrate', '1200k',
+            '-bufsize', '2000k',
           ]);
         } else {
+          // High quality but still fast enough to prevent stalls
           ffmpegArgs.addAll([
-            '-b:v', '6000k',
-            '-maxrate', '8000k',
-            '-bufsize', '12000k',
-            '-crf', '18',
+            '-b:v', '2500k',      // Reduced from 6000k for faster encoding
+            '-maxrate', '3000k',  // Reduced from 8000k
+            '-bufsize', '5000k',  // Reduced from 12000k
+            '-crf', '23',         // Slightly lower quality but much faster
           ]);
         }
       }
