@@ -1,216 +1,356 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="UTF-8">
     <title>XtremFlow Player</title>
-    <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
-        #video { width: 100%; height: 100%; object-fit: contain; }
-        #error-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; font-family: sans-serif; }
-        .hidden { display: none !important; }
-    </style>
+    <!-- HLS.js and mpegts.js for MPEG-TS support -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.12/dist/hls.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
-</head>
-<body>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    <video id="video" autoplay playsinline></video>
-    
-    <div id="error-overlay" class="hidden">
-        <h2 id="error-title">Playback Error</h2>
-        <p id="error-msg">Unknown error</p>
+        html,
+        body {
+            background: #000;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #player-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        #error {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            text-align: center;
+            font-family: Arial, sans-serif;
+        }
+
+        #error-icon {
+            font-size: 64px;
+            color: #f44336;
+            margin-bottom: 16px;
+        }
+
+        #loading {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            text-align: center;
+            font-family: Arial, sans-serif;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #fff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="player-container">
+        <!-- No native controls - Flutter overlay handles controls -->
+        <video id="video" autoplay playsinline></video>
+        <div id="loading">
+            <div class="spinner"></div>
+            <div id="loading-text">Loading stream...</div>
+        </div>
+        <div id="error">
+            <div id="error-icon">⚠</div>
+            <div id="error-message">Failed to load stream</div>
+        </div>
     </div>
 
     <script>
         const video = document.getElementById('video');
-        const errorOverlay = document.getElementById('error-overlay');
-        const errorMsg = document.getElementById('error-msg');
-        
-        let hlsKey = null;
-        let mpegtsPlayer = null;
+        const loading = document.getElementById('loading');
+        const loadingText = document.getElementById('loading-text');
+        const error = document.getElementById('error');
+        const errorMessage = document.getElementById('error-message');
 
-        // Parse URL params
+        // Get parameters from query string
         const urlParams = new URLSearchParams(window.location.search);
-        const streamUrl = urlParams.get('url');
-        const streamType = urlParams.get('type'); // 'live' or 'vod'
-        const startTime = parseFloat(urlParams.get('t')) || 0;
+        let streamUrl = urlParams.get('url');
+        const startTime = parseFloat(urlParams.get('t') || '0');
+        const streamType = urlParams.get('type') || ''; // 'live' or 'vod'
 
         function log(msg) {
-            console.log(`[Player] ${msg}`);
+            console.log('[Player] ' + msg);
         }
 
-        function showError(msg) {
-            log('Error: ' + msg);
-            errorMsg.innerText = msg;
-            errorOverlay.classList.remove('hidden');
-            // Notify Flutter
-            window.parent.postMessage({ type: 'error', message: msg }, '*');
+        function showLoading(msg) {
+            loading.style.display = 'block';
+            loadingText.textContent = msg || 'Loading stream...';
+            error.style.display = 'none';
         }
 
-        // --- Communication with Flutter ---
+        function hideLoading() {
+            loading.style.display = 'none';
+        }
+
+        function showError(message) {
+            hideLoading();
+            error.style.display = 'block';
+            errorMessage.textContent = message || 'Failed to load stream';
+        }
+
+        // Seek to startTime when video is ready
+        video.addEventListener('loadedmetadata', () => {
+            if (startTime > 0 && startTime < video.duration) {
+                video.currentTime = startTime;
+                log('Resuming from ' + Math.floor(startTime / 60) + 'm ' + Math.floor(startTime % 60) + 's');
+            }
+        });
+
+        // Report position to parent for resume feature
+        let lastReportedTime = 0;
+        function reportPosition() {
+            if (video.currentTime > 0 && !video.paused && video.readyState > 2) {
+                if (Math.abs(video.currentTime - lastReportedTime) >= 5) {
+                    lastReportedTime = video.currentTime;
+                    window.parent.postMessage({
+                        type: 'playback_position',
+                        currentTime: video.currentTime,
+                        duration: isFinite(video.duration) ? video.duration : 0
+                    }, '*');
+                }
+            }
+        }
+        setInterval(reportPosition, 5000);
+
+        // Report on pause and end
+        video.addEventListener('pause', () => {
+            window.parent.postMessage({
+                type: 'playback_position',
+                currentTime: video.currentTime,
+                duration: isFinite(video.duration) ? video.duration : 0
+            }, '*');
+        });
+
+        video.addEventListener('ended', () => {
+            window.parent.postMessage({
+                type: 'playback_ended',
+                duration: isFinite(video.duration) ? video.duration : 0
+            }, '*');
+        });
+
+        // Report user activity (mouse movement or touch) to parent for auto-hide controls
+        let lastActivityTime = 0;
+        function reportActivity() {
+            const now = Date.now();
+            if (now - lastActivityTime > 100) { // Throttle to 100ms
+                lastActivityTime = now;
+                window.parent.postMessage({
+                    type: 'user_activity'
+                }, '*');
+            }
+        }
+        document.addEventListener('mousemove', reportActivity);
+        document.addEventListener('touchstart', reportActivity);
+        document.addEventListener('touchmove', reportActivity);
+        document.addEventListener('click', reportActivity);
+        document.addEventListener('touchend', reportActivity);
+
+        // Handle commands from Flutter (Play, Pause, Seek, Volume)
         window.addEventListener('message', (event) => {
             const data = event.data;
             if (!data) return;
 
-            switch(data.type) {
+            switch (data.type) {
                 case 'play': video.play().catch(e => log('Play fail: ' + e)); break;
                 case 'pause': video.pause(); break;
-                case 'seek': 
-                    if (Number.isFinite(data.value)) video.currentTime = data.value; 
+                case 'seek':
+                    if (Number.isFinite(data.value)) video.currentTime = data.value;
                     break;
-                case 'set_volume': 
-                    video.volume = Math.max(0, Math.min(1, data.value)); 
+                case 'set_volume':
+                    video.volume = Math.max(0, Math.min(1, data.value));
                     break;
             }
         });
 
-        // Report progress to Flutter
-        setInterval(() => {
-            if (!video.paused) {
-                window.parent.postMessage({
-                    type: 'playback_position',
-                    currentTime: video.currentTime,
-                    duration: video.duration || 0
-                }, '*');
-                
-                window.parent.postMessage({
-                    type: 'playback_status',
-                    status: 'playing'
-                }, '*');
-            } else {
-                 window.parent.postMessage({
-                    type: 'playback_status',
-                    status: 'paused'
-                }, '*');
-            }
-        }, 1000);
+        async function playWithHLS(url) {
+            log('Trying HLS.js with: ' + url);
+            showLoading('Loading HLS stream...');
 
-        // --- Player Logic ---
-
-        function initPlayer() {
-            if (!streamUrl) {
-                showError('No stream URL provided');
-                return;
-            }
-
-                    if (data.playlist) {
-                        const playlistUrl = window.location.origin + data.playlist;
-                        log('Got HLS playlist: ' + playlistUrl);
-                        await playWithHLS(playlistUrl);
-                        return;
-                    } else {
-                        showError('Invalid stream response');
-                        return;
-                    }
-                } catch (err) {
-                    log('Error fetching playlist: ' + err);
-                    showError('Stream init failed');
-                    return;
-                }
-            }
-
-            // Determine stream type and try appropriate player
-            const lowerUrl = streamUrl.toLowerCase();
-            const ext = urlParams.get('ext') ? urlParams.get('ext').toLowerCase() : '';
-            const streamTypeParam = urlParams.get('type');
-
-            // VOD via proxy (/api/xtream/) - use direct playback
-            if (streamUrl.includes('/api/xtream/') && streamTypeParam === 'vod') {
-                log('VOD via proxy - using direct playback');
-                showLoading('Loading video...');
-                await playDirect(streamUrl);
-                return;
-            }
-
-            // HLS streams first
-            if (lowerUrl.includes('.m3u8') || lowerUrl.includes('/hls/')) {
-                await playWithHLS(streamUrl);
-                return;
-            }
-
-            // MPEG-TS streams (live or forced TS via ext param)
-            // Checked BEFORE generic MP4/MKV to handle transcoded streams correctly
-            if (ext === '.ts' || lowerUrl.includes('.ts')) {
-                log('Detected MPEG-TS (via extension or URL)');
-
-                // Check if mpegts.js is supported (may not work on mobile)
-                if (mpegts.isSupported()) {
-                    log('Using mpegts.js');
-                    const success = await playWithMpegTS(streamUrl);
-                    if (success) return;
-                    log('mpegts.js failed, trying fallbacks...');
-                }
-
-                // Fallback 1: Try HLS.js for better mobile compatibility
-                log('Trying HLS.js as fallback for MPEG-TS');
-                const hlsSuccess = await playWithHLS(streamUrl);
-                if (hlsSuccess) return;
-
-                // Fallback 2: Try direct play as last resort
-                log('Trying direct play as last resort');
-                await playDirect(streamUrl);
-                return;
-            }
-
-            // MP4 and WebM - play directly (supports seeking via Range)
-            if (lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('.mov')) {
-                log('Detected MP4/WebM/MOV, playing directly with seek support');
-                await playDirect(streamUrl);
-                return;
-            }
-
-            // MKV, AVI - not natively supported, try anyway with fallback
-            if (lowerUrl.includes('.mkv') || lowerUrl.includes('.avi') || lowerUrl.includes('.wmv') || lowerUrl.includes('.flv')) {
-                log('Detected MKV/AVI - limited browser support, trying direct play...');
-                showLoading('Loading video (format may not support seeking)...');
-
-                // Try direct first, some browsers/servers may transcode on the fly
-                video.src = streamUrl;
-
-                let playStarted = false;
-                const onCanPlay = () => {
-                    playStarted = true;
-                    hideLoading();
-                    video.play().catch(e => {
-                        log('Autoplay prevented: ' + e);
-                        window.parent.postMessage({ type: 'playback_status', status: 'paused' }, '*');
+            if (!Hls.isSupported()) {
+                if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = url;
+                    video.addEventListener('canplay', () => {
+                        hideLoading();
+                        video.play().catch(e => log('Autoplay prevented: ' + e));
                     });
+                    return true;
+                }
+                return false;
+            }
+
+            const hls = new Hls({
+                maxBufferLength: 30,
+                maxMaxBufferLength: 60,
+                enableWorker: true
+            });
+
+            window.hlsInstance = hls;
+            hls.loadSource(url);
+            hls.attachMedia(video);
+
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                log('HLS manifest parsed');
+                hideLoading();
+                video.play().catch(e => log('Autoplay prevented: ' + e));
+            });
+
+            hls.on(Hls.Events.ERROR, (event, data) => {
+                log('HLS Error: ' + data.type + ' - ' + data.details);
+                if (data.fatal) {
+                    if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                        hls.startLoad();
+                    } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                        hls.recoverMediaError();
+                    } else {
+                        showError('HLS Error: ' + data.details);
+                        hls.destroy();
+                    }
+                }
+            });
+
+            return true;
+        }
+
+        async function playWithMpegTS(url, isLive = true) {
+            log('Trying mpegts.js with: ' + url + ' (isLive: ' + isLive + ')');
+            showLoading('Loading MPEG-TS stream...');
+
+            if (!mpegts.isSupported()) {
+                return false;
+            }
+
+            const playerConfig = {
+                enableWorker: true,
+                enableStashBuffer: true,
+                stashInitialSize: 1024 * 1024,
+                autoCleanupSourceBuffer: true,
+            };
+
+            let player = mpegts.createPlayer({
+                type: 'mpegts',
+                isLive: isLive,
+                url: url,
+                hasAudio: true,
+                hasVideo: true,
+            }, playerConfig);
+
+            player.attachMediaElement(video);
+            player.load();
+            player.play().catch(e => log('Autoplay prevented: ' + e));
+
+            player.on(mpegts.Events.ERROR, (errType, errDetail) => {
+                log('mpegts error: ' + errType + ' - ' + errDetail);
+            });
+
+            return true;
+        }
+
+        async function playDirect(url) {
+            log('Trying direct playback: ' + url);
+            showLoading('Loading video...');
+            video.src = url;
+            video.load();
+
+            return new Promise((resolve) => {
+                const onCanPlay = () => {
+                    hideLoading();
+                    video.play().catch(e => log('Autoplay prevented: ' + e));
+                    resolve(true);
                 };
 
                 const onError = async () => {
-                    if (!playStarted) {
-                        log('Direct play failed for MKV/AVI, trying HLS fallback...');
-                        video.removeEventListener('canplay', onCanPlay);
-                        video.removeEventListener('error', onError);
-                        // Try HLS as fallback (in case URL was actually HLS disguised)
-                        const hlsSuccess = await playWithHLS(streamUrl);
-                        if (!hlsSuccess) {
-                            showError('Format not supported by browser. Try MP4 version if available.');
-                        }
+                    // If direct fail, try HLS
+                    if (await playWithHLS(url)) {
+                        resolve(true);
+                    } else {
+                        showError('Format not supported.');
+                        resolve(false);
                     }
                 };
 
                 video.addEventListener('canplay', onCanPlay, { once: true });
                 video.addEventListener('error', onError, { once: true });
+            });
+        }
+
+        async function initPlayer() {
+            if (!streamUrl) {
+                showError('No stream URL provided');
                 return;
             }
 
-            // Unknown format - try direct first (for VOD with Range support), then HLS
-            log('Unknown format, trying direct first then HLS fallback');
-            video.src = streamUrl;
+            log('Stream URL: ' + streamUrl);
+            log('Stream type: ' + streamType);
+            const lowerUrl = streamUrl.toLowerCase();
 
-            video.addEventListener('canplay', () => {
-                hideLoading();
-                video.play().catch(e => {
-                    log('Autoplay prevented: ' + e);
-                    window.parent.postMessage({ type: 'playback_status', status: 'paused' }, '*');
-                });
-            }, { once: true });
+            // LIVE TV
+            if (streamType === 'live') {
+                await playWithMpegTS(streamUrl, true);
+                return;
+            }
 
-            video.addEventListener('error', async () => {
-                log('Direct play failed, trying HLS...');
+            // VOD
+            if (streamType === 'vod') {
+                // If M3U8 -> HLS
+                if (lowerUrl.includes('.m3u8')) {
+                    await playWithHLS(streamUrl);
+                } else {
+                    // Try direct (MKV? wrapped in proxy?)
+                    // If proxy returns M3U8 content for MKV url, playWithHLS handles it? No, hls.js needs .m3u8 extension usually or explicit config.
+                    // But our VOD URL ends in /playlist.m3u8 so it enters the if above.
+                    await playDirect(streamUrl);
+                }
+                return;
+            }
+
+            // Fallback auto-detect
+            if (lowerUrl.includes('.m3u8')) {
                 await playWithHLS(streamUrl);
-            }, { once: true });
+            } else {
+                await playDirect(streamUrl);
+            }
         }
 
         initPlayer();

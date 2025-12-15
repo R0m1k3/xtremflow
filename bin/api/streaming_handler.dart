@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
+import 'package:http/http.dart' as http;
 import '../../lib/core/models/playlist_config.dart';
 
 /// Active FFmpeg processes for VOD transcoding
@@ -45,58 +46,39 @@ Handler createLiveStreamHandler(Future<PlaylistConfig?> Function(Request) getPla
 
     final playlist = await getPlaylist(request);
     
-    // ... existing logic ...
+    if (playlist == null) {
+      print('[Live] Error: No playlist found');
+      return Response.internalServerError(body: 'No playlist configured');
+    }
     
     final targetUrl = Uri.parse('${playlist.dns}/live/${playlist.username}/${playlist.password}/$streamId.ts');
     print('[Live] Proxying: $targetUrl');
 
+    final client = http.Client();
+    final streamRequest = http.Request('GET', targetUrl);
+    
+    // Spoof User-Agent to avoid 403/405 from providers
+    streamRequest.headers['User-Agent'] = 'VLC/3.0.18 LibVLC/3.0.18'; 
+    streamRequest.headers['Connection'] = 'keep-alive';
+    
     try {
-      final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 10); // Connection timeout
-      client.idleTimeout = const Duration(hours: 6);          // Keep alive long time
+      final streamResponse = await client.send(streamRequest);
+      print('[Live] Upstream response: ${streamResponse.statusCode} ${streamResponse.reasonPhrase}');
 
-      final req = await client.getUrl(targetUrl);
-      req.headers.set('User-Agent', 'VLC/3.0.18 LibVLC/3.0.18'); // Simulate VLC
-      req.headers.set('Connection', 'keep-alive');
+      // Filter headers to avoid encoding issues with shelf
+      final responseHeaders = Map<String, Object>.from(streamResponse.headers);
+      responseHeaders.remove('content-length');
+      responseHeaders.remove('content-encoding');
+      responseHeaders.remove('transfer-encoding');
 
-      final response = await req.close();
-      
-      if (response.statusCode != 200) {
-        return Response(response.statusCode, body: 'Upstream error: ${response.statusCode}');
-      }
-
-      print('[Live] Connected to upstream. Streaming...');
-
-      // Pipe the response stream to the client
-      // We use a StreamController to handle cancellation
-      final controller = StreamController<List<int>>();
-      
-      response.listen(
-        (data) => controller.add(data),
-        onError: (e) => controller.addError(e),
-        onDone: () => controller.close(),
-        cancelOnError: true,
+      return Response(
+        streamResponse.statusCode,
+        body: streamResponse.stream,
+        headers: responseHeaders,
       );
-
-      // Cleanup when client disconnects
-      controller.onCancel = () {
-        print('[Live] Client disconnected: $streamId');
-        // response.detachSocket() if possible, or just let GC handle it
-      };
-
-      return Response.ok(
-        controller.stream,
-        headers: {
-          'Content-Type': 'video/mp2t',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-          'Access-Control-Allow-Origin': '*',
-        },
-      );
-
     } catch (e) {
-      print('[Live] Error: $e');
-      return Response.internalServerError(body: 'Live stream error: $e');
+      print('[Live] Upstream connection error: $e');
+      return Response.internalServerError(body: 'Upstream error: $e');
     }
   });
 
