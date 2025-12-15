@@ -31,7 +31,7 @@ class LiveChannel {
   }
 
   String getStreamUrl(String dns, String username, String password) {
-    return '$dns/live/$username/$password/$streamId.m3u8';
+    return '$dns/live/$username/$password/$streamId.ts';
   }
 }
 
@@ -43,6 +43,7 @@ class Movie {
   final String categoryName;
   final String? containerExtension;
   final String? rating;
+  final int? durationSecs;
 
   const Movie({
     required this.streamId,
@@ -52,6 +53,7 @@ class Movie {
     this.categoryName = '',
     this.containerExtension,
     this.rating,
+    this.durationSecs,
   });
 
   factory Movie.fromJson(Map<String, dynamic> json) {
@@ -69,6 +71,7 @@ class Movie {
       categoryName: json['category_name']?.toString() ?? '',
       containerExtension: json['container_extension']?.toString() ?? 'mp4',
       rating: json['rating']?.toString(),
+      durationSecs: int.tryParse(json['duration_secs']?.toString() ?? json['duration']?.toString() ?? '0'),
     );
   }
 

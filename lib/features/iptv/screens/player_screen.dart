@@ -30,6 +30,7 @@ class PlayerScreen extends ConsumerStatefulWidget {
   final String containerExtension;
   final List<Channel>? channels;
   final double? startTime;
+  final Duration? duration;
 
   const PlayerScreen({
     super.key,
@@ -40,6 +41,7 @@ class PlayerScreen extends ConsumerStatefulWidget {
     this.containerExtension = 'mp4',
     this.channels,
     this.startTime,
+    this.duration,
   });
 
   @override
@@ -132,6 +134,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       
       if (startTimeOverride != null) {
         playerSrc += '&t=$startTimeOverride';
+      }
+      
+      if (widget.duration != null) {
+         playerSrc += '&duration=${widget.duration!.inSeconds}';
       }
 
       // Register View Factory (Only needed for Standard Player, but safe to do always or conditionally)
