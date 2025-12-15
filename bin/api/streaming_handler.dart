@@ -104,18 +104,49 @@ Handler createVodStreamHandler(Future<PlaylistConfig?> Function(Request) getPlay
     final playlist = await getPlaylist(request);
     if (playlist == null) return Response.internalServerError(body: 'No playlist');
 
-    // Check if session already exists
-    if (_vodProcesses.containsKey(streamId)) {
-      print('[VOD] Transcoding already in progress for $streamId');
-      
-      // Allow existing process to continue
-      // Just fall through to serve the playlist
-    } else {
-      // Clean up ANY existing garbage from previous dead runs if process not tracked
-      // (Optional safety, or just rely on overwrite)
-    }
-    
     final streamDir = Directory('${_hlsTempDir.path}/$streamId');
+    
+    // Check if existing session is healthy
+    if (_vodProcesses.containsKey(streamId)) {
+      final existingProcess = _vodProcesses[streamId]!;
+      
+      // Check if process is still running by checking if playlist exists and has content
+      final playlistFile = File('${streamDir.path}/playlist.m3u8');
+      if (playlistFile.existsSync()) {
+        final content = playlistFile.readAsStringSync();
+        // Check if playlist has segments (healthy transcoding)
+        if (content.contains('.ts')) {
+          print('[VOD] Reusing existing session for $streamId');
+          // Serve existing playlist
+          return Response.ok(
+            playlistFile.openRead(),
+            headers: {
+              'Content-Type': 'application/vnd.apple.mpegurl',
+              'Access-Control-Allow-Origin': '*',
+              'Cache-Control': 'no-cache',
+            },
+          );
+        }
+      }
+      
+      // Playlist missing or empty - process likely failed, clean up
+      print('[VOD] Cleaning up stale session for $streamId');
+      try {
+        existingProcess.kill();
+      } catch (e) {
+        // Process may already be dead
+      }
+      _vodProcesses.remove(streamId);
+      
+      // Clean up directory
+      if (streamDir.existsSync()) {
+        try {
+          streamDir.deleteSync(recursive: true);
+        } catch (e) {
+          print('[VOD] Failed to clean directory: $e');
+        }
+      }
+    }
 
 
     // Build Upstream URL (Try MKV first, then generic)
@@ -149,16 +180,16 @@ Handler createVodStreamHandler(Future<PlaylistConfig?> Function(Request) getPlay
       '-pix_fmt', 'yuv420p',
       '-threads', '0',
 
-      // Audio: AAC (Browser compatible)
+      // Audio: AAC (Browser compatible, improved quality)
       '-c:a', 'aac',
-      '-b:a', '128k',
+      '-b:a', '192k',      // Higher bitrate for better quality
+      '-ar', '48000',      // Standard sample rate
       '-ac', '2',
 
-      // HLS Output options
       '-f', 'hls',
       '-hls_time', '4',
       '-hls_list_size', '0', 
-      '-hls_playlist_type', 'event', // Enable Event mode (VOD that grows)
+      '-hls_playlist_type', 'event', // Event type allows immediate playback while transcoding
       '-hls_allow_cache', '1',
       '-hls_segment_type', 'mpegts',
       '-hls_segment_filename', '${streamDir.path}/segment_%03d.ts',
