@@ -79,9 +79,9 @@ class XtreamService {
   String getSeriesStreamUrl(String streamId, String containerExtension) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     
-    // Point to new dedicated VOD API (HLS playlist)
+    // Point to new dedicated VOD API (HLS playlist) with series type
     final baseUrl = html.window.location.origin;
-    return '$baseUrl/api/vod/$streamId/playlist.m3u8';
+    return '$baseUrl/api/vod/$streamId/playlist.m3u8?type=series';
   }
 
   /// Authenticate and get server info
