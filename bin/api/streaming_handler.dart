@@ -116,20 +116,21 @@ Handler createLiveStreamHandler(
       return Response.internalServerError(body: 'No playlist configured');
     }
 
-    final originalUrl =
+    // Use original URL - let FFmpeg handle HTTP redirects natively
+    // Manual redirect resolution consumes one-time tokens from IPTV servers
+    final targetUrl =
         '${playlist.dns}/live/${playlist.username}/${playlist.password}/$streamId.ts';
-
-    // Resolve any HTTP redirects before passing to FFmpeg
-    final targetUrl = await _resolveRedirects(originalUrl);
     print('[Live] Streaming via FFmpeg: $targetUrl');
 
     // Start FFmpeg to proxy and stabilize the stream
     // We use "-c copy" to avoid transcoding (Low CPU) but gain FFmpeg's network robustness
     final ffmpegArgs = [
       '-hide_banner', '-loglevel', 'error',
-      '-headers', 'User-Agent: VLC/3.0.18 LibVLC/3.0.18\r\n',
+      // Full headers to mimic a real video player
+      '-headers',
+      'User-Agent: VLC/3.0.18 LibVLC/3.0.18\r\nAccept: */*\r\nConnection: keep-alive\r\nReferer: ${playlist.dns}/\r\n',
 
-      // Robustness flags (Same as VOD)
+      // HTTP redirect handling and robustness flags
       '-reconnect', '1',
       '-reconnect_at_eof', '1',
       '-reconnect_streamed', '1',
@@ -137,6 +138,7 @@ Handler createLiveStreamHandler(
       '-rw_timeout', '15000000',
       '-analyzeduration', '5000000', // Faster probe for live
       '-probesize', '5000000',
+      '-max_reload', '3', // Allow up to 3 retries for failed requests
 
       '-i', targetUrl,
 
