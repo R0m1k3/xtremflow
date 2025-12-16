@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 
 /// Horizontal carousel for displaying channels by category
-/// 
+///
 /// Netflix-style horizontal scrolling list with:
 /// - Category title with count
 /// - Smooth horizontal scrolling
@@ -36,7 +36,7 @@ class CategoryCarousel<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     if (items.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -110,15 +110,15 @@ class CategoryCarousel<T> extends StatelessWidget {
             ],
           ),
         ),
-        
+
         const SizedBox(height: 12),
-        
+
         // Horizontal scrolling list with fade edges
         SizedBox(
           height: itemHeight,
           child: ShaderMask(
             shaderCallback: (Rect bounds) {
-              return LinearGradient(
+              return const LinearGradient(
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
                 colors: [
@@ -127,7 +127,7 @@ class CategoryCarousel<T> extends StatelessWidget {
                   Colors.white,
                   Colors.transparent,
                 ],
-                stops: const [0.0, 0.02, 0.98, 1.0],
+                stops: [0.0, 0.02, 0.98, 1.0],
               ).createShader(bounds);
             },
             blendMode: BlendMode.dstIn,
@@ -173,7 +173,7 @@ class CategoryChipButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -181,14 +181,10 @@ class CategoryChipButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           gradient: isSelected ? AppColors.primaryGradient : null,
-          color: isSelected
-              ? null
-              : colorScheme.surfaceContainerHighest,
+          color: isSelected ? null : colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected
-                ? Colors.transparent
-                : colorScheme.outlineVariant,
+            color: isSelected ? Colors.transparent : colorScheme.outlineVariant,
           ),
         ),
         child: Row(
@@ -209,9 +205,8 @@ class CategoryChipButton extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: isSelected
-                    ? colorScheme.onPrimary
-                    : colorScheme.onSurface,
+                color:
+                    isSelected ? colorScheme.onPrimary : colorScheme.onSurface,
               ),
             ),
           ],

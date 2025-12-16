@@ -29,7 +29,7 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
   bool _isSearching = false;
   bool _hasMore = true;
   int _currentOffset = 0;
-  static const int _pageSize = 50; 
+  static const int _pageSize = 50;
   Timer? _searchDebounce;
 
   @override
@@ -48,9 +48,10 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
   }
 
   void _onScroll() {
-    if (!_isLoading && _hasMore &&
+    if (!_isLoading &&
+        _hasMore &&
         _scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent * 0.8) {
+            _scrollController.position.maxScrollExtent * 0.8) {
       _loadMoreSeries();
     }
   }
@@ -64,7 +65,7 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
         _isSearching = false;
       }
     });
-    
+
     if (query.length >= 2) {
       _searchDebounce = Timer(const Duration(milliseconds: 500), () {
         _performSearch(query);
@@ -75,11 +76,11 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
   Future<void> _performSearch(String query) async {
     if (query.isEmpty) return;
     setState(() => _isSearching = true);
-    
+
     try {
       final service = ref.read(xtreamServiceProvider(widget.playlist));
       final results = await service.searchSeries(query);
-      
+
       if (mounted && _searchQuery == query) {
         setState(() {
           _searchResults = results;
@@ -150,23 +151,30 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(iptvSettingsProvider);
-    
+
     List<Series> displaySeries;
     if (_searchQuery.isNotEmpty && _searchResults != null) {
       displaySeries = _searchResults!;
     } else {
       displaySeries = settings.seriesKeywords.isEmpty
           ? _series
-          : _series.where((s) => settings.matchesSeriesFilter(s.categoryName)).toList();
+          : _series
+              .where((s) => settings.matchesSeriesFilter(s.categoryName))
+              .toList();
     }
 
-    final heroItems = displaySeries.take(3).map((s) => HeroItem(
-      id: s.seriesId.toString(),
-      title: s.name,
-      imageUrl: _getProxiedImageUrl(s.cover),
-      subtitle: s.rating != null ? '${_formatRating(s.rating)} ★' : null,
-      onMoreInfo: () => _openSeries(s),
-    )).toList();
+    final heroItems = displaySeries
+        .take(3)
+        .map(
+          (s) => HeroItem(
+            id: s.seriesId.toString(),
+            title: s.name,
+            imageUrl: _getProxiedImageUrl(s.cover),
+            subtitle: s.rating != null ? '${_formatRating(s.rating)} ★' : null,
+            onMoreInfo: () => _openSeries(s),
+          ),
+        )
+        .toList();
 
     return SafeArea(
       bottom: false,
@@ -180,7 +188,8 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
               child: GlassContainer(
                 borderRadius: 100,
                 opacity: 0.1,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Row(
                   children: [
                     const Icon(Icons.search, size: 20, color: Colors.white54),
@@ -188,7 +197,10 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                     Expanded(
                       child: TextField(
                         controller: _searchController,
-                        style: GoogleFonts.inter(fontSize: 14, color: Colors.white),
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: Colors.white,
+                        ),
                         decoration: InputDecoration(
                           hintText: 'Search Series...',
                           hintStyle: GoogleFonts.inter(color: Colors.white54),
@@ -200,14 +212,25 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                       ),
                     ),
                     if (_isSearching)
-                      const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                      const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      ),
                     if (_searchQuery.isNotEmpty)
                       GestureDetector(
                         onTap: () {
-                           _searchController.clear();
-                           _onSearchChanged('');
+                          _searchController.clear();
+                          _onSearchChanged('');
                         },
-                        child: const Icon(Icons.close, size: 16, color: Colors.white),
+                        child: const Icon(
+                          Icons.close,
+                          size: 16,
+                          color: Colors.white,
+                        ),
                       ),
                   ],
                 ),
@@ -221,22 +244,24 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 24),
                 child: SizedBox(
-                   height: 250,
-                   child: HeroCarousel(
-                     items: heroItems,
-                     onTap: (item) {
-                       try {
-                         final series = _series.firstWhere((s) => s.seriesId.toString() == item.id);
-                         _openSeries(series);
-                       } catch (e) {
-                         // Fallback
-                       }
-                     },
-                   ),
+                  height: 250,
+                  child: HeroCarousel(
+                    items: heroItems,
+                    onTap: (item) {
+                      try {
+                        final series = _series.firstWhere(
+                          (s) => s.seriesId.toString() == item.id,
+                        );
+                        _openSeries(series);
+                      } catch (e) {
+                        // Fallback
+                      }
+                    },
+                  ),
                 ),
               ),
             ),
-          
+
           // Grid
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
@@ -251,7 +276,7 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                 (context, index) {
                   if (index >= displaySeries.length) return null;
                   final series = displaySeries[index];
-                  
+
                   return GestureDetector(
                     onTap: () => _openSeries(series),
                     child: Stack(
@@ -260,37 +285,58 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                         // Poster
                         ClipRRect(
                           borderRadius: BorderRadius.circular(16),
-                          child: series.cover != null && series.cover!.isNotEmpty
-                            ? Image.network(
-                                _getProxiedImageUrl(series.cover),
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(color: Colors.white10),
-                              )
-                            : Container(color: Colors.white10, child: const Icon(Icons.tv, color: Colors.white24)),
+                          child:
+                              series.cover != null && series.cover!.isNotEmpty
+                                  ? Image.network(
+                                      _getProxiedImageUrl(series.cover),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) =>
+                                          Container(color: Colors.white10),
+                                    )
+                                  : Container(
+                                      color: Colors.white10,
+                                      child: const Icon(
+                                        Icons.tv,
+                                        color: Colors.white24,
+                                      ),
+                                    ),
                         ),
-                        
+
                         // Gradient Overlay
                         Positioned(
-                          bottom: 0, left: 0, right: 0,
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
                           height: 80,
                           child: Container(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
-                                colors: [Colors.transparent, Colors.black.withOpacity(0.9)],
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black.withOpacity(0.9),
+                                ],
                               ),
-                              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                              borderRadius: const BorderRadius.vertical(
+                                bottom: Radius.circular(16),
+                              ),
                             ),
                           ),
                         ),
 
                         // Title
                         Positioned(
-                          bottom: 12, left: 12, right: 12,
+                          bottom: 12,
+                          left: 12,
+                          right: 12,
                           child: Text(
                             series.name,
-                            style: GoogleFonts.inter(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -299,19 +345,31 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                         // Rating
                         if (series.rating != null && series.rating!.isNotEmpty)
                           Positioned(
-                            top: 8, right: 8,
+                            top: 8,
+                            right: 8,
                             child: GlassContainer(
                               borderRadius: 4,
                               opacity: 0.6,
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.star, size: 10, color: Colors.amber),
+                                  const Icon(
+                                    Icons.star,
+                                    size: 10,
+                                    color: Colors.amber,
+                                  ),
                                   const SizedBox(width: 4),
                                   Text(
                                     _formatRating(series.rating)!,
-                                    style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -325,12 +383,14 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
               ),
             ),
           ),
-          
+
           if (_isLoading)
             const SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator(color: Colors.white)),
+                child: Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
               ),
             ),
         ],

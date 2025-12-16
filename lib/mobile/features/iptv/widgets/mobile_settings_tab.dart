@@ -37,13 +37,16 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
   }
 
   void _syncControllers(IptvSettings settings) {
-    if (!_initialized || _liveTvController.text != settings.liveTvCategoryFilter) {
+    if (!_initialized ||
+        _liveTvController.text != settings.liveTvCategoryFilter) {
       _liveTvController.text = settings.liveTvCategoryFilter;
     }
-    if (!_initialized || _moviesController.text != settings.moviesCategoryFilter) {
+    if (!_initialized ||
+        _moviesController.text != settings.moviesCategoryFilter) {
       _moviesController.text = settings.moviesCategoryFilter;
     }
-    if (!_initialized || _seriesController.text != settings.seriesCategoryFilter) {
+    if (!_initialized ||
+        _seriesController.text != settings.seriesCategoryFilter) {
       _seriesController.text = settings.seriesCategoryFilter;
     }
     _initialized = true;
@@ -56,7 +59,7 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
     final themeState = ref.watch(themeProvider);
     final themeNotifier = ref.read(themeProvider.notifier);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_initialized) _syncControllers(settings);
     });
@@ -66,7 +69,7 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
         padding: const EdgeInsets.all(16),
         children: [
           // Header
-         Padding(
+          Padding(
             padding: const EdgeInsets.only(bottom: 24),
             child: Text(
               'Settings',
@@ -87,7 +90,10 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                   backgroundColor: AppColors.primary.withOpacity(0.2),
                   child: Text(
                     currentUser?.username.substring(0, 1).toUpperCase() ?? 'U',
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -106,12 +112,22 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                       if (currentUser?.isAdmin ?? false)
                         Container(
                           margin: const EdgeInsets.only(top: 4),
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Text('ADMIN', style: TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.bold)),
+                          child: const Text(
+                            'ADMIN',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                     ],
                   ),
@@ -131,19 +147,30 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
             child: Column(
               children: [
                 SwitchListTile(
-                  title: const Text('Dark Mode', style: TextStyle(color: AppColors.textPrimary)),
-                  secondary:  Icon(isDark ? Icons.dark_mode : Icons.light_mode, color: AppColors.primary),
+                  title: const Text(
+                    'Dark Mode',
+                    style: TextStyle(color: AppColors.textPrimary),
+                  ),
+                  secondary: Icon(
+                    isDark ? Icons.dark_mode : Icons.light_mode,
+                    color: AppColors.primary,
+                  ),
                   value: isDark,
                   onChanged: (_) => themeNotifier.toggleTheme(),
-                  activeColor: AppColors.primary,
+                  activeThumbColor: AppColors.primary,
                 ),
                 const Divider(height: 1),
                 SwitchListTile(
-                  title: const Text('Show Clock', style: TextStyle(color: AppColors.textPrimary)),
-                  secondary: const Icon(Icons.access_time, color: AppColors.primary),
+                  title: const Text(
+                    'Show Clock',
+                    style: TextStyle(color: AppColors.textPrimary),
+                  ),
+                  secondary:
+                      const Icon(Icons.access_time, color: AppColors.primary),
                   value: settings.showClock,
-                  onChanged: (val) => ref.read(iptvSettingsProvider.notifier).setShowClock(val),
-                  activeColor: AppColors.primary,
+                  onChanged: (val) =>
+                      ref.read(iptvSettingsProvider.notifier).setShowClock(val),
+                  activeThumbColor: AppColors.primary,
                 ),
               ],
             ),
@@ -167,7 +194,11 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                   items: StreamQuality.values,
                   labelBuilder: (v) => v.name.toUpperCase(),
                   onChanged: (v) {
-                    if (v != null) ref.read(iptvSettingsProvider.notifier).setStreamQuality(v);
+                    if (v != null) {
+                      ref
+                          .read(iptvSettingsProvider.notifier)
+                          .setStreamQuality(v);
+                    }
                   },
                 ),
                 const Divider(height: 1),
@@ -178,19 +209,26 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                   items: BufferSize.values,
                   labelBuilder: (v) => v.name.toUpperCase(),
                   onChanged: (v) {
-                    if (v != null) ref.read(iptvSettingsProvider.notifier).setBufferSize(v);
+                    if (v != null) {
+                      ref.read(iptvSettingsProvider.notifier).setBufferSize(v);
+                    }
                   },
                 ),
                 const Divider(height: 1),
                 _DropdownSetting<ConnectionTimeout>(
-                   label: 'Timeout',
-                   icon: Icons.timer,
-                   value: settings.connectionTimeout,
-                   items: ConnectionTimeout.values,
-                   labelBuilder: (v) => '${v.name.toUpperCase()} (${ref.read(iptvSettingsProvider).timeoutSeconds}s)',
-                   onChanged: (v) {
-                     if (v != null) ref.read(iptvSettingsProvider.notifier).setConnectionTimeout(v);
-                   },
+                  label: 'Timeout',
+                  icon: Icons.timer,
+                  value: settings.connectionTimeout,
+                  items: ConnectionTimeout.values,
+                  labelBuilder: (v) =>
+                      '${v.name.toUpperCase()} (${ref.read(iptvSettingsProvider).timeoutSeconds}s)',
+                  onChanged: (v) {
+                    if (v != null) {
+                      ref
+                          .read(iptvSettingsProvider.notifier)
+                          .setConnectionTimeout(v);
+                    }
+                  },
                 ),
                 const Divider(height: 1),
                 _DropdownSetting<TranscodingMode>(
@@ -200,22 +238,35 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                   items: TranscodingMode.values,
                   labelBuilder: (v) {
                     switch (v) {
-                      case TranscodingMode.auto: return 'AUTO';
-                      case TranscodingMode.forced: return 'TRANSCODE';
-                      case TranscodingMode.disabled: return 'DIRECT';
+                      case TranscodingMode.auto:
+                        return 'AUTO';
+                      case TranscodingMode.forced:
+                        return 'TRANSCODE';
+                      case TranscodingMode.disabled:
+                        return 'DIRECT';
                     }
                   },
                   onChanged: (v) {
-                    if (v != null) ref.read(iptvSettingsProvider.notifier).setTranscodingMode(v);
+                    if (v != null) {
+                      ref
+                          .read(iptvSettingsProvider.notifier)
+                          .setTranscodingMode(v);
+                    }
                   },
                 ),
                 const Divider(height: 1),
-                 SwitchListTile(
-                  title: const Text('Auto Reconnect', style: TextStyle(color: AppColors.textPrimary)),
-                  secondary: const Icon(Icons.refresh, color: AppColors.primary),
+                SwitchListTile(
+                  title: const Text(
+                    'Auto Reconnect',
+                    style: TextStyle(color: AppColors.textPrimary),
+                  ),
+                  secondary:
+                      const Icon(Icons.refresh, color: AppColors.primary),
                   value: settings.autoReconnect,
-                  onChanged: (val) => ref.read(iptvSettingsProvider.notifier).setAutoReconnect(val),
-                  activeColor: AppColors.primary,
+                  onChanged: (val) => ref
+                      .read(iptvSettingsProvider.notifier)
+                      .setAutoReconnect(val),
+                  activeThumbColor: AppColors.primary,
                 ),
               ],
             ),
@@ -236,21 +287,27 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                   label: 'Live TV Keywords',
                   icon: Icons.live_tv,
                   controller: _liveTvController,
-                  onChanged: (val) => ref.read(iptvSettingsProvider.notifier).setLiveTvFilter(val),
+                  onChanged: (val) => ref
+                      .read(iptvSettingsProvider.notifier)
+                      .setLiveTvFilter(val),
                 ),
                 const Divider(height: 24),
                 _FilterInput(
                   label: 'Movies Keywords',
                   icon: Icons.movie,
                   controller: _moviesController,
-                  onChanged: (val) => ref.read(iptvSettingsProvider.notifier).setMoviesFilter(val),
+                  onChanged: (val) => ref
+                      .read(iptvSettingsProvider.notifier)
+                      .setMoviesFilter(val),
                 ),
                 const Divider(height: 24),
                 _FilterInput(
                   label: 'Series Keywords',
                   icon: Icons.tv,
                   controller: _seriesController,
-                  onChanged: (val) => ref.read(iptvSettingsProvider.notifier).setSeriesFilter(val),
+                  onChanged: (val) => ref
+                      .read(iptvSettingsProvider.notifier)
+                      .setSeriesFilter(val),
                 ),
               ],
             ),
@@ -271,19 +328,19 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
             onTap: () => context.go('/playlists'),
           ),
           const SizedBox(height: 32),
-          
+
           FilledButton.icon(
-             onPressed: () {
-               ref.read(authProvider.notifier).logout();
-               context.go('/login');
-             },
-             style: FilledButton.styleFrom(
-               backgroundColor: AppColors.error.withOpacity(0.1),
-               foregroundColor: AppColors.error,
-               minimumSize: const Size(double.infinity, 50),
-             ),
-             icon: const Icon(Icons.logout),
-             label: const Text('Logout'),
+            onPressed: () {
+              ref.read(authProvider.notifier).logout();
+              context.go('/login');
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error.withOpacity(0.1),
+              foregroundColor: AppColors.error,
+              minimumSize: const Size(double.infinity, 50),
+            ),
+            icon: const Icon(Icons.logout),
+            label: const Text('Logout'),
           ),
           const SizedBox(height: 100),
         ],
@@ -335,10 +392,17 @@ class _FilterInput extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
               TextField(
                 controller: controller,
-                style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                style:
+                    const TextStyle(fontSize: 14, color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   isDense: true,
                   contentPadding: EdgeInsets.symmetric(vertical: 4),
@@ -435,7 +499,10 @@ class _DropdownSetting<T> extends StatelessWidget {
             value: value,
             underline: const SizedBox(),
             dropdownColor: AppColors.surfaceVariant,
-            icon: const Icon(Icons.arrow_drop_down, color: AppColors.textSecondary),
+            icon: const Icon(
+              Icons.arrow_drop_down,
+              color: AppColors.textSecondary,
+            ),
             style: const TextStyle(color: AppColors.textPrimary),
             items: items.map((item) {
               return DropdownMenuItem<T>(

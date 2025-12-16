@@ -31,7 +31,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     Icons.live_tv_rounded,
     Icons.movie_rounded,
     Icons.tv_rounded,
-    Icons.settings_rounded
+    Icons.settings_rounded,
   ];
 
   @override
