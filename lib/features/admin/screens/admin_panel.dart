@@ -183,11 +183,13 @@ class _PlaylistsTab extends ConsumerWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('${playlistsAsync.asData?.value.length ?? 0} Playlists',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyLarge
-                      ?.copyWith(color: Colors.white70)),
+              Text(
+                '${playlistsAsync.asData?.value.length ?? 0} Playlists',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyLarge
+                    ?.copyWith(color: Colors.white70),
+              ),
               GradientButton(
                 label: 'Add Playlist',
                 icon: Icons.add,
@@ -200,20 +202,27 @@ class _PlaylistsTab extends ConsumerWidget {
           child: playlistsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, stack) => Center(
-                child: Text('Error: $error',
-                    style: const TextStyle(color: AppColors.error))),
+              child: Text(
+                'Error: $error',
+                style: const TextStyle(color: AppColors.error),
+              ),
+            ),
             data: (playlists) {
               if (playlists.isEmpty) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.playlist_remove,
-                          size: 64,
-                          color: AppColors.textSecondary.withOpacity(0.5)),
+                      Icon(
+                        Icons.playlist_remove,
+                        size: 64,
+                        color: AppColors.textSecondary.withOpacity(0.5),
+                      ),
                       const SizedBox(height: 16),
-                      Text('No playlists configured',
-                          style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        'No playlists configured',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       const SizedBox(height: 8),
                       TextButton(
                         onPressed: () => _showPlaylistDialog(context, ref),
@@ -242,25 +251,31 @@ class _PlaylistsTab extends ConsumerWidget {
                             color: AppColors.surface,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(Icons.playlist_play,
-                              color: AppColors.textPrimary),
+                          child: const Icon(
+                            Icons.playlist_play,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(playlist.name,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(color: Colors.white)),
+                              Text(
+                                playlist.name,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(color: Colors.white),
+                              ),
                               const SizedBox(height: 4),
-                              Text(playlist.dns,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(color: Colors.white60)),
+                              Text(
+                                playlist.dns,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(color: Colors.white60),
+                              ),
                             ],
                           ),
                         ),
@@ -294,8 +309,11 @@ class _PlaylistsTab extends ConsumerWidget {
     );
   }
 
-  void _showPlaylistDialog(BuildContext context, WidgetRef ref,
-      [PlaylistConfig? playlist]) {
+  void _showPlaylistDialog(
+    BuildContext context,
+    WidgetRef ref, [
+    PlaylistConfig? playlist,
+  ]) {
     final nameController = TextEditingController(text: playlist?.name);
     final dnsController = TextEditingController(text: playlist?.dns);
     final usernameController = TextEditingController(text: playlist?.username);
@@ -307,41 +325,44 @@ class _PlaylistsTab extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: Text(playlist == null
-              ? 'Ajouter une playlist'
-              : 'Modifier la playlist'),
+          title: Text(
+            playlist == null ? 'Ajouter une playlist' : 'Modifier la playlist',
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Nom')),
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Nom'),
+                ),
                 const SizedBox(height: 12),
                 TextField(
-                    controller: dnsController,
-                    decoration: const InputDecoration(
-                        labelText: 'URL du serveur',
-                        hintText: 'http://server.com:8080')),
+                  controller: dnsController,
+                  decoration: const InputDecoration(
+                    labelText: 'URL du serveur',
+                    hintText: 'http://server.com:8080',
+                  ),
+                ),
                 const SizedBox(height: 12),
                 TextField(
-                    controller: usernameController,
-                    decoration:
-                        const InputDecoration(labelText: 'Utilisateur')),
+                  controller: usernameController,
+                  decoration: const InputDecoration(labelText: 'Utilisateur'),
+                ),
                 const SizedBox(height: 12),
                 TextField(
-                    controller: passwordController,
-                    decoration:
-                        const InputDecoration(labelText: 'Mot de passe'),
-                    obscureText: true),
+                  controller: passwordController,
+                  decoration: const InputDecoration(labelText: 'Mot de passe'),
+                  obscureText: true,
+                ),
               ],
             ),
           ),
           actions: [
             TextButton(
-                onPressed:
-                    isLoading ? null : () => Navigator.pop(dialogContext),
-                child: const Text('Annuler')),
+              onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
+              child: const Text('Annuler'),
+            ),
             FilledButton(
               onPressed: isLoading
                   ? null
@@ -349,8 +370,10 @@ class _PlaylistsTab extends ConsumerWidget {
                       if (nameController.text.isEmpty ||
                           dnsController.text.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Tous les champs sont requis')));
+                          const SnackBar(
+                            content: Text('Tous les champs sont requis'),
+                          ),
+                        );
                         return;
                       }
                       setState(() => isLoading = true);
@@ -359,17 +382,19 @@ class _PlaylistsTab extends ConsumerWidget {
                           .replaceAll(RegExp(r'/$'), '');
                       if (playlist == null) {
                         await service.createPlaylist(
-                            name: nameController.text.trim(),
-                            dns: dns,
-                            username: usernameController.text.trim(),
-                            password: passwordController.text);
+                          name: nameController.text.trim(),
+                          dns: dns,
+                          username: usernameController.text.trim(),
+                          password: passwordController.text,
+                        );
                       } else {
                         await service.updatePlaylist(
-                            id: playlist.id,
-                            name: nameController.text.trim(),
-                            dns: dns,
-                            username: usernameController.text.trim(),
-                            password: passwordController.text);
+                          id: playlist.id,
+                          name: nameController.text.trim(),
+                          dns: dns,
+                          username: usernameController.text.trim(),
+                          password: passwordController.text,
+                        );
                       }
                       if (dialogContext.mounted) Navigator.pop(dialogContext);
                       ref.invalidate(playlistsProvider);
@@ -378,7 +403,8 @@ class _PlaylistsTab extends ConsumerWidget {
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2))
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Text('Sauvegarder'),
             ),
           ],
@@ -388,7 +414,10 @@ class _PlaylistsTab extends ConsumerWidget {
   }
 
   void _deletePlaylist(
-      BuildContext context, WidgetRef ref, PlaylistConfig playlist) {
+    BuildContext context,
+    WidgetRef ref,
+    PlaylistConfig playlist,
+  ) {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -396,8 +425,9 @@ class _PlaylistsTab extends ConsumerWidget {
         content: Text('Supprimer "${playlist.name}" ?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annuler')),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Annuler'),
+          ),
           FilledButton(
             onPressed: () async {
               Navigator.pop(dialogContext);
@@ -428,11 +458,13 @@ class _UsersTab extends ConsumerWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('${usersAsync.asData?.value.length ?? 0} Users',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyLarge
-                      ?.copyWith(color: Colors.white70)),
+              Text(
+                '${usersAsync.asData?.value.length ?? 0} Users',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyLarge
+                    ?.copyWith(color: Colors.white70),
+              ),
               GradientButton(
                 label: 'Create User',
                 icon: Icons.person_add,
@@ -445,20 +477,27 @@ class _UsersTab extends ConsumerWidget {
           child: usersAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, stack) => Center(
-                child: Text('Error: $error',
-                    style: const TextStyle(color: AppColors.error))),
+              child: Text(
+                'Error: $error',
+                style: const TextStyle(color: AppColors.error),
+              ),
+            ),
             data: (users) {
               if (users.isEmpty) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.people_outline,
-                          size: 64,
-                          color: AppColors.textSecondary.withOpacity(0.5)),
+                      Icon(
+                        Icons.people_outline,
+                        size: 64,
+                        color: AppColors.textSecondary.withOpacity(0.5),
+                      ),
                       const SizedBox(height: 16),
-                      Text('No users found',
-                          style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        'No users found',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                     ],
                   ),
                 );
@@ -501,45 +540,57 @@ class _UsersTab extends ConsumerWidget {
                             children: [
                               Row(
                                 children: [
-                                  Text(user.username,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium
-                                          ?.copyWith(color: Colors.white)),
+                                  Text(
+                                    user.username,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(color: Colors.white),
+                                  ),
                                   if (user.isAdmin) ...[
                                     const SizedBox(width: 8),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 2),
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: AppColors.focusColor
                                             .withOpacity(0.2),
                                         borderRadius: BorderRadius.circular(50),
                                       ),
-                                      child: const Text('ADMIN',
-                                          style: TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppColors.focusColor)),
+                                      child: const Text(
+                                        'ADMIN',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.focusColor,
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ],
                               ),
                               const SizedBox(height: 4),
-                              Text('ID: ${user.id}',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(color: Colors.white60)),
+                              Text(
+                                'ID: ${user.id}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(color: Colors.white60),
+                              ),
                             ],
                           ),
                         ),
                         PopupMenuButton<String>(
-                          icon: const Icon(Icons.more_vert,
-                              color: Colors.white70),
+                          icon: const Icon(
+                            Icons.more_vert,
+                            color: Colors.white70,
+                          ),
                           color: AppColors.surface,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           onSelected: (value) {
                             switch (value) {
                               case 'password':
@@ -552,21 +603,32 @@ class _UsersTab extends ConsumerWidget {
                           },
                           itemBuilder: (context) => [
                             const PopupMenuItem(
-                                value: 'password',
-                                child: Row(children: [
+                              value: 'password',
+                              child: Row(
+                                children: [
                                   Icon(Icons.lock_reset, size: 18),
                                   SizedBox(width: 8),
-                                  Text('Change Password')
-                                ])),
+                                  Text('Change Password'),
+                                ],
+                              ),
+                            ),
                             const PopupMenuItem(
-                                value: 'delete',
-                                child: Row(children: [
-                                  Icon(Icons.delete,
-                                      color: AppColors.error, size: 18),
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.delete,
+                                    color: AppColors.error,
+                                    size: 18,
+                                  ),
                                   SizedBox(width: 8),
-                                  Text('Delete',
-                                      style: TextStyle(color: AppColors.error))
-                                ])),
+                                  Text(
+                                    'Delete',
+                                    style: TextStyle(color: AppColors.error),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -596,17 +658,21 @@ class _UsersTab extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-                  controller: usernameController,
-                  decoration: const InputDecoration(
-                      labelText: 'Nom d\'utilisateur',
-                      prefixIcon: Icon(Icons.person_outline))),
+                controller: usernameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nom d\'utilisateur',
+                  prefixIcon: Icon(Icons.person_outline),
+                ),
+              ),
               const SizedBox(height: 12),
               TextField(
-                  controller: passwordController,
-                  decoration: const InputDecoration(
-                      labelText: 'Mot de passe',
-                      prefixIcon: Icon(Icons.lock_outline)),
-                  obscureText: true),
+                controller: passwordController,
+                decoration: const InputDecoration(
+                  labelText: 'Mot de passe',
+                  prefixIcon: Icon(Icons.lock_outline),
+                ),
+                obscureText: true,
+              ),
               const SizedBox(height: 16),
               SwitchListTile(
                 title: const Text('Administrateur'),
@@ -618,9 +684,9 @@ class _UsersTab extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-                onPressed:
-                    isLoading ? null : () => Navigator.pop(dialogContext),
-                child: const Text('Annuler')),
+              onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
+              child: const Text('Annuler'),
+            ),
             FilledButton(
               onPressed: isLoading
                   ? null
@@ -628,28 +694,35 @@ class _UsersTab extends ConsumerWidget {
                       if (usernameController.text.isEmpty ||
                           passwordController.text.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Tous les champs sont requis')));
+                          const SnackBar(
+                            content: Text('Tous les champs sont requis'),
+                          ),
+                        );
                         return;
                       }
                       setState(() => isLoading = true);
                       final result = await UserApiService().createUser(
-                          username: usernameController.text.trim(),
-                          password: passwordController.text,
-                          isAdmin: isAdmin);
+                        username: usernameController.text.trim(),
+                        password: passwordController.text,
+                        isAdmin: isAdmin,
+                      );
                       if (dialogContext.mounted) Navigator.pop(dialogContext);
                       ref.invalidate(usersProvider);
                       if (!result.success && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
                             content: Text(result.error ?? 'Erreur'),
-                            backgroundColor: AppColors.error));
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
                       }
                     },
               child: isLoading
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2))
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Text('Créer'),
             ),
           ],
@@ -659,7 +732,10 @@ class _UsersTab extends ConsumerWidget {
   }
 
   void _showChangePasswordDialog(
-      BuildContext context, WidgetRef ref, AppUser user) {
+    BuildContext context,
+    WidgetRef ref,
+    AppUser user,
+  ) {
     final passwordController = TextEditingController();
     bool isLoading = false;
 
@@ -669,47 +745,58 @@ class _UsersTab extends ConsumerWidget {
         builder: (context, setState) => AlertDialog(
           title: Text('Changer le mot de passe de ${user.username}'),
           content: TextField(
-              controller: passwordController,
-              decoration: const InputDecoration(
-                  labelText: 'Nouveau mot de passe',
-                  prefixIcon: Icon(Icons.lock_outline)),
-              obscureText: true),
+            controller: passwordController,
+            decoration: const InputDecoration(
+              labelText: 'Nouveau mot de passe',
+              prefixIcon: Icon(Icons.lock_outline),
+            ),
+            obscureText: true,
+          ),
           actions: [
             TextButton(
-                onPressed:
-                    isLoading ? null : () => Navigator.pop(dialogContext),
-                child: const Text('Annuler')),
+              onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
+              child: const Text('Annuler'),
+            ),
             FilledButton(
               onPressed: isLoading
                   ? null
                   : () async {
                       if (passwordController.text.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Mot de passe requis')));
+                          const SnackBar(
+                            content: Text('Mot de passe requis'),
+                          ),
+                        );
                         return;
                       }
                       setState(() => isLoading = true);
                       final result = await UserApiService().updatePassword(
-                          userId: user.id,
-                          newPassword: passwordController.text);
+                        userId: user.id,
+                        newPassword: passwordController.text,
+                      );
                       if (dialogContext.mounted) Navigator.pop(dialogContext);
                       if (result.success && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Mot de passe modifié'),
-                                backgroundColor: AppColors.success));
+                          const SnackBar(
+                            content: Text('Mot de passe modifié'),
+                            backgroundColor: AppColors.success,
+                          ),
+                        );
                       } else if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
                             content: Text(result.error ?? 'Erreur'),
-                            backgroundColor: AppColors.error));
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
                       }
                     },
               child: isLoading
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2))
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Text('Changer'),
             ),
           ],
@@ -724,20 +811,25 @@ class _UsersTab extends ConsumerWidget {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Supprimer l\'utilisateur'),
         content: Text(
-            'Supprimer "${user.username}" ? Cette action est irréversible.'),
+          'Supprimer "${user.username}" ? Cette action est irréversible.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annuler')),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Annuler'),
+          ),
           FilledButton(
             onPressed: () async {
               Navigator.pop(dialogContext);
               final result = await UserApiService().deleteUser(user.id);
               ref.invalidate(usersProvider);
               if (!result.success && context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
                     content: Text(result.error ?? 'Erreur'),
-                    backgroundColor: AppColors.error));
+                    backgroundColor: AppColors.error,
+                  ),
+                );
               }
             },
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),

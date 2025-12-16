@@ -44,8 +44,8 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
       body: channelsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, s) => Center(
-            child:
-                Text('Error: $e', style: const TextStyle(color: Colors.white))),
+          child: Text('Error: $e', style: const TextStyle(color: Colors.white)),
+        ),
         data: (groupedChannels) {
           var categories = groupedChannels.keys.toList();
           if (settings.liveTvKeywords.isNotEmpty) {
@@ -98,8 +98,10 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                               hintStyle:
                                   GoogleFonts.inter(color: Colors.white54),
                               border: InputBorder.none,
-                              prefixIcon: const Icon(Icons.search,
-                                  color: Colors.white54),
+                              prefixIcon: const Icon(
+                                Icons.search,
+                                color: Colors.white54,
+                              ),
                               isDense: true,
                             ),
                           ),
@@ -133,7 +135,9 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 10),
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
                             decoration: BoxDecoration(
                               color: isSelected
                                   ? Colors.white
@@ -177,7 +181,8 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                       const Spacer(),
                       GestureDetector(
                         onTap: () => setState(
-                            () => _showFavoritesOnly = !_showFavoritesOnly),
+                          () => _showFavoritesOnly = !_showFavoritesOnly,
+                        ),
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
@@ -211,8 +216,11 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.tv_off,
-                                  color: Colors.white24, size: 48),
+                              const Icon(
+                                Icons.tv_off,
+                                color: Colors.white24,
+                                size: 48,
+                              ),
                               const SizedBox(height: 16),
                               Text(
                                 'No channels found',
@@ -344,7 +352,8 @@ class _MobileChannelTile extends ConsumerWidget {
                           current.title,
                           style: GoogleFonts.inter(
                             color: const Color(
-                                0xFFFFD700), // Gold/Amber for visibility check
+                              0xFFFFD700,
+                            ), // Gold/Amber for visibility check
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
@@ -352,11 +361,14 @@ class _MobileChannelTile extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                         );
                       },
-                      loading: () => const Text('...',
-                          style:
-                              TextStyle(color: Colors.white38, fontSize: 12)),
-                      error: (err, stack) => const Text('Err',
-                          style: TextStyle(color: Colors.red, fontSize: 10)),
+                      loading: () => const Text(
+                        '...',
+                        style: TextStyle(color: Colors.white38, fontSize: 12),
+                      ),
+                      error: (err, stack) => const Text(
+                        'Err',
+                        style: TextStyle(color: Colors.red, fontSize: 10),
+                      ),
                     ),
                   ],
                 ),
@@ -367,8 +379,11 @@ class _MobileChannelTile extends ConsumerWidget {
                   color: Colors.white.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.play_arrow_rounded,
-                    color: Colors.white, size: 16),
+                child: const Icon(
+                  Icons.play_arrow_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
               ),
             ],
           ),

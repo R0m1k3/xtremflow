@@ -261,8 +261,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       width: 24,
                                       height: 24,
                                       child: CircularProgressIndicator(
-                                          strokeWidth: 2.5,
-                                          color: Colors.black),
+                                        strokeWidth: 2.5,
+                                        color: Colors.black,
+                                      ),
                                     )
                                   : Text(
                                       'Sign In',

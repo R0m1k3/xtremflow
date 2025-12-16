@@ -219,14 +219,19 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Row(
                         children: [
-                          const Icon(Icons.search,
-                              size: 20, color: Colors.white54),
+                          const Icon(
+                            Icons.search,
+                            size: 20,
+                            color: Colors.white54,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: TextField(
                               controller: _searchController,
                               style: GoogleFonts.inter(
-                                  fontSize: 14, color: Colors.white),
+                                fontSize: 14,
+                                color: Colors.white,
+                              ),
                               decoration: InputDecoration(
                                 hintText: 'Search series...',
                                 hintStyle:
@@ -241,18 +246,24 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                           ),
                           if (_isSearching)
                             const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white)),
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            ),
                           if (_searchQuery.isNotEmpty)
                             GestureDetector(
                               onTap: () {
                                 _searchController.clear();
                                 _onSearchChanged('');
                               },
-                              child: const Icon(Icons.close,
-                                  size: 16, color: Colors.white),
+                              child: const Icon(
+                                Icons.close,
+                                size: 16,
+                                color: Colors.white,
+                              ),
                             ),
                         ],
                       ),
@@ -281,10 +292,11 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                               : null,
                           onMoreInfo: () {
                             final series = _series.firstWhere(
-                                (element) =>
-                                    element.seriesId.toString() ==
-                                    s.seriesId.toString(),
-                                orElse: () => s);
+                              (element) =>
+                                  element.seriesId.toString() ==
+                                  s.seriesId.toString(),
+                              orElse: () => s,
+                            );
                             _openSeries(series);
                           },
                         ),
@@ -292,8 +304,9 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                       .toList(),
                   onTap: (item) {
                     final series = _series.firstWhere(
-                        (element) => element.seriesId.toString() == item.id,
-                        orElse: () => _series[0]);
+                      (element) => element.seriesId.toString() == item.id,
+                      orElse: () => _series[0],
+                    );
                     _openSeries(series);
                   },
                 ),
@@ -330,15 +343,23 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                                   errorBuilder: (ctx, err, stack) => Container(
                                     color: AppColors.surfaceVariant,
                                     child: const Center(
-                                        child: Icon(Icons.tv,
-                                            size: 48, color: Colors.white24)),
+                                      child: Icon(
+                                        Icons.tv,
+                                        size: 48,
+                                        color: Colors.white24,
+                                      ),
+                                    ),
                                   ),
                                 )
                               : Container(
                                   color: AppColors.surfaceVariant,
                                   child: const Center(
-                                      child: Icon(Icons.tv,
-                                          size: 48, color: Colors.white24)),
+                                    child: Icon(
+                                      Icons.tv,
+                                      size: 48,
+                                      color: Colors.white24,
+                                    ),
+                                  ),
                                 ),
                         ),
 
@@ -355,11 +376,12 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                                 end: Alignment.bottomCenter,
                                 colors: [
                                   Colors.transparent,
-                                  Colors.black.withOpacity(0.9)
+                                  Colors.black.withOpacity(0.9),
                                 ],
                               ),
                               borderRadius: const BorderRadius.vertical(
-                                  bottom: Radius.circular(12)),
+                                bottom: Radius.circular(12),
+                              ),
                             ),
                           ),
                         ),
@@ -376,7 +398,8 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                               shadows: [
-                                const Shadow(color: Colors.black, blurRadius: 4)
+                                const Shadow(
+                                    color: Colors.black, blurRadius: 4),
                               ],
                             ),
                             maxLines: 2,
@@ -391,7 +414,9 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                             right: 8,
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.black.withOpacity(0.7),
                                 borderRadius: BorderRadius.circular(4),
@@ -400,15 +425,19 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.star,
-                                      size: 10, color: Colors.amber),
+                                  const Icon(
+                                    Icons.star,
+                                    size: 10,
+                                    color: Colors.amber,
+                                  ),
                                   const SizedBox(width: 4),
                                   Text(
                                     _formatRating(serie.rating)!,
                                     style: GoogleFonts.inter(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -429,7 +458,8 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
               child: Padding(
                 padding: EdgeInsets.all(32),
                 child: Center(
-                    child: CircularProgressIndicator(color: Colors.white)),
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
               ),
             ),
 

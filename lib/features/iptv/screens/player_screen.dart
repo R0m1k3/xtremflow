@@ -88,8 +88,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     super.dispose();
   }
 
-  Future<void> _initializePlayer(
-      {double? startTimeOverride, bool isChannelSwitch = false}) async {
+  Future<void> _initializePlayer({
+    double? startTimeOverride,
+    bool isChannelSwitch = false,
+  }) async {
     setState(() {
       _isLoading = true;
       _statusMessage = 'Loading...';
@@ -116,7 +118,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             service.getVodStreamUrl(currentStreamId, widget.containerExtension);
       } else if (widget.streamType == StreamType.series) {
         streamUrl = service.getSeriesStreamUrl(
-            currentStreamId, widget.containerExtension);
+          currentStreamId,
+          widget.containerExtension,
+        );
       }
 
       // Store URL for Lite Player
@@ -330,8 +334,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             customBorder: const CircleBorder(),
                             child: const Padding(
                               padding: EdgeInsets.all(12),
-                              child: Icon(Icons.arrow_back_rounded,
-                                  color: Colors.white),
+                              child: Icon(
+                                Icons.arrow_back_rounded,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
@@ -346,7 +352,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                               shadows: [
-                                Shadow(blurRadius: 4, color: Colors.black)
+                                Shadow(blurRadius: 4, color: Colors.black),
                               ],
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -394,8 +400,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               customBorder: const CircleBorder(),
                               child: const Padding(
                                 padding: EdgeInsets.all(14),
-                                child: Icon(Icons.keyboard_arrow_up,
-                                    color: Colors.white, size: 28),
+                                child: Icon(
+                                  Icons.keyboard_arrow_up,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
                               ),
                             ),
                           ),
@@ -409,8 +418,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               customBorder: const CircleBorder(),
                               child: const Padding(
                                 padding: EdgeInsets.all(14),
-                                child: Icon(Icons.keyboard_arrow_down,
-                                    color: Colors.white, size: 28),
+                                child: Icon(
+                                  Icons.keyboard_arrow_down,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
                               ),
                             ),
                           ),
@@ -495,8 +507,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                   color: Colors.white.withOpacity(0.1),
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.arrow_back_rounded,
-                                    color: Colors.white),
+                                child: const Icon(
+                                  Icons.arrow_back_rounded,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 24),
@@ -519,9 +533,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                   Text(
                                     'Live TV',
                                     style: GoogleFonts.inter(
-                                        fontSize: 14,
-                                        color: AppColors.live,
-                                        fontWeight: FontWeight.bold),
+                                      fontSize: 14,
+                                      color: AppColors.live,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                               ],
                             ),
@@ -533,7 +548,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       Center(
                         child: _isLoading
                             ? const CircularProgressIndicator(
-                                color: Colors.white)
+                                color: Colors.white,
+                              )
                             : TvFocusableCard(
                                 onTap: _togglePlayPause,
                                 borderRadius: 100,
@@ -545,7 +561,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                     color: Colors.white.withOpacity(0.2),
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                        color: Colors.white.withOpacity(0.3)),
+                                      color: Colors.white.withOpacity(0.3),
+                                    ),
                                   ),
                                   child: Icon(
                                     _isPlaying
@@ -590,21 +607,27 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                   child: Row(
                                     children: [
                                       Text(
-                                          _formatDuration(Duration(
-                                              seconds:
-                                                  _currentPosition.toInt())),
-                                          style: const TextStyle(
-                                              color: Colors.white70)),
+                                        _formatDuration(
+                                          Duration(
+                                            seconds: _currentPosition.toInt(),
+                                          ),
+                                        ),
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                        ),
+                                      ),
                                       const SizedBox(width: 16),
                                       Expanded(
                                         child: SliderTheme(
                                           data: const SliderThemeData(
                                             trackHeight: 4,
                                             thumbShape: RoundSliderThumbShape(
-                                                enabledThumbRadius: 8),
+                                              enabledThumbRadius: 8,
+                                            ),
                                             overlayShape:
                                                 RoundSliderOverlayShape(
-                                                    overlayRadius: 16),
+                                              overlayRadius: 16,
+                                            ),
                                             activeTrackColor: AppColors.primary,
                                             inactiveTrackColor: Colors.white24,
                                             thumbColor: Colors.white,
@@ -618,21 +641,25 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                             },
                                             onChanged: (value) {
                                               // Update UI immediately (optimistic update)
-                                              setState(() =>
-                                                  _currentPosition = value);
+                                              setState(
+                                                () => _currentPosition = value,
+                                              );
                                             },
                                             onChangeEnd: (value) {
                                               _sendMessage({
                                                 'type': 'seek',
-                                                'value': value
+                                                'value': value,
                                               });
                                               // Small delay to prevent jitter from incoming messages
                                               Future.delayed(
                                                   const Duration(
-                                                      milliseconds: 500), () {
-                                                if (mounted)
+                                                    milliseconds: 500,
+                                                  ), () {
+                                                if (mounted) {
                                                   setState(
-                                                      () => _isSeeking = false);
+                                                    () => _isSeeking = false,
+                                                  );
+                                                }
                                               });
                                             },
                                           ),
@@ -640,10 +667,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                       ),
                                       const SizedBox(width: 16),
                                       Text(
-                                          _formatDuration(Duration(
-                                              seconds: _totalDuration.toInt())),
-                                          style: const TextStyle(
-                                              color: Colors.white70)),
+                                        _formatDuration(
+                                          Duration(
+                                            seconds: _totalDuration.toInt(),
+                                          ),
+                                        ),
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -656,11 +688,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                   if (widget.streamType == StreamType.live &&
                                       widget.channels != null) ...[
                                     _buildTvControl(
-                                        Icons.navigate_before_rounded,
-                                        _previousChannel),
+                                      Icons.navigate_before_rounded,
+                                      _previousChannel,
+                                    ),
                                     const SizedBox(width: 32),
-                                    _buildTvControl(Icons.navigate_next_rounded,
-                                        _nextChannel),
+                                    _buildTvControl(
+                                      Icons.navigate_next_rounded,
+                                      _nextChannel,
+                                    ),
                                   ],
 
                                   // Controls for VOD (Keep Skip buttons, they act as Prev/Next track if playlist or maybe seek)
@@ -671,11 +706,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                   if (widget.streamType != StreamType.live &&
                                       widget.channels != null &&
                                       widget.channels!.isNotEmpty) ...[
-                                    _buildTvControl(Icons.skip_previous_rounded,
-                                        _previousChannel),
+                                    _buildTvControl(
+                                      Icons.skip_previous_rounded,
+                                      _previousChannel,
+                                    ),
                                     const SizedBox(width: 32),
                                     _buildTvControl(
-                                        Icons.skip_next_rounded, _nextChannel),
+                                      Icons.skip_next_rounded,
+                                      _nextChannel,
+                                    ),
                                   ],
 
                                   const Spacer(),
@@ -688,10 +727,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                   ),
                                   const SizedBox(width: 16),
                                   _buildTvControl(
-                                      Icons.subtitles_rounded, () {}),
+                                    Icons.subtitles_rounded,
+                                    () {},
+                                  ),
                                   const SizedBox(width: 16),
-                                  _buildTvControl(Icons.aspect_ratio_rounded,
-                                      _toggleFullscreen),
+                                  _buildTvControl(
+                                    Icons.aspect_ratio_rounded,
+                                    _toggleFullscreen,
+                                  ),
                                 ],
                               ),
                             ],

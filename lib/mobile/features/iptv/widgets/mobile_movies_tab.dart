@@ -205,7 +205,9 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                       child: TextField(
                         controller: _searchController,
                         style: GoogleFonts.inter(
-                            fontSize: 14, color: Colors.white),
+                          fontSize: 14,
+                          color: Colors.white,
+                        ),
                         decoration: InputDecoration(
                           hintText: 'Search Movies...',
                           hintStyle: GoogleFonts.inter(color: Colors.white54),
@@ -218,18 +220,24 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                     ),
                     if (_isSearching)
                       const SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white)),
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      ),
                     if (_searchQuery.isNotEmpty)
                       GestureDetector(
                         onTap: () {
                           _searchController.clear();
                           _onSearchChanged('');
                         },
-                        child: const Icon(Icons.close,
-                            size: 16, color: Colors.white),
+                        child: const Icon(
+                          Icons.close,
+                          size: 16,
+                          color: Colors.white,
+                        ),
                       ),
                   ],
                 ),
@@ -295,8 +303,11 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                                 )
                               : Container(
                                   color: Colors.white10,
-                                  child: const Icon(Icons.movie,
-                                      color: Colors.white24)),
+                                  child: const Icon(
+                                    Icons.movie,
+                                    color: Colors.white24,
+                                  ),
+                                ),
                         ),
 
                         // Gradient Overlay
@@ -312,11 +323,12 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                                 end: Alignment.bottomCenter,
                                 colors: [
                                   Colors.transparent,
-                                  Colors.black.withOpacity(0.9)
+                                  Colors.black.withOpacity(0.9),
                                 ],
                               ),
                               borderRadius: const BorderRadius.vertical(
-                                  bottom: Radius.circular(16)),
+                                bottom: Radius.circular(16),
+                              ),
                             ),
                           ),
                         ),
@@ -333,18 +345,22 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                               Text(
                                 movie.name,
                                 style: GoogleFonts.inter(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600),
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               if (isWatched)
-                                Text('WATCHED',
-                                    style: GoogleFonts.inter(
-                                        color: AppColors.primary,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold)),
+                                Text(
+                                  'WATCHED',
+                                  style: GoogleFonts.inter(
+                                    color: AppColors.primary,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -358,19 +374,25 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                               borderRadius: 4,
                               opacity: 0.6,
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.star,
-                                      size: 10, color: Colors.amber),
+                                  const Icon(
+                                    Icons.star,
+                                    size: 10,
+                                    color: Colors.amber,
+                                  ),
                                   const SizedBox(width: 4),
                                   Text(
                                     _formatRating(movie.rating)!,
                                     style: GoogleFonts.inter(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -390,7 +412,8 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Center(
-                    child: CircularProgressIndicator(color: Colors.white)),
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
               ),
             ),
         ],

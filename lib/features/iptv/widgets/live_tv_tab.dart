@@ -66,8 +66,8 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
       body: channelsAsync.when(
         loading: () => const ThemedLoading(),
         error: (e, s) => Center(
-            child:
-                Text('Error: $e', style: const TextStyle(color: Colors.white))),
+          child: Text('Error: $e', style: const TextStyle(color: Colors.white)),
+        ),
         data: (groupedChannels) {
           var categories = groupedChannels.keys.toList();
           if (settings.liveTvKeywords.isNotEmpty) {
@@ -125,8 +125,10 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                               color: Colors.white.withOpacity(0.1),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.arrow_back,
-                                color: Colors.white),
+                            child: const Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -167,12 +169,17 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                                 const Icon(Icons.search, color: Colors.white54),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 10),
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
                             suffixIcon: _searchQuery.isNotEmpty
                                 ? IconButton(
-                                    icon: const Icon(Icons.clear,
-                                        color: Colors.white),
-                                    onPressed: _searchController.clear)
+                                    icon: const Icon(
+                                      Icons.clear,
+                                      color: Colors.white,
+                                    ),
+                                    onPressed: _searchController.clear,
+                                  )
                                 : null,
                           ),
                         ),
@@ -224,14 +231,18 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.tv_off,
-                                    size: 64,
-                                    color: Colors.white.withOpacity(0.3)),
+                                Icon(
+                                  Icons.tv_off,
+                                  size: 64,
+                                  color: Colors.white.withOpacity(0.3),
+                                ),
                                 const SizedBox(height: 16),
                                 Text(
                                   'No channels found',
                                   style: GoogleFonts.inter(
-                                      color: Colors.white54, fontSize: 18),
+                                    color: Colors.white54,
+                                    fontSize: 18,
+                                  ),
                                 ),
                               ],
                             ),
@@ -247,7 +258,9 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
   }
 
   Widget _buildCategoryGrid(
-      List<String> categories, Map<String, List<Channel>> groupedChannels) {
+    List<String> categories,
+    Map<String, List<Channel>> groupedChannels,
+  ) {
     final columns = ResponsiveLayout.value(
       context,
       mobile: 2,
@@ -300,8 +313,11 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.folder_copy_outlined,
-                          color: Colors.white.withOpacity(0.9), size: 32),
+                      Icon(
+                        Icons.folder_copy_outlined,
+                        color: Colors.white.withOpacity(0.9),
+                        size: 32,
+                      ),
                       const SizedBox(height: 12),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -321,7 +337,9 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                       Text(
                         '$count Channels',
                         style: GoogleFonts.inter(
-                            fontSize: 13, color: Colors.white54),
+                          fontSize: 13,
+                          color: Colors.white54,
+                        ),
                       ),
                     ],
                   ),
@@ -378,15 +396,19 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                       child: channel.streamIcon.isNotEmpty
                           ? Image.network(
                               _getProxiedIconUrl(channel.streamIcon)!,
-                              errorBuilder: (_, __, ___) => const Icon(Icons.tv,
-                                  color: Colors.grey, size: 40),
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.tv,
+                                color: Colors.grey,
+                                size: 40,
+                              ),
                             )
                           : Text(
                               channel.name.characters.first.toUpperCase(),
                               style: GoogleFonts.inter(
-                                  fontSize: 40,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black12),
+                                fontSize: 40,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black12,
+                              ),
                             ),
                     ),
                   ),
@@ -402,9 +424,10 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                       Text(
                         channel.name,
                         style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500),
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -414,17 +437,22 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                           final epgAsync = ref.watch(
                             epgByPlaylistProvider(
                               EpgRequestKey(
-                                  playlist: widget.playlist,
-                                  streamId: channel.streamId),
+                                playlist: widget.playlist,
+                                streamId: channel.streamId,
+                              ),
                             ),
                           );
 
                           return epgAsync.when(
                             data: (epgList) {
                               if (epgList.isEmpty) {
-                                return Text('No Info',
-                                    style: GoogleFonts.inter(
-                                        color: Colors.white54, fontSize: 10));
+                                return Text(
+                                  'No Info',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white54,
+                                    fontSize: 10,
+                                  ),
+                                );
                               }
                               final now = DateTime.now();
                               final currentProgram = epgList.firstWhere(
@@ -444,19 +472,28 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                               return Text(
                                 currentProgram.title,
                                 style: GoogleFonts.inter(
-                                    color: const Color(0xFFFFD700),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600),
+                                  color: const Color(0xFFFFD700),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               );
                             },
-                            loading: () => Text('...',
-                                style: GoogleFonts.inter(
-                                    color: Colors.white24, fontSize: 10)),
-                            error: (_, __) => Text('Err',
-                                style: GoogleFonts.inter(
-                                    color: Colors.red, fontSize: 10)),
+                            loading: () => Text(
+                              '...',
+                              style: GoogleFonts.inter(
+                                color: Colors.white24,
+                                fontSize: 10,
+                              ),
+                            ),
+                            error: (_, __) => Text(
+                              'Err',
+                              style: GoogleFonts.inter(
+                                color: Colors.red,
+                                fontSize: 10,
+                              ),
+                            ),
                           );
                         },
                       ),

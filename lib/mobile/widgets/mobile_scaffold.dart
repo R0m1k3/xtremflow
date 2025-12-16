@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:ui';
-import '../../core/theme/app_colors.dart';
 
 class MobileScaffold extends ConsumerWidget {
   final Widget child;
@@ -25,7 +24,7 @@ class MobileScaffold extends ConsumerWidget {
         fit: StackFit.expand,
         children: [
           // Global Background
-           Container(
+          Container(
             decoration: const BoxDecoration(
               gradient: RadialGradient(
                 center: Alignment.center,
@@ -37,7 +36,7 @@ class MobileScaffold extends ConsumerWidget {
               ),
             ),
           ),
-          
+
           // Content
           child,
         ],
@@ -48,7 +47,9 @@ class MobileScaffold extends ConsumerWidget {
           child: Container(
             decoration: BoxDecoration(
               color: const Color(0xFF1C1C1E).withOpacity(0.85),
-              border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1), width: 0.5)),
+              border: Border(
+                  top: BorderSide(
+                      color: Colors.white.withOpacity(0.1), width: 0.5)),
             ),
             child: BottomNavigationBar(
               currentIndex: currentIndex,
@@ -58,8 +59,10 @@ class MobileScaffold extends ConsumerWidget {
               elevation: 0,
               selectedItemColor: Colors.white,
               unselectedItemColor: Colors.white38,
-              selectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 11),
-              unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 11),
+              selectedLabelStyle:
+                  GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 11),
+              unselectedLabelStyle:
+                  GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 11),
               items: const [
                 BottomNavigationBarItem(
                   icon: Icon(Icons.live_tv_rounded),
