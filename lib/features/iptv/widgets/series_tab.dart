@@ -399,7 +399,9 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                               fontWeight: FontWeight.w600,
                               shadows: [
                                 const Shadow(
-                                    color: Colors.black, blurRadius: 4),
+                                  color: Colors.black,
+                                  blurRadius: 4,
+                                ),
                               ],
                             ),
                             maxLines: 2,

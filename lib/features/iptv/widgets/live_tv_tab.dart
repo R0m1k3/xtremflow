@@ -8,13 +8,10 @@ import '../screens/player_screen.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/responsive_layout.dart';
-import '../../../core/widgets/components/ui_components.dart';
 import '../../../core/widgets/themed_loading_screen.dart';
 import '../../../core/widgets/glass_container.dart';
 import '../../../core/widgets/tv_focusable_card.dart';
-import 'channel_card.dart';
 
 class LiveTVTab extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;

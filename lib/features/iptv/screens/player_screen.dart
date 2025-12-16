@@ -7,8 +7,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 import '../providers/xtream_provider.dart';
 import '../providers/playback_positions_provider.dart';
-import '../providers/settings_provider.dart';
-import '../widgets/lite_player_view.dart';
 
 // ... (existing imports)
 // ... (existing imports)
@@ -17,7 +15,6 @@ import '../../../core/models/iptv_models.dart';
 import '../../../core/widgets/tv_focusable_card.dart';
 import '../../../core/widgets/glass_container.dart';
 import '../../../core/theme/app_colors.dart';
-import '../models/xtream_models.dart';
 import '../widgets/epg_overlay.dart';
 
 enum StreamType { live, vod, series }

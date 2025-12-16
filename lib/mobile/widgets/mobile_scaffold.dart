@@ -48,8 +48,11 @@ class MobileScaffold extends ConsumerWidget {
             decoration: BoxDecoration(
               color: const Color(0xFF1C1C1E).withOpacity(0.85),
               border: Border(
-                  top: BorderSide(
-                      color: Colors.white.withOpacity(0.1), width: 0.5)),
+                top: BorderSide(
+                  color: Colors.white.withOpacity(0.1),
+                  width: 0.5,
+                ),
+              ),
             ),
             child: BottomNavigationBar(
               currentIndex: currentIndex,

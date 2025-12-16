@@ -91,7 +91,9 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                   child: Text(
                     currentUser?.username.substring(0, 1).toUpperCase() ?? 'U',
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold, color: AppColors.primary),
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -111,16 +113,21 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                         Container(
                           margin: const EdgeInsets.only(top: 4),
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Text('ADMIN',
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.bold)),
+                          child: const Text(
+                            'ADMIN',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                     ],
                   ),
@@ -140,18 +147,24 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
             child: Column(
               children: [
                 SwitchListTile(
-                  title: const Text('Dark Mode',
-                      style: TextStyle(color: AppColors.textPrimary)),
-                  secondary: Icon(isDark ? Icons.dark_mode : Icons.light_mode,
-                      color: AppColors.primary),
+                  title: const Text(
+                    'Dark Mode',
+                    style: TextStyle(color: AppColors.textPrimary),
+                  ),
+                  secondary: Icon(
+                    isDark ? Icons.dark_mode : Icons.light_mode,
+                    color: AppColors.primary,
+                  ),
                   value: isDark,
                   onChanged: (_) => themeNotifier.toggleTheme(),
                   activeThumbColor: AppColors.primary,
                 ),
                 const Divider(height: 1),
                 SwitchListTile(
-                  title: const Text('Show Clock',
-                      style: TextStyle(color: AppColors.textPrimary)),
+                  title: const Text(
+                    'Show Clock',
+                    style: TextStyle(color: AppColors.textPrimary),
+                  ),
                   secondary:
                       const Icon(Icons.access_time, color: AppColors.primary),
                   value: settings.showClock,
@@ -181,10 +194,11 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                   items: StreamQuality.values,
                   labelBuilder: (v) => v.name.toUpperCase(),
                   onChanged: (v) {
-                    if (v != null)
+                    if (v != null) {
                       ref
                           .read(iptvSettingsProvider.notifier)
                           .setStreamQuality(v);
+                    }
                   },
                 ),
                 const Divider(height: 1),
@@ -195,8 +209,9 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                   items: BufferSize.values,
                   labelBuilder: (v) => v.name.toUpperCase(),
                   onChanged: (v) {
-                    if (v != null)
+                    if (v != null) {
                       ref.read(iptvSettingsProvider.notifier).setBufferSize(v);
+                    }
                   },
                 ),
                 const Divider(height: 1),
@@ -208,10 +223,11 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                   labelBuilder: (v) =>
                       '${v.name.toUpperCase()} (${ref.read(iptvSettingsProvider).timeoutSeconds}s)',
                   onChanged: (v) {
-                    if (v != null)
+                    if (v != null) {
                       ref
                           .read(iptvSettingsProvider.notifier)
                           .setConnectionTimeout(v);
+                    }
                   },
                 ),
                 const Divider(height: 1),
@@ -231,16 +247,19 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                     }
                   },
                   onChanged: (v) {
-                    if (v != null)
+                    if (v != null) {
                       ref
                           .read(iptvSettingsProvider.notifier)
                           .setTranscodingMode(v);
+                    }
                   },
                 ),
                 const Divider(height: 1),
                 SwitchListTile(
-                  title: const Text('Auto Reconnect',
-                      style: TextStyle(color: AppColors.textPrimary)),
+                  title: const Text(
+                    'Auto Reconnect',
+                    style: TextStyle(color: AppColors.textPrimary),
+                  ),
                   secondary:
                       const Icon(Icons.refresh, color: AppColors.primary),
                   value: settings.autoReconnect,
@@ -373,9 +392,13 @@ class _FilterInput extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label,
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.textSecondary)),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
               TextField(
                 controller: controller,
                 style:
@@ -476,8 +499,10 @@ class _DropdownSetting<T> extends StatelessWidget {
             value: value,
             underline: const SizedBox(),
             dropdownColor: AppColors.surfaceVariant,
-            icon: const Icon(Icons.arrow_drop_down,
-                color: AppColors.textSecondary),
+            icon: const Icon(
+              Icons.arrow_drop_down,
+              color: AppColors.textSecondary,
+            ),
             style: const TextStyle(color: AppColors.textPrimary),
             items: items.map((item) {
               return DropdownMenuItem<T>(
