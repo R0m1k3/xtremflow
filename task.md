@@ -43,6 +43,6 @@ Master Plan:
 
 ## 🔧 Git Maintenance
 
-- [ ] **Resolve Conflicts**:
-  - [ ] `bin/api/streaming_handler.dart`
-  - [ ] `lib/features/iptv/services/xtream_service.dart`
+- [x] **Resolve Conflicts**:
+  - [x] `bin/api/streaming_handler.dart`
+  - [x] `lib/features/iptv/services/xtream_service.dart`
