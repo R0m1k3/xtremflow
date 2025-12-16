@@ -96,10 +96,41 @@ Handler createLiveStreamHandler(Future<PlaylistConfig?> Function(Request) getPla
 Handler createVodStreamHandler(Future<PlaylistConfig?> Function(Request) getPlaylist) {
   final router = Router();
 
-  // Route: /api/vod/{streamId}/playlist.m3u8
-  router.get('/<streamId>/playlist.m3u8', (Request request, String streamId) async {
+  // Route: /api/vod/{streamId_with_ext}/playlist.m3u8
+  router.get('/<filename>/playlist.m3u8', (Request request, String filename) async {
     final playlist = await getPlaylist(request);
     if (playlist == null) return Response.internalServerError(body: 'No playlist');
+
+    // Parse streamId and extension from filename (e.g., "12345.mp4" -> id="12345", ext="mp4")
+    String streamId = filename;
+    String extension = ''; // No default yet
+    
+    if (filename.contains('.')) {
+      final lastDotIndex = filename.lastIndexOf('.');
+      streamId = filename.substring(0, lastDotIndex);
+      extension = filename.substring(lastDotIndex + 1);
+    }
+
+    // If extension is missing, fetch it from API (Robustness fallback)
+    if (extension.isEmpty) {
+      print('[VOD] No extension provided for $streamId, fetching info...');
+      try {
+        final infoUrl = Uri.parse('${playlist.dns}/player_api.php?username=${playlist.username}&password=${playlist.password}&action=get_vod_info&vod_id=$streamId');
+        final response = await http.get(infoUrl);
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          if (data['movie_data'] != null && data['movie_data']['container_extension'] != null) {
+            extension = data['movie_data']['container_extension'].toString();
+            print('[VOD] Resolved extension: $extension');
+          }
+        }
+      } catch (e) {
+        print('[VOD] Failed to resolve extension: $e');
+      }
+      
+      // Final fallback if API fails
+      if (extension.isEmpty) extension = 'mkv'; 
+    }
 
     // Clean up old session if exists
     if (_vodProcesses.containsKey(streamId)) {
@@ -115,11 +146,8 @@ Handler createVodStreamHandler(Future<PlaylistConfig?> Function(Request) getPlay
     }
     streamDir.createSync(recursive: true);
 
-    // Build Upstream URL (Try MKV first, then generic)
-    // Note: We don't know the extension here easily unless passed. 
-    // Xtream usually allows access via streamId.mkv or streamId.mp4 regardless of actual file
-    // We'll trust the ID.
-    final targetUrl = '${playlist.dns}/movie/${playlist.username}/${playlist.password}/$streamId.mkv';
+    // Build Upstream URL with correct extension
+    final targetUrl = '${playlist.dns}/movie/${playlist.username}/${playlist.password}/$streamId.$extension';
 
     print('[VOD] Starting Transcode: $targetUrl');
 
@@ -191,8 +219,14 @@ Handler createVodStreamHandler(Future<PlaylistConfig?> Function(Request) getPlay
     );
   });
 
-  // Route: /api/vod/{streamId}/segment_{n}.ts (Serve segments)
-  router.get('/<streamId>/<segment>', (Request request, String streamId, String segment) async {
+  // Route: /api/vod/{filename}/segment_{n}.ts (Serve segments)
+  router.get('/<filename>/<segment>', (Request request, String filename, String segment) async {
+    // Extract streamId from filename to find the directory
+    String streamId = filename;
+    if (filename.contains('.')) {
+      streamId = filename.substring(0, filename.lastIndexOf('.'));
+    }
+
     final file = File('${_hlsTempDir.path}/$streamId/$segment');
     
     if (!file.existsSync()) {

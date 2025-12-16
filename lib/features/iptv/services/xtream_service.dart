@@ -70,18 +70,18 @@ class XtreamService {
   String getVodStreamUrl(String streamId, String containerExtension) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     
-    // Point to new dedicated VOD API (HLS playlist)
+    // Pass extension to backend for correct upstream URL construction
     final baseUrl = html.window.location.origin;
-    return '$baseUrl/api/vod/$streamId/playlist.m3u8';
+    return '$baseUrl/api/vod/$streamId.$containerExtension/playlist.m3u8';
   }
 
   /// Generate stream URL for series episodes
   String getSeriesStreamUrl(String streamId, String containerExtension) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     
-    // Point to new dedicated VOD API (HLS playlist)
+    // Pass extension to backend for correct upstream URL construction
     final baseUrl = html.window.location.origin;
-    return '$baseUrl/api/vod/$streamId/playlist.m3u8';
+    return '$baseUrl/api/vod/$streamId.$containerExtension/playlist.m3u8';
   }
 
   /// Authenticate and get server info
