@@ -102,13 +102,20 @@ class _MobileSeriesDetailScreenState
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline,
-                      size: 48, color: AppColors.error),
+                  const Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: AppColors.error,
+                  ),
                   const SizedBox(height: 16),
-                  Text('Error: $_error',
-                      style: GoogleFonts.inter(color: Colors.white70)),
+                  Text(
+                    'Error: $_error',
+                    style: GoogleFonts.inter(color: Colors.white70),
+                  ),
                   TextButton(
-                      onPressed: _loadSeriesInfo, child: const Text('Retry')),
+                    onPressed: _loadSeriesInfo,
+                    child: const Text('Retry'),
+                  ),
                 ],
               ),
             )
@@ -189,20 +196,27 @@ class _MobileSeriesDetailScreenState
                       Row(
                         children: [
                           if (_seriesInfo!.rating != null) ...[
-                            const Icon(Icons.star,
-                                size: 16, color: Colors.amber),
+                            const Icon(
+                              Icons.star,
+                              size: 16,
+                              color: Colors.amber,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               _formatRating(_seriesInfo!.rating!)!,
                               style: GoogleFonts.inter(
-                                  color: Colors.white70, fontSize: 13),
+                                color: Colors.white70,
+                                fontSize: 13,
+                              ),
                             ),
                             const SizedBox(width: 16),
                           ],
                           Text(
                             '${_seriesInfo!.episodes.keys.length} Seasons',
                             style: GoogleFonts.inter(
-                                color: Colors.white70, fontSize: 13),
+                              color: Colors.white70,
+                              fontSize: 13,
+                            ),
                           ),
                         ],
                       ),
@@ -253,7 +267,8 @@ class _MobileSeriesDetailScreenState
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                   ),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20)),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                   showCheckmark: false,
                   side: BorderSide.none,
                 );
@@ -356,7 +371,9 @@ class _MobileSeriesDetailScreenState
                       Text(
                         _formatDuration(episode.durationSecs!),
                         style: GoogleFonts.inter(
-                            color: Colors.white54, fontSize: 12),
+                          color: Colors.white54,
+                          fontSize: 12,
+                        ),
                       ),
                   ],
                 ),

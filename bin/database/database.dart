@@ -80,11 +80,14 @@ class AppDatabase {
 
     // Indexes
     _db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)');
+      'CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)',
+    );
     _db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)');
+      'CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)',
+    );
     _db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_playlists_user ON playlists(user_id)');
+      'CREATE INDEX IF NOT EXISTS idx_playlists_user ON playlists(user_id)',
+    );
   }
 
   /// Seed default admin user if no users exist

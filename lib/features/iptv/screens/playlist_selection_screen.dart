@@ -27,7 +27,9 @@ class PlaylistSelectionScreen extends ConsumerWidget {
         title: Text(
           'Select Playlist',
           style: GoogleFonts.roboto(
-              fontWeight: FontWeight.w600, color: Colors.white),
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -71,9 +73,13 @@ class PlaylistSelectionScreen extends ConsumerWidget {
               children: [
                 Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
                 const SizedBox(height: 16),
-                Text('Error loading playlists',
-                    style: GoogleFonts.roboto(
-                        fontSize: 18, color: Colors.white70)),
+                Text(
+                  'Error loading playlists',
+                  style: GoogleFonts.roboto(
+                    fontSize: 18,
+                    color: Colors.white70,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 ElevatedButton(
                   onPressed: () => ref.refresh(playlistsProvider),
@@ -118,7 +124,11 @@ class PlaylistSelectionScreen extends ConsumerWidget {
 
             return GridView.builder(
               padding: const EdgeInsets.fromLTRB(
-                  24, 100, 24, 24), // Top padding for transparent AppBar
+                24,
+                100,
+                24,
+                24,
+              ), // Top padding for transparent AppBar
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
                 crossAxisSpacing: 24,

@@ -96,8 +96,9 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
               const Tab(icon: Icon(Icons.palette), text: 'Apparence'),
               if (currentUser?.isAdmin ?? false)
                 const Tab(
-                    icon: Icon(Icons.admin_panel_settings),
-                    text: 'Administration'),
+                  icon: Icon(Icons.admin_panel_settings),
+                  text: 'Administration',
+                ),
             ],
           ),
         ),
@@ -212,7 +213,9 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             title: Text(
               'Mode actuel',
               style: GoogleFonts.inter(
-                  fontWeight: FontWeight.w500, color: Colors.white),
+                fontWeight: FontWeight.w500,
+                color: Colors.white,
+              ),
             ),
             subtitle: Text(
               isDark ? 'Thème sombre actif' : 'Thème clair actif',
@@ -305,7 +308,10 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
   }
 
   Widget _buildFiltersTab(
-      BuildContext context, dynamic currentUser, IptvSettings settings) {
+    BuildContext context,
+    dynamic currentUser,
+    IptvSettings settings,
+  ) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -326,13 +332,19 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             subtitle: Text(
               currentUser?.username ?? 'Unknown',
               style: GoogleFonts.roboto(
-                  fontWeight: FontWeight.w600, color: Colors.white),
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
             ),
             trailing: currentUser?.isAdmin ?? false
                 ? Chip(
-                    label: Text('Admin',
-                        style: GoogleFonts.roboto(
-                            fontSize: 11, color: Colors.black)),
+                    label: Text(
+                      'Admin',
+                      style: GoogleFonts.roboto(
+                        fontSize: 11,
+                        color: Colors.black,
+                      ),
+                    ),
                     backgroundColor: Colors.white,
                   )
                 : null,
@@ -416,8 +428,10 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
           ),
           child: ListTile(
             leading: const Icon(Icons.playlist_play, color: Colors.white),
-            title: Text('Changer de Playlist',
-                style: GoogleFonts.roboto(color: Colors.white)),
+            title: Text(
+              'Changer de Playlist',
+              style: GoogleFonts.roboto(color: Colors.white),
+            ),
             trailing: const Icon(Icons.chevron_right, color: Colors.white54),
             onTap: () => context.go('/playlists'),
           ),
@@ -433,8 +447,10 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
           ),
           child: ListTile(
             leading: const Icon(Icons.info_outline, color: Colors.white),
-            title: Text('À propos',
-                style: GoogleFonts.roboto(color: Colors.white)),
+            title: Text(
+              'À propos',
+              style: GoogleFonts.roboto(color: Colors.white),
+            ),
             subtitle: Text(
               'XtremFlow IPTV v1.0.0',
               style: GoogleFonts.roboto(fontSize: 12, color: Colors.white54),
@@ -452,8 +468,10 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
           ),
           child: ListTile(
             leading: const Icon(Icons.cleaning_services, color: Colors.orange),
-            title: Text('Maintenance',
-                style: GoogleFonts.roboto(color: Colors.white)),
+            title: Text(
+              'Maintenance',
+              style: GoogleFonts.roboto(color: Colors.white),
+            ),
             subtitle: Text(
               'En cas de problèmes d\'affichage ou de mise à jour',
               style: GoogleFonts.roboto(fontSize: 12, color: Colors.white54),
@@ -465,8 +483,10 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
                   context: context,
                   builder: (context) => AlertDialog(
                     backgroundColor: const Color(0xFF1E1E1E),
-                    title: const Text('Vider le cache ?',
-                        style: TextStyle(color: Colors.white)),
+                    title: const Text(
+                      'Vider le cache ?',
+                      style: TextStyle(color: Colors.white),
+                    ),
                     content: const Text(
                       'Cette action va recharger l\'application et effacer les données temporaires.\n'
                       'Vos réglages et favoris sont sauvegardés sur le serveur.',
@@ -479,7 +499,8 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
                       ),
                       FilledButton(
                         style: FilledButton.styleFrom(
-                            backgroundColor: Colors.orange),
+                          backgroundColor: Colors.orange,
+                        ),
                         onPressed: () {
                           Navigator.pop(context);
 
@@ -580,8 +601,11 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
               ),
               suffixIcon: controller.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear,
-                          size: 16, color: Colors.white54),
+                      icon: const Icon(
+                        Icons.clear,
+                        size: 16,
+                        color: Colors.white54,
+                      ),
                       onPressed: onClear,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),

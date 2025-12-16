@@ -243,14 +243,19 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Row(
                         children: [
-                          const Icon(Icons.search,
-                              size: 20, color: Colors.white54),
+                          const Icon(
+                            Icons.search,
+                            size: 20,
+                            color: Colors.white54,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: TextField(
                               controller: _searchController,
                               style: GoogleFonts.inter(
-                                  fontSize: 14, color: Colors.white),
+                                fontSize: 14,
+                                color: Colors.white,
+                              ),
                               decoration: InputDecoration(
                                 hintText: 'Search movies...',
                                 hintStyle:
@@ -265,18 +270,24 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                           ),
                           if (_isSearching)
                             const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white)),
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            ),
                           if (_searchQuery.isNotEmpty)
                             GestureDetector(
                               onTap: () {
                                 _searchController.clear();
                                 _onSearchChanged('');
                               },
-                              child: const Icon(Icons.close,
-                                  size: 16, color: Colors.white),
+                              child: const Icon(
+                                Icons.close,
+                                size: 16,
+                                color: Colors.white,
+                              ),
                             ),
                         ],
                       ),
@@ -349,15 +360,23 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                                   errorBuilder: (ctx, err, stack) => Container(
                                     color: AppColors.surfaceVariant,
                                     child: const Center(
-                                        child: Icon(Icons.movie,
-                                            size: 48, color: Colors.white24)),
+                                      child: Icon(
+                                        Icons.movie,
+                                        size: 48,
+                                        color: Colors.white24,
+                                      ),
+                                    ),
                                   ),
                                 )
                               : Container(
                                   color: AppColors.surfaceVariant,
                                   child: const Center(
-                                      child: Icon(Icons.movie,
-                                          size: 48, color: Colors.white24)),
+                                    child: Icon(
+                                      Icons.movie,
+                                      size: 48,
+                                      color: Colors.white24,
+                                    ),
+                                  ),
                                 ),
                         ),
 
@@ -374,11 +393,12 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                                 end: Alignment.bottomCenter,
                                 colors: [
                                   Colors.transparent,
-                                  Colors.black.withOpacity(0.9)
+                                  Colors.black.withOpacity(0.9),
                                 ],
                               ),
                               borderRadius: const BorderRadius.vertical(
-                                  bottom: Radius.circular(12)),
+                                bottom: Radius.circular(12),
+                              ),
                             ),
                           ),
                         ),
@@ -390,7 +410,9 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                             right: 8,
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.black.withOpacity(0.7),
                                 borderRadius: BorderRadius.circular(4),
@@ -399,15 +421,19 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.star,
-                                      size: 10, color: Colors.amber),
+                                  const Icon(
+                                    Icons.star,
+                                    size: 10,
+                                    color: Colors.amber,
+                                  ),
                                   const SizedBox(width: 4),
                                   Text(
                                     _formatRating(movie.rating)!,
                                     style: GoogleFonts.inter(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -431,7 +457,9 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                                   fontWeight: FontWeight.w600,
                                   shadows: [
                                     const Shadow(
-                                        color: Colors.black, blurRadius: 4)
+                                      color: Colors.black,
+                                      blurRadius: 4,
+                                    ),
                                   ],
                                 ),
                                 maxLines: 2,
@@ -443,9 +471,10 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                                   child: Text(
                                     'WATCHED',
                                     style: GoogleFonts.inter(
-                                        color: AppColors.primary,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold),
+                                      color: AppColors.primary,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                             ],
@@ -466,7 +495,8 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
               child: Padding(
                 padding: EdgeInsets.all(32),
                 child: Center(
-                    child: CircularProgressIndicator(color: Colors.white)),
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
               ),
             ),
 
