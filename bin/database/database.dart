@@ -12,8 +12,8 @@ class AppDatabase {
 
   /// Initialize database and create tables
   Future<void> init() async {
-    final dbPath = '/app/data/xtremflow.db';
-    
+    const dbPath = '/app/data/xtremflow.db';
+
     // Ensure data directory exists
     final dir = Directory('/app/data');
     if (!await dir.exists()) {
@@ -21,7 +21,7 @@ class AppDatabase {
     }
 
     _db = sqlite3.open(dbPath);
-    
+
     await _createTables();
     print('Database initialized: $dbPath');
   }
@@ -79,9 +79,12 @@ class AppDatabase {
     ''');
 
     // Indexes
-    _db.execute('CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)');
-    _db.execute('CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)');
-    _db.execute('CREATE INDEX IF NOT EXISTS idx_playlists_user ON playlists(user_id)');
+    _db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)');
+    _db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)');
+    _db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_playlists_user ON playlists(user_id)');
   }
 
   /// Seed default admin user if no users exist
@@ -93,10 +96,13 @@ class AppDatabase {
       final adminId = _uuid.v4();
       final passwordHash = PasswordHasher.hash('admin');
 
-      _db.execute('''
+      _db.execute(
+        '''
         INSERT INTO users (id, username, password_hash, is_admin)
         VALUES (?, ?, ?, 1)
-      ''', [adminId, 'admin', passwordHash],);
+      ''',
+        [adminId, 'admin', passwordHash],
+      );
 
       print('Default admin user created (username: admin, password: admin)');
     }
@@ -148,10 +154,13 @@ class AppDatabase {
     final userId = _uuid.v4();
     final passwordHash = PasswordHasher.hash(password);
 
-    _db.execute('''
+    _db.execute(
+      '''
       INSERT INTO users (id, username, password_hash, is_admin)
       VALUES (?, ?, ?, ?)
-    ''', [userId, username, passwordHash, isAdmin ? 1 : 0],);
+    ''',
+      [userId, username, passwordHash, isAdmin ? 1 : 0],
+    );
 
     return User(
       id: userId,
@@ -197,10 +206,13 @@ class AppDatabase {
     final token = _uuid.v4();
     final expiresAt = DateTime.now().add(duration ?? const Duration(days: 7));
 
-    _db.execute('''
+    _db.execute(
+      '''
       INSERT INTO sessions (id, user_id, token, expires_at)
       VALUES (?, ?, ?, ?)
-    ''', [sessionId, userId, token, expiresAt.toIso8601String()],);
+    ''',
+      [sessionId, userId, token, expiresAt.toIso8601String()],
+    );
 
     return models.Session(
       id: sessionId,
@@ -221,7 +233,7 @@ class AppDatabase {
     if (result.isEmpty) return null;
 
     final session = models.Session.fromMap(result.first);
-    
+
     // Check if expired
     if (session.isExpired) {
       deleteSession(token);
@@ -279,10 +291,13 @@ class AppDatabase {
     final playlistId = _uuid.v4();
     final now = DateTime.now().toIso8601String();
 
-    _db.execute('''
+    _db.execute(
+      '''
       INSERT INTO playlists (id, user_id, name, server_url, username, password, dns, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', [playlistId, userId, name, serverUrl, username, password, dns, now, now],);
+    ''',
+      [playlistId, userId, name, serverUrl, username, password, dns, now, now],
+    );
 
     return Playlist(
       id: playlistId,
@@ -308,11 +323,14 @@ class AppDatabase {
   }) {
     final now = DateTime.now().toIso8601String();
 
-    _db.execute('''
+    _db.execute(
+      '''
       UPDATE playlists 
       SET name = ?, server_url = ?, username = ?, password = ?, dns = ?, updated_at = ?
       WHERE id = ?
-    ''', [name, serverUrl, username, password, dns, now, playlistId],);
+    ''',
+      [name, serverUrl, username, password, dns, now, playlistId],
+    );
 
     return getPlaylistById(playlistId)!;
   }
@@ -338,15 +356,18 @@ class AppDatabase {
   /// Update user settings
   void updateUserSettings(String userId, String settingsJson) {
     final now = DateTime.now().toIso8601String();
-    
+
     // UPSERT (Insert or Replace)
-    _db.execute('''
+    _db.execute(
+      '''
       INSERT INTO user_settings (user_id, settings_json, updated_at)
       VALUES (?, ?, ?)
       ON CONFLICT(user_id) DO UPDATE SET
         settings_json = excluded.settings_json,
         updated_at = excluded.updated_at
-    ''', [userId, settingsJson, now]);
+    ''',
+      [userId, settingsJson, now],
+    );
   }
 
   /// Close database connection

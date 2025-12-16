@@ -122,7 +122,7 @@ class _LitePlayerViewState extends ConsumerState<LitePlayerView> {
                  _initializePlayer();
               },
               child: const Text('Retry'),
-            )
+            ),
           ],
         ),
       );

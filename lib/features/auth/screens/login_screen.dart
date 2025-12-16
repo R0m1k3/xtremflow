@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glass_container.dart';
 import '../../../core/widgets/tv_focusable_card.dart';
 
@@ -66,7 +65,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
           ),
-          
+
           // 2. Ambient Glows (Apple TV Style)
           Positioned(
             top: -size.height * 0.2,
@@ -206,7 +205,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               },
                             ),
                           ),
-                          
+
                           // Error Message
                           if (authState.errorMessage != null) ...[
                             const SizedBox(height: 24),
@@ -261,7 +260,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   ? const SizedBox(
                                       width: 24,
                                       height: 24,
-                                      child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black),
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          color: Colors.black),
                                     )
                                   : Text(
                                       'Sign In',
@@ -277,7 +278,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 32),
                   Text(
                     'Default: admin / admin',
@@ -332,7 +333,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.focusColor, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       ),
       validator: (value) {
         if (value == null || value.trim().isEmpty) {
