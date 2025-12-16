@@ -32,6 +32,55 @@ Future<void> initStreaming() async {
   }
 }
 
+/// Helper to resolve HTTP redirects and get final URL
+/// Some IPTV servers return 302 redirects that FFmpeg doesn't follow properly
+Future<String> _resolveRedirects(String url, {int maxRedirects = 5}) async {
+  String currentUrl = url;
+  final client = http.Client();
+
+  try {
+    for (int i = 0; i < maxRedirects; i++) {
+      final request = http.Request('GET', Uri.parse(currentUrl));
+      request.headers['User-Agent'] = 'VLC/3.0.18 LibVLC/3.0.18';
+      request.followRedirects = false;
+
+      final response = await client.send(request).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () =>
+                throw TimeoutException('Redirect resolution timeout'),
+          );
+
+      // Check if it's a redirect (301, 302, 307, 308)
+      if (response.statusCode >= 300 && response.statusCode < 400) {
+        final location = response.headers['location'];
+        if (location != null && location.isNotEmpty) {
+          // Handle relative URLs
+          if (location.startsWith('/')) {
+            final uri = Uri.parse(currentUrl);
+            currentUrl = '${uri.scheme}://${uri.host}:${uri.port}$location';
+          } else {
+            currentUrl = location;
+          }
+          print('[Redirect] $i: $url -> $currentUrl');
+          await response.stream.drain();
+          continue;
+        }
+      }
+
+      // Not a redirect - we're done
+      await response.stream.drain();
+      break;
+    }
+  } catch (e) {
+    print('[Redirect] Error resolving redirects: $e');
+    // Return original URL if redirect resolution fails
+  } finally {
+    client.close();
+  }
+
+  return currentUrl;
+}
+
 /// Helper to get current playlist configuration (mocked for now, implies single user)
 /// In a real scenario, this should come from the request session/context
 PlaylistConfig? _getCurrentPlaylist(Request request) {
@@ -67,8 +116,11 @@ Handler createLiveStreamHandler(
       return Response.internalServerError(body: 'No playlist configured');
     }
 
-    final targetUrl =
+    final originalUrl =
         '${playlist.dns}/live/${playlist.username}/${playlist.password}/$streamId.ts';
+
+    // Resolve any HTTP redirects before passing to FFmpeg
+    final targetUrl = await _resolveRedirects(originalUrl);
     print('[Live] Streaming via FFmpeg: $targetUrl');
 
     // Start FFmpeg to proxy and stabilize the stream
