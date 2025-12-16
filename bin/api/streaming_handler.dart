@@ -138,7 +138,6 @@ Handler createLiveStreamHandler(
       '-rw_timeout', '15000000',
       '-analyzeduration', '5000000', // Faster probe for live
       '-probesize', '5000000',
-      '-max_reload', '3', // Allow up to 3 retries for failed requests
 
       '-i', targetUrl,
 
