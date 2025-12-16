@@ -38,5 +38,11 @@ Master Plan:
 
 ## 📦 Backlog
 
-- [x] Resolve ModuleNotFoundError: No module named 'rich' (Done)
+- [ ] Resolve Git Conflict ModuleNotFoundError: No module named 'rich' (Done)
 - [x] Update Docker Image (Timeout increase)
+
+## 🔧 Git Maintenance
+
+- [ ] **Resolve Conflicts**:
+  - [ ] `bin/api/streaming_handler.dart`
+  - [ ] `lib/features/iptv/services/xtream_service.dart`

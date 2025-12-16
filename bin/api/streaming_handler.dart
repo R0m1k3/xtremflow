@@ -5,13 +5,23 @@ import 'dart:math';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'package:http/http.dart' as http;
-import '../../lib/core/models/playlist_config.dart';
+import 'package:xtremflow/core/models/playlist_config.dart';
 
 /// Active FFmpeg processes for VOD transcoding
 final Map<String, Process> _vodProcesses = {};
 
 /// Directory for temporary HLS segments
-final Directory _hlsTempDir = Directory('/tmp/hls_vod');
+final Directory _hlsTempDir = Directory('${Directory.systemTemp.path}/xtremflow_streams');
+
+/// Helper to resolve FFmpeg path (SYSTEM PATH vs Portable)
+String _getFFmpegPath() {
+  if (Platform.isWindows) {
+    if (File('ffmpeg.exe').existsSync()) return 'ffmpeg.exe';
+    if (File('bin/ffmpeg.exe').existsSync()) return 'bin/ffmpeg.exe';
+    if (File('ffmpeg/bin/ffmpeg.exe').existsSync()) return 'ffmpeg/bin/ffmpeg.exe';
+  }
+  return 'ffmpeg'; // Default to PATH
+}
 
 /// Initialize streaming subsystem
 Future<void> initStreaming() async {
@@ -40,8 +50,11 @@ Handler createLiveStreamHandler(Future<PlaylistConfig?> Function(Request) getPla
     print('[Live] Incoming request for streamId: $streamId');
     
     // Remove .ts extension if present
+    // Remove extension if present (handle both .ts and .m3u8 just in case)
     if (streamId.endsWith('.ts')) {
       streamId = streamId.substring(0, streamId.length - 3);
+    } else if (streamId.endsWith('.m3u8')) {
+      streamId = streamId.substring(0, streamId.length - 5);
     }
 
     final playlist = await getPlaylist(request);
@@ -51,34 +64,72 @@ Handler createLiveStreamHandler(Future<PlaylistConfig?> Function(Request) getPla
       return Response.internalServerError(body: 'No playlist configured');
     }
     
-    final targetUrl = Uri.parse('${playlist.dns}/live/${playlist.username}/${playlist.password}/$streamId.ts');
-    print('[Live] Proxying: $targetUrl');
+    final targetUrl = '${playlist.dns}/live/${playlist.username}/${playlist.password}/$streamId.ts';
+    print('[Live] Streaming via FFmpeg: $targetUrl');
 
-    final client = http.Client();
-    final streamRequest = http.Request('GET', targetUrl);
-    
-    // Spoof User-Agent to avoid 403/405 from providers
-    streamRequest.headers['User-Agent'] = 'VLC/3.0.18 LibVLC/3.0.18'; 
-    streamRequest.headers['Connection'] = 'keep-alive';
-    
+    // Start FFmpeg to proxy and stabilize the stream
+    // We use "-c copy" to avoid transcoding (Low CPU) but gain FFmpeg's network robustness
+    final ffmpegArgs = [
+      '-hide_banner', '-loglevel', 'error',
+      '-headers', 'User-Agent: VLC/3.0.18 LibVLC/3.0.18\r\n',
+      
+      // Robustness flags (Same as VOD)
+      '-reconnect', '1',
+      '-reconnect_at_eof', '1',
+      '-reconnect_streamed', '1',
+      '-reconnect_delay_max', '5',
+      '-rw_timeout', '15000000',
+      '-analyzeduration', '5000000', // Faster probe for live
+      '-probesize', '5000000',
+      
+      '-i', targetUrl,
+      
+      '-c', 'copy', // Direct stream copy (Very low CPU)
+      '-f', 'mpegts',
+      'pipe:1', // Output to stdout
+    ];
+
     try {
-      final streamResponse = await client.send(streamRequest);
-      print('[Live] Upstream response: ${streamResponse.statusCode} ${streamResponse.reasonPhrase}');
+      final ffmpegPath = _getFFmpegPath();
+      final process = await Process.start(ffmpegPath, ffmpegArgs);
+      
+      // Cleanup handling: Kill FFmpeg when client disconnects
+      final controller = StreamController<List<int>>(
+        onCancel: () {
+          print('[Live] Client disconnected, killing FFmpeg for $streamId');
+          process.kill();
+        },
+      );
+      
+      // Pipe stdout to controller
+      process.stdout.listen(
+        (data) => controller.add(data),
+        onDone: () {
+           print('[Live] FFmpeg stream ended for $streamId');
+           controller.close();
+        },
+        onError: (e) {
+           print('[Live] FFmpeg stream error: $e');
+           controller.addError(e);
+        },
+      );
+      
+      // Log errors
+      process.stderr.transform(utf8.decoder).listen((data) {
+        print('[FFmpeg Live $streamId] $data');
+      });
 
-      // Filter headers to avoid encoding issues with shelf
-      final responseHeaders = Map<String, Object>.from(streamResponse.headers);
-      responseHeaders.remove('content-length');
-      responseHeaders.remove('content-encoding');
-      responseHeaders.remove('transfer-encoding');
-
-      return Response(
-        streamResponse.statusCode,
-        body: streamResponse.stream,
-        headers: responseHeaders,
+      return Response.ok(
+        controller.stream,
+        headers: {
+          'Content-Type': 'video/mp2t',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'no-cache',
+        },
       );
     } catch (e) {
-      print('[Live] Upstream connection error: $e');
-      return Response.internalServerError(body: 'Upstream error: $e');
+      print('[Live] Failed to start FFmpeg: $e');
+      return Response.internalServerError(body: 'Stream start error: $e');
     }
   });
 
@@ -92,6 +143,8 @@ Handler createLiveStreamHandler(Future<PlaylistConfig?> Function(Request) getPla
 // ==========================================
 // 2. VOD HANDLER (FFmpeg HLS Transcoding)
 // ==========================================
+
+final _lastLogTime = <String, int>{};
 
 Handler createVodStreamHandler(Future<PlaylistConfig?> Function(Request) getPlaylist) {
   final router = Router();
@@ -141,25 +194,92 @@ Handler createVodStreamHandler(Future<PlaylistConfig?> Function(Request) getPlay
     
     // Prepare directory
     final streamDir = Directory('${_hlsTempDir.path}/$streamId');
-    if (streamDir.existsSync()) {
-      streamDir.deleteSync(recursive: true);
+    
+    // Check if existing session is healthy
+    if (_vodProcesses.containsKey(streamId)) {
+      final existingProcess = _vodProcesses[streamId]!;
+      
+      // Check if process is still running by checking if playlist exists and has content
+      final playlistFile = File('${streamDir.path}/playlist.m3u8');
+      if (playlistFile.existsSync()) {
+        final content = playlistFile.readAsStringSync();
+        // Check if playlist has segments (healthy transcoding)
+        if (content.contains('.ts')) {
+          // Only log once per second to avoid spam
+          final now = DateTime.now().millisecondsSinceEpoch;
+          if (!_lastLogTime.containsKey(streamId) || (now - _lastLogTime[streamId]! > 2000)) {
+             print('[VOD] Reusing existing session for $streamId');
+             _lastLogTime[streamId] = now;
+          }
+          // Serve existing playlist
+          return Response.ok(
+            playlistFile.openRead(),
+            headers: {
+              'Content-Type': 'application/vnd.apple.mpegurl',
+              'Access-Control-Allow-Origin': '*',
+              'Cache-Control': 'no-cache',
+            },
+          );
+        }
+      }
+      
+      // Playlist missing or empty - process likely failed, clean up
+      print('[VOD] Cleaning up stale session for $streamId');
+      try {
+        existingProcess.kill();
+      } catch (e) {
+        // Process may already be dead
+      }
+      _vodProcesses.remove(streamId);
+      
+      // Clean up directory
+      if (streamDir.existsSync()) {
+        try {
+          streamDir.deleteSync(recursive: true);
+        } catch (e) {
+          print('[VOD] Failed to clean directory: $e');
+        }
+      }
     }
-    streamDir.createSync(recursive: true);
 
-    // Build Upstream URL with correct extension
-    final targetUrl = '${playlist.dns}/movie/${playlist.username}/${playlist.password}/$streamId.$extension';
 
-    print('[VOD] Starting Transcode: $targetUrl');
+
+    // Build Upstream URL based on content type
+    // Check for type parameter in request URL (?type=series or ?type=movie)
+    final contentType = request.url.queryParameters['type'] ?? 'movie';
+    final basePath = contentType == 'series' ? 'series' : 'movie';
+    
+    // Only start FFmpeg if not already running
+    if (!_vodProcesses.containsKey(streamId)) {
+       // Prepare directory (Only for new session)
+       if (streamDir.existsSync()) {
+         streamDir.deleteSync(recursive: true);
+       }
+       streamDir.createSync(recursive: true);
+
+       final targetUrl = '${playlist.dns}/$basePath/${playlist.username}/${playlist.password}/$streamId.$extension';
+       print('[VOD] Starting Transcode ($contentType): $targetUrl');
 
     // Start FFmpeg
     final ffmpegArgs = [
       '-hide_banner', '-loglevel', 'error',
       '-headers', 'User-Agent: VLC/3.0.18 LibVLC/3.0.18\r\n',
+      
+      // Robustness for network streams
+      '-reconnect', '1',
+      '-reconnect_at_eof', '1',
+      '-reconnect_streamed', '1',
+      '-reconnect_delay_max', '5',
+      '-rw_timeout', '15000000', 
+      '-analyzeduration', '2000000', // Reduced from 10M to 2M for faster start
+      '-probesize', '2000000',       // Reduced from 10M to 2M for faster start
+      
       '-i', targetUrl,
       
       // Video: H.264 Ultrafast (Low CPU)
       '-c:v', 'libx264',
       '-preset', 'ultrafast',
+      '-tune', 'zerolatency', // Optimize for low latency startup
       '-tune', 'fastdecode',
       '-crf', '23',
       '-maxrate', '3000k',
@@ -167,40 +287,51 @@ Handler createVodStreamHandler(Future<PlaylistConfig?> Function(Request) getPlay
       '-pix_fmt', 'yuv420p',
       '-threads', '0',
 
-      // Audio: AAC (Browser compatible)
+      // Audio: AAC (Browser compatible, improved quality)
       '-c:a', 'aac',
-      '-b:a', '128k',
-      '-ac', '2',
+      '-b:a', '192k',
+      '-ar', '48000',
+      
+      // Advanced Audio Filtering:
+      // 1. "pan": Downmix 5.1/7.1 to Stereo with center mix (dialogue) boosted.
+      // 2. "dynaudnorm": Dynamic Audio Normalizer to boost quiet dialogue and limit loud explosions (Night Mode effect).
+      '-af', 'pan=stereo|FL=1.0*FL+0.707*FC+0.5*BL+0.5*SL+0.5*LFE|FR=1.0*FR+0.707*FC+0.5*BR+0.5*SR+0.5*LFE,dynaudnorm=f=150:g=15',
 
-      // HLS Output options
+
       '-f', 'hls',
       '-hls_time', '4',
-      '-hls_list_size', '0', // Keep all segments
+      '-hls_list_size', '0', 
+      '-hls_playlist_type', 'event', // Event type allows immediate playback while transcoding
+      '-hls_allow_cache', '1',
       '-hls_segment_type', 'mpegts',
       '-hls_segment_filename', '${streamDir.path}/segment_%03d.ts',
       '-start_number', '0',
       
       // Write playlist to stdout or file? File is easier for static serving
-      '${streamDir.path}/playlist.m3u8'
+      '${streamDir.path}/playlist.m3u8',
     ];
 
-    Process.start('ffmpeg', ffmpegArgs).then((process) {
-      _vodProcesses[streamId] = process;
-      
-      process.stderr.transform(utf8.decoder).listen((data) {
-        if (data.contains('Error')) print('[FFmpeg $streamId] $data');
-      });
+       final ffmpegPath = _getFFmpegPath();
+       Process.start(ffmpegPath, ffmpegArgs).then((process) {
+        _vodProcesses[streamId] = process;
+        
+        process.stderr.transform(utf8.decoder).listen((data) {
+          // Log only major errors or startup info to keep logs clean(er)
+          // or keep verbose if debugging
+          print('[FFmpeg $streamId] $data'); 
+        });
 
-      process.exitCode.then((code) {
-        print('[VOD] FFmpeg exited with code $code');
-        _vodProcesses.remove(streamId);
+        process.exitCode.then((code) {
+          print('[VOD] FFmpeg exited with code $code');
+          _vodProcesses.remove(streamId);
+        });
       });
-    });
+    }
 
-    // Wait for playlist to appear (max 10s)
+    // Wait for playlist to appear (max 30s)
     final playlistFile = File('${streamDir.path}/playlist.m3u8');
     int retries = 0;
-    while (!playlistFile.existsSync() && retries < 20) {
+    while (!playlistFile.existsSync() && retries < 60) {
       await Future.delayed(const Duration(milliseconds: 500));
       retries++;
     }

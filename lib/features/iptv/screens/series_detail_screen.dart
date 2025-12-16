@@ -267,9 +267,24 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
       color: Colors.grey.shade800,
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
-        onTap: () {
+        onTap: () async {
           // Mark as watched when playing
           ref.read(watchHistoryProvider.notifier).markEpisodeWatched(episodeKey);
+          
+          // Fetch actual duration from API if not available
+          Duration? episodeDuration;
+          if (episode.durationSecs != null && episode.durationSecs! > 0) {
+            episodeDuration = Duration(seconds: episode.durationSecs!);
+          } else {
+            // Try to fetch from API using getVodDuration (episodes are often queryable as VODs)
+            final service = ref.read(xtreamServiceProvider(widget.playlist));
+            final durationSecs = await service.getVodDuration(episode.id);
+            if (durationSecs != null && durationSecs > 0) {
+              episodeDuration = Duration(seconds: durationSecs);
+            }
+          }
+           
+          if (!context.mounted) return;
           
           Navigator.push(
             context,
@@ -280,6 +295,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 playlist: widget.playlist,
                 streamType: StreamType.series,
                 containerExtension: episode.containerExtension ?? 'mkv',
+                duration: episodeDuration,
               ),
             ),
           );

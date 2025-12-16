@@ -62,7 +62,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
 
   void _onSearchChanged(String query) {
     _searchDebounce?.cancel();
-    
+
     setState(() {
       _searchQuery = query;
       if (query.isEmpty) {
@@ -70,7 +70,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
         _isSearching = false;
       }
     });
-    
+
     if (query.length >= 2) {
       _searchDebounce = Timer(const Duration(milliseconds: 500), () {
         _performSearch(query);
@@ -80,13 +80,13 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
 
   Future<void> _performSearch(String query) async {
     if (query.isEmpty) return;
-    
+
     setState(() => _isSearching = true);
-    
+
     try {
       final service = ref.read(xtreamServiceProvider(widget.playlist));
       final results = await service.searchSeries(query);
-      
+
       if (mounted && _searchQuery == query) {
         setState(() {
           _searchResults = results;
@@ -164,17 +164,19 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(iptvSettingsProvider);
-    
+
     List<Series> displaySeries;
     if (_searchQuery.isNotEmpty && _searchResults != null) {
       displaySeries = _searchResults!;
     } else {
       displaySeries = settings.seriesKeywords.isEmpty
           ? _series
-          : _series.where((s) => settings.matchesSeriesFilter(s.categoryName)).toList();
+          : _series
+              .where((s) => settings.matchesSeriesFilter(s.categoryName))
+              .toList();
     }
 
-    final double gridItemRatio = 0.65;
+    const double gridItemRatio = 0.65;
     final int crossAxisCount = ResponsiveLayout.value(
       context,
       mobile: 3,
@@ -194,7 +196,8 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
               child: GlassContainer(
                 borderRadius: 100,
                 opacity: 0.6,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 child: Row(
                   children: [
                     Text(
@@ -216,32 +219,52 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Row(
                         children: [
-                          const Icon(Icons.search, size: 20, color: Colors.white54),
+                          const Icon(
+                            Icons.search,
+                            size: 20,
+                            color: Colors.white54,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: TextField(
                               controller: _searchController,
-                              style: GoogleFonts.inter(fontSize: 14, color: Colors.white),
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                color: Colors.white,
+                              ),
                               decoration: InputDecoration(
                                 hintText: 'Search series...',
-                                hintStyle: GoogleFonts.inter(color: Colors.white54),
+                                hintStyle:
+                                    GoogleFonts.inter(color: Colors.white54),
                                 border: InputBorder.none,
                                 isDense: true,
-                                contentPadding: const EdgeInsets.only(bottom: 12),
+                                contentPadding:
+                                    const EdgeInsets.only(bottom: 12),
                               ),
                               onChanged: _onSearchChanged,
                             ),
                           ),
                           if (_isSearching)
-                             const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                            const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            ),
                           if (_searchQuery.isNotEmpty)
-                             GestureDetector(
-                               onTap: () {
-                                  _searchController.clear();
-                                  _onSearchChanged('');
-                               },
-                               child: const Icon(Icons.close, size: 16, color: Colors.white),
-                             ),
+                            GestureDetector(
+                              onTap: () {
+                                _searchController.clear();
+                                _onSearchChanged('');
+                              },
+                              child: const Icon(
+                                Icons.close,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -257,24 +280,39 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 32),
                 child: HeroCarousel(
-                  items: displaySeries.take(5).map((s) => HeroItem(
-                    id: s.seriesId.toString(),
-                    title: s.name,
-                    imageUrl: _getProxiedImageUrl(s.cover),
-                    subtitle: s.rating != null ? '${_formatRating(s.rating)} ★' : null,
-                    onMoreInfo: () {
-                       final series = _series.firstWhere((element) => element.seriesId.toString() == s.seriesId.toString(), orElse: () => s);
-                       _openSeries(series);
-                    },
-                  )).toList(),
+                  items: displaySeries
+                      .take(5)
+                      .map(
+                        (s) => HeroItem(
+                          id: s.seriesId.toString(),
+                          title: s.name,
+                          imageUrl: _getProxiedImageUrl(s.cover),
+                          subtitle: s.rating != null
+                              ? '${_formatRating(s.rating)} ★'
+                              : null,
+                          onMoreInfo: () {
+                            final series = _series.firstWhere(
+                              (element) =>
+                                  element.seriesId.toString() ==
+                                  s.seriesId.toString(),
+                              orElse: () => s,
+                            );
+                            _openSeries(series);
+                          },
+                        ),
+                      )
+                      .toList(),
                   onTap: (item) {
-                     final series = _series.firstWhere((element) => element.seriesId.toString() == item.id, orElse: () => _series[0]);
-                     _openSeries(series);
+                    final series = _series.firstWhere(
+                      (element) => element.seriesId.toString() == item.id,
+                      orElse: () => _series[0],
+                    );
+                    _openSeries(series);
                   },
                 ),
               ),
             ),
-          
+
           // Grid
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -299,77 +337,114 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: serie.cover != null && serie.cover!.isNotEmpty
-                            ? Image.network(
-                                _getProxiedImageUrl(serie.cover),
-                                fit: BoxFit.cover,
-                                errorBuilder: (ctx, err, stack) => Container(
+                              ? Image.network(
+                                  _getProxiedImageUrl(serie.cover),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (ctx, err, stack) => Container(
+                                    color: AppColors.surfaceVariant,
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.tv,
+                                        size: 48,
+                                        color: Colors.white24,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : Container(
                                   color: AppColors.surfaceVariant,
-                                  child: const Center(child: Icon(Icons.tv, size: 48, color: Colors.white24)),
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.tv,
+                                      size: 48,
+                                      color: Colors.white24,
+                                    ),
+                                  ),
                                 ),
-                              )
-                            : Container(
-                                color: AppColors.surfaceVariant,
-                                child: const Center(child: Icon(Icons.tv, size: 48, color: Colors.white24)),
-                              ),
                         ),
-                        
+
                         // Gradient Overlay
                         Positioned(
-                          left: 0, right: 0, bottom: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
                           height: 80,
                           child: Container(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
-                                colors: [Colors.transparent, Colors.black.withOpacity(0.9)],
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black.withOpacity(0.9),
+                                ],
                               ),
-                              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                              borderRadius: const BorderRadius.vertical(
+                                bottom: Radius.circular(12),
+                              ),
                             ),
                           ),
                         ),
 
                         // Title
                         Positioned(
-                          left: 12, right: 12, bottom: 12,
+                          left: 12,
+                          right: 12,
+                          bottom: 12,
                           child: Text(
                             serie.name,
                             style: GoogleFonts.inter(
                               color: Colors.white,
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              shadows: [const Shadow(color: Colors.black, blurRadius: 4)],
+                              shadows: [
+                                const Shadow(
+                                  color: Colors.black,
+                                  blurRadius: 4,
+                                ),
+                              ],
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        
+
                         // Rating Badge
                         if (serie.rating != null && serie.rating!.isNotEmpty)
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.7),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: Colors.white24),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.star, size: 10, color: Colors.amber),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _formatRating(serie.rating)!,
-                                  style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
-                                ),
-                              ],
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.7),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: Colors.white24),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.star,
+                                    size: 10,
+                                    color: Colors.amber,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _formatRating(serie.rating)!,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
                       ],
                     ),
                   );
@@ -378,17 +453,19 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
               ),
             ),
           ),
-          
+
           // Loader
           if (_isLoading)
             const SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.all(32),
-                child: Center(child: CircularProgressIndicator(color: Colors.white)),
+                child: Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
               ),
             ),
-            
-           const SliverPadding(padding: EdgeInsets.only(bottom: 50)),
+
+          const SliverPadding(padding: EdgeInsets.only(bottom: 50)),
         ],
       ),
     );

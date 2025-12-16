@@ -109,6 +109,7 @@
         let streamUrl = urlParams.get('url');
         const startTime = parseFloat(urlParams.get('t') || '0');
         const streamType = urlParams.get('type') || ''; // 'live' or 'vod'
+        const injectedDuration = parseFloat(urlParams.get('duration') || '0'); // Fix for infinite HLS duration
 
         function log(msg) {
             console.log('[Player] ' + msg);
@@ -142,12 +143,24 @@
         let lastReportedTime = 0;
         function reportPosition() {
             if (video.currentTime > 0 && !video.paused && video.readyState > 2) {
-                if (Math.abs(video.currentTime - lastReportedTime) >= 5) {
+                if (Math.abs(video.currentTime - lastReportedTime) >= 1) { // Report more frequently for smoother UI
                     lastReportedTime = video.currentTime;
+
+                    let duration = video.duration;
+                    // Priority: 1) HLS dynamic duration, 2) video.duration, 3) injectedDuration
+                    const hlsDuration = window.currentHlsDuration || 0;
+                    if (!isFinite(duration) || isNaN(duration) || duration < 1) {
+                        duration = hlsDuration > 0 ? hlsDuration : (injectedDuration > 0 ? injectedDuration : 0);
+                    } else if (hlsDuration > duration) {
+                        duration = hlsDuration; // Use HLS duration if larger (growing playlist)
+                    } else if (injectedDuration > 0 && duration < injectedDuration * 0.9) {
+                        duration = injectedDuration; // Fallback to injected if significantly larger
+                    }
+
                     window.parent.postMessage({
                         type: 'playback_position',
                         currentTime: video.currentTime,
-                        duration: isFinite(video.duration) ? video.duration : 0
+                        duration: duration
                     }, '*');
                 }
             }
@@ -156,17 +169,40 @@
 
         // Report on pause and end
         video.addEventListener('pause', () => {
+            let duration = video.duration;
+            if (!isFinite(duration) || isNaN(duration)) {
+                duration = injectedDuration > 0 ? injectedDuration : 0;
+            }
+
             window.parent.postMessage({
                 type: 'playback_position',
                 currentTime: video.currentTime,
-                duration: isFinite(video.duration) ? video.duration : 0
+                duration: duration
+            }, '*');
+
+            // Also report status
+            window.parent.postMessage({
+                type: 'playback_status',
+                status: 'paused'
             }, '*');
         });
 
         video.addEventListener('ended', () => {
+            let duration = video.duration;
+            if (!isFinite(duration) || isNaN(duration)) {
+                duration = injectedDuration > 0 ? injectedDuration : 0;
+            }
+
             window.parent.postMessage({
                 type: 'playback_ended',
-                duration: isFinite(video.duration) ? video.duration : 0
+                duration: duration
+            }, '*');
+        });
+
+        video.addEventListener('playing', () => {
+            window.parent.postMessage({
+                type: 'playback_status',
+                status: 'playing'
             }, '*');
         });
 
@@ -234,6 +270,21 @@
                 log('HLS manifest parsed');
                 hideLoading();
                 video.play().catch(e => log('Autoplay prevented: ' + e));
+            });
+
+            // Track growing duration as more segments are added (for EVENT playlists)
+            hls.on(Hls.Events.LEVEL_LOADED, (event, data) => {
+                const levelDetails = data.details;
+                if (levelDetails && levelDetails.totalduration) {
+                    const currentLevelDuration = levelDetails.totalduration;
+                    log('Level loaded, current duration: ' + currentLevelDuration);
+
+                    // Update injectedDuration if HLS gives us a better value
+                    // This allows the progress bar to grow as transcoding progresses
+                    if (currentLevelDuration > injectedDuration) {
+                        window.currentHlsDuration = currentLevelDuration;
+                    }
+                }
             });
 
             hls.on(Hls.Events.ERROR, (event, data) => {
@@ -352,6 +403,37 @@
                 await playDirect(streamUrl);
             }
         }
+
+        // Listen for messages from parent (Flutter)
+        window.addEventListener('message', (event) => {
+            const data = event.data;
+            if (!data) return;
+
+            log('Received message: ' + data.type);
+
+            switch (data.type) {
+                case 'play':
+                    video.play().catch(e => log('Play failed: ' + e));
+                    break;
+                case 'pause':
+                    video.pause();
+                    break;
+                case 'seek':
+                    const time = parseFloat(data.value);
+                    if (isFinite(time) && time >= 0) {
+                        video.currentTime = time;
+                        log('Seek to: ' + time);
+                    }
+                    break;
+                case 'set_volume':
+                    const vol = parseFloat(data.value);
+                    if (isFinite(vol) && vol >= 0 && vol <= 1) {
+                        video.volume = vol;
+                        video.muted = vol === 0;
+                    }
+                    break;
+            }
+        });
 
         initPlayer();
     </script>

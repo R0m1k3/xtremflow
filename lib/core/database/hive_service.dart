@@ -8,7 +8,7 @@ import '../models/playlist_config.dart';
 class HiveService {
   static const String _usersBoxName = 'users';
   static const String _playlistsBoxName = 'playlists';
-  
+
   static bool _initialized = false;
   static List<int>? _encryptionKey;
 
@@ -45,27 +45,27 @@ class HiveService {
 
     // Generate new 256-bit key
     _encryptionKey = Hive.generateSecureKey();
-    
+
     return _encryptionKey!;
   }
 
   /// Seed default admin user (admin/admin)
   static Future<void> _seedDefaultAdmin() async {
     final usersBox = Hive.box<AppUser>(_usersBoxName);
-    
+
     if (usersBox.isEmpty) {
       final adminId = const Uuid().v4();
       final passwordHash = _hashPassword('admin');
-      
+
       final admin = AppUser(
         id: adminId,
         username: 'admin',
         passwordHash: passwordHash,
         isAdmin: true,
-        assignedPlaylistIds: [],
+        assignedPlaylistIds: const [],
         createdAt: DateTime.now(),
       );
-      
+
       await usersBox.put(adminId, admin);
     }
   }
@@ -88,12 +88,12 @@ class HiveService {
         final legacyHash = sha256.convert(utf8.encode(password)).toString();
         return legacyHash == storedHash;
       }
-      
+
       final salt = parts[0];
       final expectedHash = parts[1];
       final bytes = utf8.encode(password + salt);
       final actualHash = sha256.convert(bytes).toString();
-      
+
       return actualHash == expectedHash;
     } catch (e) {
       return false;
@@ -103,12 +103,11 @@ class HiveService {
   /// Public method to hash passwords (used by auth)
   static String hashPassword(String password) => _hashPassword(password);
 
-
   /// Get users box
   static Box<AppUser> get usersBox => Hive.box<AppUser>(_usersBoxName);
 
   /// Get playlists box
-  static Box<PlaylistConfig> get playlistsBox => 
+  static Box<PlaylistConfig> get playlistsBox =>
       Hive.box<PlaylistConfig>(_playlistsBoxName);
 
   /// Close all boxes (cleanup)
