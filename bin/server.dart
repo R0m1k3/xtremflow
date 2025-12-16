@@ -10,7 +10,7 @@ import 'package:args/args.dart';
 import 'database/database.dart';
 import 'models/user.dart';
 import 'models/playlist.dart';
-import '../lib/core/models/playlist_config.dart';
+import 'package:xtremflow/core/models/playlist_config.dart';
 import 'api/auth_handler.dart';
 import 'api/users_handler.dart';
 import 'api/playlists_handler.dart';
@@ -49,17 +49,17 @@ void main(List<String> args) async {
     // Auth endpoints
     ..mount('/api/auth', authHandler.router)
     // Playlists endpoints
-    ..mount('/api/playlists', Pipeline()
+    ..mount('/api/playlists', const Pipeline()
       .addMiddleware(authMiddleware(db))
-      .addHandler(playlistsHandler.router.call))
+      .addHandler(playlistsHandler.router.call),)
     // Users endpoints
-    ..mount('/api/users', Pipeline()
+    ..mount('/api/users', const Pipeline()
       .addMiddleware(authMiddleware(db))
-      .addHandler(usersHandler.router.call))
+      .addHandler(usersHandler.router.call),)
     // Settings endpoints
-    ..mount('/api/settings', Pipeline()
+    ..mount('/api/settings', const Pipeline()
       .addMiddleware(authMiddleware(db))
-      .addHandler(settingsHandler.router.call));
+      .addHandler(settingsHandler.router.call),);
 
   // Initialize Cleanup Service
   final cleanupService = CleanupService();
@@ -70,7 +70,7 @@ void main(List<String> args) async {
   cleanupService.start();
 
   // Admin Routes (protected)
-  apiRouter.mount('/api/admin', Pipeline()
+  apiRouter.mount('/api/admin', const Pipeline()
       .addMiddleware(authMiddleware(db))
       .addHandler((Request request) {
         final router = Router();
@@ -90,7 +90,7 @@ void main(List<String> args) async {
         });
         
         return router(request);
-      }));
+      }),);
 
   // Create static handler
   final baseStaticHandler = createStaticHandler(
@@ -100,7 +100,7 @@ void main(List<String> args) async {
   );
 
   // Wrap static handler to enforce cache policies
-  Handler staticHandler = (Request request) async {
+  FutureOr<Response> staticHandler(Request request) async {
     final response = await baseStaticHandler(request);
     
     // Disable cache for entry points to ensure updates are seen immediately
@@ -113,17 +113,17 @@ void main(List<String> args) async {
         'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
         'Pragma': 'no-cache',
         'Expires': '0',
-      });
+      },);
     }
     
     // Allow aggressive caching for hashed assets
     return response.change(headers: {
       'Cache-Control': 'public, max-age=86400', 
-    });
-  };
+    },);
+  }
 
   // Helper to get playlist from request
-  Future<PlaylistConfig?> _getPlaylist(Request request) async {
+  Future<PlaylistConfig?> getPlaylist(Request request) async {
      Playlist? playlist;
      
      final user = request.context['user'] as User?;
@@ -155,8 +155,8 @@ void main(List<String> args) async {
 
   // Create Streaming Router (Mount handlers on correct paths)
   final streamingRouter = Router()
-    ..mount('/api/live', createLiveStreamHandler(_getPlaylist))
-    ..mount('/api/vod', createVodStreamHandler(_getPlaylist));
+    ..mount('/api/live', createLiveStreamHandler(getPlaylist))
+    ..mount('/api/vod', createVodStreamHandler(getPlaylist));
 
   // Main handler with API proxy and NEW Streaming Handlers
   final handler = Cascade()
@@ -167,7 +167,7 @@ void main(List<String> args) async {
     .handler;
 
   // Add middleware
-  final pipeline = Pipeline()
+  final pipeline = const Pipeline()
     .addMiddleware(logRequests())
     .addMiddleware(securityHeadersMiddleware())
     .addMiddleware(honeypotMiddleware())

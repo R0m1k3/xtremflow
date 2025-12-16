@@ -34,7 +34,8 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
 
   @override
   Widget build(BuildContext context) {
-    final channelsAsync = ref.watch(liveChannelsByPlaylistProvider(widget.playlist));
+    final channelsAsync =
+        ref.watch(liveChannelsByPlaylistProvider(widget.playlist));
     final favorites = ref.watch(favoritesProvider);
     final settings = ref.watch(iptvSettingsProvider);
 
@@ -42,26 +43,32 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
       backgroundColor: Colors.transparent, // Handled by MobileScaffold
       body: channelsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, s) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.white))),
+        error: (e, s) => Center(
+            child:
+                Text('Error: $e', style: const TextStyle(color: Colors.white))),
         data: (groupedChannels) {
           var categories = groupedChannels.keys.toList();
           if (settings.liveTvKeywords.isNotEmpty) {
-            categories = categories.where((cat) => settings.matchesLiveTvFilter(cat)).toList();
+            categories = categories
+                .where((cat) => settings.matchesLiveTvFilter(cat))
+                .toList();
           }
           categories.sort();
 
           List<Channel> displayedChannels = [];
           if (_searchQuery.isNotEmpty) {
-            displayedChannels = groupedChannels.values.expand((l) => l)
+            displayedChannels = groupedChannels.values
+                .expand((l) => l)
                 .where((c) => c.name.toLowerCase().contains(_searchQuery))
                 .toList();
           } else if (_showFavoritesOnly) {
-            displayedChannels = groupedChannels.values.expand((l) => l)
+            displayedChannels = groupedChannels.values
+                .expand((l) => l)
                 .where((c) => favorites.contains(c.streamId))
                 .toList();
           } else {
             if (_selectedCategory == null && categories.isNotEmpty) {
-               _selectedCategory = categories.first;
+              _selectedCategory = categories.first;
             }
             if (_selectedCategory != null) {
               displayedChannels = groupedChannels[_selectedCategory] ?? [];
@@ -78,27 +85,31 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                   child: GlassContainer(
                     borderRadius: 16,
                     opacity: 0.1,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Row(
                       children: [
-                         Expanded(
-                           child: TextField(
-                             controller: _searchController,
-                             style: GoogleFonts.inter(color: Colors.white),
-                             decoration: InputDecoration(
-                               hintText: 'Search channels...',
-                               hintStyle: GoogleFonts.inter(color: Colors.white54),
-                               border: InputBorder.none,
-                               prefixIcon: const Icon(Icons.search, color: Colors.white54),
-                               isDense: true,
-                             ),
-                           ),
-                         ),
-                         if (_searchQuery.isNotEmpty)
-                           GestureDetector(
-                             onTap: () => _searchController.clear(),
-                             child: const Icon(Icons.close, color: Colors.white54),
-                           ),
+                        Expanded(
+                          child: TextField(
+                            controller: _searchController,
+                            style: GoogleFonts.inter(color: Colors.white),
+                            decoration: InputDecoration(
+                              hintText: 'Search channels...',
+                              hintStyle:
+                                  GoogleFonts.inter(color: Colors.white54),
+                              border: InputBorder.none,
+                              prefixIcon: const Icon(Icons.search,
+                                  color: Colors.white54),
+                              isDense: true,
+                            ),
+                          ),
+                        ),
+                        if (_searchQuery.isNotEmpty)
+                          GestureDetector(
+                            onTap: () => _searchController.clear(),
+                            child:
+                                const Icon(Icons.close, color: Colors.white54),
+                          ),
                       ],
                     ),
                   ),
@@ -117,19 +128,26 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                         final category = categories[index];
                         final isSelected = category == _selectedCategory;
                         return GestureDetector(
-                          onTap: () => setState(() => _selectedCategory = category),
+                          onTap: () =>
+                              setState(() => _selectedCategory = category),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10),
                             decoration: BoxDecoration(
-                              color: isSelected ? Colors.white : Colors.black.withOpacity(0.4),
+                              color: isSelected
+                                  ? Colors.white
+                                  : Colors.black.withOpacity(0.4),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
                               category,
                               style: GoogleFonts.inter(
-                                color: isSelected ? Colors.black : Colors.white70,
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                color:
+                                    isSelected ? Colors.black : Colors.white70,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
                                 fontSize: 13,
                               ),
                             ),
@@ -145,28 +163,39 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                   child: Row(
                     children: [
                       Text(
-                        _searchQuery.isNotEmpty ? 'Results' : 
-                        _showFavoritesOnly ? 'Favorites' : 
-                        _selectedCategory ?? 'Channels',
+                        _searchQuery.isNotEmpty
+                            ? 'Results'
+                            : _showFavoritesOnly
+                                ? 'Favorites'
+                                : _selectedCategory ?? 'Channels',
                         style: GoogleFonts.inter(
-                          color: Colors.white, 
+                          color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
                         ),
                       ),
                       const Spacer(),
                       GestureDetector(
-                        onTap: () => setState(() => _showFavoritesOnly = !_showFavoritesOnly),
+                        onTap: () => setState(
+                            () => _showFavoritesOnly = !_showFavoritesOnly),
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: _showFavoritesOnly ? AppColors.live.withOpacity(0.2) : Colors.white.withOpacity(0.1),
+                            color: _showFavoritesOnly
+                                ? AppColors.live.withOpacity(0.2)
+                                : Colors.white.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
-                            border: _showFavoritesOnly ? Border.all(color: AppColors.live) : null,
+                            border: _showFavoritesOnly
+                                ? Border.all(color: AppColors.live)
+                                : null,
                           ),
                           child: Icon(
-                            _showFavoritesOnly ? Icons.favorite : Icons.favorite_border,
-                            color: _showFavoritesOnly ? AppColors.live : Colors.white,
+                            _showFavoritesOnly
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            color: _showFavoritesOnly
+                                ? AppColors.live
+                                : Colors.white,
                             size: 20,
                           ),
                         ),
@@ -182,7 +211,8 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.tv_off, color: Colors.white24, size: 48),
+                              const Icon(Icons.tv_off,
+                                  color: Colors.white24, size: 48),
                               const SizedBox(height: 16),
                               Text(
                                 'No channels found',
@@ -194,7 +224,8 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                       : ListView.separated(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
                           itemCount: displayedChannels.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
                           itemBuilder: (context, index) {
                             final channel = displayedChannels[index];
                             return _MobileChannelTile(
@@ -240,14 +271,17 @@ class _MobileChannelTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final iconUrl = channel.streamIcon.isNotEmpty && channel.streamIcon.startsWith('http') 
-        ? '/api/xtream/${channel.streamIcon}' 
-        : null;
+    final iconUrl =
+        channel.streamIcon.isNotEmpty && channel.streamIcon.startsWith('http')
+            ? '/api/xtream/${channel.streamIcon}'
+            : null;
 
     // Fetch EPG
-    final epgAsync = ref.watch(epgByPlaylistProvider(
-      EpgRequestKey(playlist: playlist, streamId: channel.streamId)
-    ));
+    final epgAsync = ref.watch(
+      epgByPlaylistProvider(
+        EpgRequestKey(playlist: playlist, streamId: channel.streamId),
+      ),
+    );
 
     return GlassContainer(
       borderRadius: 12,
@@ -270,9 +304,10 @@ class _MobileChannelTile extends ConsumerWidget {
                 padding: const EdgeInsets.all(4),
                 child: iconUrl != null
                     ? Image.network(
-                        iconUrl, 
+                        iconUrl,
                         fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => const Icon(Icons.tv, color: Colors.white24),
+                        errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.tv, color: Colors.white24),
                       )
                     : const Icon(Icons.tv, color: Colors.white24),
               ),
@@ -291,7 +326,7 @@ class _MobileChannelTile extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    
+
                     // EPG Only (Replaces Channel Number)
                     epgAsync.when(
                       data: (epgList) {
@@ -308,7 +343,8 @@ class _MobileChannelTile extends ConsumerWidget {
                         return Text(
                           current.title,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFFFD700), // Gold/Amber for visibility check
+                            color: const Color(
+                                0xFFFFD700), // Gold/Amber for visibility check
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
@@ -316,8 +352,11 @@ class _MobileChannelTile extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                         );
                       },
-                      loading: () => Text('...', style: TextStyle(color: Colors.white38, fontSize: 12)),
-                      error: (err, stack) => Text('Err', style: TextStyle(color: Colors.red, fontSize: 10)),
+                      loading: () => const Text('...',
+                          style:
+                              TextStyle(color: Colors.white38, fontSize: 12)),
+                      error: (err, stack) => const Text('Err',
+                          style: TextStyle(color: Colors.red, fontSize: 10)),
                     ),
                   ],
                 ),
@@ -328,7 +367,8 @@ class _MobileChannelTile extends ConsumerWidget {
                   color: Colors.white.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16),
+                child: const Icon(Icons.play_arrow_rounded,
+                    color: Colors.white, size: 16),
               ),
             ],
           ),

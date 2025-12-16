@@ -62,7 +62,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
 
   void _onSearchChanged(String query) {
     _searchDebounce?.cancel();
-    
+
     setState(() {
       _searchQuery = query;
       if (query.isEmpty) {
@@ -70,7 +70,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
         _isSearching = false;
       }
     });
-    
+
     if (query.length >= 2) {
       _searchDebounce = Timer(const Duration(milliseconds: 500), () {
         _performSearch(query);
@@ -80,13 +80,13 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
 
   Future<void> _performSearch(String query) async {
     if (query.isEmpty) return;
-    
+
     setState(() => _isSearching = true);
-    
+
     try {
       final service = ref.read(xtreamServiceProvider(widget.playlist));
       final results = await service.searchMovies(query);
-      
+
       if (mounted && _searchQuery == query) {
         setState(() {
           _searchResults = results;
@@ -151,7 +151,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
 
   Future<void> _playMovie(Movie movie) async {
     ref.read(watchHistoryProvider.notifier).markMovieWatched(movie.streamId);
-    
+
     // Fetch actual duration from API if not available in movie data
     Duration? movieDuration;
     if (movie.durationSecs != null && movie.durationSecs! > 0) {
@@ -164,9 +164,9 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
         movieDuration = Duration(seconds: durationSecs);
       }
     }
-    
+
     if (!mounted) return;
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -186,17 +186,19 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
   Widget build(BuildContext context) {
     final settings = ref.watch(iptvSettingsProvider);
     final watchHistory = ref.watch(watchHistoryProvider);
-    
+
     List<Movie> displayMovies;
     if (_searchQuery.isNotEmpty && _searchResults != null) {
       displayMovies = _searchResults!;
     } else {
       displayMovies = settings.moviesKeywords.isEmpty
           ? _movies
-          : _movies.where((m) => settings.matchesMoviesFilter(m.categoryName)).toList();
+          : _movies
+              .where((m) => settings.matchesMoviesFilter(m.categoryName))
+              .toList();
     }
 
-    final double gridItemRatio = 0.65;
+    const double gridItemRatio = 0.65;
     final int crossAxisCount = ResponsiveLayout.value(
       context,
       mobile: 3,
@@ -216,7 +218,8 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
               child: GlassContainer(
                 borderRadius: 100,
                 opacity: 0.6,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 child: Row(
                   children: [
                     Text(
@@ -228,7 +231,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                       ),
                     ),
                     const Spacer(),
-                    
+
                     // Search Bar
                     Container(
                       width: 300,
@@ -240,32 +243,41 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Row(
                         children: [
-                          const Icon(Icons.search, size: 20, color: Colors.white54),
+                          const Icon(Icons.search,
+                              size: 20, color: Colors.white54),
                           const SizedBox(width: 8),
                           Expanded(
                             child: TextField(
                               controller: _searchController,
-                              style: GoogleFonts.inter(fontSize: 14, color: Colors.white),
+                              style: GoogleFonts.inter(
+                                  fontSize: 14, color: Colors.white),
                               decoration: InputDecoration(
                                 hintText: 'Search movies...',
-                                hintStyle: GoogleFonts.inter(color: Colors.white54),
+                                hintStyle:
+                                    GoogleFonts.inter(color: Colors.white54),
                                 border: InputBorder.none,
                                 isDense: true,
-                                contentPadding: const EdgeInsets.only(bottom: 12),
+                                contentPadding:
+                                    const EdgeInsets.only(bottom: 12),
                               ),
                               onChanged: _onSearchChanged,
                             ),
                           ),
                           if (_isSearching)
-                             const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                            const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white)),
                           if (_searchQuery.isNotEmpty)
-                             GestureDetector(
-                               onTap: () {
-                                  _searchController.clear();
-                                  _onSearchChanged('');
-                               },
-                               child: const Icon(Icons.close, size: 16, color: Colors.white),
-                             ),
+                            GestureDetector(
+                              onTap: () {
+                                _searchController.clear();
+                                _onSearchChanged('');
+                              },
+                              child: const Icon(Icons.close,
+                                  size: 16, color: Colors.white),
+                            ),
                         ],
                       ),
                     ),
@@ -281,21 +293,29 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 32),
                 child: HeroCarousel(
-                  items: displayMovies.take(5).map((m) => HeroItem(
-                    id: m.streamId,
-                    title: m.name,
-                    imageUrl: _getProxiedImageUrl(m.streamIcon),
-                    subtitle: m.rating != null ? '${_formatRating(m.rating)} ★' : null,
-                    onMoreInfo: () => _playMovie(m),
-                  )).toList(),
+                  items: displayMovies
+                      .take(5)
+                      .map(
+                        (m) => HeroItem(
+                          id: m.streamId,
+                          title: m.name,
+                          imageUrl: _getProxiedImageUrl(m.streamIcon),
+                          subtitle: m.rating != null
+                              ? '${_formatRating(m.rating)} ★'
+                              : null,
+                          onMoreInfo: () => _playMovie(m),
+                        ),
+                      )
+                      .toList(),
                   onTap: (item) {
-                     final movie = _movies.firstWhere((element) => element.streamId == item.id);
-                     _playMovie(movie);
+                    final movie = _movies
+                        .firstWhere((element) => element.streamId == item.id);
+                    _playMovie(movie);
                   },
                 ),
               ),
             ),
-          
+
           // Movies Grid
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -311,7 +331,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                   if (index >= displayMovies.length) return null;
                   final movie = displayMovies[index];
                   final isWatched = watchHistory.isMovieWatched(movie.streamId);
-                  
+
                   return TvFocusableCard(
                     onTap: () => _playMovie(movie),
                     borderRadius: 12,
@@ -321,66 +341,84 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                         // Poster Image
                         ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          child: movie.streamIcon != null && movie.streamIcon!.isNotEmpty
-                            ? Image.network(
-                                _getProxiedImageUrl(movie.streamIcon),
-                                fit: BoxFit.cover,
-                                errorBuilder: (ctx, err, stack) => Container(
+                          child: movie.streamIcon != null &&
+                                  movie.streamIcon!.isNotEmpty
+                              ? Image.network(
+                                  _getProxiedImageUrl(movie.streamIcon),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (ctx, err, stack) => Container(
+                                    color: AppColors.surfaceVariant,
+                                    child: const Center(
+                                        child: Icon(Icons.movie,
+                                            size: 48, color: Colors.white24)),
+                                  ),
+                                )
+                              : Container(
                                   color: AppColors.surfaceVariant,
-                                  child: const Center(child: Icon(Icons.movie, size: 48, color: Colors.white24)),
+                                  child: const Center(
+                                      child: Icon(Icons.movie,
+                                          size: 48, color: Colors.white24)),
                                 ),
-                              )
-                            : Container(
-                                color: AppColors.surfaceVariant,
-                                child: const Center(child: Icon(Icons.movie, size: 48, color: Colors.white24)),
-                              ),
                         ),
-                        
+
                         // Gradient Overlay
                         Positioned(
-                          left: 0, right: 0, bottom: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
                           height: 80,
                           child: Container(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
-                                colors: [Colors.transparent, Colors.black.withOpacity(0.9)],
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black.withOpacity(0.9)
+                                ],
                               ),
-                              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
-                            ),
-                          ),
-                        ),
-                        
-                        // Rating Badge
-                        if (movie.rating != null && movie.rating!.isNotEmpty)
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.7),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: Colors.white24),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.star, size: 10, color: Colors.amber),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _formatRating(movie.rating)!,
-                                  style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
-                                ),
-                              ],
+                              borderRadius: const BorderRadius.vertical(
+                                  bottom: Radius.circular(12)),
                             ),
                           ),
                         ),
 
+                        // Rating Badge
+                        if (movie.rating != null && movie.rating!.isNotEmpty)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.7),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: Colors.white24),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.star,
+                                      size: 10, color: Colors.amber),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _formatRating(movie.rating)!,
+                                    style: GoogleFonts.inter(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
                         // Title
                         Positioned(
-                          left: 12, right: 12, bottom: 12,
+                          left: 12,
+                          right: 12,
+                          bottom: 12,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
@@ -391,7 +429,10 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                                   color: Colors.white,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  shadows: [const Shadow(color: Colors.black, blurRadius: 4)],
+                                  shadows: [
+                                    const Shadow(
+                                        color: Colors.black, blurRadius: 4)
+                                  ],
                                 ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -401,7 +442,10 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                                   padding: const EdgeInsets.only(top: 4),
                                   child: Text(
                                     'WATCHED',
-                                    style: GoogleFonts.inter(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.bold),
+                                    style: GoogleFonts.inter(
+                                        color: AppColors.primary,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold),
                                   ),
                                 ),
                             ],
@@ -415,16 +459,17 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
               ),
             ),
           ),
-          
+
           // Loader
           if (_isLoading)
             const SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.all(32),
-                child: Center(child: CircularProgressIndicator(color: Colors.white)),
+                child: Center(
+                    child: CircularProgressIndicator(color: Colors.white)),
               ),
             ),
-            
+
           const SliverPadding(padding: EdgeInsets.only(bottom: 50)),
         ],
       ),

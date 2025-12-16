@@ -26,14 +26,16 @@ class PlaylistSelectionScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(
           'Select Playlist',
-          style: GoogleFonts.roboto(fontWeight: FontWeight.w600, color: Colors.white),
+          style: GoogleFonts.roboto(
+              fontWeight: FontWeight.w600, color: Colors.white),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
           if (currentUser?.isAdmin ?? false)
             IconButton(
-              icon: const Icon(Icons.admin_panel_settings, color: Colors.white70),
+              icon:
+                  const Icon(Icons.admin_panel_settings, color: Colors.white70),
               onPressed: () => context.go('/admin'),
               tooltip: 'Admin Panel',
             ),
@@ -69,7 +71,9 @@ class PlaylistSelectionScreen extends ConsumerWidget {
               children: [
                 Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
                 const SizedBox(height: 16),
-                Text('Error loading playlists', style: GoogleFonts.roboto(fontSize: 18, color: Colors.white70)),
+                Text('Error loading playlists',
+                    style: GoogleFonts.roboto(
+                        fontSize: 18, color: Colors.white70)),
                 const SizedBox(height: 8),
                 ElevatedButton(
                   onPressed: () => ref.refresh(playlistsProvider),
@@ -84,7 +88,7 @@ class PlaylistSelectionScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.playlist_remove,
                       size: 64,
                       color: Colors.white24,
@@ -113,7 +117,8 @@ class PlaylistSelectionScreen extends ConsumerWidget {
             }
 
             return GridView.builder(
-              padding: const EdgeInsets.fromLTRB(24, 100, 24, 24), // Top padding for transparent AppBar
+              padding: const EdgeInsets.fromLTRB(
+                  24, 100, 24, 24), // Top padding for transparent AppBar
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
                 crossAxisSpacing: 24,
@@ -165,23 +170,25 @@ class _PlaylistCardState extends State<_PlaylistCard> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
-            color: _isHovered 
-                ? Colors.white.withOpacity(0.15) 
+            color: _isHovered
+                ? Colors.white.withOpacity(0.15)
                 : Colors.white.withOpacity(0.05), // Glass effect
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: _isHovered 
-                  ? Colors.white.withOpacity(0.5) 
+              color: _isHovered
+                  ? Colors.white.withOpacity(0.5)
                   : Colors.white.withOpacity(0.1),
               width: 1.5,
             ),
-            boxShadow: _isHovered ? [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ] : [],
+            boxShadow: _isHovered
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ]
+                : [],
           ),
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -204,7 +211,8 @@ class _PlaylistCardState extends State<_PlaylistCard> {
               const SizedBox(height: 16),
               Text(
                 widget.playlist.name,
-                style: GoogleFonts.outfit( // Using Outfit for modern look
+                style: GoogleFonts.outfit(
+                  // Using Outfit for modern look
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
@@ -229,4 +237,3 @@ class _PlaylistCardState extends State<_PlaylistCard> {
     );
   }
 }
-

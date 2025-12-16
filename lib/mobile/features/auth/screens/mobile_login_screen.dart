@@ -193,7 +193,7 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   elevation: 0,
                                 ).copyWith(
-                                  overlayColor: MaterialStateProperty.all(Colors.black12),
+                                  overlayColor: WidgetStateProperty.all(Colors.black12),
                                 ),
                                 child: authState.isLoading
                                     ? const SizedBox(

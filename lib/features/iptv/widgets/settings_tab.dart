@@ -18,7 +18,8 @@ class SettingsTab extends ConsumerStatefulWidget {
   ConsumerState<SettingsTab> createState() => _SettingsTabState();
 }
 
-class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProviderStateMixin {
+class _SettingsTabState extends ConsumerState<SettingsTab>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late TextEditingController _liveTvController;
   late TextEditingController _moviesController;
@@ -45,13 +46,16 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
   }
 
   void _syncControllers(IptvSettings settings) {
-    if (!_initialized || _liveTvController.text != settings.liveTvCategoryFilter) {
+    if (!_initialized ||
+        _liveTvController.text != settings.liveTvCategoryFilter) {
       _liveTvController.text = settings.liveTvCategoryFilter;
     }
-    if (!_initialized || _moviesController.text != settings.moviesCategoryFilter) {
+    if (!_initialized ||
+        _moviesController.text != settings.moviesCategoryFilter) {
       _moviesController.text = settings.moviesCategoryFilter;
     }
-    if (!_initialized || _seriesController.text != settings.seriesCategoryFilter) {
+    if (!_initialized ||
+        _seriesController.text != settings.seriesCategoryFilter) {
       _seriesController.text = settings.seriesCategoryFilter;
     }
     _initialized = true;
@@ -61,7 +65,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
   Widget build(BuildContext context) {
     final currentUser = ref.watch(authProvider).currentUser;
     final settings = ref.watch(iptvSettingsProvider);
-    
+
     // Sync controllers with persisted state (only on first load)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_initialized) _syncControllers(settings);
@@ -85,17 +89,19 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white54,
             dividerColor: Colors.transparent,
-            overlayColor: MaterialStateProperty.all(Colors.transparent),
+            overlayColor: WidgetStateProperty.all(Colors.transparent),
             tabs: [
               const Tab(icon: Icon(Icons.filter_list), text: 'Filtres'),
               const Tab(icon: Icon(Icons.stream), text: 'Streaming'),
               const Tab(icon: Icon(Icons.palette), text: 'Apparence'),
               if (currentUser?.isAdmin ?? false)
-                const Tab(icon: Icon(Icons.admin_panel_settings), text: 'Administration'),
+                const Tab(
+                    icon: Icon(Icons.admin_panel_settings),
+                    text: 'Administration'),
             ],
           ),
         ),
-        
+
         // TabBarView
         Expanded(
           child: TabBarView(
@@ -103,16 +109,15 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
             children: [
               // Filters Tab
               _buildFiltersTab(context, currentUser, settings),
-              
+
               // Streaming Tab
               const StreamingSettingsTab(),
-              
+
               // Appearance Tab
               _buildAppearanceTab(context),
 
               // Admin Tab
-              if (currentUser?.isAdmin ?? false)
-                const AdminContent(),
+              if (currentUser?.isAdmin ?? false) const AdminContent(),
             ],
           ),
         ),
@@ -125,7 +130,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
     final themeState = ref.watch(themeProvider);
     final themeNotifier = ref.read(themeProvider.notifier);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -142,7 +147,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
             children: [
               Row(
                 children: [
-                   Icon(
+                  const Icon(
                     Icons.dark_mode,
                     color: Colors.white,
                   ),
@@ -158,7 +163,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
                 ],
               ),
               const SizedBox(height: 16),
-              
+
               // Theme options
               _buildThemeOption(
                 context: context,
@@ -189,9 +194,9 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
             ],
           ),
         ),
-        
+
         const SizedBox(height: 16),
-        
+
         // Quick toggle card
         Container(
           decoration: BoxDecoration(
@@ -206,20 +211,21 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
             ),
             title: Text(
               'Mode actuel',
-              style: GoogleFonts.inter(fontWeight: FontWeight.w500, color: Colors.white),
+              style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w500, color: Colors.white),
             ),
             subtitle: Text(
               isDark ? 'Thème sombre actif' : 'Thème clair actif',
-              style: TextStyle(color: Colors.white70),
+              style: const TextStyle(color: Colors.white70),
             ),
             trailing: Switch(
               value: isDark,
               onChanged: (_) => themeNotifier.toggleTheme(),
-              activeColor: AppColors.primary,
-              trackColor: MaterialStateProperty.resolveWith(
-                (states) => states.contains(MaterialState.selected) 
-                  ? AppColors.primary.withOpacity(0.5) 
-                  : Colors.grey.shade800,
+              activeThumbColor: AppColors.primary,
+              trackColor: WidgetStateProperty.resolveWith(
+                (states) => states.contains(WidgetState.selected)
+                    ? AppColors.primary.withOpacity(0.5)
+                    : Colors.grey.shade800,
               ),
             ),
           ),
@@ -238,7 +244,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
   }) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -298,8 +304,8 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
     );
   }
 
-
-  Widget _buildFiltersTab(BuildContext context, dynamic currentUser, IptvSettings settings) {
+  Widget _buildFiltersTab(
+      BuildContext context, dynamic currentUser, IptvSettings settings) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -319,18 +325,21 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
             ),
             subtitle: Text(
               currentUser?.username ?? 'Unknown',
-              style: GoogleFonts.roboto(fontWeight: FontWeight.w600, color: Colors.white),
+              style: GoogleFonts.roboto(
+                  fontWeight: FontWeight.w600, color: Colors.white),
             ),
             trailing: currentUser?.isAdmin ?? false
                 ? Chip(
-                    label: Text('Admin', style: GoogleFonts.roboto(fontSize: 11, color: Colors.black)),
+                    label: Text('Admin',
+                        style: GoogleFonts.roboto(
+                            fontSize: 11, color: Colors.black)),
                     backgroundColor: Colors.white,
                   )
                 : null,
           ),
         ),
         const SizedBox(height: 16),
-        
+
         // Category filters section
         Text(
           'Filtres de Catégories',
@@ -349,7 +358,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
           ),
         ),
         const SizedBox(height: 12),
-        
+
         // Live TV Filter
         _buildFilterCard(
           title: 'Filtre TV Live',
@@ -365,7 +374,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
           },
         ),
         const SizedBox(height: 8),
-        
+
         // Movies Filter
         _buildFilterCard(
           title: 'Filtre Films',
@@ -381,7 +390,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
           },
         ),
         const SizedBox(height: 8),
-        
+
         // Series Filter
         _buildFilterCard(
           title: 'Filtre Séries',
@@ -397,9 +406,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
           },
         ),
         const SizedBox(height: 16),
-        
 
-        
         // Change playlist
         Container(
           decoration: BoxDecoration(
@@ -409,13 +416,14 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
           ),
           child: ListTile(
             leading: const Icon(Icons.playlist_play, color: Colors.white),
-            title: Text('Changer de Playlist', style: GoogleFonts.roboto(color: Colors.white)),
+            title: Text('Changer de Playlist',
+                style: GoogleFonts.roboto(color: Colors.white)),
             trailing: const Icon(Icons.chevron_right, color: Colors.white54),
             onTap: () => context.go('/playlists'),
           ),
         ),
         const SizedBox(height: 8),
-        
+
         // About
         Container(
           decoration: BoxDecoration(
@@ -425,7 +433,8 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
           ),
           child: ListTile(
             leading: const Icon(Icons.info_outline, color: Colors.white),
-            title: Text('À propos', style: GoogleFonts.roboto(color: Colors.white)),
+            title: Text('À propos',
+                style: GoogleFonts.roboto(color: Colors.white)),
             subtitle: Text(
               'XtremFlow IPTV v1.0.0',
               style: GoogleFonts.roboto(fontSize: 12, color: Colors.white54),
@@ -433,7 +442,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
           ),
         ),
         const SizedBox(height: 16),
-        
+
         // Maintenance Section
         Container(
           decoration: BoxDecoration(
@@ -443,50 +452,53 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
           ),
           child: ListTile(
             leading: const Icon(Icons.cleaning_services, color: Colors.orange),
-            title: Text('Maintenance', style: GoogleFonts.roboto(color: Colors.white)),
+            title: Text('Maintenance',
+                style: GoogleFonts.roboto(color: Colors.white)),
             subtitle: Text(
               'En cas de problèmes d\'affichage ou de mise à jour',
               style: GoogleFonts.roboto(fontSize: 12, color: Colors.white54),
             ),
             trailing: FilledButton.icon(
               onPressed: () {
-                 // Show confirmation dialog
-                 showDialog(
-                   context: context, 
-                   builder: (context) => AlertDialog(
-                     backgroundColor: const Color(0xFF1E1E1E),
-                     title: const Text('Vider le cache ?', style: TextStyle(color: Colors.white)),
-                     content: const Text(
-                       'Cette action va recharger l\'application et effacer les données temporaires.\n'
-                       'Vos réglages et favoris sont sauvegardés sur le serveur.',
-                       style: TextStyle(color: Colors.white70),
-                     ),
-                     actions: [
-                       TextButton(
-                         onPressed: () => Navigator.pop(context),
-                         child: const Text('Annuler'),
-                       ),
-                       FilledButton(
-                         style: FilledButton.styleFrom(backgroundColor: Colors.orange),
-                         onPressed: () {
-                           Navigator.pop(context);
-                           
-                           // Clear Flutter Image Cache
-                           PaintingBinding.instance.imageCache.clear();
-                           PaintingBinding.instance.imageCache.clearLiveImages();
-                           
-                           // Clear Browser Local Storage (SharedPreferences backend for Web)
-                           html.window.localStorage.clear();
-                           html.window.sessionStorage.clear();
-                           
-                           // Reload application
-                           html.window.location.reload();
-                         },
-                         child: const Text('Vider et Recharger'),
-                       ),
-                     ],
-                   )
-                 );
+                // Show confirmation dialog
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    backgroundColor: const Color(0xFF1E1E1E),
+                    title: const Text('Vider le cache ?',
+                        style: TextStyle(color: Colors.white)),
+                    content: const Text(
+                      'Cette action va recharger l\'application et effacer les données temporaires.\n'
+                      'Vos réglages et favoris sont sauvegardés sur le serveur.',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Annuler'),
+                      ),
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                            backgroundColor: Colors.orange),
+                        onPressed: () {
+                          Navigator.pop(context);
+
+                          // Clear Flutter Image Cache
+                          PaintingBinding.instance.imageCache.clear();
+                          PaintingBinding.instance.imageCache.clearLiveImages();
+
+                          // Clear Browser Local Storage (SharedPreferences backend for Web)
+                          html.window.localStorage.clear();
+                          html.window.sessionStorage.clear();
+
+                          // Reload application
+                          html.window.location.reload();
+                        },
+                        child: const Text('Vider et Recharger'),
+                      ),
+                    ],
+                  ),
+                );
               },
               icon: const Icon(Icons.refresh, size: 16),
               label: const Text('Vider le Cache'),
@@ -498,7 +510,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
           ),
         ),
         const SizedBox(height: 24),
-        
+
         // Logout button
         FilledButton.icon(
           onPressed: () {
@@ -553,7 +565,8 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
             controller: controller,
             decoration: InputDecoration(
               hintText: 'Ex: FR,FRANCE,HD,SPORT',
-              hintStyle: GoogleFonts.roboto(fontSize: 12, color: Colors.white30),
+              hintStyle:
+                  GoogleFonts.roboto(fontSize: 12, color: Colors.white30),
               filled: true,
               fillColor: Colors.black26,
               border: OutlineInputBorder(
@@ -567,7 +580,8 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
               ),
               suffixIcon: controller.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear, size: 16, color: Colors.white54),
+                      icon: const Icon(Icons.clear,
+                          size: 16, color: Colors.white54),
                       onPressed: onClear,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
@@ -584,15 +598,18 @@ class _SettingsTabState extends ConsumerState<SettingsTab> with SingleTickerProv
               runSpacing: 6,
               children: keywords.map((keyword) {
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.blueAccent.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(50),
-                    border: Border.all(color: Colors.blueAccent.withOpacity(0.5)),
+                    border:
+                        Border.all(color: Colors.blueAccent.withOpacity(0.5)),
                   ),
                   child: Text(
                     keyword,
-                    style: GoogleFonts.roboto(fontSize: 11, color: Colors.white),
+                    style:
+                        GoogleFonts.roboto(fontSize: 11, color: Colors.white),
                   ),
                 );
               }).toList(),

@@ -5,13 +5,23 @@ import 'dart:math';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'package:http/http.dart' as http;
-import '../../lib/core/models/playlist_config.dart';
+import 'package:xtremflow/core/models/playlist_config.dart';
 
 /// Active FFmpeg processes for VOD transcoding
 final Map<String, Process> _vodProcesses = {};
 
 /// Directory for temporary HLS segments
-final Directory _hlsTempDir = Directory('/tmp/hls_vod');
+final Directory _hlsTempDir = Directory('${Directory.systemTemp.path}/xtremflow_streams');
+
+/// Helper to resolve FFmpeg path (SYSTEM PATH vs Portable)
+String _getFFmpegPath() {
+  if (Platform.isWindows) {
+    if (File('ffmpeg.exe').existsSync()) return 'ffmpeg.exe';
+    if (File('bin/ffmpeg.exe').existsSync()) return 'bin/ffmpeg.exe';
+    if (File('ffmpeg/bin/ffmpeg.exe').existsSync()) return 'ffmpeg/bin/ffmpeg.exe';
+  }
+  return 'ffmpeg'; // Default to PATH
+}
 
 /// Initialize streaming subsystem
 Future<void> initStreaming() async {
@@ -76,11 +86,12 @@ Handler createLiveStreamHandler(Future<PlaylistConfig?> Function(Request) getPla
       
       '-c', 'copy', // Direct stream copy (Very low CPU)
       '-f', 'mpegts',
-      'pipe:1' // Output to stdout
+      'pipe:1', // Output to stdout
     ];
 
     try {
-      final process = await Process.start('ffmpeg', ffmpegArgs);
+      final ffmpegPath = _getFFmpegPath();
+      final process = await Process.start(ffmpegPath, ffmpegArgs);
       
       // Cleanup handling: Kill FFmpeg when client disconnects
       final controller = StreamController<List<int>>(
@@ -100,7 +111,7 @@ Handler createLiveStreamHandler(Future<PlaylistConfig?> Function(Request) getPla
         onError: (e) {
            print('[Live] FFmpeg stream error: $e');
            controller.addError(e);
-        }
+        },
       );
       
       // Log errors
@@ -257,10 +268,11 @@ Handler createVodStreamHandler(Future<PlaylistConfig?> Function(Request) getPlay
       '-start_number', '0',
       
       // Write playlist to stdout or file? File is easier for static serving
-      '${streamDir.path}/playlist.m3u8'
+      '${streamDir.path}/playlist.m3u8',
     ];
 
-      Process.start('ffmpeg', ffmpegArgs).then((process) {
+       final ffmpegPath = _getFFmpegPath();
+       Process.start(ffmpegPath, ffmpegArgs).then((process) {
         _vodProcesses[streamId] = process;
         
         process.stderr.transform(utf8.decoder).listen((data) {
