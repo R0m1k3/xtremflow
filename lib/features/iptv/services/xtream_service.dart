@@ -17,8 +17,8 @@ class XtreamService {
 
   XtreamService() {
     _dio = Dio(BaseOptions(
-      connectTimeout: const Duration(seconds: 60),
-      receiveTimeout: const Duration(seconds: 60),
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
     ),);
 
     // Setup caching for API responses
@@ -70,19 +70,18 @@ class XtreamService {
   String getVodStreamUrl(String streamId, String containerExtension) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     
-    // Pass extension to backend for correct upstream URL construction
+    // Point to new dedicated VOD API (HLS playlist)
     final baseUrl = html.window.location.origin;
-    return '$baseUrl/api/vod/$streamId.$containerExtension/playlist.m3u8';
+    return '$baseUrl/api/vod/$streamId/playlist.m3u8';
   }
 
   /// Generate stream URL for series episodes
   String getSeriesStreamUrl(String streamId, String containerExtension) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     
-    // Pass extension to backend for correct upstream URL construction
-    // And include type parameter for correct path handling (movie vs series)
+    // Point to new dedicated VOD API (HLS playlist) with series type
     final baseUrl = html.window.location.origin;
-    return '$baseUrl/api/vod/$streamId.$containerExtension/playlist.m3u8?type=series';
+    return '$baseUrl/api/vod/$streamId/playlist.m3u8?type=series';
   }
 
   /// Authenticate and get server info
