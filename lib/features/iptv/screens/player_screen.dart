@@ -717,28 +717,28 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     double iconSize = 24,
   }) {
     // Simplified button with direct Material/InkWell and PointerInterceptor
-    return PointerInterceptor(
-      child: Material(
-        color: transparent ? Colors.transparent : Colors.white.withOpacity(0.1),
-        shape: const CircleBorder(),
-        child: InkWell(
-          onTap: () {
-            print('[PlayerScreen] Button tapped: $icon');
-            onTap();
-          },
-          customBorder: const CircleBorder(),
-          child: Container(
-            width: size,
-            height: size,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: transparent
-                  ? null
-                  : Border.all(color: Colors.white.withOpacity(0.1)),
-            ),
-            child: Icon(icon, color: Colors.white, size: iconSize),
+    // Simplified button with direct Material/InkWell
+    // Note: PointerInterceptor is handled by the parent container
+    return Material(
+      color: transparent ? Colors.transparent : Colors.white.withOpacity(0.1),
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: () {
+          print('[PlayerScreen] Button tapped: $icon');
+          onTap();
+        },
+        customBorder: const CircleBorder(),
+        child: Container(
+          width: size,
+          height: size,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: transparent
+                ? null
+                : Border.all(color: Colors.white.withOpacity(0.1)),
           ),
+          child: Icon(icon, color: Colors.white, size: iconSize),
         ),
       ),
     );
