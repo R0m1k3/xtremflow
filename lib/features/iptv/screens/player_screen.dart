@@ -373,33 +373,58 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   ),
                 ),
 
-                // Channel Zapping Controls
-                if (widget.channels != null && widget.channels!.length > 1)
+                // Bottom Controls for Live TV (Channel Zapping + Play/Pause)
+                if (_showControls)
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 200),
-                    bottom: 160,
-                    right: _showControls ? 24 : -100,
+                    bottom: 40,
+                    left: 0,
+                    right: 0,
                     child: PointerInterceptor(
-                      child: GlassContainer(
-                        width: 60,
-                        borderRadius: 30,
-                        opacity: 0.15,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildGlassIconButton(
-                              icon: Icons.keyboard_arrow_up_rounded,
-                              onTap: _previousChannel,
-                              transparent: true,
-                            ),
-                            const SizedBox(height: 8),
-                            _buildGlassIconButton(
-                              icon: Icons.keyboard_arrow_down_rounded,
-                              onTap: _nextChannel,
-                              transparent: true,
-                            ),
-                          ],
+                      child: Center(
+                        child: GlassContainer(
+                          borderRadius: 30,
+                          opacity: 0.15,
+                          border: true,
+                          borderColor: Colors.white.withOpacity(0.1),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Previous Channel
+                              if (widget.channels != null &&
+                                  widget.channels!.length > 1) ...[
+                                _buildGlassIconButton(
+                                  icon: Icons.skip_previous_rounded,
+                                  onTap: _previousChannel,
+                                  transparent: true,
+                                ),
+                                const SizedBox(width: 24),
+                              ],
+
+                              // Play/Pause
+                              _buildGlassIconButton(
+                                icon: _isPlaying
+                                    ? Icons.pause_rounded
+                                    : Icons.play_arrow_rounded,
+                                onTap: _togglePlayPause,
+                                size: 56,
+                                iconSize: 32,
+                              ),
+
+                              // Next Channel
+                              if (widget.channels != null &&
+                                  widget.channels!.length > 1) ...[
+                                const SizedBox(width: 24),
+                                _buildGlassIconButton(
+                                  icon: Icons.skip_next_rounded,
+                                  onTap: _nextChannel,
+                                  transparent: true,
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
