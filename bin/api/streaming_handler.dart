@@ -136,9 +136,9 @@ Handler createLiveStreamHandler(
       '-reconnect_streamed', '1',
       '-reconnect_delay_max', '5',
       '-rw_timeout', '15000000',
-      '-fflags', '+nobuffer+fastseek', // Disable buffering for instant start
-      '-analyzeduration', '1000000', // 1s probe (was 5s)
-      '-probesize', '1000000', // 1MB probe (was 5MB)
+      '-fflags', '+nobuffer+fastseek+genpts', // Fast start + fix timestamps
+      '-analyzeduration', '3000000', // 3s probe (reliable detection)
+      '-probesize', '5000000', // 5MB probe (original - ensures audio)
 
       '-i', targetUrl,
 
