@@ -142,7 +142,10 @@ Handler createLiveStreamHandler(
 
       '-i', targetUrl,
 
-      '-c', 'copy', // Direct stream copy (Very low CPU)
+      '-c:v', 'copy', // Video: Direct copy (Very low CPU)
+      '-c:a', 'aac', // Audio: Transcode to AAC (browser compatible)
+      '-b:a', '192k', // Good audio quality
+      '-ac', '2', // Stereo downmix (handles 5.1 surround)
       '-f', 'mpegts',
       'pipe:1', // Output to stdout
     ];
