@@ -157,14 +157,14 @@ Handler createLiveStreamHandler(
     final ffmpegArgs = <String>[
       '-hide_banner',
       '-loglevel',
-      'error',
+      'warning', // Changed from error to see more info
     ];
 
     // NVIDIA GPU Hardware Acceleration (NVDEC for decoding)
     if (useNvidiaGpu) {
       ffmpegArgs.addAll([
         '-hwaccel', 'cuda', // Use NVIDIA CUDA for decoding
-        '-hwaccel_output_format', 'cuda', // Keep frames on GPU
+        // Note: Don't use hwaccel_output_format cuda - it can cause issues with some codecs
       ]);
     }
 
@@ -179,15 +179,17 @@ Handler createLiveStreamHandler(
       '-reconnect_streamed',
       '1',
       '-reconnect_delay_max',
-      '5',
+      '10', // Increased from 5
       '-rw_timeout',
-      '15000000',
+      '30000000', // Increased from 15s to 30s
+      '-timeout',
+      '30000000', // Add explicit timeout
       '-fflags',
-      '+nobuffer+fastseek+genpts',
+      '+nobuffer+genpts+discardcorrupt', // Added discardcorrupt for robustness
       '-analyzeduration',
-      '3000000',
+      '5000000', // Increased for GPU decode
       '-probesize',
-      '5000000',
+      '10000000', // Increased for GPU decode
       '-i',
       targetUrl,
     ]);
@@ -198,15 +200,18 @@ Handler createLiveStreamHandler(
       print('[Live] Transcoding video with h264_nvenc (GPU)');
       ffmpegArgs.addAll([
         '-c:v', 'h264_nvenc', // Use NVIDIA NVENC encoder
-        '-preset', 'p4', // Good quality/speed balance (p1=fastest, p7=best)
+        '-preset', 'p1', // Fastest preset for live (p1=fastest)
         '-tune', 'll', // Low latency tuning for live streams
-        '-rc', 'vbr', // Variable bitrate
-        '-cq', '23', // Quality level (similar to CRF)
-        '-maxrate', '6000k', // Max bitrate for live
-        '-bufsize', '12000k', // Buffer size
+        '-rc', 'cbr', // Constant bitrate for stable streaming
+        '-b:v', '4000k', // Fixed video bitrate
+        '-maxrate', '4500k', // Max bitrate
+        '-bufsize', '8000k', // Buffer size (2x bitrate)
+        '-g', '50', // Keyframe interval (every 2 seconds at 25fps)
+        '-bf', '0', // No B-frames for lower latency
         '-c:a', 'aac', // Audio to AAC (browser compatible)
-        '-b:a', '192k',
+        '-b:a', '128k', // Audio bitrate
         '-ac', '2',
+        '-ar', '44100', // Audio sample rate
       ]);
     } else {
       // Without GPU: Standard CPU processing (copy video)

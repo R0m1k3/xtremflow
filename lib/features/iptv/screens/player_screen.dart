@@ -424,7 +424,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           // Bottom Controls - styled like EPG
                           AnimatedPositioned(
                             duration: const Duration(milliseconds: 200),
-                            bottom: _showControls ? 100 : -100,
+                            bottom: _showControls ? 16 : -100,
                             left: 24,
                             right: 24,
                             child: Center(
@@ -493,7 +493,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             if (widget.streamType == StreamType.live)
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 200),
-                bottom: _showControls ? 16 : -140,
+                bottom: _showControls ? 100 : -140,
                 left: 24,
                 right: 24,
                 child: PointerInterceptor(
