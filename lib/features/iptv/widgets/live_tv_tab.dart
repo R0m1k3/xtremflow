@@ -261,8 +261,8 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
     final columns = ResponsiveLayout.value(
       context,
       mobile: 2,
-      tablet: 3,
-      desktop: 4,
+      tablet: 4,
+      desktop: 6,
     );
 
     return GridView.builder(
@@ -353,8 +353,8 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
     final columns = ResponsiveLayout.value(
       context,
       mobile: 2,
-      tablet: 4,
-      desktop: 5,
+      tablet: 5,
+      desktop: 8,
     );
 
     return GridView.builder(
