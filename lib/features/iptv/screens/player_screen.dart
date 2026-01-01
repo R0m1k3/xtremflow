@@ -348,57 +348,59 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   top: _showControls ? 24 : -100,
                   left: 24,
                   right: 24,
-                  child: GlassContainer(
-                    height: 72,
-                    borderRadius: 24,
-                    opacity: 0.15,
-                    border: true,
-                    borderColor: Colors.white.withOpacity(0.1),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        _buildGlassIconButton(
-                          icon: Icons.arrow_back_rounded,
-                          onTap: () => Navigator.pop(context),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.channels != null
-                                    ? widget.channels![_currentIndex].name
-                                    : widget.title,
-                                style: GoogleFonts.outfit(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              if (widget.channels != null)
-                                Text(
-                                  'Live TV',
-                                  style: GoogleFonts.inter(
-                                    color: AppColors.primary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.0,
-                                  ),
-                                ),
-                            ],
+                  child: PointerInterceptor(
+                    child: GlassContainer(
+                      height: 72,
+                      borderRadius: 24,
+                      opacity: 0.15,
+                      border: true,
+                      borderColor: Colors.white.withOpacity(0.1),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          _buildGlassIconButton(
+                            icon: Icons.arrow_back_rounded,
+                            onTap: () => Navigator.pop(context),
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        _buildGlassIconButton(
-                          icon: _isMuted
-                              ? Icons.volume_off_rounded
-                              : Icons.volume_up_rounded,
-                          onTap: _toggleMute,
-                        ),
-                      ],
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.channels != null
+                                      ? widget.channels![_currentIndex].name
+                                      : widget.title,
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (widget.channels != null)
+                                  Text(
+                                    'Live TV',
+                                    style: GoogleFonts.inter(
+                                      color: AppColors.primary,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.0,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          _buildGlassIconButton(
+                            icon: _isMuted
+                                ? Icons.volume_off_rounded
+                                : Icons.volume_up_rounded,
+                            onTap: _toggleMute,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -410,49 +412,51 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                     bottom: 40,
                     left: 0,
                     right: 0,
-                    child: Center(
-                      child: GlassContainer(
-                        borderRadius: 30,
-                        opacity: 0.15,
-                        border: true,
-                        borderColor: Colors.white.withOpacity(0.1),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 12),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Previous Channel
-                            if (widget.channels != null &&
-                                widget.channels!.length > 1) ...[
-                              _buildGlassIconButton(
-                                icon: Icons.skip_previous_rounded,
-                                onTap: _previousChannel,
-                                transparent: true,
-                              ),
-                              const SizedBox(width: 24),
-                            ],
+                    child: PointerInterceptor(
+                      child: Center(
+                        child: GlassContainer(
+                          borderRadius: 30,
+                          opacity: 0.15,
+                          border: true,
+                          borderColor: Colors.white.withOpacity(0.1),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Previous Channel
+                              if (widget.channels != null &&
+                                  widget.channels!.length > 1) ...[
+                                _buildGlassIconButton(
+                                  icon: Icons.skip_previous_rounded,
+                                  onTap: _previousChannel,
+                                  transparent: true,
+                                ),
+                                const SizedBox(width: 24),
+                              ],
 
-                            // Play/Pause
-                            _buildGlassIconButton(
-                              icon: _isPlaying
-                                  ? Icons.pause_rounded
-                                  : Icons.play_arrow_rounded,
-                              onTap: _togglePlayPause,
-                              size: 56,
-                              iconSize: 32,
-                            ),
-
-                            // Next Channel
-                            if (widget.channels != null &&
-                                widget.channels!.length > 1) ...[
-                              const SizedBox(width: 24),
+                              // Play/Pause
                               _buildGlassIconButton(
-                                icon: Icons.skip_next_rounded,
-                                onTap: _nextChannel,
-                                transparent: true,
+                                icon: _isPlaying
+                                    ? Icons.pause_rounded
+                                    : Icons.play_arrow_rounded,
+                                onTap: _togglePlayPause,
+                                size: 56,
+                                iconSize: 32,
                               ),
+
+                              // Next Channel
+                              if (widget.channels != null &&
+                                  widget.channels!.length > 1) ...[
+                                const SizedBox(width: 24),
+                                _buildGlassIconButton(
+                                  icon: Icons.skip_next_rounded,
+                                  onTap: _nextChannel,
+                                  transparent: true,
+                                ),
+                              ],
                             ],
-                          ],
+                          ),
                         ),
                       ),
                     ),
@@ -724,31 +728,27 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     double size = 48,
     double iconSize = 24,
   }) {
-    // Simplified button with direct Material/InkWell and PointerInterceptor
-    // Simplified button with direct Material/InkWell and PointerInterceptor
-    // We wrap the specific button to ensure it catches events over the iframe
-    return PointerInterceptor(
-      child: Material(
-        color: transparent ? Colors.transparent : Colors.white.withOpacity(0.1),
-        shape: const CircleBorder(),
-        child: InkWell(
-          onTap: () {
-            print('[PlayerScreen] Button tapped: $icon');
-            onTap();
-          },
-          customBorder: const CircleBorder(),
-          child: Container(
-            width: size,
-            height: size,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: transparent
-                  ? null
-                  : Border.all(color: Colors.white.withOpacity(0.1)),
-            ),
-            child: Icon(icon, color: Colors.white, size: iconSize),
+    // Button with direct Material/InkWell - PointerInterceptor is on outer container
+    return Material(
+      color: transparent ? Colors.transparent : Colors.white.withOpacity(0.1),
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: () {
+          print('[PlayerScreen] Button tapped: $icon');
+          onTap();
+        },
+        customBorder: const CircleBorder(),
+        child: Container(
+          width: size,
+          height: size,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: transparent
+                ? null
+                : Border.all(color: Colors.white.withOpacity(0.1)),
           ),
+          child: Icon(icon, color: Colors.white, size: iconSize),
         ),
       ),
     );
