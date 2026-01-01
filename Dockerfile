@@ -48,8 +48,18 @@ FROM dart:stable
 
 WORKDIR /app
 
-# Install SQLite3 library for FFI and FFmpeg for IPTV stream transcoding
-RUN apt-get update && apt-get install -y sqlite3 libsqlite3-dev ffmpeg && rm -rf /var/lib/apt/lists/*
+# Install SQLite3 library for FFI
+RUN apt-get update && apt-get install -y sqlite3 libsqlite3-dev wget xz-utils && rm -rf /var/lib/apt/lists/*
+
+# Install FFmpeg with NVIDIA NVENC support from BtbN static builds
+# This version includes hardware acceleration (NVENC/NVDEC/CUDA)
+# Falls back gracefully to CPU if GPU not available
+RUN wget -q https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz \
+    && tar xf ffmpeg-master-latest-linux64-gpl.tar.xz \
+    && mv ffmpeg-master-latest-linux64-gpl/bin/ffmpeg /usr/local/bin/ \
+    && mv ffmpeg-master-latest-linux64-gpl/bin/ffprobe /usr/local/bin/ \
+    && rm -rf ffmpeg-master-latest-linux64-gpl* \
+    && chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe
 
 # Create directory for HLS stream output
 RUN mkdir -p /tmp/streams && chmod 777 /tmp/streams
