@@ -382,16 +382,24 @@ class AppDatabase {
         'SELECT settings_json FROM user_settings ORDER BY updated_at DESC LIMIT 1',
       );
 
-      if (result.isEmpty) return false;
+      if (result.isEmpty) {
+        print('[GPU] No user settings found in database');
+        return false;
+      }
 
       final settingsJson = result.first['settings_json'] as String;
-      // Parse JSON to check the setting
-      // Settings key: enable_nvidia_gpu
-      if (settingsJson.contains('"enable_nvidia_gpu":true')) {
-        return true;
-      }
+      print('[GPU] Settings found: $settingsJson');
+
+      // Parse JSON properly to check the setting
+      // Handle both "enable_nvidia_gpu":true and "enable_nvidia_gpu": true
+      final RegExp gpuRegex =
+          RegExp(r'"enable_nvidia_gpu"\s*:\s*true', caseSensitive: false);
+      final isEnabled = gpuRegex.hasMatch(settingsJson);
+
+      print('[GPU] NVIDIA GPU enabled: $isEnabled');
+      return isEnabled;
     } catch (e) {
-      print('[Database] Error checking GPU setting: $e');
+      print('[GPU] Error checking GPU setting: $e');
     }
     return false;
   }
