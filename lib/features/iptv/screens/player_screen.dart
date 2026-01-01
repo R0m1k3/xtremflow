@@ -253,10 +253,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   void _togglePlayPause() {
+    // Optimistic update to make UI responsive immediately
+    setState(() => _isPlaying = !_isPlaying);
+
     if (_isPlaying) {
-      _sendMessage({'type': 'pause'});
-    } else {
       _sendMessage({'type': 'play'});
+    } else {
+      _sendMessage({'type': 'pause'});
     }
   }
 
