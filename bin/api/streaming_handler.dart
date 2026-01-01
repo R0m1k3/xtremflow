@@ -372,16 +372,14 @@ Handler createVodStreamHandler(
       final ffmpegArgs = <String>[
         '-hide_banner',
         '-loglevel',
-        'error',
+        'warning',
       ];
 
       // NVIDIA GPU Hardware Acceleration
       if (useNvidiaGpu) {
         ffmpegArgs.addAll([
-          '-hwaccel',
-          'cuda',
-          '-hwaccel_output_format',
-          'cuda',
+          '-hwaccel', 'cuda',
+          // Note: Don't use hwaccel_output_format cuda - it can cause issues
         ]);
       }
 
@@ -396,13 +394,15 @@ Handler createVodStreamHandler(
         '-reconnect_streamed',
         '1',
         '-reconnect_delay_max',
-        '5',
+        '10',
         '-rw_timeout',
-        '15000000',
+        '30000000',
+        '-timeout',
+        '30000000',
         '-analyzeduration',
-        '2000000',
+        '5000000',
         '-probesize',
-        '2000000',
+        '10000000',
         '-i',
         targetUrl,
       ]);
@@ -412,12 +412,14 @@ Handler createVodStreamHandler(
         // NVIDIA NVENC - Hardware encoding (50x+ faster, much lower CPU)
         ffmpegArgs.addAll([
           '-c:v', 'h264_nvenc', // Use NVIDIA NVENC encoder
-          '-preset', 'p4', // Good quality/speed balance (p1=fastest, p7=best)
+          '-preset', 'p4', // Good quality/speed balance
           '-tune', 'hq', // High quality mode
-          '-rc', 'vbr', // Variable bitrate
-          '-cq', '23', // Quality level (similar to CRF)
-          '-maxrate', '4000k',
+          '-rc', 'cbr', // Constant bitrate for HLS
+          '-b:v', '4000k', // Target bitrate
+          '-maxrate', '4500k',
           '-bufsize', '8000k',
+          '-g', '48', // Keyframe every 2 seconds
+          '-bf', '2', // B-frames for quality
           '-pix_fmt', 'yuv420p',
         ]);
       } else {
