@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/responsive_layout.dart';
-import '../../../core/widgets/components/hero_carousel.dart';
+import '../../../core/widgets/hero_carousel.dart';
 import '../../../core/widgets/glass_container.dart';
 import '../../../core/widgets/tv_focusable_card.dart';
 import '../providers/watch_history_provider.dart';
@@ -305,22 +305,18 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                   items: displayMovies
                       .take(5)
                       .map(
-                        (m) => HeroItem(
+                        (m) => HeroCarouselItem(
                           id: m.streamId,
                           title: m.name,
                           imageUrl: _getProxiedImageUrl(m.streamIcon),
                           subtitle: m.rating != null
                               ? '${_formatRating(m.rating)} ★'
                               : null,
-                          onMoreInfo: () => _playMovie(m),
+                          onPlay: () => _playMovie(m),
+                          onTap: () => _playMovie(m),
                         ),
                       )
                       .toList(),
-                  onTap: (item) {
-                    final movie = _movies
-                        .firstWhere((element) => element.streamId == item.id);
-                    _playMovie(movie);
-                  },
                 ),
               ),
             ),

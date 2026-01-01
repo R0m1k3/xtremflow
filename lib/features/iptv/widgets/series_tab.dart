@@ -6,7 +6,7 @@ import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/responsive_layout.dart';
-import '../../../core/widgets/components/hero_carousel.dart';
+import '../../../core/widgets/hero_carousel.dart';
 import '../../../core/widgets/themed_loading_screen.dart';
 import '../../../core/widgets/glass_container.dart';
 import '../../../core/widgets/tv_focusable_card.dart';
@@ -283,14 +283,23 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                   items: displaySeries
                       .take(5)
                       .map(
-                        (s) => HeroItem(
+                        (s) => HeroCarouselItem(
                           id: s.seriesId.toString(),
                           title: s.name,
                           imageUrl: _getProxiedImageUrl(s.cover),
                           subtitle: s.rating != null
                               ? '${_formatRating(s.rating)} ★'
                               : null,
-                          onMoreInfo: () {
+                          onPlay: () {
+                            final series = _series.firstWhere(
+                              (element) =>
+                                  element.seriesId.toString() ==
+                                  s.seriesId.toString(),
+                              orElse: () => s,
+                            );
+                            _openSeries(series);
+                          },
+                          onTap: () {
                             final series = _series.firstWhere(
                               (element) =>
                                   element.seriesId.toString() ==
@@ -302,13 +311,6 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                         ),
                       )
                       .toList(),
-                  onTap: (item) {
-                    final series = _series.firstWhere(
-                      (element) => element.seriesId.toString() == item.id,
-                      orElse: () => _series[0],
-                    );
-                    _openSeries(series);
-                  },
                 ),
               ),
             ),

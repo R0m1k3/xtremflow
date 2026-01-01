@@ -289,15 +289,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Use stream type to determine player UI:
-    // - Live TV: Lite player UI (minimal overlay)
-    // - VOD/Series: Standard player UI (full controls)
     final isLiveTV = widget.streamType == StreamType.live;
 
-    // LITE PLAYER MODE for Live TV: Simple iframe with native HTML5 controls, minimal Flutter overlay
+    // LITE PLAYER MODE for Live TV
     if (isLiveTV) {
       return Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.black, // Video background
         body: MouseRegion(
           onHover: (_) => _onHover(),
           child: GestureDetector(
@@ -311,130 +308,110 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                // Video Player (iframe with native controls)
                 if (_isInitialized) HtmlElementView(viewType: _viewId),
 
-                // Top Bar: Back Button + Title (with auto-hide)
+                // Top Bar
                 AnimatedPositioned(
                   duration: const Duration(milliseconds: 200),
-                  top: _showControls ? 24 : -80,
+                  top: _showControls ? 24 : -100,
                   left: 24,
                   right: 24,
                   child: PointerInterceptor(
-                    child: Row(
-                      children: [
-                        Material(
-                          color: Colors.black54,
-                          shape: const CircleBorder(),
-                          child: InkWell(
+                    child: GlassContainer(
+                      height: 72,
+                      borderRadius: 24,
+                      opacity: 0.15,
+                      border: true,
+                      borderColor: Colors.white.withOpacity(0.1),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          _buildGlassIconButton(
+                            icon: Icons.arrow_back_rounded,
                             onTap: () => Navigator.pop(context),
-                            customBorder: const CircleBorder(),
-                            child: const Padding(
-                              padding: EdgeInsets.all(12),
-                              child: Icon(
-                                Icons.arrow_back_rounded,
-                                color: Colors.white,
-                              ),
-                            ),
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Text(
-                            widget.channels != null
-                                ? widget.channels![_currentIndex].name
-                                : widget.title,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              shadows: [
-                                Shadow(blurRadius: 4, color: Colors.black),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.channels != null
+                                      ? widget.channels![_currentIndex].name
+                                      : widget.title,
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (widget.channels != null)
+                                  Text(
+                                    'Live TV',
+                                    style: GoogleFonts.inter(
+                                      color: AppColors.primary,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.0,
+                                    ),
+                                  ),
                               ],
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        // Mute button for Live TV
-                        Material(
-                          color: Colors.black54,
-                          shape: const CircleBorder(),
-                          child: InkWell(
+                          const SizedBox(width: 16),
+                          _buildGlassIconButton(
+                            icon: _isMuted
+                                ? Icons.volume_off_rounded
+                                : Icons.volume_up_rounded,
                             onTap: _toggleMute,
-                            customBorder: const CircleBorder(),
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Icon(
-                                _isMuted
-                                    ? Icons.volume_off_rounded
-                                    : Icons.volume_up_rounded,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Channel Zapping Controls (with auto-hide)
-                if (widget.channels != null && widget.channels!.length > 1)
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 200),
-                    bottom: 160,
-                    right: _showControls ? 24 : -80,
-                    child: PointerInterceptor(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Previous Channel
-                          Material(
-                            color: Colors.black54,
-                            shape: const CircleBorder(),
-                            child: InkWell(
-                              onTap: _previousChannel,
-                              customBorder: const CircleBorder(),
-                              child: const Padding(
-                                padding: EdgeInsets.all(14),
-                                child: Icon(
-                                  Icons.keyboard_arrow_up,
-                                  color: Colors.white,
-                                  size: 28,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          // Next Channel
-                          Material(
-                            color: Colors.black54,
-                            shape: const CircleBorder(),
-                            child: InkWell(
-                              onTap: _nextChannel,
-                              customBorder: const CircleBorder(),
-                              child: const Padding(
-                                padding: EdgeInsets.all(14),
-                                child: Icon(
-                                  Icons.keyboard_arrow_down,
-                                  color: Colors.white,
-                                  size: 28,
-                                ),
-                              ),
-                            ),
                           ),
                         ],
                       ),
                     ),
                   ),
+                ),
 
-                // EPG Overlay (for Live TV, with auto-hide, higher position)
+                // Channel Zapping Controls
+                if (widget.channels != null && widget.channels!.length > 1)
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 200),
+                    bottom: 160,
+                    right: _showControls ? 24 : -100,
+                    child: PointerInterceptor(
+                      child: GlassContainer(
+                        width: 60,
+                        borderRadius: 30,
+                        opacity: 0.15,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildGlassIconButton(
+                              icon: Icons.keyboard_arrow_up_rounded,
+                              onTap: _previousChannel,
+                              transparent: true,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildGlassIconButton(
+                              icon: Icons.keyboard_arrow_down_rounded,
+                              onTap: _nextChannel,
+                              transparent: true,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // EPG Overlay
                 if (widget.streamType == StreamType.live)
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 200),
-                    bottom: _showControls ? 60 : -120,
-                    left: 0,
-                    right: 0,
+                    bottom: _showControls ? 40 : -140,
+                    left: 24,
+                    right: 24,
                     child: PointerInterceptor(
                       child: EpgOverlay(
                         playlist: widget.playlist,
@@ -451,16 +428,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       );
     }
 
-    // STANDARD PLAYER MODE (Custom Flutter Overlay)
+    // STANDARD PLAYER MODE (VOD/Series)
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // 1. Video Player Layer
           if (_isInitialized) HtmlElementView(viewType: _viewId),
 
-          // 2. Interaction Layer
+          // User interaction area
           Positioned.fill(
             child: PointerInterceptor(
               child: MouseRegion(
@@ -470,7 +446,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                     if (_showControls) {
                       setState(() => _showControls = false);
                     } else {
-                      _onHover(); // Shows controls and starts timer
+                      _onHover();
                     }
                   },
                   behavior: HitTestBehavior.translucent,
@@ -480,257 +456,197 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             ),
           ),
 
-          // 3. UI Overlay (Glassmorphism)
+          // Controls Overlay
           if (_showControls || _isLoading)
             Positioned.fill(
               child: PointerInterceptor(
                 child: Container(
-                  color: Colors.black.withOpacity(0.3), // Dim background
+                  color: Colors.black.withOpacity(0.4),
                   child: Stack(
                     children: [
-                      // Top Bar (Back + Title)
+                      // Top Bar
                       Positioned(
                         top: 24,
                         left: 24,
                         right: 24,
-                        child: Row(
-                          children: [
-                            TvFocusableCard(
-                              onTap: () => Navigator.pop(context),
-                              borderRadius: 50,
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.1),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.arrow_back_rounded,
-                                  color: Colors.white,
-                                ),
+                        child: GlassContainer(
+                          height: 72,
+                          borderRadius: 24,
+                          opacity: 0.1,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            children: [
+                              _buildGlassIconButton(
+                                icon: Icons.arrow_back_rounded,
+                                onTap: () => Navigator.pop(context),
                               ),
-                            ),
-                            const SizedBox(width: 24),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  widget.channels != null
-                                      ? widget.channels![_currentIndex].name
-                                      : widget.title,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w700,
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  widget.title,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w600,
                                     color: Colors.white,
                                   ),
                                 ),
-                                if (widget.streamType == StreamType.live &&
-                                    widget.channels != null)
-                                  Text(
-                                    'Live TV',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      color: AppColors.live,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
 
-                      // Center Play/Pause (Animated)
+                      // Center Play/Pause
                       Center(
                         child: _isLoading
                             ? const CircularProgressIndicator(
-                                color: Colors.white,
-                              )
+                                color: AppColors.primary)
                             : TvFocusableCard(
                                 onTap: _togglePlayPause,
                                 borderRadius: 100,
                                 scaleFactor: 1.2,
+                                focusColor: AppColors.primary,
                                 child: Container(
                                   width: 80,
                                   height: 80,
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
+                                    gradient: AppColors.primaryGradient,
                                     shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: Colors.white.withOpacity(0.3),
-                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color:
+                                            AppColors.primary.withOpacity(0.5),
+                                        blurRadius: 30,
+                                        spreadRadius: 5,
+                                      ),
+                                    ],
                                   ),
                                   child: Icon(
                                     _isPlaying
                                         ? Icons.pause_rounded
                                         : Icons.play_arrow_rounded,
                                     color: Colors.white,
-                                    size: 48,
+                                    size: 40,
                                   ),
                                 ),
                               ),
                       ),
 
-                      // EPG Overlay
-                      if (widget.streamType == StreamType.live)
-                        Positioned(
-                          bottom: 140,
-                          left: 40,
-                          child: EpgOverlay(
-                            streamId: widget.channels != null
-                                ? widget.channels![_currentIndex].streamId
-                                : widget.streamId,
-                            playlist: widget.playlist,
-                          ),
-                        ),
-
-                      // Bottom Control Bar
+                      // Bottom Controls
                       Positioned(
                         bottom: 40,
                         left: 40,
                         right: 40,
                         child: GlassContainer(
                           borderRadius: 24,
-                          opacity: 0.8,
+                          opacity: 0.2, // Slightly more opaque for controls
+                          border: true,
+                          borderColor: Colors.white.withOpacity(0.1),
                           padding: const EdgeInsets.all(24),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              // Progress Bar (if not live)
-                              if (widget.streamType != StreamType.live)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 16),
-                                  child: Row(
-                                    children: [
-                                      Text(
-                                        _formatDuration(
-                                          Duration(
-                                            seconds: _currentPosition.toInt(),
-                                          ),
-                                        ),
-                                        style: const TextStyle(
-                                          color: Colors.white70,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: SliderTheme(
-                                          data: const SliderThemeData(
-                                            trackHeight: 4,
-                                            thumbShape: RoundSliderThumbShape(
-                                              enabledThumbRadius: 8,
-                                            ),
-                                            overlayShape:
-                                                RoundSliderOverlayShape(
-                                              overlayRadius: 16,
-                                            ),
-                                            activeTrackColor: AppColors.primary,
-                                            inactiveTrackColor: Colors.white24,
-                                            thumbColor: Colors.white,
-                                          ),
-                                          child: Slider(
-                                            value: _currentPosition,
-                                            min: 0,
-                                            max: _totalDuration,
-                                            onChangeStart: (value) {
-                                              setState(() => _isSeeking = true);
-                                            },
-                                            onChanged: (value) {
-                                              // Update UI immediately (optimistic update)
-                                              setState(
-                                                () => _currentPosition = value,
-                                              );
-                                            },
-                                            onChangeEnd: (value) {
-                                              _sendMessage({
-                                                'type': 'seek',
-                                                'value': value,
-                                              });
-                                              // Small delay to prevent jitter from incoming messages
-                                              Future.delayed(
-                                                  const Duration(
-                                                    milliseconds: 500,
-                                                  ), () {
-                                                if (mounted) {
-                                                  setState(
-                                                    () => _isSeeking = false,
-                                                  );
-                                                }
-                                              });
-                                            },
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Text(
-                                        _formatDuration(
-                                          Duration(
-                                            seconds: _totalDuration.toInt(),
-                                          ),
-                                        ),
-                                        style: const TextStyle(
-                                          color: Colors.white70,
-                                        ),
-                                      ),
-                                    ],
+                              // Progress
+                              Row(
+                                children: [
+                                  Text(
+                                    _formatDuration(Duration(
+                                        seconds: _currentPosition.toInt())),
+                                    style: GoogleFonts.inter(
+                                        color: Colors.white70),
                                   ),
-                                ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: SliderTheme(
+                                      data: SliderThemeData(
+                                        trackHeight: 4,
+                                        activeTrackColor: AppColors.primary,
+                                        inactiveTrackColor:
+                                            Colors.white.withOpacity(0.2),
+                                        thumbColor: Colors.white,
+                                        thumbShape: const RoundSliderThumbShape(
+                                            enabledThumbRadius: 8),
+                                        overlayColor:
+                                            AppColors.primary.withOpacity(0.2),
+                                      ),
+                                      child: Slider(
+                                        value: _currentPosition,
+                                        min: 0,
+                                        max: _totalDuration,
+                                        onChanged: (val) => setState(
+                                            () => _currentPosition = val),
+                                        onChangeStart: (_) =>
+                                            setState(() => _isSeeking = true),
+                                        onChangeEnd: (val) {
+                                          _sendMessage(
+                                              {'type': 'seek', 'value': val});
+                                          Future.delayed(
+                                              const Duration(milliseconds: 500),
+                                              () {
+                                            if (mounted)
+                                              setState(
+                                                  () => _isSeeking = false);
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Text(
+                                    _formatDuration(Duration(
+                                        seconds: _totalDuration.toInt())),
+                                    style: GoogleFonts.inter(
+                                        color: Colors.white70),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
 
-                              // Controls Row
+                              // Buttons
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  // Channel Zapping for Live TV
-                                  if (widget.streamType == StreamType.live &&
-                                      widget.channels != null) ...[
-                                    _buildTvControl(
-                                      Icons.navigate_before_rounded,
-                                      _previousChannel,
-                                    ),
-                                    const SizedBox(width: 32),
-                                    _buildTvControl(
-                                      Icons.navigate_next_rounded,
-                                      _nextChannel,
-                                    ),
-                                  ],
-
-                                  // Controls for VOD (Keep Skip buttons, they act as Prev/Next track if playlist or maybe seek)
-                                  // The user said: "only for live tv, other buttons skip/prev must allow changing channel"
-                                  // This implies for VOD they might want seek? But existing buttons were skip_previous/skip_next.
-                                  // We keep them for VOD if channels list is present, or just hide them if not needed.
-                                  // For now, I will restore them for VOD as well if channels > 0 (playlist mode)
-                                  if (widget.streamType != StreamType.live &&
-                                      widget.channels != null &&
-                                      widget.channels!.isNotEmpty) ...[
-                                    _buildTvControl(
-                                      Icons.skip_previous_rounded,
-                                      _previousChannel,
-                                    ),
-                                    const SizedBox(width: 32),
-                                    _buildTvControl(
-                                      Icons.skip_next_rounded,
-                                      _nextChannel,
-                                    ),
-                                  ],
-
+                                  _buildGlassIconButton(
+                                    icon: Icons.replay_10_rounded,
+                                    onTap: () => _sendMessage({
+                                      'type': 'seek',
+                                      'value': (_currentPosition - 10)
+                                          .clamp(0, _totalDuration)
+                                    }),
+                                    transparent: true,
+                                  ),
+                                  const SizedBox(width: 24),
+                                  _buildGlassIconButton(
+                                    icon: _isPlaying
+                                        ? Icons.pause_rounded
+                                        : Icons.play_arrow_rounded,
+                                    onTap: _togglePlayPause,
+                                    size: 56,
+                                    iconSize: 32,
+                                  ),
+                                  const SizedBox(width: 24),
+                                  _buildGlassIconButton(
+                                    icon: Icons.forward_10_rounded,
+                                    onTap: () => _sendMessage({
+                                      'type': 'seek',
+                                      'value': (_currentPosition + 10)
+                                          .clamp(0, _totalDuration)
+                                    }),
+                                    transparent: true,
+                                  ),
                                   const Spacer(),
-                                  // Volume/Mute button
-                                  _buildTvControl(
-                                    _isMuted
+                                  _buildGlassIconButton(
+                                    icon: _isMuted
                                         ? Icons.volume_off_rounded
                                         : Icons.volume_up_rounded,
-                                    _toggleMute,
+                                    onTap: _toggleMute,
+                                    transparent: true,
                                   ),
                                   const SizedBox(width: 16),
-                                  _buildTvControl(
-                                    Icons.subtitles_rounded,
-                                    () {},
-                                  ),
-                                  const SizedBox(width: 16),
-                                  _buildTvControl(
-                                    Icons.aspect_ratio_rounded,
-                                    _toggleFullscreen,
+                                  _buildGlassIconButton(
+                                    icon: Icons.aspect_ratio_rounded,
+                                    onTap: _toggleFullscreen,
+                                    transparent: true,
                                   ),
                                 ],
                               ),
@@ -748,17 +664,29 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     );
   }
 
-  Widget _buildTvControl(IconData icon, VoidCallback onTap) {
+  Widget _buildGlassIconButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    bool transparent = false,
+    double size = 48,
+    double iconSize = 24,
+  }) {
     return TvFocusableCard(
       onTap: onTap,
-      borderRadius: 12,
+      borderRadius: size / 2,
+      scaleFactor: 1.1,
       child: Container(
-        padding: const EdgeInsets.all(12),
+        width: size,
+        height: size,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
+          color:
+              transparent ? Colors.transparent : Colors.white.withOpacity(0.1),
+          shape: BoxShape.circle,
+          border: transparent
+              ? null
+              : Border.all(color: Colors.white.withOpacity(0.1)),
         ),
-        child: Icon(icon, color: Colors.white, size: 24),
+        child: Icon(icon, color: Colors.white, size: iconSize),
       ),
     );
   }

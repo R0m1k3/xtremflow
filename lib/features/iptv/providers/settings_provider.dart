@@ -1,46 +1,47 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/settings_api_service.dart';
 import '../../auth/providers/auth_provider.dart';
 
 /// Streaming quality presets for Live TV
 enum StreamQuality {
-  low,    // 1.5 Mbps, CRF 26
+  low, // 1.5 Mbps, CRF 26
   medium, // 3 Mbps, CRF 23
-  high,   // 5 Mbps, CRF 20
+  high, // 5 Mbps, CRF 20
 }
 
 /// Buffer size presets for Live TV
 enum BufferSize {
-  low,    // 2s segments, 4MB buffer
+  low, // 2s segments, 4MB buffer
   medium, // 4s segments, 8MB buffer
-  high,   // 6s segments, 12MB buffer
+  high, // 6s segments, 12MB buffer
 }
 
 /// Connection timeout presets
 enum ConnectionTimeout {
-  short,  // 15 seconds
+  short, // 15 seconds
   medium, // 30 seconds
-  long,   // 60 seconds
+  long, // 60 seconds
 }
 
 /// EPG cache duration presets
 enum EpgCacheDuration {
-  short,  // 5 minutes
+  short, // 5 minutes
   medium, // 15 minutes
-  long,   // 60 minutes
+  long, // 60 minutes
 }
 
 /// Transcoding mode for Live TV
 enum TranscodingMode {
-  auto,     // Auto-detect best mode
-  forced,   // Always transcode
+  auto, // Auto-detect best mode
+  forced, // Always transcode
   disabled, // Direct stream (no transcoding)
 }
 
 /// Player Type Preference
 enum PlayerType {
   standard, // Heavily customized HTML5 player (default)
-  lite,     // Lightweight native/video_player based
+  lite, // Lightweight native/video_player based
 }
 
 /// Keys for API JSON storage
@@ -49,7 +50,7 @@ class _SettingsKeys {
   static const String liveTvFilter = 'filter_live_tv';
   static const String moviesFilter = 'filter_movies';
   static const String seriesFilter = 'filter_series';
-  
+
   // Streaming settings
   static const String streamQuality = 'stream_quality';
   static const String bufferSize = 'buffer_size';
@@ -79,12 +80,11 @@ class IptvSettings {
   final EpgCacheDuration epgCacheDuration;
   final TranscodingMode transcodingMode;
   final bool preferDirectPlay;
-  
+
   // Player Display Settings
   final bool showClock;
   final String preferredAspectRatio;
   final PlayerType playerType;
-  
 
   const IptvSettings({
     // Filters
@@ -142,63 +142,84 @@ class IptvSettings {
   /// Get bitrate in kbps based on quality setting
   int get bitrateKbps {
     switch (streamQuality) {
-      case StreamQuality.low: return 1500;
-      case StreamQuality.medium: return 3000;
-      case StreamQuality.high: return 5000;
+      case StreamQuality.low:
+        return 1500;
+      case StreamQuality.medium:
+        return 3000;
+      case StreamQuality.high:
+        return 5000;
     }
   }
 
   /// Get CRF value based on quality setting
   int get crfValue {
     switch (streamQuality) {
-      case StreamQuality.low: return 26;
-      case StreamQuality.medium: return 23;
-      case StreamQuality.high: return 20;
+      case StreamQuality.low:
+        return 26;
+      case StreamQuality.medium:
+        return 23;
+      case StreamQuality.high:
+        return 20;
     }
   }
 
   /// Get HLS segment duration in seconds
   int get hlsSegmentDuration {
     switch (bufferSize) {
-      case BufferSize.low: return 2;
-      case BufferSize.medium: return 4;
-      case BufferSize.high: return 6;
+      case BufferSize.low:
+        return 2;
+      case BufferSize.medium:
+        return 4;
+      case BufferSize.high:
+        return 6;
     }
   }
 
   /// Get buffer size in KB
   int get bufferSizeKb {
     switch (bufferSize) {
-      case BufferSize.low: return 4000;
-      case BufferSize.medium: return 8000;
-      case BufferSize.high: return 12000;
+      case BufferSize.low:
+        return 4000;
+      case BufferSize.medium:
+        return 8000;
+      case BufferSize.high:
+        return 12000;
     }
   }
 
   /// Get connection timeout in seconds
   int get timeoutSeconds {
     switch (connectionTimeout) {
-      case ConnectionTimeout.short: return 15;
-      case ConnectionTimeout.medium: return 30;
-      case ConnectionTimeout.long: return 60;
+      case ConnectionTimeout.short:
+        return 15;
+      case ConnectionTimeout.medium:
+        return 30;
+      case ConnectionTimeout.long:
+        return 60;
     }
   }
 
   /// Get EPG cache duration in minutes
   int get epgCacheMinutes {
     switch (epgCacheDuration) {
-      case EpgCacheDuration.short: return 5;
-      case EpgCacheDuration.medium: return 15;
-      case EpgCacheDuration.long: return 60;
+      case EpgCacheDuration.short:
+        return 5;
+      case EpgCacheDuration.medium:
+        return 15;
+      case EpgCacheDuration.long:
+        return 60;
     }
   }
 
   /// Get transcoding mode string for FFmpeg URL parameter
   String get modeString {
     switch (transcodingMode) {
-      case TranscodingMode.disabled: return 'direct';  // Passthrough, 0% CPU
-      case TranscodingMode.forced: return 'transcode';
-      case TranscodingMode.auto: return 'auto';
+      case TranscodingMode.disabled:
+        return 'direct'; // Passthrough, 0% CPU
+      case TranscodingMode.forced:
+        return 'transcode';
+      case TranscodingMode.auto:
+        return 'auto';
     }
   }
 
@@ -282,29 +303,51 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
           liveTvCategoryFilter: getValue<String>(_SettingsKeys.liveTvFilter),
           moviesCategoryFilter: getValue<String>(_SettingsKeys.moviesFilter),
           seriesCategoryFilter: getValue<String>(_SettingsKeys.seriesFilter),
-          
-          streamQuality: remoteSettings[_SettingsKeys.streamQuality] != null 
-              ? StreamQuality.values[remoteSettings[_SettingsKeys.streamQuality] as int] : null,
+          streamQuality: remoteSettings[_SettingsKeys.streamQuality] != null
+              ? StreamQuality
+                  .values[remoteSettings[_SettingsKeys.streamQuality] as int]
+              : null,
           bufferSize: remoteSettings[_SettingsKeys.bufferSize] != null
-              ? BufferSize.values[remoteSettings[_SettingsKeys.bufferSize] as int] : null,
-          connectionTimeout: remoteSettings[_SettingsKeys.connectionTimeout] != null
-              ? ConnectionTimeout.values[remoteSettings[_SettingsKeys.connectionTimeout] as int] : null,
+              ? BufferSize
+                  .values[remoteSettings[_SettingsKeys.bufferSize] as int]
+              : null,
+          connectionTimeout:
+              remoteSettings[_SettingsKeys.connectionTimeout] != null
+                  ? ConnectionTimeout.values[
+                      remoteSettings[_SettingsKeys.connectionTimeout] as int]
+                  : null,
           autoReconnect: getValue<bool>(_SettingsKeys.autoReconnect),
-          epgCacheDuration: remoteSettings[_SettingsKeys.epgCacheDuration] != null
-              ? EpgCacheDuration.values[remoteSettings[_SettingsKeys.epgCacheDuration] as int] : null,
+          epgCacheDuration: remoteSettings[_SettingsKeys.epgCacheDuration] !=
+                  null
+              ? EpgCacheDuration
+                  .values[remoteSettings[_SettingsKeys.epgCacheDuration] as int]
+              : null,
           transcodingMode: remoteSettings[_SettingsKeys.transcodingMode] != null
-              ? TranscodingMode.values[remoteSettings[_SettingsKeys.transcodingMode] as int] : null,
+              ? TranscodingMode
+                  .values[remoteSettings[_SettingsKeys.transcodingMode] as int]
+              : null,
           preferDirectPlay: getValue<bool>(_SettingsKeys.preferDirectPlay),
           showClock: getValue<bool>(_SettingsKeys.showClock),
-          preferredAspectRatio: getValue<String>(_SettingsKeys.preferredAspectRatio),
+          preferredAspectRatio:
+              getValue<String>(_SettingsKeys.preferredAspectRatio),
           playerType: remoteSettings[_SettingsKeys.playerType] != null
-              ? PlayerType.values[remoteSettings[_SettingsKeys.playerType] as int] : null,
+              ? PlayerType
+                  .values[remoteSettings[_SettingsKeys.playerType] as int]
+              : null,
         );
       }
       _initialized = true;
     } catch (e) {
-       print('Error syncing settings from API: $e');
+      print('Error syncing settings from API: $e');
     }
+  }
+
+  Timer? _saveDebounceTimer;
+
+  @override
+  void dispose() {
+    _saveDebounceTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _saveToApi() async {
@@ -314,27 +357,32 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
       return;
     }
 
-    // Create map from state
-    final settingsMap = {
-      _SettingsKeys.liveTvFilter: state.liveTvCategoryFilter,
-      _SettingsKeys.moviesFilter: state.moviesCategoryFilter,
-      _SettingsKeys.seriesFilter: state.seriesCategoryFilter,
-      _SettingsKeys.streamQuality: state.streamQuality.index,
-      _SettingsKeys.bufferSize: state.bufferSize.index,
-      _SettingsKeys.connectionTimeout: state.connectionTimeout.index,
-      _SettingsKeys.autoReconnect: state.autoReconnect,
-      _SettingsKeys.epgCacheDuration: state.epgCacheDuration.index,
-      _SettingsKeys.transcodingMode: state.transcodingMode.index,
-      _SettingsKeys.preferDirectPlay: state.preferDirectPlay,
-      _SettingsKeys.showClock: state.showClock,
-      _SettingsKeys.preferredAspectRatio: state.preferredAspectRatio,
-      _SettingsKeys.playerType: state.playerType.index,
-      _SettingsKeys.playerType: state.playerType.index,
-    };
+    // Cancel pending save
+    _saveDebounceTimer?.cancel();
 
-    print('[SettingsProvider] _saveToApi: Saving settings...');
-    final success = await _apiService.saveSettings(settingsMap);
-    print('[SettingsProvider] _saveToApi: Save result: $success');
+    // Debounce for 1 second to avoid rapid API calls
+    _saveDebounceTimer = Timer(const Duration(seconds: 1), () async {
+      // Create map from state
+      final settingsMap = {
+        _SettingsKeys.liveTvFilter: state.liveTvCategoryFilter,
+        _SettingsKeys.moviesFilter: state.moviesCategoryFilter,
+        _SettingsKeys.seriesFilter: state.seriesCategoryFilter,
+        _SettingsKeys.streamQuality: state.streamQuality.index,
+        _SettingsKeys.bufferSize: state.bufferSize.index,
+        _SettingsKeys.connectionTimeout: state.connectionTimeout.index,
+        _SettingsKeys.autoReconnect: state.autoReconnect,
+        _SettingsKeys.epgCacheDuration: state.epgCacheDuration.index,
+        _SettingsKeys.transcodingMode: state.transcodingMode.index,
+        _SettingsKeys.preferDirectPlay: state.preferDirectPlay,
+        _SettingsKeys.showClock: state.showClock,
+        _SettingsKeys.preferredAspectRatio: state.preferredAspectRatio,
+        _SettingsKeys.playerType: state.playerType.index,
+      };
+
+      print('[SettingsProvider] _saveToApi: Saving settings...');
+      final success = await _apiService.saveSettings(settingsMap);
+      print('[SettingsProvider] _saveToApi: Save result: $success');
+    });
   }
 
   // ===== Setters with Auto-Save =====
