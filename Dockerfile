@@ -44,34 +44,12 @@ RUN flutter build web --release --base-href="/" --no-wasm-dry-run --no-tree-shak
 # ============================================
 # Stage 2: Serve with custom Dart server (with API proxy)
 # ============================================
-# Use NVIDIA CUDA base image for GPU support
-FROM nvidia/cuda:12.2.0-runtime-ubuntu22.04
-
-# Install Dart SDK
-RUN apt-get update && apt-get install -y \
-    apt-transport-https \
-    wget \
-    gnupg \
-    && wget -qO- https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/dart.gpg \
-    && echo 'deb [signed-by=/usr/share/keyrings/dart.gpg arch=amd64] https://storage.googleapis.com/download.dartlang.org/linux/debian stable main' | tee /etc/apt/sources.list.d/dart_stable.list \
-    && apt-get update && apt-get install -y dart \
-    && rm -rf /var/lib/apt/lists/*
-
-ENV PATH="/usr/lib/dart/bin:$PATH"
+FROM dart:stable
 
 WORKDIR /app
 
-# Install SQLite3 library for FFI
-RUN apt-get update && apt-get install -y sqlite3 libsqlite3-dev && rm -rf /var/lib/apt/lists/*
-
-# Install FFmpeg with NVIDIA NVENC support (static build from johnvansickle.com)
-RUN apt-get update && apt-get install -y xz-utils \
-    && wget -q https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz \
-    && tar xf ffmpeg-release-amd64-static.tar.xz \
-    && mv ffmpeg-*-amd64-static/ffmpeg /usr/local/bin/ \
-    && mv ffmpeg-*-amd64-static/ffprobe /usr/local/bin/ \
-    && rm -rf ffmpeg-* \
-    && rm -rf /var/lib/apt/lists/*
+# Install SQLite3 library for FFI and FFmpeg for IPTV stream transcoding
+RUN apt-get update && apt-get install -y sqlite3 libsqlite3-dev ffmpeg && rm -rf /var/lib/apt/lists/*
 
 # Create directory for HLS stream output
 RUN mkdir -p /tmp/streams && chmod 777 /tmp/streams
