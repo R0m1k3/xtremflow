@@ -471,6 +471,25 @@
             }
         }
 
+        // Listen for messages from Flutter
+        window.addEventListener('message', (event) => {
+            const data = event.data;
+            if (!data) return;
+
+            if (data.type === 'play') {
+                video.play().catch(e => log('Play command failed: ' + e));
+            } else if (data.type === 'pause') {
+                video.pause();
+            } else if (data.type === 'set_volume') {
+                video.volume = Math.max(0, Math.min(1, parseFloat(data.value)));
+                video.muted = video.volume === 0;
+            } else if (data.type === 'seek') {
+                if (isFinite(video.duration)) {
+                    video.currentTime = parseFloat(data.value);
+                }
+            }
+        });
+
         // Start player
         initPlayer();
     </script>

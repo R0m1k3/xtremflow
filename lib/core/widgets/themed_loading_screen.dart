@@ -7,20 +7,33 @@ class ThemedLoading extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        gradient: RadialGradient(
-          center: Alignment(0, -0.2),
-          radius: 1.5,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
           colors: [
-            Color(0xFF2C2C2E),
-            Color(0xFF000000),
+            Color(0xFF0F1014), // Deep Space Dark
+            Color(0xFF181920), // Soft Eerie Black
           ],
-          stops: [0.0, 1.0],
         ),
       ),
-      child: const Center(
-        child: CircularProgressIndicator(
-          color: Colors.white,
-          strokeWidth: 3,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(
+              color: Color(0xFF007AFF), // Electric Blue (AppColors.primary)
+              strokeWidth: 3,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Loading...',
+              style: TextStyle(
+                fontFamily: 'Outfit', // Match AppTheme
+                color: Colors.white.withOpacity(0.7),
+                fontSize: 14,
+              ),
+            ),
+          ],
         ),
       ),
     );
