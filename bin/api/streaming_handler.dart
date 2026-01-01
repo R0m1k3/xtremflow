@@ -116,7 +116,8 @@ PlaylistConfig? _getCurrentPlaylist(Request request) {
 // ==========================================
 
 Handler createLiveStreamHandler(
-    Future<PlaylistConfig?> Function(Request) getPlaylist) {
+    Future<PlaylistConfig?> Function(Request) getPlaylist,
+    {bool Function()? isGpuEnabled}) {
   final router = Router();
 
   // Route: /api/live/{streamId} (Catch all pattern to debug)
@@ -144,11 +145,13 @@ Handler createLiveStreamHandler(
         '${playlist.dns}/live/${playlist.username}/${playlist.password}/$streamId.ts';
     print('[Live] Streaming via FFmpeg: $targetUrl');
 
-    // Log GPU status once
-    _logGpuStatus();
+    // Check if NVIDIA GPU is enabled (from database setting or env var fallback)
+    final useNvidiaGpu = isGpuEnabled?.call() ?? _isNvidiaGpuEnabled();
 
-    // Check if NVIDIA GPU is enabled
-    final useNvidiaGpu = _isNvidiaGpuEnabled();
+    // Log GPU status
+    if (useNvidiaGpu) {
+      print('[Live] Using NVIDIA GPU acceleration (NVDEC)');
+    }
 
     // Build FFmpeg arguments
     final ffmpegArgs = <String>[
@@ -268,7 +271,8 @@ Handler createLiveStreamHandler(
 final _lastLogTime = <String, int>{};
 
 Handler createVodStreamHandler(
-    Future<PlaylistConfig?> Function(Request) getPlaylist) {
+    Future<PlaylistConfig?> Function(Request) getPlaylist,
+    {bool Function()? isGpuEnabled}) {
   final router = Router();
 
   // Route: /api/vod/{streamId}/playlist.m3u8
@@ -345,9 +349,12 @@ Handler createVodStreamHandler(
           '${playlist.dns}/$basePath/${playlist.username}/${playlist.password}/$streamId.mkv';
       print('[VOD] Starting Transcode ($contentType): $targetUrl');
 
-      // Log GPU status and check if enabled
-      _logGpuStatus();
-      final useNvidiaGpu = _isNvidiaGpuEnabled();
+      // Check if NVIDIA GPU is enabled (from database setting or env var fallback)
+      final useNvidiaGpu = isGpuEnabled?.call() ?? _isNvidiaGpuEnabled();
+
+      if (useNvidiaGpu) {
+        print('[VOD] Using NVIDIA GPU acceleration (NVENC)');
+      }
 
       // Build FFmpeg arguments
       final ffmpegArgs = <String>[

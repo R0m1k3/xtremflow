@@ -172,8 +172,14 @@ void main(List<String> args) async {
 
   // Create Streaming Router (Mount handlers on correct paths)
   final streamingRouter = Router()
-    ..mount('/api/live', createLiveStreamHandler(getPlaylist))
-    ..mount('/api/vod', createVodStreamHandler(getPlaylist));
+    ..mount(
+        '/api/live',
+        createLiveStreamHandler(getPlaylist,
+            isGpuEnabled: db.isNvidiaGpuEnabled))
+    ..mount(
+        '/api/vod',
+        createVodStreamHandler(getPlaylist,
+            isGpuEnabled: db.isNvidiaGpuEnabled));
 
   // Main handler with API proxy and NEW Streaming Handlers
   final handler = Cascade()
