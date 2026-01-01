@@ -716,22 +716,30 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     double size = 48,
     double iconSize = 24,
   }) {
-    return TvFocusableCard(
-      onTap: onTap,
-      borderRadius: size / 2,
-      scaleFactor: 1.1,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color:
-              transparent ? Colors.transparent : Colors.white.withOpacity(0.1),
-          shape: BoxShape.circle,
-          border: transparent
-              ? null
-              : Border.all(color: Colors.white.withOpacity(0.1)),
+    // Simplified button with direct Material/InkWell and PointerInterceptor
+    return PointerInterceptor(
+      child: Material(
+        color: transparent ? Colors.transparent : Colors.white.withOpacity(0.1),
+        shape: const CircleBorder(),
+        child: InkWell(
+          onTap: () {
+            print('[PlayerScreen] Button tapped: $icon');
+            onTap();
+          },
+          customBorder: const CircleBorder(),
+          child: Container(
+            width: size,
+            height: size,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: transparent
+                  ? null
+                  : Border.all(color: Colors.white.withOpacity(0.1)),
+            ),
+            child: Icon(icon, color: Colors.white, size: iconSize),
+          ),
         ),
-        child: Icon(icon, color: Colors.white, size: iconSize),
       ),
     );
   }
