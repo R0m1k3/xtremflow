@@ -61,7 +61,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   String? _currentStreamUrl;
   String _statusMessage = 'Loading...';
   String? _errorMessage;
+  String? _errorMessage;
   bool _isMuted = false;
+  bool _ignoreStatusUpdates = false;
 
   @override
   void initState() {
@@ -209,7 +211,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               );
         }
       } else if (type == 'playback_status') {
-        setState(() => _isPlaying = data['status'] == 'playing');
+        if (!_ignoreStatusUpdates) {
+          setState(() => _isPlaying = data['status'] == 'playing');
+        }
       } else if (type == 'user_activity') {
         _onHover();
       }
@@ -255,6 +259,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void _togglePlayPause() {
     // Optimistic update to make UI responsive immediately
     setState(() => _isPlaying = !_isPlaying);
+
+    // Ignore incoming status updates for 2 seconds to prevent fighting
+    _ignoreStatusUpdates = true;
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) _ignoreStatusUpdates = false;
+    });
 
     if (_isPlaying) {
       _sendMessage({'type': 'play'});
