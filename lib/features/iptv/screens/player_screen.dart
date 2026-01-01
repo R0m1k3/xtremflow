@@ -323,164 +323,190 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Widget build(BuildContext context) {
     final isLiveTV = widget.streamType == StreamType.live;
 
-    // LITE PLAYER MODE for Live TV
+    // LITE PLAYER MODE for Live TV - Simplified UI (no BackdropFilter)
     if (isLiveTV) {
       return Scaffold(
-        backgroundColor: Colors.black, // Video background
-        body: MouseRegion(
-          onHover: (_) => _onHover(),
-          child: GestureDetector(
-            onTap: () {
-              if (_showControls) {
-                setState(() => _showControls = false);
-              } else {
-                _onHover();
-              }
-            },
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (_isInitialized) HtmlElementView(viewType: _viewId),
+        backgroundColor: Colors.black,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Video Player
+            if (_isInitialized) HtmlElementView(viewType: _viewId),
 
-                // Top Bar
-                AnimatedPositioned(
-                  duration: const Duration(milliseconds: 200),
-                  top: _showControls ? 24 : -100,
-                  left: 24,
-                  right: 24,
-                  child: PointerInterceptor(
-                    child: GlassContainer(
-                      height: 72,
-                      borderRadius: 24,
-                      opacity: 0.15,
-                      border: true,
-                      borderColor: Colors.white.withOpacity(0.1),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
+            // Control Overlay (sits on top of video, catches all pointer events)
+            Positioned.fill(
+              child: PointerInterceptor(
+                child: MouseRegion(
+                  onHover: (_) => _onHover(),
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: () {
+                      if (_showControls) {
+                        setState(() => _showControls = false);
+                      } else {
+                        _onHover();
+                      }
+                    },
+                    child: Container(
+                      color: Colors.transparent,
+                      child: Stack(
                         children: [
-                          _buildGlassIconButton(
-                            icon: Icons.arrow_back_rounded,
-                            onTap: () => Navigator.pop(context),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  widget.channels != null
-                                      ? widget.channels![_currentIndex].name
-                                      : widget.title,
-                                  style: GoogleFonts.outfit(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
+                          // Top Bar
+                          AnimatedPositioned(
+                            duration: const Duration(milliseconds: 200),
+                            top: _showControls ? 0 : -100,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 12),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.black.withOpacity(0.8),
+                                    Colors.transparent,
+                                  ],
                                 ),
-                                if (widget.channels != null)
-                                  Text(
-                                    'Live TV',
-                                    style: GoogleFonts.inter(
-                                      color: AppColors.primary,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 1.0,
+                              ),
+                              child: SafeArea(
+                                bottom: false,
+                                child: Row(
+                                  children: [
+                                    _buildSimpleIconButton(
+                                      icon: Icons.arrow_back_rounded,
+                                      onTap: () => Navigator.pop(context),
                                     ),
-                                  ),
-                              ],
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            widget.channels != null
+                                                ? widget
+                                                    .channels![_currentIndex]
+                                                    .name
+                                                : widget.title,
+                                            style: GoogleFonts.outfit(
+                                              color: Colors.white,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                            'Live TV',
+                                            style: GoogleFonts.inter(
+                                              color: AppColors.primary,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    _buildSimpleIconButton(
+                                      icon: _isMuted
+                                          ? Icons.volume_off_rounded
+                                          : Icons.volume_up_rounded,
+                                      onTap: _toggleMute,
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 16),
-                          _buildGlassIconButton(
-                            icon: _isMuted
-                                ? Icons.volume_off_rounded
-                                : Icons.volume_up_rounded,
-                            onTap: _toggleMute,
+
+                          // Bottom Controls
+                          AnimatedPositioned(
+                            duration: const Duration(milliseconds: 200),
+                            bottom: _showControls ? 0 : -150,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 24),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.bottomCenter,
+                                  end: Alignment.topCenter,
+                                  colors: [
+                                    Colors.black.withOpacity(0.8),
+                                    Colors.transparent,
+                                  ],
+                                ),
+                              ),
+                              child: SafeArea(
+                                top: false,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    // Previous Channel
+                                    if (widget.channels != null &&
+                                        widget.channels!.length > 1)
+                                      _buildSimpleIconButton(
+                                        icon: Icons.skip_previous_rounded,
+                                        onTap: _previousChannel,
+                                        size: 48,
+                                      ),
+
+                                    const SizedBox(width: 32),
+
+                                    // Play/Pause (Large)
+                                    _buildSimpleIconButton(
+                                      icon: _isPlaying
+                                          ? Icons.pause_rounded
+                                          : Icons.play_arrow_rounded,
+                                      onTap: _togglePlayPause,
+                                      size: 64,
+                                      iconSize: 36,
+                                      highlighted: true,
+                                    ),
+
+                                    const SizedBox(width: 32),
+
+                                    // Next Channel
+                                    if (widget.channels != null &&
+                                        widget.channels!.length > 1)
+                                      _buildSimpleIconButton(
+                                        icon: Icons.skip_next_rounded,
+                                        onTap: _nextChannel,
+                                        size: 48,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ),
                 ),
-
-                // Bottom Controls for Live TV (Channel Zapping + Play/Pause)
-                if (_showControls)
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 200),
-                    bottom: 40,
-                    left: 0,
-                    right: 0,
-                    child: PointerInterceptor(
-                      child: Center(
-                        child: GlassContainer(
-                          borderRadius: 30,
-                          opacity: 0.15,
-                          border: true,
-                          borderColor: Colors.white.withOpacity(0.1),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 12),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Previous Channel
-                              if (widget.channels != null &&
-                                  widget.channels!.length > 1) ...[
-                                _buildGlassIconButton(
-                                  icon: Icons.skip_previous_rounded,
-                                  onTap: _previousChannel,
-                                  transparent: true,
-                                ),
-                                const SizedBox(width: 24),
-                              ],
-
-                              // Play/Pause
-                              _buildGlassIconButton(
-                                icon: _isPlaying
-                                    ? Icons.pause_rounded
-                                    : Icons.play_arrow_rounded,
-                                onTap: _togglePlayPause,
-                                size: 56,
-                                iconSize: 32,
-                              ),
-
-                              // Next Channel
-                              if (widget.channels != null &&
-                                  widget.channels!.length > 1) ...[
-                                const SizedBox(width: 24),
-                                _buildGlassIconButton(
-                                  icon: Icons.skip_next_rounded,
-                                  onTap: _nextChannel,
-                                  transparent: true,
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                // EPG Overlay
-                if (widget.streamType == StreamType.live)
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 200),
-                    bottom: _showControls ? 40 : -140,
-                    left: 24,
-                    right: 24,
-                    child: PointerInterceptor(
-                      child: EpgOverlay(
-                        playlist: widget.playlist,
-                        streamId: widget.channels != null
-                            ? widget.channels![_currentIndex].streamId
-                            : widget.streamId,
-                      ),
-                    ),
-                  ),
-              ],
+              ),
             ),
-          ),
+
+            // EPG Overlay (outside the main PointerInterceptor)
+            if (widget.streamType == StreamType.live)
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 200),
+                bottom: _showControls ? 120 : -140,
+                left: 24,
+                right: 24,
+                child: PointerInterceptor(
+                  child: EpgOverlay(
+                    playlist: widget.playlist,
+                    streamId: widget.channels != null
+                        ? widget.channels![_currentIndex].streamId
+                        : widget.streamId,
+                  ),
+                ),
+              ),
+          ],
         ),
       );
     }
@@ -749,6 +775,50 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 : Border.all(color: Colors.white.withOpacity(0.1)),
           ),
           child: Icon(icon, color: Colors.white, size: iconSize),
+        ),
+      ),
+    );
+  }
+
+  // Simple Icon Button for Live TV player (no BackdropFilter issues)
+  Widget _buildSimpleIconButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    double size = 48,
+    double iconSize = 24,
+    bool highlighted = false,
+  }) {
+    return Material(
+      color: highlighted
+          ? AppColors.primary.withOpacity(0.2)
+          : Colors.white.withOpacity(0.1),
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: () {
+          print('[PlayerScreen] Simple button tapped: $icon');
+          onTap();
+        },
+        customBorder: const CircleBorder(),
+        splashColor: AppColors.primary.withOpacity(0.3),
+        highlightColor: AppColors.primary.withOpacity(0.1),
+        child: Container(
+          width: size,
+          height: size,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: highlighted
+                  ? AppColors.primary.withOpacity(0.5)
+                  : Colors.white.withOpacity(0.2),
+              width: highlighted ? 2 : 1,
+            ),
+          ),
+          child: Icon(
+            icon,
+            color: highlighted ? AppColors.primary : Colors.white,
+            size: iconSize,
+          ),
         ),
       ),
     );
