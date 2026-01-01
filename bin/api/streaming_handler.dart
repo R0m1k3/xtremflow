@@ -194,15 +194,22 @@ Handler createLiveStreamHandler(
 
     // Output encoding options
     if (useNvidiaGpu) {
-      // With GPU: Use NVENC for any re-encoding needed
+      // With GPU: Transcode using NVIDIA NVENC for hardware acceleration
+      print('[Live] Transcoding video with h264_nvenc (GPU)');
       ffmpegArgs.addAll([
-        '-c:v', 'copy', // Still copy video (no transcode needed for live)
+        '-c:v', 'h264_nvenc', // Use NVIDIA NVENC encoder
+        '-preset', 'p4', // Good quality/speed balance (p1=fastest, p7=best)
+        '-tune', 'll', // Low latency tuning for live streams
+        '-rc', 'vbr', // Variable bitrate
+        '-cq', '23', // Quality level (similar to CRF)
+        '-maxrate', '6000k', // Max bitrate for live
+        '-bufsize', '12000k', // Buffer size
         '-c:a', 'aac', // Audio to AAC (browser compatible)
         '-b:a', '192k',
         '-ac', '2',
       ]);
     } else {
-      // Without GPU: Standard CPU processing
+      // Without GPU: Standard CPU processing (copy video)
       ffmpegArgs.addAll([
         '-c:v', 'copy', // Video: Direct copy (Very low CPU)
         '-c:a', 'aac', // Audio: Transcode to AAC
