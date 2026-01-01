@@ -157,10 +157,20 @@
         // Report on pause and end
         video.addEventListener('pause', () => {
             window.parent.postMessage({
-                type: 'playback_position',
-                currentTime: video.currentTime,
-                duration: isFinite(video.duration) ? video.duration : 0
+                type: 'playback_status',
+                status: 'paused'
             }, '*');
+        });
+
+        video.addEventListener('playing', () => {
+            window.parent.postMessage({
+                type: 'playback_status',
+                status: 'playing'
+            }, '*');
+
+            // Also reset reconnect attempts on successful playing
+            reconnectAttempts = 0;
+            hideLoading();
         });
 
         video.addEventListener('ended', () => {
