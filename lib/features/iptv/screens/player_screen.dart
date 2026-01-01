@@ -421,29 +421,24 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             ),
                           ),
 
-                          // Bottom Controls
+                          // Bottom Controls - styled like EPG
                           AnimatedPositioned(
                             duration: const Duration(milliseconds: 200),
-                            bottom: _showControls ? 0 : -150,
+                            bottom: _showControls ? 130 : -100,
                             left: 0,
                             right: 0,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 24),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.bottomCenter,
-                                  end: Alignment.topCenter,
-                                  colors: [
-                                    Colors.black.withOpacity(0.8),
-                                    Colors.transparent,
-                                  ],
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 24, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.5),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: Colors.white.withOpacity(0.1)),
                                 ),
-                              ),
-                              child: SafeArea(
-                                top: false,
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     // Previous Channel
                                     if (widget.channels != null &&
@@ -454,7 +449,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                         size: 48,
                                       ),
 
-                                    const SizedBox(width: 32),
+                                    if (widget.channels != null &&
+                                        widget.channels!.length > 1)
+                                      const SizedBox(width: 24),
 
                                     // Play/Pause (Large)
                                     _buildSimpleIconButton(
@@ -462,12 +459,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                           ? Icons.pause_rounded
                                           : Icons.play_arrow_rounded,
                                       onTap: _togglePlayPause,
-                                      size: 64,
-                                      iconSize: 36,
+                                      size: 56,
+                                      iconSize: 32,
                                       highlighted: true,
                                     ),
 
-                                    const SizedBox(width: 32),
+                                    if (widget.channels != null &&
+                                        widget.channels!.length > 1)
+                                      const SizedBox(width: 24),
 
                                     // Next Channel
                                     if (widget.channels != null &&
@@ -494,7 +493,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             if (widget.streamType == StreamType.live)
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 200),
-                bottom: _showControls ? 120 : -140,
+                bottom: _showControls ? 24 : -140,
                 left: 24,
                 right: 24,
                 child: PointerInterceptor(
