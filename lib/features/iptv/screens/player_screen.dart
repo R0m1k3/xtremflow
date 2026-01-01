@@ -217,10 +217,30 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   void _sendMessage(Map<String, dynamic> message) {
-    if (_isInitialized) {
-      final iframe =
-          html.document.getElementById(_viewId) as html.IFrameElement?;
-      iframe?.contentWindow?.postMessage(message, '*');
+    if (!_isInitialized) return;
+
+    // Try finding by ID first
+    var iframe = html.document.getElementById(_viewId) as html.IFrameElement?;
+
+    // If not found, try finding by src pattern (fallback for Shadow DOM or ID issues)
+    if (iframe == null) {
+      final iframes = html.document.getElementsByTagName('iframe');
+      for (final frame in iframes) {
+        if (frame is html.IFrameElement &&
+            (frame.src?.contains('player_lite.html') == true ||
+                frame.src?.contains('player.html') == true)) {
+          iframe = frame;
+          break;
+        }
+      }
+    }
+
+    if (iframe != null) {
+      print('[PlayerScreen] Sending message to iframe: $message');
+      iframe.contentWindow?.postMessage(message, '*');
+    } else {
+      print(
+          '[PlayerScreen] Error: Could not find iframe to send message: $message');
     }
   }
 

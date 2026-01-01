@@ -476,6 +476,8 @@
             const data = event.data;
             if (!data) return;
 
+            log('Received message from parent: ' + JSON.stringify(data));
+
             if (data.type === 'play') {
                 video.play().catch(e => log('Play command failed: ' + e));
             } else if (data.type === 'pause') {
