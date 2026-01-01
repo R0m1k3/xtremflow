@@ -174,6 +174,29 @@ class StreamingSettingsTab extends ConsumerWidget {
             ),
           ],
         ),
+        const SizedBox(height: 16),
+
+        // Server/GPU Section
+        _buildSectionCard(
+          context: context,
+          title: 'Serveur / GPU',
+          icon: Icons.memory,
+          children: [
+            SwitchListTile(
+              title: Text(
+                'Accélération NVIDIA GPU',
+                style: GoogleFonts.roboto(fontSize: 14, color: Colors.white),
+              ),
+              subtitle: Text(
+                'Utiliser NVENC/NVDEC pour le transcodage (requiert GPU NVIDIA)',
+                style: GoogleFonts.roboto(fontSize: 12, color: Colors.white54),
+              ),
+              value: settings.enableNvidiaGpu,
+              activeThumbColor: Colors.green,
+              onChanged: (v) => notifier.setEnableNvidiaGpu(v),
+            ),
+          ],
+        ),
         const SizedBox(height: 32),
 
         // Info card

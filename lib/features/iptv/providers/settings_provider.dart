@@ -63,6 +63,8 @@ class _SettingsKeys {
   static const String showClock = 'show_clock';
   static const String preferredAspectRatio = 'aspect_ratio';
   static const String playerType = 'player_type';
+  // Server/GPU Settings
+  static const String enableNvidiaGpu = 'enable_nvidia_gpu';
 }
 
 /// Settings state for IPTV preferences with persistence
@@ -86,6 +88,9 @@ class IptvSettings {
   final String preferredAspectRatio;
   final PlayerType playerType;
 
+  // Server/GPU Settings
+  final bool enableNvidiaGpu;
+
   const IptvSettings({
     // Filters
     this.liveTvCategoryFilter = '',
@@ -103,6 +108,8 @@ class IptvSettings {
     this.showClock = false,
     this.preferredAspectRatio = 'contain',
     this.playerType = PlayerType.standard,
+    // Server/GPU defaults
+    this.enableNvidiaGpu = false,
   });
 
   IptvSettings copyWith({
@@ -119,6 +126,7 @@ class IptvSettings {
     bool? showClock,
     String? preferredAspectRatio,
     PlayerType? playerType,
+    bool? enableNvidiaGpu,
   }) {
     return IptvSettings(
       liveTvCategoryFilter: liveTvCategoryFilter ?? this.liveTvCategoryFilter,
@@ -134,6 +142,7 @@ class IptvSettings {
       showClock: showClock ?? this.showClock,
       preferredAspectRatio: preferredAspectRatio ?? this.preferredAspectRatio,
       playerType: playerType ?? this.playerType,
+      enableNvidiaGpu: enableNvidiaGpu ?? this.enableNvidiaGpu,
     );
   }
 
@@ -334,6 +343,7 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
               ? PlayerType
                   .values[remoteSettings[_SettingsKeys.playerType] as int]
               : null,
+          enableNvidiaGpu: getValue<bool>(_SettingsKeys.enableNvidiaGpu),
         );
       }
       _initialized = true;
@@ -377,6 +387,7 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
         _SettingsKeys.showClock: state.showClock,
         _SettingsKeys.preferredAspectRatio: state.preferredAspectRatio,
         _SettingsKeys.playerType: state.playerType.index,
+        _SettingsKeys.enableNvidiaGpu: state.enableNvidiaGpu,
       };
 
       print('[SettingsProvider] _saveToApi: Saving settings...');
@@ -466,6 +477,13 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
 
   void setPlayerType(PlayerType type) {
     state = state.copyWith(playerType: type);
+    _saveToApi();
+  }
+
+  // ===== Server/GPU Setters =====
+
+  void setEnableNvidiaGpu(bool value) {
+    state = state.copyWith(enableNvidiaGpu: value);
     _saveToApi();
   }
 
