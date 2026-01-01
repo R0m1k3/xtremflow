@@ -59,8 +59,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _isSeeking = false;
   String _viewId = 'iptv-player';
   String? _currentStreamUrl;
-  String _statusMessage = 'Loading...';
-  String? _errorMessage;
   String? _errorMessage;
   bool _isMuted = false;
   bool _ignoreStatusUpdates = false;
@@ -730,28 +728,30 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     double iconSize = 24,
   }) {
     // Simplified button with direct Material/InkWell and PointerInterceptor
-    // Simplified button with direct Material/InkWell
-    // Note: PointerInterceptor is handled by the parent container
-    return Material(
-      color: transparent ? Colors.transparent : Colors.white.withOpacity(0.1),
-      shape: const CircleBorder(),
-      child: InkWell(
-        onTap: () {
-          print('[PlayerScreen] Button tapped: $icon');
-          onTap();
-        },
-        customBorder: const CircleBorder(),
-        child: Container(
-          width: size,
-          height: size,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: transparent
-                ? null
-                : Border.all(color: Colors.white.withOpacity(0.1)),
+    // Simplified button with direct Material/InkWell and PointerInterceptor
+    // We wrap the specific button to ensure it catches events over the iframe
+    return PointerInterceptor(
+      child: Material(
+        color: transparent ? Colors.transparent : Colors.white.withOpacity(0.1),
+        shape: const CircleBorder(),
+        child: InkWell(
+          onTap: () {
+            print('[PlayerScreen] Button tapped: $icon');
+            onTap();
+          },
+          customBorder: const CircleBorder(),
+          child: Container(
+            width: size,
+            height: size,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: transparent
+                  ? null
+                  : Border.all(color: Colors.white.withOpacity(0.1)),
+            ),
+            child: Icon(icon, color: Colors.white, size: iconSize),
           ),
-          child: Icon(icon, color: Colors.white, size: iconSize),
         ),
       ),
     );
