@@ -206,18 +206,20 @@ Handler createLiveStreamHandler(
         '-rc', 'cbr', // Constant bitrate for stable streaming
         '-b:v', '4000k', // Fixed video bitrate
         '-maxrate', '4500k', // Max bitrate
-        '-bufsize', '4000k', // Smaller buffer for lower latency
-        '-g', '25', // Keyframe every 1 second (at 25fps)
+        '-bufsize', '8000k', // Buffer for stability
+        '-g', '50', // Keyframe every 2 seconds (at 25fps)
         '-bf', '0', // No B-frames for lower latency
-        // Audio encoding
+        // Audio encoding with resampling to fix timestamp gaps
+        '-af',
+        'aresample=async=1000:first_pts=0', // Auto-correct audio timestamps
         '-c:a', 'aac', // Audio to AAC (browser compatible)
         '-b:a', '128k', // Audio bitrate
         '-ac', '2',
-        '-ar', '48000', // 48kHz sample rate (matches most sources)
-        // Sync options to prevent rollbacks
-        '-vsync', 'cfr', // Constant frame rate
-        '-async', '1', // Sync audio to video timestamps
-        '-max_muxing_queue_size', '1024', // Bigger muxing queue
+        '-ar', '48000', // 48kHz sample rate
+        // Timestamp handling
+        '-copyts', // Copy timestamps
+        '-start_at_zero', // Start at 0
+        '-max_muxing_queue_size', '4096', // Large muxing queue
       ]);
     } else {
       // Without GPU: Standard CPU processing (copy video)
