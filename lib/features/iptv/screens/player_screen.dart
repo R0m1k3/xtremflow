@@ -421,64 +421,84 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             ),
                           ),
 
-                          // Bottom Controls - styled like Native player
+                          // Unified Bottom Bar - EPG + Controls in one bar
                           AnimatedPositioned(
                             duration: const Duration(milliseconds: 200),
                             bottom: _showControls ? 24 : -100,
-                            left: 0,
-                            right: 0,
-                            child: Center(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 24, vertical: 12),
-                                decoration: BoxDecoration(
-                                  color:
-                                      const Color(0xFF1A1A2E).withOpacity(0.85),
-                                  borderRadius: BorderRadius.circular(24),
-                                  border: Border.all(
-                                      color: Colors.white.withOpacity(0.1)),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    // Previous Channel
-                                    if (widget.channels != null &&
-                                        widget.channels!.length > 1)
+                            left: 24,
+                            right: 24,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1A1A2E).withOpacity(0.9),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                    color: Colors.white.withOpacity(0.1)),
+                              ),
+                              child: Row(
+                                children: [
+                                  // EPG Info (left side)
+                                  Expanded(
+                                    child: _buildInlineEpg(),
+                                  ),
+
+                                  const SizedBox(width: 24),
+
+                                  // Control Buttons (right side)
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // Previous Channel
+                                      if (widget.channels != null &&
+                                          widget.channels!.length > 1)
+                                        _buildSimpleIconButton(
+                                          icon: Icons.skip_previous_rounded,
+                                          onTap: _previousChannel,
+                                          size: 44,
+                                        ),
+
+                                      if (widget.channels != null &&
+                                          widget.channels!.length > 1)
+                                        const SizedBox(width: 16),
+
+                                      // Play/Pause (Large)
                                       _buildSimpleIconButton(
-                                        icon: Icons.skip_previous_rounded,
-                                        onTap: _previousChannel,
-                                        size: 48,
+                                        icon: _isPlaying
+                                            ? Icons.pause_rounded
+                                            : Icons.play_arrow_rounded,
+                                        onTap: _togglePlayPause,
+                                        size: 52,
+                                        iconSize: 28,
+                                        highlighted: true,
                                       ),
 
-                                    if (widget.channels != null &&
-                                        widget.channels!.length > 1)
-                                      const SizedBox(width: 24),
+                                      if (widget.channels != null &&
+                                          widget.channels!.length > 1)
+                                        const SizedBox(width: 16),
 
-                                    // Play/Pause (Large)
-                                    _buildSimpleIconButton(
-                                      icon: _isPlaying
-                                          ? Icons.pause_rounded
-                                          : Icons.play_arrow_rounded,
-                                      onTap: _togglePlayPause,
-                                      size: 56,
-                                      iconSize: 32,
-                                      highlighted: true,
-                                    ),
+                                      // Next Channel
+                                      if (widget.channels != null &&
+                                          widget.channels!.length > 1)
+                                        _buildSimpleIconButton(
+                                          icon: Icons.skip_next_rounded,
+                                          onTap: _nextChannel,
+                                          size: 44,
+                                        ),
 
-                                    if (widget.channels != null &&
-                                        widget.channels!.length > 1)
-                                      const SizedBox(width: 24),
+                                      const SizedBox(width: 16),
 
-                                    // Next Channel
-                                    if (widget.channels != null &&
-                                        widget.channels!.length > 1)
+                                      // Mute button
                                       _buildSimpleIconButton(
-                                        icon: Icons.skip_next_rounded,
-                                        onTap: _nextChannel,
-                                        size: 48,
+                                        icon: _isMuted
+                                            ? Icons.volume_off_rounded
+                                            : Icons.volume_up_rounded,
+                                        onTap: _toggleMute,
+                                        size: 44,
                                       ),
-                                  ],
-                                ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -489,23 +509,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 ),
               ),
             ),
-
-            // EPG Overlay (outside the main PointerInterceptor)
-            if (widget.streamType == StreamType.live)
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 200),
-                bottom: _showControls ? 24 : -140,
-                left: 24,
-                right: 0,
-                child: PointerInterceptor(
-                  child: EpgOverlay(
-                    playlist: widget.playlist,
-                    streamId: widget.channels != null
-                        ? widget.channels![_currentIndex].streamId
-                        : widget.streamId,
-                  ),
-                ),
-              ),
           ],
         ),
       );
@@ -793,6 +796,165 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  /// Build inline EPG info for the unified control bar
+  Widget _buildInlineEpg() {
+    final currentStreamId = widget.channels != null
+        ? widget.channels![_currentIndex].streamId
+        : widget.streamId;
+
+    return Consumer(
+      builder: (context, ref, child) {
+        final epgAsync = ref.watch(epgByPlaylistProvider(
+          EpgRequestKey(playlist: widget.playlist, streamId: currentStreamId),
+        ));
+
+        return epgAsync.when(
+          data: (epgEntries) {
+            if (epgEntries.isEmpty) {
+              // No EPG data - show channel name only
+              return Row(
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      'LIVE',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      widget.channels != null
+                          ? widget.channels![_currentIndex].name
+                          : widget.title,
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              );
+            }
+
+            // Get current program
+            final now = DateTime.now();
+            final currentProgram = epgEntries.firstWhere(
+              (entry) {
+                final start = DateTime.parse(entry.start);
+                final end = DateTime.parse(entry.end);
+                return now.isAfter(start) && now.isBefore(end);
+              },
+              orElse: () => epgEntries.first,
+            );
+
+            return Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'LIVE',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        currentProgram.title,
+                        style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (currentProgram.description.isNotEmpty)
+                        Text(
+                          currentProgram.description,
+                          style: GoogleFonts.inter(
+                            color: Colors.white60,
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+          loading: () => Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'LIVE',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                widget.channels != null
+                    ? widget.channels![_currentIndex].name
+                    : widget.title,
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          error: (_, __) => Text(
+            widget.channels != null
+                ? widget.channels![_currentIndex].name
+                : widget.title,
+            style: GoogleFonts.outfit(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        );
+      },
     );
   }
 }
