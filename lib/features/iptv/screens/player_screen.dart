@@ -421,19 +421,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             ),
                           ),
 
-                          // Bottom Controls - styled like EPG
+                          // Bottom Controls - styled like Native player
                           AnimatedPositioned(
                             duration: const Duration(milliseconds: 200),
-                            bottom: _showControls ? 16 : -100,
-                            left: 24,
-                            right: 24,
+                            bottom: _showControls ? 24 : -100,
+                            left: 0,
+                            right: 0,
                             child: Center(
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 24, vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.5),
-                                  borderRadius: BorderRadius.circular(12),
+                                  color:
+                                      const Color(0xFF1A1A2E).withOpacity(0.85),
+                                  borderRadius: BorderRadius.circular(24),
                                   border: Border.all(
                                       color: Colors.white.withOpacity(0.1)),
                                 ),
@@ -493,9 +494,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             if (widget.streamType == StreamType.live)
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 200),
-                bottom: _showControls ? 100 : -140,
+                bottom: _showControls ? 24 : -140,
                 left: 24,
-                right: 24,
+                right: 0,
                 child: PointerInterceptor(
                   child: EpgOverlay(
                     playlist: widget.playlist,
@@ -578,41 +579,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         ),
                       ),
 
-                      // Center Play/Pause
-                      Center(
-                        child: _isLoading
-                            ? const CircularProgressIndicator(
-                                color: AppColors.primary)
-                            : TvFocusableCard(
-                                onTap: _togglePlayPause,
-                                borderRadius: 100,
-                                scaleFactor: 1.2,
-                                focusColor: AppColors.primary,
-                                child: Container(
-                                  width: 80,
-                                  height: 80,
-                                  decoration: BoxDecoration(
-                                    gradient: AppColors.primaryGradient,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color:
-                                            AppColors.primary.withOpacity(0.5),
-                                        blurRadius: 30,
-                                        spreadRadius: 5,
-                                      ),
-                                    ],
-                                  ),
-                                  child: Icon(
-                                    _isPlaying
-                                        ? Icons.pause_rounded
-                                        : Icons.play_arrow_rounded,
-                                    color: Colors.white,
-                                    size: 40,
-                                  ),
-                                ),
-                              ),
-                      ),
+                      // Center Loading Indicator (only show when loading)
+                      if (_isLoading)
+                        const Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                          ),
+                        ),
 
                       // Bottom Controls
                       Positioned(
