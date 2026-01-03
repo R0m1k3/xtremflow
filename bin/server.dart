@@ -91,7 +91,8 @@ void main(List<String> args) async {
         final user = req.context['user'] as User?;
         if (user == null || !user.isAdmin) {
           return Response.forbidden(
-              jsonEncode({'error': 'Admin access required'}));
+            jsonEncode({'error': 'Admin access required'}),
+          );
         }
 
         final result = await cleanupService.runCleanup();
@@ -173,13 +174,19 @@ void main(List<String> args) async {
   // Create Streaming Router (Mount handlers on correct paths)
   final streamingRouter = Router()
     ..mount(
-        '/api/live',
-        createLiveStreamHandler(getPlaylist,
-            isGpuEnabled: db.isNvidiaGpuEnabled))
+      '/api/live',
+      createLiveStreamHandler(
+        getPlaylist,
+        isGpuEnabled: db.isNvidiaGpuEnabled,
+      ),
+    )
     ..mount(
-        '/api/vod',
-        createVodStreamHandler(getPlaylist,
-            isGpuEnabled: db.isNvidiaGpuEnabled));
+      '/api/vod',
+      createVodStreamHandler(
+        getPlaylist,
+        isGpuEnabled: db.isNvidiaGpuEnabled,
+      ),
+    );
 
   // Main handler with API proxy and NEW Streaming Handlers
   final handler = Cascade()

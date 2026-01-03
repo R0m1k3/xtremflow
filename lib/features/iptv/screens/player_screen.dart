@@ -243,7 +243,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       iframe.contentWindow?.postMessage(message, '*');
     } else {
       print(
-          '[PlayerScreen] Error: Could not find iframe to send message: $message');
+        '[PlayerScreen] Error: Could not find iframe to send message: $message',
+      );
     }
   }
 
@@ -359,7 +360,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             right: 0,
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 12),
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   begin: Alignment.topCenter,
@@ -409,12 +412,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                         ],
                                       ),
                                     ),
-                                    _buildSimpleIconButton(
-                                      icon: _isMuted
-                                          ? Icons.volume_off_rounded
-                                          : Icons.volume_up_rounded,
-                                      onTap: _toggleMute,
-                                    ),
                                   ],
                                 ),
                               ),
@@ -429,12 +426,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             right: 24,
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 20, vertical: 16),
+                                horizontal: 20,
+                                vertical: 16,
+                              ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFF1A1A2E).withOpacity(0.9),
                                 borderRadius: BorderRadius.circular(24),
                                 border: Border.all(
-                                    color: Colors.white.withOpacity(0.1)),
+                                  color: Colors.white.withOpacity(0.1),
+                                ),
                               ),
                               child: Row(
                                 children: [
@@ -608,10 +608,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               Row(
                                 children: [
                                   Text(
-                                    _formatDuration(Duration(
-                                        seconds: _currentPosition.toInt())),
+                                    _formatDuration(
+                                      Duration(
+                                        seconds: _currentPosition.toInt(),
+                                      ),
+                                    ),
                                     style: GoogleFonts.inter(
-                                        color: Colors.white70),
+                                      color: Colors.white70,
+                                    ),
                                   ),
                                   const SizedBox(width: 16),
                                   Expanded(
@@ -623,7 +627,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                             Colors.white.withOpacity(0.2),
                                         thumbColor: Colors.white,
                                         thumbShape: const RoundSliderThumbShape(
-                                            enabledThumbRadius: 8),
+                                          enabledThumbRadius: 8,
+                                        ),
                                         overlayColor:
                                             AppColors.primary.withOpacity(0.2),
                                       ),
@@ -632,18 +637,22 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                         min: 0,
                                         max: _totalDuration,
                                         onChanged: (val) => setState(
-                                            () => _currentPosition = val),
+                                          () => _currentPosition = val,
+                                        ),
                                         onChangeStart: (_) =>
                                             setState(() => _isSeeking = true),
                                         onChangeEnd: (val) {
                                           _sendMessage(
-                                              {'type': 'seek', 'value': val});
+                                            {'type': 'seek', 'value': val},
+                                          );
                                           Future.delayed(
                                               const Duration(milliseconds: 500),
                                               () {
-                                            if (mounted)
+                                            if (mounted) {
                                               setState(
-                                                  () => _isSeeking = false);
+                                                () => _isSeeking = false,
+                                              );
+                                            }
                                           });
                                         },
                                       ),
@@ -651,10 +660,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                   ),
                                   const SizedBox(width: 16),
                                   Text(
-                                    _formatDuration(Duration(
-                                        seconds: _totalDuration.toInt())),
+                                    _formatDuration(
+                                      Duration(
+                                        seconds: _totalDuration.toInt(),
+                                      ),
+                                    ),
                                     style: GoogleFonts.inter(
-                                        color: Colors.white70),
+                                      color: Colors.white70,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -669,7 +682,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                     onTap: () => _sendMessage({
                                       'type': 'seek',
                                       'value': (_currentPosition - 10)
-                                          .clamp(0, _totalDuration)
+                                          .clamp(0, _totalDuration),
                                     }),
                                     transparent: true,
                                   ),
@@ -688,7 +701,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                     onTap: () => _sendMessage({
                                       'type': 'seek',
                                       'value': (_currentPosition + 10)
-                                          .clamp(0, _totalDuration)
+                                          .clamp(0, _totalDuration),
                                     }),
                                     transparent: true,
                                   ),
@@ -807,9 +820,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
     return Consumer(
       builder: (context, ref, child) {
-        final epgAsync = ref.watch(epgByPlaylistProvider(
-          EpgRequestKey(playlist: widget.playlist, streamId: currentStreamId),
-        ));
+        final epgAsync = ref.watch(
+          epgByPlaylistProvider(
+            EpgRequestKey(playlist: widget.playlist, streamId: currentStreamId),
+          ),
+        );
 
         return epgAsync.when(
           data: (epgEntries) {

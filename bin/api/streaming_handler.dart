@@ -19,8 +19,9 @@ String _getFFmpegPath() {
   if (Platform.isWindows) {
     if (File('ffmpeg.exe').existsSync()) return 'ffmpeg.exe';
     if (File('bin/ffmpeg.exe').existsSync()) return 'bin/ffmpeg.exe';
-    if (File('ffmpeg/bin/ffmpeg.exe').existsSync())
+    if (File('ffmpeg/bin/ffmpeg.exe').existsSync()) {
       return 'ffmpeg/bin/ffmpeg.exe';
+    }
   }
   return 'ffmpeg'; // Default to PATH
 }
@@ -41,7 +42,8 @@ void _logGpuStatus() {
       print('[FFmpeg] NVIDIA GPU acceleration ENABLED (NVDEC/NVENC)');
     } else {
       print(
-          '[FFmpeg] Using CPU processing (set NVIDIA_GPU=true to enable GPU)');
+        '[FFmpeg] Using CPU processing (set NVIDIA_GPU=true to enable GPU)',
+      );
     }
     _gpuStatusLogged = true;
   }
@@ -116,8 +118,9 @@ PlaylistConfig? _getCurrentPlaylist(Request request) {
 // ==========================================
 
 Handler createLiveStreamHandler(
-    Future<PlaylistConfig?> Function(Request) getPlaylist,
-    {bool Function()? isGpuEnabled}) {
+  Future<PlaylistConfig?> Function(Request) getPlaylist, {
+  bool Function()? isGpuEnabled,
+}) {
   final router = Router();
 
   // Route: /api/live/{streamId} (Catch all pattern to debug)
@@ -291,16 +294,18 @@ Handler createLiveStreamHandler(
 final _lastLogTime = <String, int>{};
 
 Handler createVodStreamHandler(
-    Future<PlaylistConfig?> Function(Request) getPlaylist,
-    {bool Function()? isGpuEnabled}) {
+  Future<PlaylistConfig?> Function(Request) getPlaylist, {
+  bool Function()? isGpuEnabled,
+}) {
   final router = Router();
 
   // Route: /api/vod/{streamId}/playlist.m3u8
   router.get('/<streamId>/playlist.m3u8',
       (Request request, String streamId) async {
     final playlist = await getPlaylist(request);
-    if (playlist == null)
+    if (playlist == null) {
       return Response.internalServerError(body: 'No playlist');
+    }
 
     final streamDir = Directory('${_hlsTempDir.path}/$streamId');
 
@@ -514,7 +519,8 @@ Handler createVodStreamHandler(
 
     if (!playlistFile.existsSync()) {
       return Response.internalServerError(
-          body: 'Timeout waiting for transcoder');
+        body: 'Timeout waiting for transcoder',
+      );
     }
 
     return Response.ok(

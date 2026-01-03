@@ -73,7 +73,8 @@ class PlaylistSelectionScreen extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.error_outline, size: 64, color: AppColors.error),
+                const Icon(Icons.error_outline,
+                    size: 64, color: AppColors.error),
                 const SizedBox(height: 16),
                 Text(
                   'Error loading playlists',
@@ -235,7 +236,7 @@ class _PlaylistCardState extends State<_PlaylistCard> {
                             color: AppColors.primary.withOpacity(0.4),
                             blurRadius: 16,
                             offset: const Offset(0, 4),
-                          )
+                          ),
                         ]
                       : [],
                 ),

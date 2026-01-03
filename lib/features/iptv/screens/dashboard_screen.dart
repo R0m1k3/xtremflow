@@ -121,8 +121,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           ),
                         ],
                       ),
-                      child: const Icon(Icons.play_arrow_rounded,
-                          color: Colors.white, size: 28),
+                      child: const Icon(
+                        Icons.play_arrow_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
                     ),
                   ),
 
@@ -149,7 +152,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             borderRadius: BorderRadius.circular(16),
                             border: isSelected
                                 ? Border.all(
-                                    color: AppColors.primary.withOpacity(0.5))
+                                    color: AppColors.primary.withOpacity(0.5),
+                                  )
                                 : null,
                           ),
                           child: Icon(
@@ -176,8 +180,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       child: CircleAvatar(
                         radius: 20,
                         backgroundColor: Colors.white.withOpacity(0.1),
-                        child: const Icon(Icons.person,
-                            color: Colors.white70, size: 20),
+                        child: const Icon(
+                          Icons.person,
+                          color: Colors.white70,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ),

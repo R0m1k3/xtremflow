@@ -254,8 +254,10 @@ class _HeroCarouselState extends State<HeroCarousel> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.play_arrow_rounded,
-                              color: Colors.white),
+                          const Icon(
+                            Icons.play_arrow_rounded,
+                            color: Colors.white,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'WATCH NOW',
