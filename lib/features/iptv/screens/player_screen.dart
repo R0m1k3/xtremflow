@@ -412,6 +412,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                         ],
                                       ),
                                     ),
+                                    // Top right mute button removed
                                   ],
                                 ),
                               ),
