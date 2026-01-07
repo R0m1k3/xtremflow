@@ -101,6 +101,12 @@ Handler createLiveStreamHandler(
   router.get('/<streamId|.*>', (Request request, String streamId) async {
     print('[Live] Incoming request for streamId: $streamId');
 
+    // Validate streamId to prevent Path Traversal
+    if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(streamId)) {
+      print('[Live] Invalid streamId: $streamId');
+      return Response.badRequest(body: 'Invalid stream ID');
+    }
+
     // Remove .ts extension if present
     // Remove extension if present (handle both .ts and .m3u8 just in case)
     if (streamId.endsWith('.ts')) {
@@ -213,6 +219,11 @@ Handler createVodStreamHandler(
     final playlist = await getPlaylist(request);
     if (playlist == null)
       return Response.internalServerError(body: 'No playlist');
+
+    // Validate streamId to prevent Path Traversal
+    if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(streamId)) {
+      return Response.badRequest(body: 'Invalid stream ID');
+    }
 
     final streamDir = Directory('${_hlsTempDir.path}/$streamId');
 

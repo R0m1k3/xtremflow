@@ -16,6 +16,7 @@ import 'api/users_handler.dart';
 import 'api/playlists_handler.dart';
 import 'api/settings_handler.dart';
 import 'api/streaming_handler.dart';
+import 'api/proxy_handler.dart';
 import 'middleware/auth_middleware.dart';
 import 'middleware/security_middleware.dart';
 import 'services/cleanup_service.dart';
@@ -38,11 +39,50 @@ void main(List<String> args) async {
   // Initialize Streaming Subsystem
   await initStreaming();
 
+  // Helper to get playlist from request
+  Future<PlaylistConfig?> getPlaylist(Request request) async {
+    Playlist? playlist;
+
+    final user = request.context['user'] as User?;
+    // If we have a user from auth middleware, prefer their playlists
+    if (user != null) {
+      final playlists = db.getPlaylists(user.id);
+      if (playlists.isNotEmpty) playlist = playlists.first;
+    } else {
+      // Fallback: This leg should effectively be unreachable for /api/xtream if we use authMiddleware,
+      // but might be used by other handlers or if auth is optional somewhere.
+      // For VOD/Live which currently might not have auth (URL tokenizing is complex), we keep fallback?
+      // WAIT: The plan said "Secure /api/xtream using authMiddleware".
+      // If we do that, user is GUARANTEED for proxy.
+      // But for /api/live and /api/vod, we might need a different strategy (token in URL).
+      // For now, let's keep the fallback logic for non-proxy parts if any.
+      final users = db.getAllUsers();
+      if (users.isNotEmpty) {
+        final playlists = db.getPlaylists(users[0].id);
+        if (playlists.isNotEmpty) playlist = playlists.first;
+      }
+    }
+
+    if (playlist != null) {
+      return PlaylistConfig(
+        id: playlist.id,
+        name: playlist.name,
+        dns: playlist.serverUrl,
+        username: playlist.username,
+        password: playlist.password,
+        createdAt: playlist.createdAt,
+        isActive: true,
+      );
+    }
+    return null;
+  }
+
   // Create API handlers
   final authHandler = AuthHandler(db);
   final playlistsHandler = PlaylistsHandler(db);
   final usersHandler = UsersHandler(db);
   final settingsHandler = SettingsHandler(db);
+  final proxyHandler = ProxyHandler(getPlaylist);
 
   // Setup router
   final apiRouter = Router()
@@ -68,6 +108,56 @@ void main(List<String> args) async {
       const Pipeline()
           .addMiddleware(authMiddleware(db))
           .addHandler(settingsHandler.router.call),
+    )
+    // Xtream Proxy (SECURED)
+    ..mount(
+      '/api/xtream', // Mounting at /api/xtream means handler sees /http://...
+      const Pipeline()
+        .addMiddleware(authMiddleware(db))
+        .addHandler((request) {
+            // Router mount strips the prefix, but ProxyHandler expects /api/xtream prefix?
+            // Wait, shelf_router mount usually strips the prefix for the inner handler.
+            // If I mount at '/api/xtream', the inner handler receives requests relative to that.
+            // My ProxyHandler implementation checks: if (!path.startsWith('api/xtream/'))
+            // If I mount it, shelf strips it.
+            // Let's adjust usage.
+            // Actually, `mount` does strip.
+            // Option 1: Fix ProxyHandler to not care about prefix.
+            // Option 2: Use `all` route in main router instead of strict sub-router if I want full path.
+            // Let's modify the Pipeline here to just pass it to a handler that expects the full path?
+            // No, shelf_router `mount` is specific.
+            
+            // BETTER APPROACH:
+            // ProxyHandler expects `/api/xtream/...`.
+            // If we mount at `/api/xtream`, the request passed to handler will have `path` starting with `/`.
+            // e.g. `/http://server...`
+            // Modifying ProxyHandler is cleaner, but I already wrote it.
+            // Let's WRAP it here to prepend? No that's hacky.
+            
+            // Let's use `router.all('/api/xtream/<ignored|.*>', ...)` instead of `mount` if we want to keep full path?
+            // Or just rely on the fact that I can change the handler logic easily? 
+            // I'll stick to `mount` and `ProxyHandler` needs check.
+            // Actually, let's look at `server.dart` original `_createXtreamProxyHandler`.
+            // It was manually checking `path.startsWith('api/xtream/')`.
+            // If I use `mount`, I should probably adjust the handler.
+            
+            // For now, I'll instantiate ProxyHandler and let it handle the request, 
+            // BUT I will modify how I add it to the router to ensure it works.
+            // The cleanest is to use `apiRouter.all('/api/xtream/<path|.*>', ...)` 
+            // verifying authentication, then passing to ProxyHandler.
+            // BUT ProxyHandler checks `api/xtream` prefix.
+            
+            // Let's simply add it to the Cascade as before but WITH middleware wrapped manually?
+            // No, `authMiddleware` expects to be in a pipeline.
+            
+            // I will go with: Add to `apiRouter` using `mount`, 
+            // AND I will patch `ProxyHandler` in the next step to be flexible or 
+            // I will use a simple wrapper here that reconstructs what ProxyHandler expects? 
+            // No, simpler: Update `server.dart` to NOT mount it inside `apiRouter` but 
+            // add it to the `Cascade` BUT wrapped in a Pipeline with Auth.
+            // That preserves the path structure `ProxyHandler` expects (`/api/xtream/...`).
+            return Response.notFound('Should not be reached if using Cascade');
+        }),
     );
 
   // Initialize Cleanup Service
@@ -139,46 +229,22 @@ void main(List<String> args) async {
     );
   }
 
-  // Helper to get playlist from request
-  Future<PlaylistConfig?> getPlaylist(Request request) async {
-    Playlist? playlist;
-
-    final user = request.context['user'] as User?;
-    if (user != null) {
-      final playlists = db.getPlaylists(user.id);
-      if (playlists.isNotEmpty) playlist = playlists.first;
-    } else {
-      // Fallback: Try to find a playlist for any user if no specific user is logged in
-      final users = db.getAllUsers();
-      if (users.isNotEmpty) {
-        final playlists = db.getPlaylists(users[0].id);
-        if (playlists.isNotEmpty) playlist = playlists.first;
-      }
-    }
-
-    if (playlist != null) {
-      return PlaylistConfig(
-        id: playlist.id,
-        name: playlist.name,
-        dns: playlist.serverUrl,
-        username: playlist.username,
-        password: playlist.password,
-        createdAt: playlist.createdAt,
-        isActive: true,
-      );
-    }
-    return null;
-  }
-
   // Create Streaming Router (Mount handlers on correct paths)
   final streamingRouter = Router()
     ..mount('/api/live', createLiveStreamHandler(getPlaylist))
     ..mount('/api/vod', createVodStreamHandler(getPlaylist));
 
-  // Main handler with API proxy and NEW Streaming Handlers
+  // Secured Proxy Pipeline
+  // We handle it outside the main router to preserve the '/api/xtream' prefix 
+  // exactly as the handler expects it, but we WRAP it in auth.
+  final securedProxyHandler = const Pipeline()
+      .addMiddleware(authMiddleware(db))
+      .addHandler(proxyHandler.handler);
+
+  // Main handler
   final handler = Cascade()
       .add(apiRouter.call) /* Standard API endpoints */
-      .add(_createXtreamProxyHandler()) /* Keep for general API calls */
+      .add(securedProxyHandler) /* Secured Xtream Proxy */
       .add(streamingRouter.call) /* Streaming endpoints */
       .add(staticHandler)
       .handler;
@@ -202,7 +268,7 @@ void main(List<String> args) async {
   print('Server started on port ${server.port}');
   print('Serving static files from: $webPath');
   print('REST API available at: /api/auth/* and /api/playlists/*');
-  print('Xtream proxy available at: /api/xtream/*');
+  print('Xtream proxy available at: /api/xtream/* (Authenticated)');
 
   // Clean expired sessions periodically (every hour)
   Timer.periodic(const Duration(hours: 1), (_) {
@@ -233,84 +299,3 @@ final _corsHeaders = {
   'Access-Control-Allow-Headers': 'Origin, Content-Type, Accept, Authorization',
 };
 
-/// Create Xtream proxy handler with M3U8 URL rewriting support
-Handler _createXtreamProxyHandler() {
-  return (Request request) async {
-    final path = request.url.path;
-
-    // Only handle /api/xtream/* requests
-    if (!path.startsWith('api/xtream/')) {
-      return Response.notFound('Not found');
-    }
-
-    try {
-      // Extract target URL from request
-      // Format: /api/xtream/http://server:port/path
-      String apiPath = path.substring('api/xtream/'.length);
-
-      // Decode URL if it's encoded
-      if (apiPath.startsWith('http%3A') || apiPath.startsWith('https%3A')) {
-        apiPath = Uri.decodeComponent(apiPath);
-      }
-
-      if (!apiPath.startsWith('http://') && !apiPath.startsWith('https://')) {
-        return Response.badRequest(
-          body: 'Invalid API URL. Expected format: /api/xtream/http://...',
-        );
-      }
-
-      String fullUrl = apiPath;
-      if (request.url.query.isNotEmpty) {
-        if (fullUrl.contains('?')) {
-          fullUrl = '$fullUrl&${request.url.query}';
-        } else {
-          fullUrl = '$fullUrl?${request.url.query}';
-        }
-      }
-
-      final targetUrl = Uri.parse(fullUrl);
-
-      final proxyHeaders = {
-        'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
-        'Accept': '*/*',
-        'Accept-Encoding': 'identity',
-        'Connection': 'keep-alive',
-      };
-
-      http.Response response;
-      if (request.method == 'GET') {
-        response = await http.get(targetUrl, headers: proxyHeaders).timeout(
-              const Duration(seconds: 30),
-              onTimeout: () => http.Response('Request timeout', 504),
-            );
-      } else if (request.method == 'POST') {
-        final body = await request.readAsString();
-        response = await http
-            .post(targetUrl, headers: proxyHeaders, body: body)
-            .timeout(
-              const Duration(seconds: 30),
-              onTimeout: () => http.Response('Request timeout', 504),
-            );
-      } else {
-        return Response(405, body: 'Method not allowed');
-      }
-
-      return Response(
-        response.statusCode,
-        body: response.bodyBytes,
-        headers: {
-          'content-type':
-              response.headers['content-type'] ?? 'application/json',
-          'access-control-allow-origin': '*',
-        },
-      );
-    } catch (e, stackTrace) {
-      print('Proxy error: $e');
-      print(stackTrace);
-      return Response.internalServerError(
-        body: jsonEncode({'error': 'Proxy error', 'message': e.toString()}),
-        headers: {'content-type': 'application/json'},
-      );
-    }
-  };
-}
