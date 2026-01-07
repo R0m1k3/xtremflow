@@ -65,7 +65,7 @@ RUN dart compile exe server.dart -o server
 # ============================================
 FROM debian:stable-slim
 
-# Install runtime dependencies and tools for fetching FFmpeg
+# Install runtime dependencies, tools for fetching FFmpeg, and gosu for privilege dropping
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     sqlite3 \
@@ -73,6 +73,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     wget \
     xz-utils \
+    gosu \
     && rm -rf /var/lib/apt/lists/*
 
 # Install FFmpeg with NVIDIA NVENC support from BtbN static builds
@@ -97,11 +98,12 @@ RUN mkdir -p /app/data /app/web /tmp/xtremflow_streams \
 COPY --from=web-builder /app/build/web /app/web
 COPY --from=server-builder /app/bin/server /app/server
 
-# Set permission for the executable
-RUN chmod +x /app/server
+# Copy entrypoint script and set permissions
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/server /app/entrypoint.sh
 
-# Switch to non-root user
-USER xtremuser
+# NOTE: We stay as root to allow entrypoint.sh to fix volume permissions
+# The entrypoint script will drop privileges to xtremuser after fixing permissions
 
 # Expose port
 EXPOSE 8089
@@ -110,5 +112,6 @@ EXPOSE 8089
 HEALTHCHECK --interval=30s --timeout=3s \
     CMD curl -f http://localhost:8089/index.html || exit 1
 
-# Start server
+# Use entrypoint to fix permissions then start server as xtremuser
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["/app/server", "--port", "8089", "--path", "/app/web"]

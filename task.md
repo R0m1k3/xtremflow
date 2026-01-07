@@ -1,32 +1,23 @@
-# Analyse et Optimisation de XtremFlow
+# Fix Docker Database Permissions
 
-## Contexte
+## Context
 
-Audit complet de l'application XtremFlow demandé par l'utilisateur pour identifier des améliorations en termes d'efficience, de rapidité et de sécurité.
+SQLite database in Docker container is read-only due to volume permissions mismatch between root and xtremuser.
 
-## Focus Actuel
+## Current Focus
 
-Analyse statique du code et de l'infrastructure.
+Implementation complete - ready for rebuild and deploy.
 
 ## Master Plan
 
-- [x] Analyser l'architecture Backend (Dart/Server) pour la sécurité et la perf.
-- [x] Analyser le Frontend (Flutter) pour l'efficience et le rendu.
-- [x] Analyser la configuration Docker pour la sécurité et la taille de l'image.
-- [x] Rédiger un rapport d'audit avec des propositions concrètes.
-- [ ] (Optionnel) Implémenter les correctifs critiques si demandé.
-
-### Implémentation - Sécurisation & Optimisation
-
-- [x] **Backend / Serveur**
-  - [x] Extraire la logique de proxy dans `bin/api/proxy_handler.dart`.
-  - [x] Sécuriser la route `/api/xtream` avec `authMiddleware`.
-  - [x] Intégrer la validation de domaine et le streaming.
-- [x] **Streaming**
-  - [x] Sanitizer `streamId`.
-- [x] **Docker**
-  - [x] Optimiser Dockerfile (Native + User non-root).
+- [x] Analyze the error and identify root cause
+- [x] Create entrypoint.sh script to fix permissions at startup
+- [x] Update Dockerfile to use entrypoint script with gosu
+- [ ] Rebuild and deploy to test
 
 ## Progress Log
 
-- Démarrage de la mission d'analyse.
+- Identified `SqliteException(8): attempt to write a readonly database` error
+- Root cause: Docker volume created with different permissions than xtremuser
+- Created `entrypoint.sh` with chown fix and gosu privilege drop
+- Updated Dockerfile: added gosu, ENTRYPOINT, removed USER directive
