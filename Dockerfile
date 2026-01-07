@@ -41,18 +41,25 @@ RUN flutter build web --release --base-href="/" --no-wasm-dry-run --no-tree-shak
 # ============================================
 # Stage 2: Compile Configurable Server (Native)
 # ============================================
-FROM dart:stable AS server-builder
+# Use Flutter image instead of Dart image because pubspec.yaml contains flutter dependencies
+FROM ghcr.io/cirruslabs/flutter:stable AS server-builder
+
+USER root
 
 WORKDIR /app
+
+# Safe config for git
+RUN git config --global --add safe.directory /app
 
 COPY pubspec.yaml ./
 COPY bin/ ./bin/
 COPY lib/ ./lib/
 
-# Get dependencies
-RUN dart pub get
+# Get dependencies using flutter pub to resolve SDK deps
+RUN flutter pub get
 
 # Compile server to native executable
+# "dart compile exe" is available in flutter image too
 RUN dart compile exe bin/server.dart -o bin/server
 
 # ============================================
