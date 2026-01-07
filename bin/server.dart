@@ -46,24 +46,23 @@ void main(List<String> args) async {
     final user = request.context['user'] as User?;
     // If we have a user from auth middleware, prefer their playlists
     if (user != null) {
+      print('[getPlaylist] User from context: ${user.username}');
       final playlists = db.getPlaylists(user.id);
       if (playlists.isNotEmpty) playlist = playlists.first;
     } else {
-      // Fallback: This leg should effectively be unreachable for /api/xtream if we use authMiddleware,
-      // but might be used by other handlers or if auth is optional somewhere.
-      // For VOD/Live which currently might not have auth (URL tokenizing is complex), we keep fallback?
-      // WAIT: The plan said "Secure /api/xtream using authMiddleware".
-      // If we do that, user is GUARANTEED for proxy.
-      // But for /api/live and /api/vod, we might need a different strategy (token in URL).
-      // For now, let's keep the fallback logic for non-proxy parts if any.
+      // Fallback for proxy: get first user's first playlist
+      print('[getPlaylist] No user in context, using fallback');
       final users = db.getAllUsers();
+      print('[getPlaylist] Total users in DB: ${users.length}');
       if (users.isNotEmpty) {
         final playlists = db.getPlaylists(users[0].id);
+        print('[getPlaylist] User ${users[0].username} has ${playlists.length} playlists');
         if (playlists.isNotEmpty) playlist = playlists.first;
       }
     }
 
     if (playlist != null) {
+      print('[getPlaylist] Returning playlist: ${playlist.name} (DNS: ${playlist.serverUrl})');
       return PlaylistConfig(
         id: playlist.id,
         name: playlist.name,
@@ -74,6 +73,7 @@ void main(List<String> args) async {
         isActive: true,
       );
     }
+    print('[getPlaylist] WARNING: No playlist found, returning null');
     return null;
   }
 

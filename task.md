@@ -1,21 +1,24 @@
-# Fix Docker Database & Proxy Issues
+# Fix Docker & Proxy Issues
 
-## Context
+## Completed
 
-1. SQLite database read-only error on login (permissions)
-2. Xtream proxy 401 Unauthorized errors
+- [x] Database permissions (`entrypoint.sh` + `Dockerfile`)
+- [x] Proxy 401 errors (removed broken mount in `server.dart`)
+- [x] Proxy chunked encoding error (buffered response in `proxy_handler.dart`)
 
-## Master Plan
+## Changes
 
-- [x] Analyze database readonly error → volume permissions mismatch
-- [x] Create `entrypoint.sh` with gosu for privilege drop
-- [x] Update `Dockerfile` to use entrypoint
-- [x] Analyze proxy 401 errors → broken mount in apiRouter
-- [x] Remove duplicate `/api/xtream` mount from `server.dart`
-- [ ] Rebuild and deploy
+| File | Change |
+|------|--------|
+| `entrypoint.sh` | NEW - fixes /app/data permissions, runs as xtremuser via gosu |
+| `Dockerfile` | Added gosu, ENTRYPOINT |
+| `bin/server.dart` | Removed broken /api/xtream mount, added logging |
+| `bin/api/proxy_handler.dart` | Changed from streaming to buffered response |
 
-## Changes Made
+## Deploy
 
-- `entrypoint.sh`: Fixes /app/data permissions at startup, then runs as xtremuser
-- `Dockerfile`: Added gosu, ENTRYPOINT, removed USER directive
-- `server.dart`: Removed broken /api/xtream mount that was blocking proxy
+```bash
+git add .
+git commit -m "fix: database permissions + proxy errors"
+git push && docker compose up --build -d
+```

@@ -108,40 +108,40 @@ class ProxyHandler {
         final proxyHeaders = {
           'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
           'Accept': '*/*',
-          'Accept-Encoding': 'identity',
-          'Connection': 'keep-alive',
+          'Accept-Encoding': 'identity', // Explicitly request non-chunked
+          'Connection': 'close', // Don't keep-alive to avoid chunked issues
         };
 
         final client = http.Client();
-        final proxyRequest = http.Request(request.method, targetUrl);
-        proxyRequest.headers.addAll(proxyHeaders);
-        
-        // Forward body if POST
-        if (request.method == 'POST') {
-             final bodyBytes = await request.read().toList();
-             proxyRequest.bodyBytes = bodyBytes.expand((i) => i).toList();
+        try {
+          // Use simple GET/POST instead of streaming to avoid chunked encoding issues
+          http.Response response;
+          if (request.method == 'POST') {
+            final bodyBytes = await request.read().toList();
+            final body = bodyBytes.expand((i) => i).toList();
+            response = await client.post(targetUrl, headers: proxyHeaders, body: body);
+          } else {
+            response = await client.get(targetUrl, headers: proxyHeaders);
+          }
+
+          // Build response headers
+          final responseHeaders = <String, String>{
+            'access-control-allow-origin': '*',
+            'content-type': response.headers['content-type'] ?? 'application/json',
+          };
+          
+          if (response.headers['content-length'] != null) {
+            responseHeaders['content-length'] = response.headers['content-length']!;
+          }
+
+          return Response(
+            response.statusCode,
+            body: response.bodyBytes,
+            headers: responseHeaders,
+          );
+        } finally {
+          client.close();
         }
-
-        // Streaming Response
-        final streamedResponse = await client.send(proxyRequest);
-
-        // Filter headers
-        final responseHeaders = <String, String>{
-          'access-control-allow-origin': '*',
-        };
-        
-        streamedResponse.headers.forEach((key, value) {
-            if (_allowedHeaders.contains(key.toLowerCase())) {
-                responseHeaders[key] = value;
-            }
-        });
-
-        // Pipe the stream directly to the response
-        return Response(
-          streamedResponse.statusCode,
-          body: streamedResponse.stream,
-          headers: responseHeaders,
-        );
 
       } catch (e, stackTrace) {
         print('Proxy error: $e');
