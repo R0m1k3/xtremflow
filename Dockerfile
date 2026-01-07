@@ -17,7 +17,7 @@ ENV DART_VM_OPTIONS="--old_gen_heap_size=4096"
 RUN flutter config --enable-web
 
 # Copy dependency files first for better caching
-ARG CACHEBUST=2025-12-13-v8
+ARG CACHEBUST=2025-12-13-v9
 COPY pubspec.yaml ./
 
 # Get dependencies
@@ -41,26 +41,24 @@ RUN flutter build web --release --base-href="/" --no-wasm-dry-run --no-tree-shak
 # ============================================
 # Stage 2: Compile Configurable Server (Native)
 # ============================================
-# Use Flutter image instead of Dart image because pubspec.yaml contains flutter dependencies
-FROM ghcr.io/cirruslabs/flutter:stable AS server-builder
-
-USER root
+# Server has its own pubspec.yaml in bin/ directory with shelf, shelf_router, etc.
+# We use dart:stable here since bin/pubspec.yaml does NOT depend on Flutter SDK
+FROM dart:stable AS server-builder
 
 WORKDIR /app
 
-# Safe config for git
-RUN git config --global --add safe.directory /app
-
-COPY pubspec.yaml ./
+# Copy server-specific pubspec and source files
+# NOTE: bin/ has its own pubspec.yaml with server dependencies
 COPY bin/ ./bin/
+# lib/ is needed for shared models between frontend and backend
 COPY lib/ ./lib/
 
-# Get dependencies using flutter pub to resolve SDK deps
-RUN flutter pub get
+# Get server dependencies (from bin/pubspec.yaml)
+WORKDIR /app/bin
+RUN dart pub get
 
 # Compile server to native executable
-# "dart compile exe" is available in flutter image too
-RUN dart compile exe bin/server.dart -o bin/server
+RUN dart compile exe server.dart -o server
 
 # ============================================
 # Stage 3: Production Runtime (with NVENC support)
