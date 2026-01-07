@@ -17,7 +17,7 @@ ENV DART_VM_OPTIONS="--old_gen_heap_size=4096"
 RUN flutter config --enable-web
 
 # Copy dependency files first for better caching
-ARG CACHEBUST=2025-12-13-v9
+ARG CACHEBUST=2026-01-07-v1
 COPY pubspec.yaml ./
 
 # Get dependencies
