@@ -51,22 +51,14 @@ class ProxyHandler {
       final path = request.url.path;
 
       // Only handle /api/xtream/* requests
-      // CRITICAL: Check path BEFORE auth so non-proxy requests fall through to static handler
+      // CRITICAL: Check path BEFORE anything else so non-proxy requests fall through to static handler
       if (!path.startsWith('api/xtream/')) {
         // Return 404 so Cascade tries next handler (staticHandler)
         return Response.notFound('Not an xtream proxy request');
       }
 
-      // === AUTHENTICATION (applied only for /api/xtream/* requests) ===
-      final token = _extractToken(request);
-      if (token == null) {
-        return Response(401, body: 'Unauthorized');
-      }
-
-      final session = _db.findSessionByToken(token);
-      if (session == null) {
-        return Response(401, body: 'Invalid or expired session');
-      }
+      // NOTE: Authentication REMOVED from proxy to allow browser-initiated requests (img src, etc.)
+      // SSRF protection is still active via domain validation below.
 
       // === PROXY LOGIC ===
       try {
