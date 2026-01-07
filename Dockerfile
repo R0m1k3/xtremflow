@@ -53,27 +53,31 @@ COPY lib/ ./lib/
 RUN dart pub get
 
 # Compile server to native executable
-# This drastically reduces startup time and memory footprint (vs JIT)
 RUN dart compile exe bin/server.dart -o bin/server
 
 # ============================================
-# Stage 3: Production Runtime
+# Stage 3: Production Runtime (with NVENC support)
 # ============================================
 FROM debian:stable-slim
 
-# Install runtime dependencies
-# - ffmpeg: For transcoding
-# - ca-certificates: For HTTPS requests
-# - sqlite3: For database
-# - libsqlite3-0: Shared library for sqlite
-# - curl: For healthchecks (optional but good practice)
+# Install runtime dependencies and tools for fetching FFmpeg
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
     ca-certificates \
     sqlite3 \
     libsqlite3-0 \
     curl \
+    wget \
+    xz-utils \
     && rm -rf /var/lib/apt/lists/*
+
+# Install FFmpeg with NVIDIA NVENC support from BtbN static builds
+# Falls back gracefully to CPU if GPU not available
+RUN wget -q https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz \
+    && tar xf ffmpeg-master-latest-linux64-gpl.tar.xz \
+    && mv ffmpeg-master-latest-linux64-gpl/bin/ffmpeg /usr/local/bin/ \
+    && mv ffmpeg-master-latest-linux64-gpl/bin/ffprobe /usr/local/bin/ \
+    && rm -rf ffmpeg-master-latest-linux64-gpl* \
+    && chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe
 
 # Create non-root user for security
 RUN groupadd -r xtremuser && useradd -r -g xtremuser -G audio,video xtremuser
@@ -99,7 +103,7 @@ EXPOSE 8089
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=3s \
-  CMD curl -f http://localhost:8089/index.html || exit 1
+    CMD curl -f http://localhost:8089/index.html || exit 1
 
 # Start server
 CMD ["/app/server", "--port", "8089", "--path", "/app/web"]

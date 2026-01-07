@@ -1,12 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glass_container.dart';
 import '../../../core/widgets/tv_focusable_card.dart';
-import '../../../core/widgets/digital_clock.dart';
 import '../widgets/live_tv_tab.dart';
 import '../widgets/movies_tab.dart';
 import '../widgets/series_tab.dart';
@@ -41,113 +39,154 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // 1. Global Atmospheric Background
+          // 1. Cinematic Deep Space Background
           Positioned.fill(
             child: Container(
               decoration: const BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment(0, -0.4),
-                  radius: 1.3,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                   colors: [
-                    Color(0xFF252525), // Center light
-                    Color(0xFF000000), // Vignet
+                    Color(0xFF0F1014), // Deep Space Blue-Grey
+                    Color(0xFF181920), // Darker shade
                   ],
-                  stops: [0.0, 1.0],
                 ),
               ),
             ),
           ),
-          
+
+          // Ambient Glow (Subtle accent)
+          Positioned(
+            top: -100,
+            left: -100,
+            child: Container(
+              width: 500,
+              height: 500,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.primary.withOpacity(0.2),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+
           // 2. Main Content Area
           Positioned.fill(
-            top: 0, // Content goes behind header
+            left: 100, // Leave space for sidebar
             child: IndexedStack(
               index: _selectedIndex,
               children: [
-                // Add padding top internally in tabs or here
-                Padding(padding: const EdgeInsets.only(top: 100), child: LiveTVTab(playlist: widget.playlist)),
-                Padding(padding: const EdgeInsets.only(top: 100), child: MoviesTab(playlist: widget.playlist)),
-                Padding(padding: const EdgeInsets.only(top: 100), child: SeriesTab(playlist: widget.playlist)),
-                const Padding(padding: EdgeInsets.only(top: 100), child: SettingsTab()),
+                LiveTVTab(playlist: widget.playlist),
+                MoviesTab(playlist: widget.playlist),
+                SeriesTab(playlist: widget.playlist),
+                const SettingsTab(),
               ],
             ),
           ),
 
-          // 3. Floating Glass Header
+          // 3. Vertical Glass Sidebar
           Positioned(
-            top: 24, // Floating margin
             left: 24,
-            right: 24,
+            top: 24,
+            bottom: 24,
+            width: 80,
             child: GlassContainer(
-              height: 72,
-              borderRadius: 100, // Pill shape
-              opacity: 0.85,
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
+              borderRadius: 24,
+              opacity: 0.1,
+              // blur is hardcoded in GlassContainer (15), so we don't pass it
+              // border is bool, borderColor allows customization
+              border: true,
+              borderColor: Colors.white.withOpacity(0.1),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo
-                  _buildLogo(),
-                  
+                  // Logo Icon
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        gradient: AppColors.primaryGradient,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.4),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.play_arrow_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                  ),
+
                   const Spacer(),
-                  
-                  // Navigation Pills
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: List.generate(_tabs.length, (index) {
-                      final isSelected = _selectedIndex == index;
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: TvFocusableCard(
-                          onTap: () => setState(() => _selectedIndex = index),
-                          scaleFactor: 1.1,
-                          borderRadius: 100,
-                          focusColor: Colors.white,
-                          child: AnimatedContainer(
-                            duration: AppTheme.durationFast,
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: isSelected ? Colors.white : Colors.transparent,
-                              borderRadius: BorderRadius.circular(100),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  _icons[index],
-                                  size: 18,
-                                  color: isSelected ? Colors.black : AppColors.textSecondary,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _tabs[index],
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                    color: isSelected ? Colors.black : AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
+
+                  // Navigation Icons
+                  ...List.generate(_tabs.length, (index) {
+                    final isSelected = _selectedIndex == index;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: TvFocusableCard(
+                        onTap: () => setState(() => _selectedIndex = index),
+                        scaleFactor: 1.2,
+                        borderRadius: 16,
+                        focusColor: AppColors.primary,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.primary.withOpacity(0.2)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(16),
+                            border: isSelected
+                                ? Border.all(
+                                    color: AppColors.primary.withOpacity(0.5),
+                                  )
+                                : null,
+                          ),
+                          child: Icon(
+                            _icons[index],
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.textSecondary,
+                            size: 24,
                           ),
                         ),
-                      );
-                    }),
-                  ),
-                  
-                  const Spacer(),
-                  
-                  // Tools
-                  Row(
-                    children: [
-                      _buildIconButton(Icons.search_rounded, () {}),
-                      const SizedBox(width: 16),
-                      const DigitalClock(), // Kept existing widget
-                      const SizedBox(width: 16),
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: Colors.white.withOpacity(0.1),
-                        child: const Icon(Icons.person_rounded, size: 20, color: Colors.white),
                       ),
-                    ],
+                    );
+                  }),
+
+                  const Spacer(),
+
+                  // Settings / Profile
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    child: TvFocusableCard(
+                      onTap: () {},
+                      borderRadius: 50,
+                      scaleFactor: 1.1,
+                      child: CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Colors.white.withOpacity(0.1),
+                        child: const Icon(
+                          Icons.person,
+                          color: Colors.white70,
+                          size: 20,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -155,49 +194,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildIconButton(IconData icon, VoidCallback onTap) {
-    return TvFocusableCard(
-      onTap: onTap,
-      borderRadius: 50,
-      scaleFactor: 1.15,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: Colors.white, size: 20),
-      ),
-    );
-  }
-
-  Widget _buildLogo() {
-    return Row(
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [Colors.white, Color(0xFFAAAAAA)]),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: const Icon(Icons.play_arrow_rounded, color: Colors.black, size: 24),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          'XtremFlow',
-          style: GoogleFonts.inter(
-            fontWeight: FontWeight.w700, 
-            fontSize: 18, 
-            color: Colors.white,
-            letterSpacing: -0.5,
-          ),
-        ),
-      ],
     );
   }
 }

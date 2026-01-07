@@ -62,6 +62,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   String _statusMessage = 'Loading...';
   String? _errorMessage;
   bool _isMuted = false;
+  bool _ignoreStatusUpdates = false;
 
   @override
   void initState() {
@@ -209,7 +210,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               );
         }
       } else if (type == 'playback_status') {
-        setState(() => _isPlaying = data['status'] == 'playing');
+        if (!_ignoreStatusUpdates) {
+          setState(() => _isPlaying = data['status'] == 'playing');
+        }
       } else if (type == 'user_activity') {
         _onHover();
       }
@@ -217,10 +220,31 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   void _sendMessage(Map<String, dynamic> message) {
-    if (_isInitialized) {
-      final iframe =
-          html.document.getElementById(_viewId) as html.IFrameElement?;
-      iframe?.contentWindow?.postMessage(message, '*');
+    if (!_isInitialized) return;
+
+    // Try finding by ID first
+    var iframe = html.document.getElementById(_viewId) as html.IFrameElement?;
+
+    // If not found, try finding by src pattern (fallback for Shadow DOM or ID issues)
+    if (iframe == null) {
+      final iframes = html.document.getElementsByTagName('iframe');
+      for (final frame in iframes) {
+        if (frame is html.IFrameElement &&
+            (frame.src?.contains('player_lite.html') == true ||
+                frame.src?.contains('player.html') == true)) {
+          iframe = frame;
+          break;
+        }
+      }
+    }
+
+    if (iframe != null) {
+      print('[PlayerScreen] Sending message to iframe: $message');
+      iframe.contentWindow?.postMessage(message, '*');
+    } else {
+      print(
+        '[PlayerScreen] Error: Could not find iframe to send message: $message',
+      );
     }
   }
 
@@ -233,10 +257,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   void _togglePlayPause() {
+    // Optimistic update to make UI responsive immediately
+    setState(() => _isPlaying = !_isPlaying);
+
+    // Ignore incoming status updates for 2 seconds to prevent fighting
+    _ignoreStatusUpdates = true;
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) _ignoreStatusUpdates = false;
+    });
+
     if (_isPlaying) {
-      _sendMessage({'type': 'pause'});
-    } else {
       _sendMessage({'type': 'play'});
+    } else {
+      _sendMessage({'type': 'pause'});
     }
   }
 
@@ -289,137 +322,184 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Use stream type to determine player UI:
-    // - Live TV: Lite player UI (minimal overlay)
-    // - VOD/Series: Standard player UI (full controls)
     final isLiveTV = widget.streamType == StreamType.live;
 
-    // LITE PLAYER MODE for Live TV: Simple iframe with native HTML5 controls, minimal Flutter overlay
+    // LITE PLAYER MODE for Live TV - Simplified UI (no BackdropFilter)
     if (isLiveTV) {
       return Scaffold(
         backgroundColor: Colors.black,
-        body: MouseRegion(
-          onHover: (_) => _onHover(),
-          child: GestureDetector(
-            onTap: () {
-              if (_showControls) {
-                setState(() => _showControls = false);
-              } else {
-                _onHover();
-              }
-            },
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Video Player (iframe with native controls)
-                if (_isInitialized) HtmlElementView(viewType: _viewId),
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Video Player
+            if (_isInitialized) HtmlElementView(viewType: _viewId),
 
-                // Top Bar: Back Button + Title (with auto-hide)
-                AnimatedPositioned(
-                  duration: const Duration(milliseconds: 200),
-                  top: _showControls ? 24 : -80,
-                  left: 24,
-                  right: 24,
-                  child: PointerInterceptor(
-                    child: Row(
-                      children: [
-                        Material(
-                          color: Colors.black54,
-                          shape: const CircleBorder(),
-                          child: InkWell(
-                            onTap: () => Navigator.pop(context),
-                            customBorder: const CircleBorder(),
-                            child: const Padding(
-                              padding: EdgeInsets.all(12),
-                              child: Icon(
-                                Icons.arrow_back_rounded,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Text(
-                            widget.channels != null
-                                ? widget.channels![_currentIndex].name
-                                : widget.title,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              shadows: [
-                                Shadow(blurRadius: 4, color: Colors.black),
-                              ],
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        // Mute button for Live TV
-                        Material(
-                          color: Colors.black54,
-                          shape: const CircleBorder(),
-                          child: InkWell(
-                            onTap: _toggleMute,
-                            customBorder: const CircleBorder(),
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Icon(
-                                _isMuted
-                                    ? Icons.volume_off_rounded
-                                    : Icons.volume_up_rounded,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Channel Zapping Controls (with auto-hide)
-                if (widget.channels != null && widget.channels!.length > 1)
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 200),
-                    bottom: 160,
-                    right: _showControls ? 24 : -80,
-                    child: PointerInterceptor(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
+            // Control Overlay (sits on top of video, catches all pointer events)
+            Positioned.fill(
+              child: PointerInterceptor(
+                child: MouseRegion(
+                  onHover: (_) => _onHover(),
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: () {
+                      if (_showControls) {
+                        setState(() => _showControls = false);
+                      } else {
+                        _onHover();
+                      }
+                    },
+                    child: Container(
+                      color: Colors.transparent,
+                      child: Stack(
                         children: [
-                          // Previous Channel
-                          Material(
-                            color: Colors.black54,
-                            shape: const CircleBorder(),
-                            child: InkWell(
-                              onTap: _previousChannel,
-                              customBorder: const CircleBorder(),
-                              child: const Padding(
-                                padding: EdgeInsets.all(14),
-                                child: Icon(
-                                  Icons.keyboard_arrow_up,
-                                  color: Colors.white,
-                                  size: 28,
+                          // Top Bar
+                          AnimatedPositioned(
+                            duration: const Duration(milliseconds: 200),
+                            top: _showControls ? 0 : -100,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.black.withOpacity(0.8),
+                                    Colors.transparent,
+                                  ],
+                                ),
+                              ),
+                              child: SafeArea(
+                                bottom: false,
+                                child: Row(
+                                  children: [
+                                    _buildSimpleIconButton(
+                                      icon: Icons.arrow_back_rounded,
+                                      onTap: () => Navigator.pop(context),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            widget.channels != null
+                                                ? widget
+                                                    .channels![_currentIndex]
+                                                    .name
+                                                : widget.title,
+                                            style: GoogleFonts.outfit(
+                                              color: Colors.white,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                            'Live TV',
+                                            style: GoogleFonts.inter(
+                                              color: AppColors.primary,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    // Top right mute button removed
+                                  ],
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          // Next Channel
-                          Material(
-                            color: Colors.black54,
-                            shape: const CircleBorder(),
-                            child: InkWell(
-                              onTap: _nextChannel,
-                              customBorder: const CircleBorder(),
-                              child: const Padding(
-                                padding: EdgeInsets.all(14),
-                                child: Icon(
-                                  Icons.keyboard_arrow_down,
-                                  color: Colors.white,
-                                  size: 28,
+
+                          // Unified Bottom Bar - EPG + Controls in one bar
+                          AnimatedPositioned(
+                            duration: const Duration(milliseconds: 200),
+                            bottom: _showControls ? 24 : -100,
+                            left: 24,
+                            right: 24,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 16,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1A1A2E).withOpacity(0.9),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.1),
                                 ),
+                              ),
+                              child: Row(
+                                children: [
+                                  // EPG Info (left side)
+                                  Expanded(
+                                    child: _buildInlineEpg(),
+                                  ),
+
+                                  const SizedBox(width: 24),
+
+                                  // Control Buttons (right side)
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // Previous Channel
+                                      if (widget.channels != null &&
+                                          widget.channels!.length > 1)
+                                        _buildSimpleIconButton(
+                                          icon: Icons.skip_previous_rounded,
+                                          onTap: _previousChannel,
+                                          size: 44,
+                                        ),
+
+                                      if (widget.channels != null &&
+                                          widget.channels!.length > 1)
+                                        const SizedBox(width: 16),
+
+                                      // Play/Pause (Large)
+                                      _buildSimpleIconButton(
+                                        icon: _isPlaying
+                                            ? Icons.pause_rounded
+                                            : Icons.play_arrow_rounded,
+                                        onTap: _togglePlayPause,
+                                        size: 52,
+                                        iconSize: 28,
+                                        highlighted: true,
+                                      ),
+
+                                      if (widget.channels != null &&
+                                          widget.channels!.length > 1)
+                                        const SizedBox(width: 16),
+
+                                      // Next Channel
+                                      if (widget.channels != null &&
+                                          widget.channels!.length > 1)
+                                        _buildSimpleIconButton(
+                                          icon: Icons.skip_next_rounded,
+                                          onTap: _nextChannel,
+                                          size: 44,
+                                        ),
+
+                                      const SizedBox(width: 16),
+
+                                      // Mute button
+                                      _buildSimpleIconButton(
+                                        icon: _isMuted
+                                            ? Icons.volume_off_rounded
+                                            : Icons.volume_up_rounded,
+                                        onTap: _toggleMute,
+                                        size: 44,
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -427,40 +507,23 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       ),
                     ),
                   ),
-
-                // EPG Overlay (for Live TV, with auto-hide, higher position)
-                if (widget.streamType == StreamType.live)
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 200),
-                    bottom: _showControls ? 60 : -120,
-                    left: 0,
-                    right: 0,
-                    child: PointerInterceptor(
-                      child: EpgOverlay(
-                        playlist: widget.playlist,
-                        streamId: widget.channels != null
-                            ? widget.channels![_currentIndex].streamId
-                            : widget.streamId,
-                      ),
-                    ),
-                  ),
-              ],
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       );
     }
 
-    // STANDARD PLAYER MODE (Custom Flutter Overlay)
+    // STANDARD PLAYER MODE (VOD/Series)
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // 1. Video Player Layer
           if (_isInitialized) HtmlElementView(viewType: _viewId),
 
-          // 2. Interaction Layer
+          // User interaction area
           Positioned.fill(
             child: PointerInterceptor(
               child: MouseRegion(
@@ -470,7 +533,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                     if (_showControls) {
                       setState(() => _showControls = false);
                     } else {
-                      _onHover(); // Shows controls and starts timer
+                      _onHover();
                     }
                   },
                   behavior: HitTestBehavior.translucent,
@@ -480,257 +543,182 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             ),
           ),
 
-          // 3. UI Overlay (Glassmorphism)
+          // Controls Overlay
           if (_showControls || _isLoading)
             Positioned.fill(
               child: PointerInterceptor(
                 child: Container(
-                  color: Colors.black.withOpacity(0.3), // Dim background
+                  color: Colors.black.withOpacity(0.4),
                   child: Stack(
                     children: [
-                      // Top Bar (Back + Title)
+                      // Top Bar
                       Positioned(
                         top: 24,
                         left: 24,
                         right: 24,
-                        child: Row(
-                          children: [
-                            TvFocusableCard(
-                              onTap: () => Navigator.pop(context),
-                              borderRadius: 50,
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.1),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.arrow_back_rounded,
-                                  color: Colors.white,
-                                ),
+                        child: GlassContainer(
+                          height: 72,
+                          borderRadius: 24,
+                          opacity: 0.1,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            children: [
+                              _buildGlassIconButton(
+                                icon: Icons.arrow_back_rounded,
+                                onTap: () => Navigator.pop(context),
                               ),
-                            ),
-                            const SizedBox(width: 24),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  widget.channels != null
-                                      ? widget.channels![_currentIndex].name
-                                      : widget.title,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w700,
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  widget.title,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w600,
                                     color: Colors.white,
                                   ),
                                 ),
-                                if (widget.streamType == StreamType.live &&
-                                    widget.channels != null)
-                                  Text(
-                                    'Live TV',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      color: AppColors.live,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
 
-                      // Center Play/Pause (Animated)
-                      Center(
-                        child: _isLoading
-                            ? const CircularProgressIndicator(
-                                color: Colors.white,
-                              )
-                            : TvFocusableCard(
-                                onTap: _togglePlayPause,
-                                borderRadius: 100,
-                                scaleFactor: 1.2,
-                                child: Container(
-                                  width: 80,
-                                  height: 80,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: Colors.white.withOpacity(0.3),
-                                    ),
-                                  ),
-                                  child: Icon(
-                                    _isPlaying
-                                        ? Icons.pause_rounded
-                                        : Icons.play_arrow_rounded,
-                                    color: Colors.white,
-                                    size: 48,
-                                  ),
-                                ),
-                              ),
-                      ),
-
-                      // EPG Overlay
-                      if (widget.streamType == StreamType.live)
-                        Positioned(
-                          bottom: 140,
-                          left: 40,
-                          child: EpgOverlay(
-                            streamId: widget.channels != null
-                                ? widget.channels![_currentIndex].streamId
-                                : widget.streamId,
-                            playlist: widget.playlist,
+                      // Center Loading Indicator (only show when loading)
+                      if (_isLoading)
+                        const Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
                           ),
                         ),
 
-                      // Bottom Control Bar
+                      // Bottom Controls
                       Positioned(
                         bottom: 40,
                         left: 40,
                         right: 40,
                         child: GlassContainer(
                           borderRadius: 24,
-                          opacity: 0.8,
+                          opacity: 0.2, // Slightly more opaque for controls
+                          border: true,
+                          borderColor: Colors.white.withOpacity(0.1),
                           padding: const EdgeInsets.all(24),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              // Progress Bar (if not live)
-                              if (widget.streamType != StreamType.live)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 16),
-                                  child: Row(
-                                    children: [
-                                      Text(
-                                        _formatDuration(
-                                          Duration(
-                                            seconds: _currentPosition.toInt(),
-                                          ),
-                                        ),
-                                        style: const TextStyle(
-                                          color: Colors.white70,
-                                        ),
+                              // Progress
+                              Row(
+                                children: [
+                                  Text(
+                                    _formatDuration(
+                                      Duration(
+                                        seconds: _currentPosition.toInt(),
                                       ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: SliderTheme(
-                                          data: const SliderThemeData(
-                                            trackHeight: 4,
-                                            thumbShape: RoundSliderThumbShape(
-                                              enabledThumbRadius: 8,
-                                            ),
-                                            overlayShape:
-                                                RoundSliderOverlayShape(
-                                              overlayRadius: 16,
-                                            ),
-                                            activeTrackColor: AppColors.primary,
-                                            inactiveTrackColor: Colors.white24,
-                                            thumbColor: Colors.white,
-                                          ),
-                                          child: Slider(
-                                            value: _currentPosition,
-                                            min: 0,
-                                            max: _totalDuration,
-                                            onChangeStart: (value) {
-                                              setState(() => _isSeeking = true);
-                                            },
-                                            onChanged: (value) {
-                                              // Update UI immediately (optimistic update)
-                                              setState(
-                                                () => _currentPosition = value,
-                                              );
-                                            },
-                                            onChangeEnd: (value) {
-                                              _sendMessage({
-                                                'type': 'seek',
-                                                'value': value,
-                                              });
-                                              // Small delay to prevent jitter from incoming messages
-                                              Future.delayed(
-                                                  const Duration(
-                                                    milliseconds: 500,
-                                                  ), () {
-                                                if (mounted) {
-                                                  setState(
-                                                    () => _isSeeking = false,
-                                                  );
-                                                }
-                                              });
-                                            },
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Text(
-                                        _formatDuration(
-                                          Duration(
-                                            seconds: _totalDuration.toInt(),
-                                          ),
-                                        ),
-                                        style: const TextStyle(
-                                          color: Colors.white70,
-                                        ),
-                                      ),
-                                    ],
+                                    ),
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white70,
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: SliderTheme(
+                                      data: SliderThemeData(
+                                        trackHeight: 4,
+                                        activeTrackColor: AppColors.primary,
+                                        inactiveTrackColor:
+                                            Colors.white.withOpacity(0.2),
+                                        thumbColor: Colors.white,
+                                        thumbShape: const RoundSliderThumbShape(
+                                          enabledThumbRadius: 8,
+                                        ),
+                                        overlayColor:
+                                            AppColors.primary.withOpacity(0.2),
+                                      ),
+                                      child: Slider(
+                                        value: _currentPosition,
+                                        min: 0,
+                                        max: _totalDuration,
+                                        onChanged: (val) => setState(
+                                          () => _currentPosition = val,
+                                        ),
+                                        onChangeStart: (_) =>
+                                            setState(() => _isSeeking = true),
+                                        onChangeEnd: (val) {
+                                          _sendMessage(
+                                            {'type': 'seek', 'value': val},
+                                          );
+                                          Future.delayed(
+                                              const Duration(milliseconds: 500),
+                                              () {
+                                            if (mounted) {
+                                              setState(
+                                                () => _isSeeking = false,
+                                              );
+                                            }
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Text(
+                                    _formatDuration(
+                                      Duration(
+                                        seconds: _totalDuration.toInt(),
+                                      ),
+                                    ),
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
 
-                              // Controls Row
+                              // Buttons
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  // Channel Zapping for Live TV
-                                  if (widget.streamType == StreamType.live &&
-                                      widget.channels != null) ...[
-                                    _buildTvControl(
-                                      Icons.navigate_before_rounded,
-                                      _previousChannel,
-                                    ),
-                                    const SizedBox(width: 32),
-                                    _buildTvControl(
-                                      Icons.navigate_next_rounded,
-                                      _nextChannel,
-                                    ),
-                                  ],
-
-                                  // Controls for VOD (Keep Skip buttons, they act as Prev/Next track if playlist or maybe seek)
-                                  // The user said: "only for live tv, other buttons skip/prev must allow changing channel"
-                                  // This implies for VOD they might want seek? But existing buttons were skip_previous/skip_next.
-                                  // We keep them for VOD if channels list is present, or just hide them if not needed.
-                                  // For now, I will restore them for VOD as well if channels > 0 (playlist mode)
-                                  if (widget.streamType != StreamType.live &&
-                                      widget.channels != null &&
-                                      widget.channels!.isNotEmpty) ...[
-                                    _buildTvControl(
-                                      Icons.skip_previous_rounded,
-                                      _previousChannel,
-                                    ),
-                                    const SizedBox(width: 32),
-                                    _buildTvControl(
-                                      Icons.skip_next_rounded,
-                                      _nextChannel,
-                                    ),
-                                  ],
-
+                                  _buildGlassIconButton(
+                                    icon: Icons.replay_10_rounded,
+                                    onTap: () => _sendMessage({
+                                      'type': 'seek',
+                                      'value': (_currentPosition - 10)
+                                          .clamp(0, _totalDuration),
+                                    }),
+                                    transparent: true,
+                                  ),
+                                  const SizedBox(width: 24),
+                                  _buildGlassIconButton(
+                                    icon: _isPlaying
+                                        ? Icons.pause_rounded
+                                        : Icons.play_arrow_rounded,
+                                    onTap: _togglePlayPause,
+                                    size: 56,
+                                    iconSize: 32,
+                                  ),
+                                  const SizedBox(width: 24),
+                                  _buildGlassIconButton(
+                                    icon: Icons.forward_10_rounded,
+                                    onTap: () => _sendMessage({
+                                      'type': 'seek',
+                                      'value': (_currentPosition + 10)
+                                          .clamp(0, _totalDuration),
+                                    }),
+                                    transparent: true,
+                                  ),
                                   const Spacer(),
-                                  // Volume/Mute button
-                                  _buildTvControl(
-                                    _isMuted
+                                  _buildGlassIconButton(
+                                    icon: _isMuted
                                         ? Icons.volume_off_rounded
                                         : Icons.volume_up_rounded,
-                                    _toggleMute,
+                                    onTap: _toggleMute,
+                                    transparent: true,
                                   ),
                                   const SizedBox(width: 16),
-                                  _buildTvControl(
-                                    Icons.subtitles_rounded,
-                                    () {},
-                                  ),
-                                  const SizedBox(width: 16),
-                                  _buildTvControl(
-                                    Icons.aspect_ratio_rounded,
-                                    _toggleFullscreen,
+                                  _buildGlassIconButton(
+                                    icon: Icons.aspect_ratio_rounded,
+                                    onTap: _toggleFullscreen,
+                                    transparent: true,
                                   ),
                                 ],
                               ),
@@ -748,18 +736,241 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     );
   }
 
-  Widget _buildTvControl(IconData icon, VoidCallback onTap) {
-    return TvFocusableCard(
-      onTap: onTap,
-      borderRadius: 12,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
+  Widget _buildGlassIconButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    bool transparent = false,
+    double size = 48,
+    double iconSize = 24,
+  }) {
+    // Button with direct Material/InkWell - PointerInterceptor is on outer container
+    return Material(
+      color: transparent ? Colors.transparent : Colors.white.withOpacity(0.1),
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: () {
+          print('[PlayerScreen] Button tapped: $icon');
+          onTap();
+        },
+        customBorder: const CircleBorder(),
+        child: Container(
+          width: size,
+          height: size,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: transparent
+                ? null
+                : Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          child: Icon(icon, color: Colors.white, size: iconSize),
         ),
-        child: Icon(icon, color: Colors.white, size: 24),
       ),
+    );
+  }
+
+  // Simple Icon Button for Live TV player (no BackdropFilter issues)
+  Widget _buildSimpleIconButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    double size = 48,
+    double iconSize = 24,
+    bool highlighted = false,
+  }) {
+    return Material(
+      color: highlighted
+          ? AppColors.primary.withOpacity(0.2)
+          : Colors.white.withOpacity(0.1),
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: () {
+          print('[PlayerScreen] Simple button tapped: $icon');
+          onTap();
+        },
+        customBorder: const CircleBorder(),
+        splashColor: AppColors.primary.withOpacity(0.3),
+        highlightColor: AppColors.primary.withOpacity(0.1),
+        child: Container(
+          width: size,
+          height: size,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: highlighted
+                  ? AppColors.primary.withOpacity(0.5)
+                  : Colors.white.withOpacity(0.2),
+              width: highlighted ? 2 : 1,
+            ),
+          ),
+          child: Icon(
+            icon,
+            color: highlighted ? AppColors.primary : Colors.white,
+            size: iconSize,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build inline EPG info for the unified control bar
+  Widget _buildInlineEpg() {
+    final currentStreamId = widget.channels != null
+        ? widget.channels![_currentIndex].streamId
+        : widget.streamId;
+
+    return Consumer(
+      builder: (context, ref, child) {
+        final epgAsync = ref.watch(
+          epgByPlaylistProvider(
+            EpgRequestKey(playlist: widget.playlist, streamId: currentStreamId),
+          ),
+        );
+
+        return epgAsync.when(
+          data: (epgEntries) {
+            if (epgEntries.isEmpty) {
+              // No EPG data - show channel name only
+              return Row(
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      'LIVE',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      widget.channels != null
+                          ? widget.channels![_currentIndex].name
+                          : widget.title,
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              );
+            }
+
+            // Get current program
+            final now = DateTime.now();
+            final currentProgram = epgEntries.firstWhere(
+              (entry) {
+                final start = DateTime.parse(entry.start);
+                final end = DateTime.parse(entry.end);
+                return now.isAfter(start) && now.isBefore(end);
+              },
+              orElse: () => epgEntries.first,
+            );
+
+            return Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'LIVE',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        currentProgram.title,
+                        style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (currentProgram.description.isNotEmpty)
+                        Text(
+                          currentProgram.description,
+                          style: GoogleFonts.inter(
+                            color: Colors.white60,
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+          loading: () => Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'LIVE',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                widget.channels != null
+                    ? widget.channels![_currentIndex].name
+                    : widget.title,
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          error: (_, __) => Text(
+            widget.channels != null
+                ? widget.channels![_currentIndex].name
+                : widget.title,
+            style: GoogleFonts.outfit(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        );
+      },
     );
   }
 }

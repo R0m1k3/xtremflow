@@ -64,50 +64,75 @@ class _TvFocusableCardState extends State<TvFocusableCard>
     }
   }
 
+  bool _isHovered = false;
+
+  void _handleHover(bool isHovered) {
+    setState(() {
+      _isHovered = isHovered;
+    });
+    if (isHovered || _isFocused) {
+      _controller.forward();
+    } else {
+      _controller.reverse();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _scaleAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _scaleAnimation.value,
-          child: child,
-        );
-      },
-      child: InkWell(
-        onTap: widget.onTap,
-        onFocusChange: _handleFocusChange,
-        autofocus: widget.autofocus,
-        borderRadius: BorderRadius.circular(widget.borderRadius),
-        focusColor: Colors.transparent, // We handle visual focus manually
-        hoverColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-        splashColor: Colors.transparent,
-        child: Container(
-          decoration: BoxDecoration(
+    final isActive = _isFocused || _isHovered;
+
+    return MouseRegion(
+      onEnter: (_) => _handleHover(true),
+      onExit: (_) => _handleHover(false),
+      cursor: SystemMouseCursors.click,
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: child,
+          );
+        },
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: widget.onTap,
+            onFocusChange: _handleFocusChange,
+            autofocus: widget.autofocus,
             borderRadius: BorderRadius.circular(widget.borderRadius),
-            border: _isFocused
-                ? Border.all(
-                    color: widget.focusColor ?? AppColors.focusBorder,
-                    width: 3,
-                  )
-                : Border.all(color: Colors.transparent, width: 3),
-            boxShadow: _isFocused
-                ? [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                    BoxShadow(
-                      color: (widget.focusColor ?? AppColors.focusBorder).withOpacity(0.2),
-                      blurRadius: 10,
-                      spreadRadius: 1,
-                    ),
-                  ]
-                : [],
+            focusColor: Colors.transparent,
+            hoverColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            splashColor: Colors.transparent,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(widget.borderRadius),
+                border: isActive
+                    ? Border.all(
+                        color: widget.focusColor ?? AppColors.focusBorder,
+                        width: 2, // Slightly thinner for cleaner look
+                      )
+                    : Border.all(color: Colors.transparent, width: 2),
+                boxShadow: isActive
+                    ? [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.5),
+                          blurRadius: 25,
+                          offset: const Offset(0, 10),
+                          spreadRadius: 2,
+                        ),
+                        BoxShadow(
+                          color: (widget.focusColor ?? AppColors.focusBorder)
+                              .withOpacity(0.3),
+                          blurRadius: 15,
+                          spreadRadius: 1,
+                        ),
+                      ]
+                    : [],
+              ),
+              child: widget.child,
+            ),
           ),
-          child: widget.child,
         ),
       ),
     );

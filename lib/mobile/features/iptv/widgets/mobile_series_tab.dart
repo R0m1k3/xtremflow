@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/models/playlist_config.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/components/hero_carousel.dart';
 import '../../../../core/widgets/glass_container.dart';
 import '../../../../features/iptv/models/xtream_models.dart';

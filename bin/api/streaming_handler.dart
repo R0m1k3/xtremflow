@@ -19,10 +19,34 @@ String _getFFmpegPath() {
   if (Platform.isWindows) {
     if (File('ffmpeg.exe').existsSync()) return 'ffmpeg.exe';
     if (File('bin/ffmpeg.exe').existsSync()) return 'bin/ffmpeg.exe';
-    if (File('ffmpeg/bin/ffmpeg.exe').existsSync())
+    if (File('ffmpeg/bin/ffmpeg.exe').existsSync()) {
       return 'ffmpeg/bin/ffmpeg.exe';
+    }
   }
   return 'ffmpeg'; // Default to PATH
+}
+
+/// Check if NVIDIA GPU acceleration is enabled via environment variable
+bool _isNvidiaGpuEnabled() {
+  final envValue = Platform.environment['NVIDIA_GPU'] ??
+      Platform.environment['nvidia_gpu'] ??
+      'false';
+  return envValue.toLowerCase() == 'true' || envValue == '1';
+}
+
+/// Log GPU status on first use
+bool _gpuStatusLogged = false;
+void _logGpuStatus() {
+  if (!_gpuStatusLogged) {
+    if (_isNvidiaGpuEnabled()) {
+      print('[FFmpeg] NVIDIA GPU acceleration ENABLED (NVDEC/NVENC)');
+    } else {
+      print(
+        '[FFmpeg] Using CPU processing (set NVIDIA_GPU=true to enable GPU)',
+      );
+    }
+    _gpuStatusLogged = true;
+  }
 }
 
 /// Initialize streaming subsystem
@@ -94,7 +118,9 @@ PlaylistConfig? _getCurrentPlaylist(Request request) {
 // ==========================================
 
 Handler createLiveStreamHandler(
-    Future<PlaylistConfig?> Function(Request) getPlaylist) {
+  Future<PlaylistConfig?> Function(Request) getPlaylist, {
+  bool Function()? isGpuEnabled,
+}) {
   final router = Router();
 
   // Route: /api/live/{streamId} (Catch all pattern to debug)
@@ -128,29 +154,93 @@ Handler createLiveStreamHandler(
         '${playlist.dns}/live/${playlist.username}/${playlist.password}/$streamId.ts';
     print('[Live] Streaming via FFmpeg: $targetUrl');
 
-    // Start FFmpeg to proxy and stabilize the stream
-    // We use "-c copy" to avoid transcoding (Low CPU) but gain FFmpeg's network robustness
-    final ffmpegArgs = [
-      '-hide_banner', '-loglevel', 'error',
-      // Full headers to mimic a real video player
+    // Check if NVIDIA GPU is enabled (from database setting or env var fallback)
+    final useNvidiaGpu = isGpuEnabled?.call() ?? _isNvidiaGpuEnabled();
+
+    // Log GPU status
+    if (useNvidiaGpu) {
+      print('[Live] Using NVIDIA GPU acceleration (NVDEC)');
+    }
+
+    // Build FFmpeg arguments
+    final ffmpegArgs = <String>[
+      '-hide_banner',
+      '-loglevel',
+      'warning', // Changed from error to see more info
+    ];
+
+    // NVIDIA GPU Hardware Acceleration (NVDEC for decoding)
+    if (useNvidiaGpu) {
+      ffmpegArgs.addAll([
+        '-hwaccel', 'cuda', // Use NVIDIA CUDA for decoding
+        // Note: Don't use hwaccel_output_format cuda - it can cause issues with some codecs
+      ]);
+    }
+
+    // Input headers and robustness flags
+    ffmpegArgs.addAll([
       '-headers',
       'User-Agent: VLC/3.0.18 LibVLC/3.0.18\r\nAccept: */*\r\nConnection: keep-alive\r\nReferer: ${playlist.dns}/\r\n',
+      '-reconnect',
+      '1',
+      '-reconnect_at_eof',
+      '1',
+      '-reconnect_streamed',
+      '1',
+      '-reconnect_delay_max',
+      '10', // Increased from 5
+      '-rw_timeout',
+      '30000000', // Increased from 15s to 30s
+      '-timeout',
+      '30000000', // Add explicit timeout
+      '-fflags',
+      '+nobuffer+genpts+discardcorrupt', // Added discardcorrupt for robustness
+      '-analyzeduration',
+      '5000000', // Increased for GPU decode
+      '-probesize',
+      '10000000', // Increased for GPU decode
+      '-i',
+      targetUrl,
+    ]);
 
-      // HTTP redirect handling and robustness flags
-      '-reconnect', '1',
-      '-reconnect_at_eof', '1',
-      '-reconnect_streamed', '1',
-      '-reconnect_delay_max', '5',
-      '-rw_timeout', '15000000',
-      '-analyzeduration', '5000000', // Faster probe for live
-      '-probesize', '5000000',
+    // Output encoding options
+    if (useNvidiaGpu) {
+      // With GPU: Transcode using NVIDIA NVENC for hardware acceleration
+      print('[Live] Transcoding video with h264_nvenc (GPU)');
+      ffmpegArgs.addAll([
+        // Video encoding
+        '-c:v', 'h264_nvenc', // Use NVIDIA NVENC encoder
+        '-preset', 'p1', // Fastest preset for live (p1=fastest)
+        '-tune', 'll', // Low latency tuning for live streams
+        '-rc', 'cbr', // Constant bitrate for stable streaming
+        '-b:v', '4000k', // Fixed video bitrate
+        '-maxrate', '4500k', // Max bitrate
+        '-bufsize', '8000k', // Buffer for stability
+        '-g', '50', // Keyframe every 2 seconds (at 25fps)
+        '-bf', '0', // No B-frames for lower latency
+        // Audio encoding with resampling to fix timestamp gaps
+        '-af',
+        'aresample=async=1000:first_pts=0', // Auto-correct audio timestamps
+        '-c:a', 'aac', // Audio to AAC (browser compatible)
+        '-b:a', '128k', // Audio bitrate
+        '-ac', '2',
+        '-ar', '48000', // 48kHz sample rate
+        // Timestamp handling
+        '-copyts', // Copy timestamps
+        '-start_at_zero', // Start at 0
+        '-max_muxing_queue_size', '4096', // Large muxing queue
+      ]);
+    } else {
+      // Without GPU: Standard CPU processing (copy video)
+      ffmpegArgs.addAll([
+        '-c:v', 'copy', // Video: Direct copy (Very low CPU)
+        '-c:a', 'aac', // Audio: Transcode to AAC
+        '-b:a', '192k',
+        '-ac', '2',
+      ]);
+    }
 
-      '-i', targetUrl,
-
-      '-c', 'copy', // Direct stream copy (Very low CPU)
-      '-f', 'mpegts',
-      'pipe:1', // Output to stdout
-    ];
+    ffmpegArgs.addAll(['-f', 'mpegts', 'pipe:1']);
 
     try {
       final ffmpegPath = _getFFmpegPath();
@@ -210,15 +300,18 @@ Handler createLiveStreamHandler(
 final _lastLogTime = <String, int>{};
 
 Handler createVodStreamHandler(
-    Future<PlaylistConfig?> Function(Request) getPlaylist) {
+  Future<PlaylistConfig?> Function(Request) getPlaylist, {
+  bool Function()? isGpuEnabled,
+}) {
   final router = Router();
 
   // Route: /api/vod/{streamId}/playlist.m3u8
   router.get('/<streamId>/playlist.m3u8',
       (Request request, String streamId) async {
     final playlist = await getPlaylist(request);
-    if (playlist == null)
+    if (playlist == null) {
       return Response.internalServerError(body: 'No playlist');
+    }
 
     // Validate streamId to prevent Path Traversal
     if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(streamId)) {
@@ -292,58 +385,123 @@ Handler createVodStreamHandler(
           '${playlist.dns}/$basePath/${playlist.username}/${playlist.password}/$streamId.mkv';
       print('[VOD] Starting Transcode ($contentType): $targetUrl');
 
-      // Start FFmpeg
-      final ffmpegArgs = [
-        '-hide_banner', '-loglevel', 'error',
-        '-headers', 'User-Agent: VLC/3.0.18 LibVLC/3.0.18\r\n',
+      // Check if NVIDIA GPU is enabled (from database setting or env var fallback)
+      final useNvidiaGpu = isGpuEnabled?.call() ?? _isNvidiaGpuEnabled();
 
-        // Robustness for network streams
-        '-reconnect', '1',
-        '-reconnect_at_eof', '1',
-        '-reconnect_streamed', '1',
-        '-reconnect_delay_max', '5',
-        '-rw_timeout', '15000000',
+      if (useNvidiaGpu) {
+        print('[VOD] Using NVIDIA GPU acceleration (NVENC)');
+      }
+
+      // Build FFmpeg arguments
+      final ffmpegArgs = <String>[
+        '-hide_banner',
+        '-loglevel',
+        'warning',
+      ];
+
+      // NVIDIA GPU Hardware Acceleration
+      if (useNvidiaGpu) {
+        ffmpegArgs.addAll([
+          '-hwaccel', 'cuda',
+          // Note: Don't use hwaccel_output_format cuda - it can cause issues
+        ]);
+      }
+
+      // Input and robustness flags
+      ffmpegArgs.addAll([
+        '-headers',
+        'User-Agent: VLC/3.0.18 LibVLC/3.0.18\r\n',
+        '-reconnect',
+        '1',
+        '-reconnect_at_eof',
+        '1',
+        '-reconnect_streamed',
+        '1',
+        '-reconnect_delay_max',
+        '10',
+        '-rw_timeout',
+        '30000000',
+        '-timeout',
+        '30000000',
         '-analyzeduration',
-        '2000000', // Reduced from 10M to 2M for faster start
-        '-probesize', '2000000', // Reduced from 10M to 2M for faster start
+        '5000000',
+        '-probesize',
+        '10000000',
+        '-i',
+        targetUrl,
+      ]);
 
-        '-i', targetUrl,
+      // Video encoding (GPU or CPU)
+      if (useNvidiaGpu) {
+        // NVIDIA NVENC - Hardware encoding (50x+ faster, much lower CPU)
+        ffmpegArgs.addAll([
+          '-c:v', 'h264_nvenc', // Use NVIDIA NVENC encoder
+          '-preset', 'p4', // Good quality/speed balance
+          '-tune', 'hq', // High quality mode
+          '-rc', 'cbr', // Constant bitrate for HLS
+          '-b:v', '4000k', // Target bitrate
+          '-maxrate', '4500k',
+          '-bufsize', '8000k',
+          '-g', '48', // Keyframe every 2 seconds
+          '-bf', '2', // B-frames for quality
+          '-pix_fmt', 'yuv420p',
+        ]);
+      } else {
+        // CPU encoding (libx264)
+        ffmpegArgs.addAll([
+          '-c:v',
+          'libx264',
+          '-preset',
+          'ultrafast',
+          '-tune',
+          'zerolatency',
+          '-tune',
+          'fastdecode',
+          '-crf',
+          '23',
+          '-maxrate',
+          '3000k',
+          '-bufsize',
+          '6000k',
+          '-pix_fmt',
+          'yuv420p',
+          '-threads',
+          '0',
+        ]);
+      }
 
-        // Video: H.264 Ultrafast (Low CPU)
-        '-c:v', 'libx264',
-        '-preset', 'ultrafast',
-        '-tune', 'zerolatency', // Optimize for low latency startup
-        '-tune', 'fastdecode',
-        '-crf', '23',
-        '-maxrate', '3000k',
-        '-bufsize', '6000k',
-        '-pix_fmt', 'yuv420p',
-        '-threads', '0',
-
-        // Audio: AAC (Browser compatible, improved quality)
-        '-c:a', 'aac',
-        '-b:a', '192k',
-        '-ar', '48000',
-
-        // Advanced Audio Filtering:
-        // 1. "pan": Downmix 5.1/7.1 to Stereo with center mix (dialogue) boosted.
-        // 2. "dynaudnorm": Dynamic Audio Normalizer to boost quiet dialogue and limit loud explosions (Night Mode effect).
+      // Audio encoding (same for both)
+      ffmpegArgs.addAll([
+        '-c:a',
+        'aac',
+        '-b:a',
+        '192k',
+        '-ar',
+        '48000',
         '-af',
         'pan=stereo|FL=1.0*FL+0.707*FC+0.5*BL+0.5*SL+0.5*LFE|FR=1.0*FR+0.707*FC+0.5*BR+0.5*SR+0.5*LFE,dynaudnorm=f=150:g=15',
+      ]);
 
-        '-f', 'hls',
-        '-hls_time', '4',
-        '-hls_list_size', '0',
+      // HLS output settings
+      ffmpegArgs.addAll([
+        '-f',
+        'hls',
+        '-hls_time',
+        '4',
+        '-hls_list_size',
+        '0',
         '-hls_playlist_type',
-        'event', // Event type allows immediate playback while transcoding
-        '-hls_allow_cache', '1',
-        '-hls_segment_type', 'mpegts',
-        '-hls_segment_filename', '${streamDir.path}/segment_%03d.ts',
-        '-start_number', '0',
-
-        // Write playlist to stdout or file? File is easier for static serving
+        'event',
+        '-hls_allow_cache',
+        '1',
+        '-hls_segment_type',
+        'mpegts',
+        '-hls_segment_filename',
+        '${streamDir.path}/segment_%03d.ts',
+        '-start_number',
+        '0',
         '${streamDir.path}/playlist.m3u8',
-      ];
+      ]);
 
       final ffmpegPath = _getFFmpegPath();
       Process.start(ffmpegPath, ffmpegArgs).then((process) {
@@ -372,7 +530,8 @@ Handler createVodStreamHandler(
 
     if (!playlistFile.existsSync()) {
       return Response.internalServerError(
-          body: 'Timeout waiting for transcoder');
+        body: 'Timeout waiting for transcoder',
+      );
     }
 
     return Response.ok(

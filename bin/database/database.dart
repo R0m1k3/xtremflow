@@ -373,6 +373,37 @@ class AppDatabase {
     );
   }
 
+  /// Check if NVIDIA GPU is enabled in any user's settings
+  /// This is a server-wide setting that applies to all streaming
+  bool isNvidiaGpuEnabled() {
+    try {
+      // Check all user settings for enable_nvidia_gpu
+      final result = _db.select(
+        'SELECT settings_json FROM user_settings ORDER BY updated_at DESC LIMIT 1',
+      );
+
+      if (result.isEmpty) {
+        print('[GPU] No user settings found in database');
+        return false;
+      }
+
+      final settingsJson = result.first['settings_json'] as String;
+      print('[GPU] Settings found: $settingsJson');
+
+      // Parse JSON properly to check the setting
+      // Handle both "enable_nvidia_gpu":true and "enable_nvidia_gpu": true
+      final RegExp gpuRegex =
+          RegExp(r'"enable_nvidia_gpu"\s*:\s*true', caseSensitive: false);
+      final isEnabled = gpuRegex.hasMatch(settingsJson);
+
+      print('[GPU] NVIDIA GPU enabled: $isEnabled');
+      return isEnabled;
+    } catch (e) {
+      print('[GPU] Error checking GPU setting: $e');
+    }
+    return false;
+  }
+
   /// Close database connection
   void close() {
     _db.dispose();

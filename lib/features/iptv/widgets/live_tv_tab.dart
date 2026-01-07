@@ -261,8 +261,8 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
     final columns = ResponsiveLayout.value(
       context,
       mobile: 2,
-      tablet: 3,
-      desktop: 4,
+      tablet: 4,
+      desktop: 6,
     );
 
     return GridView.builder(
@@ -353,8 +353,8 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
     final columns = ResponsiveLayout.value(
       context,
       mobile: 2,
-      tablet: 4,
-      desktop: 5,
+      tablet: 5,
+      desktop: 8,
     );
 
     return GridView.builder(
@@ -383,28 +383,29 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                 // Icon Area
                 Expanded(
                   child: Container(
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
+                    decoration: BoxDecoration(
+                      color: Colors.white
+                          .withOpacity(0.05), // Subtle transparent background
                       borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(12)),
+                          const BorderRadius.vertical(top: Radius.circular(12)),
                     ),
                     padding: const EdgeInsets.all(16),
                     child: Center(
                       child: channel.streamIcon.isNotEmpty
                           ? Image.network(
                               _getProxiedIconUrl(channel.streamIcon)!,
-                              errorBuilder: (_, __, ___) => const Icon(
+                              errorBuilder: (_, __, ___) => Icon(
                                 Icons.tv,
-                                color: Colors.grey,
+                                color: Colors.white.withOpacity(0.3),
                                 size: 40,
                               ),
                             )
                           : Text(
                               channel.name.characters.first.toUpperCase(),
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.outfit(
                                 fontSize: 40,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black12,
+                                color: Colors.white24,
                               ),
                             ),
                     ),
