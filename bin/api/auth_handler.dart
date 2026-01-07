@@ -21,35 +21,46 @@ class AuthHandler {
   /// POST /api/auth/login
   Future<Response> _login(Request request) async {
     try {
-      final payload = jsonDecode(await request.readAsString()) as Map<String, dynamic>;
+      print('[Auth] Login attempt received');
+      final bodyStr = await request.readAsString();
+      print('[Auth] Request body: $bodyStr');
+      
+      final payload = jsonDecode(bodyStr) as Map<String, dynamic>;
       final username = payload['username'] as String?;
       final password = payload['password'] as String?;
 
       if (username == null || password == null) {
+        print('[Auth] Missing username or password');
         return Response(400, body: jsonEncode({
           'success': false,
           'error': 'Username and password are required',
         }), headers: {'Content-Type': 'application/json'},);
       }
 
+      print('[Auth] Verifying credentials for user: $username');
       // Verify credentials
       final user = db.verifyCredentials(username, password);
       if (user == null) {
+        print('[Auth] Invalid credentials for user: $username');
         return Response(401, body: jsonEncode({
           'success': false,
           'error': 'Invalid credentials',
         }), headers: {'Content-Type': 'application/json'},);
       }
 
+      print('[Auth] User verified, creating session for userId: ${user.id}');
       // Create session
       final session = db.createSession(user.id);
+      print('[Auth] Session created with token: ${session.token.substring(0, 8)}...');
 
       return Response.ok(jsonEncode({
         'success': true,
         'user': user.toJson(),
         'token': session.token,
       }), headers: {'Content-Type': 'application/json'},);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('[Auth] ERROR during login: $e');
+      print('[Auth] Stack trace: $stackTrace');
       return Response.internalServerError(
         body: jsonEncode({'success': false, 'error': e.toString()}),
         headers: {'Content-Type': 'application/json'},

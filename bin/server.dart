@@ -278,7 +278,7 @@ void main(List<String> args) async {
   print('Server started on port ${server.port}');
   print('Serving static files from: $webPath');
   print('REST API available at: /api/auth/* and /api/playlists/*');
-  print('Xtream proxy available at: /api/xtream/* (Authenticated)');
+  print('Xtream proxy available at: /api/xtream/* (SSRF Protected)');
 
   // Clean expired sessions periodically (every hour)
   Timer.periodic(const Duration(hours: 1), (_) {
