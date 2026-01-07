@@ -69,7 +69,7 @@ FROM debian:stable-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     sqlite3 \
-    libsqlite3-0 \
+    libsqlite3-dev \
     curl \
     wget \
     xz-utils \
