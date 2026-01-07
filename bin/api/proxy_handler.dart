@@ -88,21 +88,31 @@ class ProxyHandler {
 
         final targetUrl = Uri.parse(fullUrl);
 
-        // SSRF Protection via Domain Allowlist
-        final playlist = await _getPlaylist(request);
-        if (playlist == null) {
-             return Response.forbidden('No active playlist configuration found to validate request');
-        }
-        
-        // Normalize domains for comparison
-        final targetHost = targetUrl.host.toLowerCase();
-        final allowedHost = Uri.parse(playlist.dns).host.toLowerCase();
+        // SSRF Protection - but allow images/static assets from any host
+        // Xtream providers often use separate CDN servers for picons/images
+        final isStaticAsset = targetUrl.path.endsWith('.png') ||
+                              targetUrl.path.endsWith('.jpg') ||
+                              targetUrl.path.endsWith('.jpeg') ||
+                              targetUrl.path.endsWith('.gif') ||
+                              targetUrl.path.endsWith('.webp') ||
+                              targetUrl.path.endsWith('.ico') ||
+                              targetUrl.path.contains('/picons/') ||
+                              targetUrl.path.contains('/logos/');
 
-        bool isAllowed = targetHost == allowedHost;
-        
-        if (!isAllowed) {
-            print('[Proxy] Blocked SSRF attempt to $targetHost (Allowed: $allowedHost)');
-             return Response.forbidden('Access to this domain is forbidden by policy');
+        if (!isStaticAsset) {
+          // For API calls, enforce domain allowlist
+          final playlist = await _getPlaylist(request);
+          if (playlist == null) {
+               return Response.forbidden('No active playlist configuration found to validate request');
+          }
+          
+          final targetHost = targetUrl.host.toLowerCase();
+          final allowedHost = Uri.parse(playlist.dns).host.toLowerCase();
+
+          if (targetHost != allowedHost) {
+              print('[Proxy] Blocked SSRF attempt to $targetHost (Allowed: $allowedHost)');
+               return Response.forbidden('Access to this domain is forbidden by policy');
+          }
         }
 
         final proxyHeaders = {
