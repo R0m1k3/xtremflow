@@ -108,57 +108,9 @@ void main(List<String> args) async {
       const Pipeline()
           .addMiddleware(authMiddleware(db))
           .addHandler(settingsHandler.router.call),
-    )
-    // Xtream Proxy (SECURED)
-    ..mount(
-      '/api/xtream', // Mounting at /api/xtream means handler sees /http://...
-      const Pipeline()
-        .addMiddleware(authMiddleware(db))
-        .addHandler((request) {
-            // Router mount strips the prefix, but ProxyHandler expects /api/xtream prefix?
-            // Wait, shelf_router mount usually strips the prefix for the inner handler.
-            // If I mount at '/api/xtream', the inner handler receives requests relative to that.
-            // My ProxyHandler implementation checks: if (!path.startsWith('api/xtream/'))
-            // If I mount it, shelf strips it.
-            // Let's adjust usage.
-            // Actually, `mount` does strip.
-            // Option 1: Fix ProxyHandler to not care about prefix.
-            // Option 2: Use `all` route in main router instead of strict sub-router if I want full path.
-            // Let's modify the Pipeline here to just pass it to a handler that expects the full path?
-            // No, shelf_router `mount` is specific.
-            
-            // BETTER APPROACH:
-            // ProxyHandler expects `/api/xtream/...`.
-            // If we mount at `/api/xtream`, the request passed to handler will have `path` starting with `/`.
-            // e.g. `/http://server...`
-            // Modifying ProxyHandler is cleaner, but I already wrote it.
-            // Let's WRAP it here to prepend? No that's hacky.
-            
-            // Let's use `router.all('/api/xtream/<ignored|.*>', ...)` instead of `mount` if we want to keep full path?
-            // Or just rely on the fact that I can change the handler logic easily? 
-            // I'll stick to `mount` and `ProxyHandler` needs check.
-            // Actually, let's look at `server.dart` original `_createXtreamProxyHandler`.
-            // It was manually checking `path.startsWith('api/xtream/')`.
-            // If I use `mount`, I should probably adjust the handler.
-            
-            // For now, I'll instantiate ProxyHandler and let it handle the request, 
-            // BUT I will modify how I add it to the router to ensure it works.
-            // The cleanest is to use `apiRouter.all('/api/xtream/<path|.*>', ...)` 
-            // verifying authentication, then passing to ProxyHandler.
-            // BUT ProxyHandler checks `api/xtream` prefix.
-            
-            // Let's simply add it to the Cascade as before but WITH middleware wrapped manually?
-            // No, `authMiddleware` expects to be in a pipeline.
-            
-            // I will go with: Add to `apiRouter` using `mount`, 
-            // AND I will patch `ProxyHandler` in the next step to be flexible or 
-            // I will use a simple wrapper here that reconstructs what ProxyHandler expects? 
-            // No, simpler: Update `server.dart` to NOT mount it inside `apiRouter` but 
-            // add it to the `Cascade` BUT wrapped in a Pipeline with Auth.
-            // That preserves the path structure `ProxyHandler` expects (`/api/xtream/...`).
-            return Response.notFound('Should not be reached if using Cascade');
-        }),
     );
+    // NOTE: /api/xtream is handled by proxyHandler in the Cascade below
+    // Do NOT mount here as it would intercept and block the actual proxy
 
   // Initialize Cleanup Service
   final cleanupService = CleanupService();
