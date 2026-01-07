@@ -82,7 +82,7 @@ void main(List<String> args) async {
   final playlistsHandler = PlaylistsHandler(db);
   final usersHandler = UsersHandler(db);
   final settingsHandler = SettingsHandler(db);
-  final proxyHandler = ProxyHandler(getPlaylist);
+  final proxyHandler = ProxyHandler(getPlaylist, db);
 
   // Setup router
   final apiRouter = Router()
@@ -247,17 +247,14 @@ void main(List<String> args) async {
       ),
     );
 
-  // Secured Proxy Pipeline
-  // We handle it outside the main router to preserve the '/api/xtream' prefix 
-  // exactly as the handler expects it, but we WRAP it in auth.
-  final securedProxyHandler = const Pipeline()
-      .addMiddleware(authMiddleware(db))
-      .addHandler(proxyHandler.handler);
+  // Proxy Handler (auth is now handled INSIDE the handler, after path check)
+  // This allows non-/api/xtream requests to fall through to static handler
+  final proxyPipeline = proxyHandler.handler;
 
   // Main handler
   final handler = Cascade()
       .add(apiRouter.call) /* Standard API endpoints */
-      .add(securedProxyHandler) /* Secured Xtream Proxy */
+      .add(proxyPipeline) /* Xtream Proxy (auth inside handler) */
       .add(streamingRouter.call) /* Streaming endpoints */
       .add(staticHandler)
       .handler;

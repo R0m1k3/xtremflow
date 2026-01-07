@@ -4,10 +4,13 @@ import 'package:shelf/shelf.dart';
 import 'package:http/http.dart' as http;
 import '../models/playlist.dart';
 import '../models/playlist_config.dart';
+import '../database/database.dart';
 
 /// Handler for the Xtream Proxy
 class ProxyHandler {
   final Future<PlaylistConfig?> Function(Request) _getPlaylist;
+  final AppDatabase _db;
+  
   static const _allowedHeaders = [
     'content-type',
     'content-length',
@@ -17,7 +20,30 @@ class ProxyHandler {
     'cache-control',
   ];
 
-  ProxyHandler(this._getPlaylist);
+  ProxyHandler(this._getPlaylist, this._db);
+
+  /// Extract token from Authorization header or cookie
+  String? _extractToken(Request request) {
+    // Try Authorization header first
+    final authHeader = request.headers['authorization'];
+    if (authHeader != null && authHeader.startsWith('Bearer ')) {
+      return authHeader.substring(7);
+    }
+
+    // Try cookie
+    final cookie = request.headers['cookie'];
+    if (cookie != null) {
+      final parts = cookie.split(';');
+      for (final part in parts) {
+        final trimmed = part.trim();
+        if (trimmed.startsWith('session=')) {
+          return trimmed.substring(8);
+        }
+      }
+    }
+
+    return null;
+  }
 
   /// Create Xtream proxy handler with M3U8 URL rewriting support
   Handler get handler {
@@ -25,13 +51,24 @@ class ProxyHandler {
       final path = request.url.path;
 
       // Only handle /api/xtream/* requests
+      // CRITICAL: Check path BEFORE auth so non-proxy requests fall through to static handler
       if (!path.startsWith('api/xtream/')) {
-        return Response.notFound('Not found');
+        // Return 404 so Cascade tries next handler (staticHandler)
+        return Response.notFound('Not an xtream proxy request');
       }
 
-      // 1. Validation: Authentication (Already handled by middleware if mounted correctly, 
-      // but we will ensure it's mounted under auth in server.dart)
+      // === AUTHENTICATION (applied only for /api/xtream/* requests) ===
+      final token = _extractToken(request);
+      if (token == null) {
+        return Response(401, body: 'Unauthorized');
+      }
 
+      final session = _db.findSessionByToken(token);
+      if (session == null) {
+        return Response(401, body: 'Invalid or expired session');
+      }
+
+      // === PROXY LOGIC ===
       try {
         // Extract target URL from request
         // Format: /api/xtream/http://server:port/path
@@ -59,13 +96,9 @@ class ProxyHandler {
 
         final targetUrl = Uri.parse(fullUrl);
 
-        // 2. Validation: SSRF Protection via Domain Allowlist
-        // We need to verify if the target domain matches the user's playlist domain
+        // SSRF Protection via Domain Allowlist
         final playlist = await _getPlaylist(request);
         if (playlist == null) {
-             // If no specific playlist is contextually valid, we might need a stricter check.
-             // However, for now, if we can't find a playlist associated with the user/request,
-             // blocking is safer.
              return Response.forbidden('No active playlist configuration found to validate request');
         }
         
@@ -73,11 +106,8 @@ class ProxyHandler {
         final targetHost = targetUrl.host.toLowerCase();
         final allowedHost = Uri.parse(playlist.dns).host.toLowerCase();
 
-        // Allow if hosts match OR if it's a direct IP match (common in IPTV)
-        // Also allow local streaming segments if they loop back (less likely here but possible)
         bool isAllowed = targetHost == allowedHost;
         
-        // Strict Mode: Only allow requests to the configured DNS
         if (!isAllowed) {
             print('[Proxy] Blocked SSRF attempt to $targetHost (Allowed: $allowedHost)');
              return Response.forbidden('Access to this domain is forbidden by policy');
@@ -88,7 +118,6 @@ class ProxyHandler {
           'Accept': '*/*',
           'Accept-Encoding': 'identity',
           'Connection': 'keep-alive',
-          // Forward relevant headers? Usually safer not to forward everything
         };
 
         final client = http.Client();
@@ -97,17 +126,11 @@ class ProxyHandler {
         
         // Forward body if POST
         if (request.method == 'POST') {
-             // For POST, we might need to read body. 
-             // Xtream codes usually use GET or small POSTs. 
-             // BEWARE: reading body here might buffer if not careful, 
-             // but request.read() gives a stream.
-             // optimizing for simple proxy:
-             final bodyBytes = await request.read().toList(); // Wait for full body (usually small for API)
+             final bodyBytes = await request.read().toList();
              proxyRequest.bodyBytes = bodyBytes.expand((i) => i).toList();
         }
 
-        // 3. Performance: Streaming Response
-        // Instead of await client.get(), we use client.send() to get a StreamedResponse
+        // Streaming Response
         final streamedResponse = await client.send(proxyRequest);
 
         // Filter headers
