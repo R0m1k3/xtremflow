@@ -127,18 +127,17 @@ Handler createLiveStreamHandler(
   router.get('/<streamId|.*>', (Request request, String streamId) async {
     print('[Live] Incoming request for streamId: $streamId');
 
-    // Validate streamId to prevent Path Traversal
-    if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(streamId)) {
-      print('[Live] Invalid streamId: $streamId');
-      return Response.badRequest(body: 'Invalid stream ID');
-    }
-
-    // Remove .ts extension if present
-    // Remove extension if present (handle both .ts and .m3u8 just in case)
+    // Remove extension if present FIRST (handle both .ts and .m3u8)
     if (streamId.endsWith('.ts')) {
       streamId = streamId.substring(0, streamId.length - 3);
     } else if (streamId.endsWith('.m3u8')) {
       streamId = streamId.substring(0, streamId.length - 5);
+    }
+
+    // Validate streamId to prevent Path Traversal (AFTER extension removal)
+    if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(streamId)) {
+      print('[Live] Invalid streamId: $streamId');
+      return Response.badRequest(body: 'Invalid stream ID');
     }
 
     final playlist = await getPlaylist(request);
