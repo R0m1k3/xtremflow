@@ -79,7 +79,7 @@ class _RecordingModalState extends State<RecordingModal> {
       child: Material(
         color: Colors.transparent,
         child: Container(
-          width: 450,
+          width: 600,
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: AppColors.background.withOpacity(0.9),
@@ -121,52 +121,53 @@ class _RecordingModalState extends State<RecordingModal> {
               ),
               const SizedBox(height: 24),
 
-              // Heure de début
+              // Date, Heure et Durée
               Row(
                 children: [
+                  // Date
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Heure de début :',
+                          'Date :',
                           style: GoogleFonts.inter(color: Colors.white54, fontSize: 14),
                         ),
                         const SizedBox(height: 8),
                         TvFocusableCard(
                           onTap: () async {
-                            final time = await showTimePicker(
+                            final date = await showDatePicker(
                               context: context,
-                              initialTime: TimeOfDay.fromDateTime(_startTime),
+                              initialDate: _startTime,
+                              firstDate: DateTime.now(),
+                              lastDate: DateTime.now().add(const Duration(days: 365)),
                             );
-                            if (time != null) {
+                            if (date != null) {
                               setState(() {
-                                final now = DateTime.now();
                                 _startTime = DateTime(
-                                  now.year, now.month, now.day,
-                                  time.hour, time.minute,
+                                  date.year, date.month, date.day,
+                                  _startTime.hour, _startTime.minute,
                                 );
-                                // Empêcher l'heure de passé de demain pour simplifier
-                                if (_startTime.isBefore(now)) {
-                                  _startTime = _startTime.add(const Duration(days: 1));
-                                }
                               });
                             }
                           },
                           borderRadius: 8,
                           child: Container(
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.access_time, color: Colors.white, size: 18),
+                                const Icon(Icons.calendar_today, color: Colors.white, size: 18),
                                 const SizedBox(width: 8),
-                                Text(
-                                  '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}',
-                                  style: GoogleFonts.inter(color: Colors.white),
+                                Expanded(
+                                  child: Text(
+                                    '${_startTime.day.toString().padLeft(2, '0')}/${_startTime.month.toString().padLeft(2, '0')}/${_startTime.year}',
+                                    style: GoogleFonts.inter(color: Colors.white),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ],
                             ),
@@ -175,7 +176,69 @@ class _RecordingModalState extends State<RecordingModal> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
+
+                  // Heure
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Heure :',
+                          style: GoogleFonts.inter(color: Colors.white54, fontSize: 14),
+                        ),
+                        const SizedBox(height: 8),
+                        TvFocusableCard(
+                          onTap: () async {
+                            final time = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.fromDateTime(_startTime),
+                              builder: (context, child) {
+                                return MediaQuery(
+                                  data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+                                  child: child!,
+                                );
+                              },
+                            );
+                            if (time != null) {
+                              setState(() {
+                                final now = DateTime.now();
+                                _startTime = DateTime(
+                                  _startTime.year, _startTime.month, _startTime.day,
+                                  time.hour, time.minute,
+                                );
+                                // Empêcher l'heure de passé si c'est aujourd'hui
+                                if (_startTime.isBefore(now)) {
+                                  _startTime = _startTime.add(const Duration(days: 1));
+                                }
+                              });
+                            }
+                          },
+                          borderRadius: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.access_time, color: Colors.white, size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}',
+                                    style: GoogleFonts.inter(color: Colors.white),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   
                   // Durée
                   Expanded(
@@ -183,7 +246,7 @@ class _RecordingModalState extends State<RecordingModal> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Durée (minutes) :',
+                          'Durée (min) :',
                           style: GoogleFonts.inter(color: Colors.white54, fontSize: 14),
                         ),
                         const SizedBox(height: 8),
@@ -194,7 +257,9 @@ class _RecordingModalState extends State<RecordingModal> {
                           child: Row(
                             children: [
                               IconButton(
-                                icon: const Icon(Icons.remove, color: Colors.white),
+                                icon: const Icon(Icons.remove, color: Colors.white, size: 18),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 46),
                                 onPressed: () {
                                   if (_durationMinutes > 15) {
                                     setState(() => _durationMinutes -= 15);
@@ -203,13 +268,15 @@ class _RecordingModalState extends State<RecordingModal> {
                               ),
                               Expanded(
                                 child: Text(
-                                  '$_durationMinutes m',
+                                  '$_durationMinutes',
                                   textAlign: TextAlign.center,
                                   style: GoogleFonts.inter(color: Colors.white),
                                 ),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.add, color: Colors.white),
+                                icon: const Icon(Icons.add, color: Colors.white, size: 18),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 46),
                                 onPressed: () {
                                   if (_durationMinutes < 300) {
                                     setState(() => _durationMinutes += 15);
