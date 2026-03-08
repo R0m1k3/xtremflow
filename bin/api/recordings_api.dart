@@ -101,4 +101,29 @@ class RecordingsApi {
       headers: {'Content-Type': 'application/json'},
     );
   }
+
+  /// POST /api/recordings/stop/<id> — Arrête un enregistrement FFmpeg en cours
+  Future<Response> handleStop(Request request, String id) async {
+    final recording = _db.getRecordingById(id);
+    if (recording == null) {
+      return Response.notFound(
+        json.encode({'error': 'Enregistrement non trouvé'}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    }
+    final stopped = await _scheduler.stopRecording(id);
+    if (stopped) {
+      return Response.ok(
+        json.encode({'message': 'Enregistrement arrêté'}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    } else {
+      // Pas de processus FFmpeg actif pour cet ID → marquer comme complété quand même
+      _db.updateRecordingStatus(id, 'completed');
+      return Response.ok(
+        json.encode({'message': 'Enregistrement marqué comme terminé'}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    }
+  }
 }

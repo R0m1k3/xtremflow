@@ -186,10 +186,23 @@ class RecordingScheduler {
     }
   }
 
+  /// Arrêter un enregistrement en cours (appelé depuis l'API)
+  Future<bool> stopRecording(String id) async {
+    if (_ffmpegProcess != null && _currentRecording?.id == id) {
+      print('[RecordingScheduler] Arrêt demandé pour: ${_currentRecording!.title}');
+      _ffmpegProcess!.kill(ProcessSignal.sigterm);
+      _db.updateRecordingStatus(id, 'completed');
+      _ffmpegProcess = null;
+      _currentRecording = null;
+      return true;
+    }
+    return false; // Pas d'enregistrement actif avec cet ID
+  }
+
   Future<void> _stopCurrentRecording({String? reason}) async {
     if (_ffmpegProcess != null && _currentRecording != null) {
-      print('[RecordingScheduler] Arrêt forcé du processus FFmpeg. Raison: ${reason ?? "Fin programmée"}');
-      _ffmpegProcess!.kill(ProcessSignal.sigterm); // Envoyer un signal d'arrêt propre
+      print('[RecordingScheduler] Arrêt auto: ${reason ?? "Fin programmée"}');
+      _ffmpegProcess!.kill(ProcessSignal.sigterm);
       _db.updateRecordingStatus(_currentRecording!.id, 'completed');
       _ffmpegProcess = null;
       _currentRecording = null;

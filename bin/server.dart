@@ -122,6 +122,7 @@ void main(List<String> args) async {
     ..get('/api/recordings', recordingsApi.handleGetAll)
     ..post('/api/recordings', recordingsApi.handlePost)
     ..delete('/api/recordings/<id>', recordingsApi.handleDelete)
+    ..post('/api/recordings/stop/<id>', recordingsApi.handleStop)
     ..get('/api/recordings/logs/<id>', recordingsApi.getLogHandler);
     // NOTE: /api/xtream is handled by proxyHandler in the Cascade below
     // Do NOT mount here as it would intercept and block the actual proxy

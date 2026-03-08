@@ -71,6 +71,26 @@ class _RecordingsTabState extends State<RecordingsTab> {
     }
   }
 
+  Future<void> _stopRecording(String id, String title) async {
+    try {
+      final response = await http.post(Uri.parse('/api/recordings/stop/$id'));
+      if (response.statusCode == 200) {
+        _fetchRecordings();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('⏹ Enregistrement "$title" arrêté')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur lors de l\'arrêt de l\'enregistrement: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Future<void> _showLogs(String id, String title) async {
     try {
       final response = await http.get(Uri.parse('/api/recordings/logs/$id'));
@@ -268,6 +288,13 @@ class _RecordingsTabState extends State<RecordingsTab> {
                             ),
                           ),
                           const SizedBox(width: 8),
+                          // Bouton Stop (uniquement pour les enregistrements en cours)
+                          if (rec['status'] == 'recording')
+                            IconButton(
+                              icon: const Icon(Icons.stop_circle, color: Colors.redAccent),
+                              tooltip: 'Arrêter l\'enregistrement',
+                              onPressed: () => _stopRecording(rec['id'], rec['title'] ?? 'Inconnu'),
+                            ),
                           IconButton(
                             icon: const Icon(Icons.description_outlined, color: Colors.blueAccent),
                             tooltip: 'Voir les logs',
