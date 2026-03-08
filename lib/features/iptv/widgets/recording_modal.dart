@@ -37,9 +37,9 @@ class _RecordingModalState extends State<RecordingModal> {
     final endTime = _startTime.add(Duration(minutes: _durationMinutes));
     
     try {
-      // Dans une implémentation réelle le port/URL serait géré par une configuration
+      // Utilisation d'une URL relative en Web (ou d'une configuration pour autres plateformes)
       final response = await http.post(
-        Uri.parse('http://localhost:8089/api/recordings'),
+        Uri.parse('/api/recordings'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'channel_id': widget.channel.streamId,
