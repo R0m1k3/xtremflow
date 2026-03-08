@@ -71,6 +71,59 @@ class _RecordingsTabState extends State<RecordingsTab> {
     }
   }
 
+  Future<void> _showLogs(String id, String title) async {
+    try {
+      final response = await http.get(Uri.parse('/api/recordings/$id/log'));
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final logs = data['logs'] ?? 'Aucun log trouvé.';
+        
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: const Color(0xFF1E1E1E),
+              title: Text('Journaux pour "$title"', style: const TextStyle(color: Colors.white)),
+              content: SizedBox(
+                width: double.maxFinite,
+                height: 400,
+                child: SingleChildScrollView(
+                  child: Text(
+                    logs,
+                    style: GoogleFonts.firaCode(
+                      fontSize: 12,
+                      color: Colors.greenAccent,
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Fermer', style: TextStyle(color: Colors.blueAccent)),
+                ),
+              ],
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          final data = json.decode(response.body);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(data['error'] ?? 'Erreur lors de la récupération des logs'), backgroundColor: Colors.orangeAccent),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Impossible de récupérer les logs: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Color _getStatusColor(String status) {
     switch (status) {
       case 'recording':
@@ -204,7 +257,13 @@ class _RecordingsTabState extends State<RecordingsTab> {
                           ),
                           const SizedBox(width: 8),
                           IconButton(
+                            icon: const Icon(Icons.description_outlined, color: Colors.blueAccent),
+                            tooltip: 'Voir les logs',
+                            onPressed: () => _showLogs(rec['id'], rec['title'] ?? 'Inconnu'),
+                          ),
+                          IconButton(
                             icon: const Icon(Icons.delete_outline, color: Colors.white54),
+                            tooltip: 'Supprimer',
                             onPressed: () => _deleteRecording(rec['id']),
                           ),
                         ],

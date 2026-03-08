@@ -118,21 +118,43 @@ class RecordingScheduler {
       
       _ffmpegProcess = await Process.start('ffmpeg', args);
 
+      // Création d'un fichier de log dédié pour FFmpeg
+      final logFilePath = filePath.replaceAll('.mp4', '.log');
+      final logFile = File(logFilePath);
+      final logSink = logFile.openWrite();
+      logSink.writeln('[${DateTime.now()}] Démarrage de l\'enregistrement : ${recording.title}');
+      logSink.writeln('URL source: ${recording.streamUrl}');
+      logSink.writeln('Fichier destination: $filePath');
+      logSink.writeln('Commande: ffmpeg ${args.join(' ')}\n');
+
+      // Rediriger la sortie de ffmpeg vers ce fichier
+      _ffmpegProcess!.stdout.listen((event) {
+        logSink.add(event);
+      });
+      _ffmpegProcess!.stderr.listen((event) {
+        logSink.add(event); // FFmpeg écrit beaucoup d'infos (dont la progression) sur stderr
+      });
+
       // Enregistrer le chemin du fichier dans la BDD
       _db.updateRecordingStatus(recording.id, 'recording', filePath: filePath);
 
       // Écouter de manière asynchrone la fin du processus FFmpeg
-      _ffmpegProcess!.exitCode.then((exitCode) {
+      _ffmpegProcess!.exitCode.then((exitCode) async {
         if (_currentRecording?.id == recording.id) {
+          logSink.writeln('\n[${DateTime.now()}] Processus FFmpeg terminé avec le code $exitCode');
+          await logSink.close();
+
           if (exitCode == 0 || exitCode == 255) { // 255 est souvent renvoyé lors d'un arrêt forcé (SIGKILL/SIGTERM) qui est attendu
              print('[RecordingScheduler] Enregistrement terminé avec succès (${recording.title})');
              _db.updateRecordingStatus(recording.id, 'completed');
           } else {
              print('[RecordingScheduler] Erreur FFmpeg (code: $exitCode) pour l\'enregistrement ${recording.title}');
-             _db.updateRecordingStatus(recording.id, 'failed', errorReason: 'Erreur FFmpeg code $exitCode');
+             _db.updateRecordingStatus(recording.id, 'failed', errorReason: 'Erreur FFmpeg code $exitCode. Voir logs.');
           }
           _currentRecording = null;
           _ffmpegProcess = null;
+        } else {
+          await logSink.close();
         }
       });
 

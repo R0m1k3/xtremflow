@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
@@ -81,6 +82,32 @@ class RecordingsApi {
 
       return Response.ok(
         json.encode({'message': 'Enregistrement supprimé avec succès'}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    });
+
+    // Consulter les logs d'un enregistrement
+    router.get('/<id>/log', (Request request, String id) async {
+      final recording = _db.getRecordingById(id);
+      
+      if (recording == null) {
+        return Response.notFound(json.encode({'error': 'Enregistrement non trouvé'}));
+      }
+
+      if (recording.filePath == null) {
+        return Response.notFound(json.encode({'error': 'Aucun fichier ni log associé pour le moment.'}));
+      }
+
+      final logFilePath = recording.filePath!.replaceAll('.mp4', '.log');
+      final logFile = File(logFilePath);
+
+      if (!await logFile.exists()) {
+        return Response.notFound(json.encode({'error': 'Le fichier de log est introuvable.'}));
+      }
+
+      final logs = await logFile.readAsString();
+      return Response.ok(
+        json.encode({'logs': logs}),
         headers: {'Content-Type': 'application/json'},
       );
     });
