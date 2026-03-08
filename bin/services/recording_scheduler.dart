@@ -34,47 +34,54 @@ class RecordingScheduler {
     _isRunning = true;
 
     try {
-      final now = DateTime.now();
+      // Toujours comparer en UTC pour éviter les problèmes de fuseau horaire
+      final now = DateTime.now().toUtc();
       
+      final recordings = _db.getAllRecordings();
+      print('[RecordingScheduler] VÉRIFICATION: now=$now recordings=${recordings.length}');
+
       // Si un enregistrement est en cours, vérifier s'il doit s'arrêter
       if (_currentRecording != null) {
-        if (now.isAfter(_currentRecording!.endTime)) {
+        if (now.isAfter(_currentRecording!.endTime.toUtc())) {
           print('[RecordingScheduler] Fin de l\'enregistrement : ${_currentRecording!.title}');
           await _stopCurrentRecording();
         }
       }
 
       // Rechercher les enregistrements planifiés
-      final recordings = _db.getAllRecordings();
-      
       for (final recording in recordings) {
          // Nettoyer les enregistrements bloqués "recording" suite à un crash serveur
         if (recording.status == 'recording' && _currentRecording?.id != recording.id) {
-            print('[RecordingScheduler] Correction d\'un enregistrement orphelin (état "recording" sans processus)');
+            print('[RecordingScheduler] Enregistrement orphelin détecté: ${recording.id}');
             _db.updateRecordingStatus(recording.id, 'failed', errorReason: 'Interruption inattendue du serveur');
             continue;
         }
 
-        // Si l'enregistrement est planifié, qu'il est temps de démarrer et qu'il n'est pas déjà fini
-        if (recording.status == 'scheduled' && now.isAfter(recording.startTime) && now.isBefore(recording.endTime)) {
-          
-          if (_currentRecording != null) {
-            print('[RecordingScheduler] Impossible de démarrer "${recording.title}", un autre enregistrement est en cours (${_currentRecording!.title}).');
-            _db.updateRecordingStatus(recording.id, 'failed', errorReason: 'Un autre enregistrement était déjà en cours (limite de 1 flux simultané).');
-            continue;
-          }
+        if (recording.status == 'scheduled') {
+          final startUtc = recording.startTime.toUtc();
+          final endUtc = recording.endTime.toUtc();
+          print('[RecordingScheduler] "${recording.title}" start=$startUtc end=$endUtc now=$now isAfterStart=${now.isAfter(startUtc)} isBeforeEnd=${now.isBefore(endUtc)}');
 
-          print('[RecordingScheduler] Démarrage de l\'enregistrement : ${recording.title}');
-          await _startRecording(recording);
-        }
-        
-        // Si l'enregistrement est planifié mais que la date de fin est dépassée (loupé)
-        if (recording.status == 'scheduled' && now.isAfter(recording.endTime)) {
-           _db.updateRecordingStatus(recording.id, 'failed', errorReason: 'Heure de fin dépassée avant le démarrage');
+          // Si l'enregistrement est planifié, qu'il est temps de démarrer et qu'il n'est pas déjà fini
+          if (now.isAfter(startUtc) && now.isBefore(endUtc)) {
+            if (_currentRecording != null) {
+              print('[RecordingScheduler] Conflit: "${recording.title}" ne peut pas démarrer, "${_currentRecording!.title}" est en cours.');
+              _db.updateRecordingStatus(recording.id, 'failed', errorReason: 'Un autre enregistrement était déjà en cours.');
+              continue;
+            }
+            print('[RecordingScheduler] *** DÉMARRAGE DE L\'ENREGISTREMENT : ${recording.title} ***');
+            await _startRecording(recording);
+          }
+          
+          // Si l'enregistrement est planifié mais que la date de fin est dépassée (loupé)
+          if (now.isAfter(endUtc)) {
+            print('[RecordingScheduler] Enregistrement "${recording.title}" manqué (fin dépassée).');
+            _db.updateRecordingStatus(recording.id, 'failed', errorReason: 'Heure de fin dépassée avant le démarrage');
+          }
         }
       }
-    } catch (e) {
-      print('[RecordingScheduler] Erreur lors de la vérification : $e');
+    } catch (e, st) {
+      print('[RecordingScheduler] ERREUR CRITIQUE: $e\n$st');
     } finally {
       _isRunning = false;
     }
