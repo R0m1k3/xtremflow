@@ -116,7 +116,9 @@ void main(List<String> args) async {
           .addMiddleware(authMiddleware(db))
           .addHandler(settingsHandler.router.call),
     )
-    // TV Recordings endpoints
+    // TV Recordings - Route des logs AVANT le mount general (évite collision shelf_router avec /<id>)
+    ..get('/api/recordings/logs/<id>', recordingsApi.getLogHandler)
+    // TV Recordings endpoints (GET /, POST /, DELETE /<id>)
     ..mount(
       '/api/recordings',
       const Pipeline()

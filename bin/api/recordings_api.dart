@@ -11,6 +11,42 @@ class RecordingsApi {
 
   RecordingsApi(this._db, this._scheduler);
 
+  /// Handler pour GET /api/recordings/logs/<id>
+  /// Exposé séparément car shelf_router a un conflit entre DELETE /<id> et GET /logs/<id>
+  Future<Response> getLogHandler(Request request, String id) async {
+    final recording = _db.getRecordingById(id);
+    
+    if (recording == null) {
+      return Response.notFound(
+        json.encode({'error': 'Enregistrement non trouvé'}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    }
+
+    if (recording.filePath == null) {
+      return Response.notFound(
+        json.encode({'error': 'Aucun fichier ni log associé pour le moment.'}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    }
+
+    final logFilePath = recording.filePath!.replaceAll('.mp4', '.log');
+    final logFile = File(logFilePath);
+
+    if (!await logFile.exists()) {
+      return Response.notFound(
+        json.encode({'error': 'Le fichier de log est introuvable. Chemin: $logFilePath'}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    }
+
+    final logs = await logFile.readAsString();
+    return Response.ok(
+      json.encode({'logs': logs}),
+      headers: {'Content-Type': 'application/json'},
+    );
+  }
+
   Router get router {
     final router = Router();
 
@@ -86,31 +122,9 @@ class RecordingsApi {
       );
     });
 
-    // Consulter les logs d'un enregistrement
-    router.get('/logs/<id>', (Request request, String id) async {
-      final recording = _db.getRecordingById(id);
-      
-      if (recording == null) {
-        return Response.notFound(json.encode({'error': 'Enregistrement non trouvé'}));
-      }
-
-      if (recording.filePath == null) {
-        return Response.notFound(json.encode({'error': 'Aucun fichier ni log associé pour le moment.'}));
-      }
-
-      final logFilePath = recording.filePath!.replaceAll('.mp4', '.log');
-      final logFile = File(logFilePath);
-
-      if (!await logFile.exists()) {
-        return Response.notFound(json.encode({'error': 'Le fichier de log est introuvable.'}));
-      }
-
-      final logs = await logFile.readAsString();
-      return Response.ok(
-        json.encode({'logs': logs}),
-        headers: {'Content-Type': 'application/json'},
-      );
-    });
+    // Note: La route GET /logs/<id> est déclarée directement dans server.dart
+    // car shelf_router a un conflit interne entre DELETE /<id> et GET /logs/<id>
+    // dans le même routeur.
 
     return router;
   }
