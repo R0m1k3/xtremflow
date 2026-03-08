@@ -11,6 +11,8 @@ chown -R xtremuser:xtremuser /app/data 2>/dev/null || true
 # Create subdirectories if they don't exist
 mkdir -p /app/data/logs /app/data/tmp /app/recordings
 chown -R xtremuser:xtremuser /app/data/logs /app/data/tmp /app/recordings 2>/dev/null || true
+# Garantir les permissions en écriture même si chown échoue (volume monté depuis l'hôte)
+chmod -R 777 /app/recordings 2>/dev/null || true
 
 # Drop privileges and run the server as xtremuser
 echo "Starting server as xtremuser..."

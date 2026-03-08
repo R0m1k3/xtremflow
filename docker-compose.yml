@@ -13,7 +13,7 @@ services:
       # Pour changer: modifiez le chemin avant les deux points ":"
       # Exemple Windows : - D:\MesVideos\TV:/app/recordings
       # Exemple Linux   : - /mnt/nas/videos:/app/recordings
-      - ${RECORDINGS_PATH:-./data/recordings}:/app/recordings
+      - ${RECORDINGS_PATH:-/mnt/user/Data/Sport}:/app/recordings
     restart: unless-stopped
 
 volumes:
