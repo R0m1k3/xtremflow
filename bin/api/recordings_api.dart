@@ -87,7 +87,7 @@ class RecordingsApi {
     });
 
     // Consulter les logs d'un enregistrement
-    router.get('/<id>/log', (Request request, String id) async {
+    router.get('/logs/<id>', (Request request, String id) async {
       final recording = _db.getRecordingById(id);
       
       if (recording == null) {

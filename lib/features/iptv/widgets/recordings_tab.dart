@@ -73,7 +73,7 @@ class _RecordingsTabState extends State<RecordingsTab> {
 
   Future<void> _showLogs(String id, String title) async {
     try {
-      final response = await http.get(Uri.parse('/api/recordings/$id/log'));
+      final response = await http.get(Uri.parse('/api/recordings/logs/$id'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
