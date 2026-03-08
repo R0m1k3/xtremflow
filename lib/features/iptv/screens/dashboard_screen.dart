@@ -9,6 +9,7 @@ import '../widgets/live_tv_tab.dart';
 import '../widgets/movies_tab.dart';
 import '../widgets/series_tab.dart';
 import '../widgets/settings_tab.dart';
+import '../widgets/recordings_tab.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
@@ -24,11 +25,12 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   int _selectedIndex = 0;
-  final List<String> _tabs = ['Live TV', 'Movies', 'Series', 'Settings'];
+  final List<String> _tabs = ['Live TV', 'Movies', 'Series', 'Recordings', 'Settings'];
   final List<IconData> _icons = [
     Icons.live_tv_rounded,
     Icons.movie_rounded,
     Icons.tv_rounded,
+    Icons.video_library_rounded,
     Icons.settings_rounded,
   ];
 
@@ -83,6 +85,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 LiveTVTab(playlist: widget.playlist),
                 MoviesTab(playlist: widget.playlist),
                 SeriesTab(playlist: widget.playlist),
+                const RecordingsTab(),
                 const SettingsTab(),
               ],
             ),
