@@ -60,33 +60,35 @@ class ProxyHandler {
       // NOTE: Authentication REMOVED from proxy to allow browser-initiated requests (img src, etc.)
       // SSRF protection is still active via domain validation below.
 
-      // === PROXY LOGIC ===
-      try {
-        // Extract target URL from request
-        // Format: /api/xtream/http://server:port/path
-        String apiPath = path.substring('api/xtream/'.length);
+        Uri? targetUrl;
+        
+        // === PROXY LOGIC ===
+        try {
+          // Extract target URL from request
+          // Format: /api/xtream/http://server:port/path
+          String apiPath = path.substring('api/xtream/'.length);
 
-        // Decode URL if it's encoded
-        if (apiPath.startsWith('http%3A') || apiPath.startsWith('https%3A')) {
-          apiPath = Uri.decodeComponent(apiPath);
-        }
-
-        if (!apiPath.startsWith('http://') && !apiPath.startsWith('https://')) {
-          return Response.badRequest(
-            body: 'Invalid API URL. Expected format: /api/xtream/http://...',
-          );
-        }
-
-        String fullUrl = apiPath;
-        if (request.url.query.isNotEmpty) {
-          if (fullUrl.contains('?')) {
-            fullUrl = '$fullUrl&${request.url.query}';
-          } else {
-            fullUrl = '$fullUrl?${request.url.query}';
+          // Decode URL if it's encoded
+          if (apiPath.startsWith('http%3A') || apiPath.startsWith('https%3A')) {
+            apiPath = Uri.decodeComponent(apiPath);
           }
-        }
 
-        final targetUrl = Uri.parse(fullUrl);
+          if (!apiPath.startsWith('http://') && !apiPath.startsWith('https://')) {
+            return Response.badRequest(
+              body: 'Invalid API URL. Expected format: /api/xtream/http://...',
+            );
+          }
+
+          String fullUrl = apiPath;
+          if (request.url.query.isNotEmpty) {
+            if (fullUrl.contains('?')) {
+              fullUrl = '$fullUrl&${request.url.query}';
+            } else {
+              fullUrl = '$fullUrl?${request.url.query}';
+            }
+          }
+
+          targetUrl = Uri.parse(fullUrl);
 
         // SSRF Protection - but allow images/static assets from any host
         // Xtream providers often use separate CDN servers for picons/images
@@ -137,8 +139,11 @@ class ProxyHandler {
           // Build response headers
           final responseHeaders = <String, String>{
             'access-control-allow-origin': '*',
-            'content-type': response.headers['content-type'] ?? 'application/json',
           };
+          
+          if (response.headers['content-type'] != null) {
+            responseHeaders['content-type'] = response.headers['content-type']!;
+          }
           
           if (response.headers['content-length'] != null) {
             responseHeaders['content-length'] = response.headers['content-length']!;
@@ -154,8 +159,16 @@ class ProxyHandler {
         }
 
       } catch (e, stackTrace) {
-        print('Proxy error: $e');
-        print(stackTrace);
+        print('[ProxyHandler] error on $path: $e');
+        
+        // Return transparent 1x1 pixel image fallback for images
+        if (targetUrl?.path.endsWith('.png') == true || targetUrl?.path.endsWith('.jpg') == true) {
+             return Response.ok(
+                 base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='),
+                 headers: {'content-type': 'image/png'},
+             );
+        }
+
         return Response.internalServerError(
           body: jsonEncode({'error': 'Proxy error', 'message': e.toString()}),
           headers: {'content-type': 'application/json'},
