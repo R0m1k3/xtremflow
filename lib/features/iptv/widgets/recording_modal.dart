@@ -31,6 +31,13 @@ class _RecordingModalState extends State<RecordingModal> {
   int _durationMinutes = 60;
   bool _isLoading = false;
 
+  Future<void> _recordNow() async {
+    setState(() {
+      _startTime = DateTime.now();
+    });
+    await _scheduleRecording();
+  }
+
   Future<void> _scheduleRecording() async {
     setState(() => _isLoading = true);
     
@@ -306,10 +313,34 @@ class _RecordingModalState extends State<RecordingModal> {
                   ),
                   const SizedBox(width: 16),
                   TvFocusableCard(
+                    onTap: _isLoading ? () {} : _recordNow,
+                    borderRadius: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: _isLoading 
+                        ? const SizedBox(
+                            width: 20, height: 20, 
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                        : Text(
+                            'Enregistrer de suite',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TvFocusableCard(
                     onTap: _isLoading ? () {} : _scheduleRecording,
                     borderRadius: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(8),
@@ -320,7 +351,7 @@ class _RecordingModalState extends State<RecordingModal> {
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                           )
                         : Text(
-                            'Enregistrer',
+                            'Programmer',
                             style: GoogleFonts.inter(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
