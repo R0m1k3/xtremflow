@@ -84,15 +84,19 @@ class RecordingsApi {
   }
 
   /// DELETE /api/recordings/<id> — Annule ou supprime un enregistrement
-  Response handleDelete(Request request, String id) {
+  /// Si un enregistrement FFmpeg est actif, il est arrêté avant la suppression
+  Future<Response> handleDelete(Request request, String id) async {
     final recording = _db.getRecordingById(id);
-    
+
     if (recording == null) {
       return Response.notFound(
         json.encode({'error': 'Enregistrement non trouvé'}),
         headers: {'Content-Type': 'application/json'},
       );
     }
+
+    // Tuer FFmpeg si cet enregistrement est en cours AVANT de supprimer de la DB
+    await _scheduler.stopRecording(id);
 
     _db.deleteRecording(id);
 
