@@ -17,9 +17,11 @@ import 'api/playlists_handler.dart';
 import 'api/settings_handler.dart';
 import 'api/streaming_handler.dart';
 import 'api/proxy_handler.dart';
+import 'api/recordings_api.dart';
 import 'middleware/auth_middleware.dart';
 import 'middleware/security_middleware.dart';
 import 'services/cleanup_service.dart';
+import 'services/recording_scheduler.dart';
 
 void main(List<String> args) async {
   // Parse command line arguments
@@ -35,6 +37,10 @@ void main(List<String> args) async {
   final db = AppDatabase();
   await db.init();
   await db.seedAdmin();
+
+  // Initialize and start Recording Scheduler
+  final recordingScheduler = RecordingScheduler(db);
+  recordingScheduler.start();
 
   // Initialize Streaming Subsystem
   await initStreaming();
@@ -83,6 +89,7 @@ void main(List<String> args) async {
   final usersHandler = UsersHandler(db);
   final settingsHandler = SettingsHandler(db);
   final proxyHandler = ProxyHandler(getPlaylist, db);
+  final recordingsApi = RecordingsApi(db, recordingScheduler);
 
   // Setup router
   final apiRouter = Router()
@@ -108,6 +115,13 @@ void main(List<String> args) async {
       const Pipeline()
           .addMiddleware(authMiddleware(db))
           .addHandler(settingsHandler.router.call),
+    )
+    // TV Recordings endpoints
+    ..mount(
+      '/api/recordings',
+      const Pipeline()
+          //.addMiddleware(authMiddleware(db)) // TODO: Activer quand UI aura l'Auth header
+          .addHandler(recordingsApi.router.call),
     );
     // NOTE: /api/xtream is handled by proxyHandler in the Cascade below
     // Do NOT mount here as it would intercept and block the actual proxy

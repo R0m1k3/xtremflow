@@ -12,6 +12,7 @@ import '../../../core/utils/responsive_layout.dart';
 import '../../../core/widgets/themed_loading_screen.dart';
 import '../../../core/widgets/glass_container.dart';
 import '../../../core/widgets/tv_focusable_card.dart';
+import 'recording_modal.dart';
 
 class LiveTVTab extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
@@ -377,12 +378,15 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
               color: AppColors.surfaceVariant,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                // Icon Area
-                Expanded(
-                  child: Container(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Icon Area
+                    Expanded(
+                      child: Container(
                     decoration: BoxDecoration(
                       color: Colors.white
                           .withOpacity(0.05), // Subtle transparent background
@@ -496,6 +500,30 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                         },
                       ),
                     ],
+                  ),
+                ),
+                // Record Button Icon Overlay (Positioned top right)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: TvFocusableCard(
+                    onTap: () {
+                      RecordingModal.show(context, channel);
+                    },
+                    borderRadius: 20,
+                    scaleFactor: 1.2,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.fiber_manual_record,
+                        color: Colors.redAccent,
+                        size: 16,
+                      ),
+                    ),
                   ),
                 ),
               ],

@@ -78,6 +78,25 @@ class AppDatabase {
       )
     ''');
 
+    // TV Recordings table
+    _db.execute('''
+      CREATE TABLE IF NOT EXISTS tv_recordings (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        stream_url TEXT NOT NULL,
+        title TEXT NOT NULL,
+        start_time TEXT NOT NULL,
+        end_time TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'scheduled',
+        file_path TEXT,
+        error_reason TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    ''');
+
     // Indexes
     _db.execute(
       'CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)',
@@ -402,6 +421,92 @@ class AppDatabase {
       print('[GPU] Error checking GPU setting: $e');
     }
     return false;
+  }
+
+  // ==================== TV Recordings ====================
+
+  /// Créer un nouvel enregistrement
+  Recording createRecording({
+    required String userId,
+    required String channelId,
+    required String streamUrl,
+    required String title,
+    required DateTime startTime,
+    required DateTime endTime,
+  }) {
+    final recordingId = _uuid.v4();
+    final now = DateTime.now().toIso8601String();
+
+    _db.execute(
+      '''
+      INSERT INTO tv_recordings (id, user_id, channel_id, stream_url, title, start_time, end_time, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''',
+      [
+        recordingId,
+        userId,
+        channelId,
+        streamUrl,
+        title,
+        startTime.toIso8601String(),
+        endTime.toIso8601String(),
+        now,
+        now
+      ],
+    );
+
+    return Recording(
+      id: recordingId,
+      userId: userId,
+      channelId: channelId,
+      streamUrl: streamUrl,
+      title: title,
+      startTime: startTime,
+      endTime: endTime,
+      status: 'scheduled',
+      createdAt: DateTime.parse(now),
+      updatedAt: DateTime.parse(now),
+    );
+  }
+
+  /// Lister tous les enregistrements (pour le Scheduler et l'admin)
+  List<Recording> getAllRecordings() {
+    final result = _db.select('SELECT * FROM tv_recordings ORDER BY start_time ASC');
+    return result.map((row) => Recording.fromMap(row)).toList();
+  }
+
+  /// Lister les enregistrements d'un utilisateur spécifique
+  List<Recording> getUserRecordings(String userId) {
+    final result = _db.select(
+      'SELECT * FROM tv_recordings WHERE user_id = ? ORDER BY start_time ASC',
+      [userId],
+    );
+    return result.map((row) => Recording.fromMap(row)).toList();
+  }
+
+  /// Récupérer un enregistrement par ID
+  Recording? getRecordingById(String id) {
+    final result = _db.select('SELECT * FROM tv_recordings WHERE id = ?', [id]);
+    if (result.isEmpty) return null;
+    return Recording.fromMap(result.first);
+  }
+
+  /// Mettre à jour le statut et éventuellement le chemin d'un enregistrement
+  void updateRecordingStatus(String id, String status, {String? filePath, String? errorReason}) {
+    final now = DateTime.now().toIso8601String();
+    _db.execute(
+      '''
+      UPDATE tv_recordings 
+      SET status = ?, file_path = COALESCE(?, file_path), error_reason = COALESCE(?, error_reason), updated_at = ?
+      WHERE id = ?
+    ''',
+      [status, filePath, errorReason, now, id],
+    );
+  }
+
+  /// Supprimer un enregistrement depuis la BDD (ne supprime pas le fichier)
+  void deleteRecording(String id) {
+    _db.execute('DELETE FROM tv_recordings WHERE id = ?', [id]);
   }
 
   /// Close database connection

@@ -91,7 +91,7 @@ RUN groupadd -r xtremuser && useradd -r -g xtremuser -G audio,video xtremuser
 WORKDIR /app
 
 # Create necessary data directories with correct permissions
-RUN mkdir -p /app/data /app/web /tmp/xtremflow_streams \
+RUN mkdir -p /app/data /app/web /app/recordings /tmp/xtremflow_streams \
     && chown -R xtremuser:xtremuser /app /tmp/xtremflow_streams
 
 # Copy built artifacts
