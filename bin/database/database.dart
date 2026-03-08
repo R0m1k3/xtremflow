@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../models/user.dart';
 import '../models/playlist.dart';
 import '../models/session.dart' as models;
+import '../models/recording.dart';
 import '../utils/password_hasher.dart';
 
 class AppDatabase {
