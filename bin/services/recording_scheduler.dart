@@ -106,9 +106,9 @@ class RecordingScheduler {
       // Génération d'un nom de fichier unique et sûr
       final safeTitle = recording.title.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
       final dateStr = recording.startTime.toUtc().toIso8601String().replaceAll(':', '').split('.')[0];
-      final fileName = '${safeTitle}_$dateStr.mp4';
+      final fileName = '${safeTitle}_$dateStr.mkv';
       final filePath = p.join(recordingsDir.path, fileName);
-      final logFilePath = filePath.replaceAll('.mp4', '.log');
+      final logFilePath = filePath.replaceAll('.mkv', '.log');
 
       // Résoudre l'URL relative en URL absolue pour FFmpeg
       // Le serveur Xtremflow tourne sur le port 8089 en interne Docker
