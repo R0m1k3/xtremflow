@@ -39,7 +39,7 @@ class _RecordingsTabState extends State<RecordingsTab> {
         });
       } else {
         setState(() {
-          _error = 'Erreur serveur: ${response.statusCode}';
+          _error = 'Erreur serveur: ${response.statusCode} - \${response.body}';
           _isLoading = false;
         });
       }
