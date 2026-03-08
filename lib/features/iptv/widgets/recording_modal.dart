@@ -18,7 +18,6 @@ class RecordingModal extends StatefulWidget {
   static Future<void> show(BuildContext context, Channel channel) {
     return showDialog(
       context: context,
-      backgroundColor: Colors.transparent,
       builder: (context) => RecordingModal(channel: channel),
     );
   }
