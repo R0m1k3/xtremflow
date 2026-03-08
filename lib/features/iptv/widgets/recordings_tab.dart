@@ -76,8 +76,13 @@ class _RecordingsTabState extends State<RecordingsTab> {
       final response = await http.get(Uri.parse('/api/recordings/logs/$id'));
       
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final logs = data['logs'] ?? 'Aucun log trouvé.';
+        String logs = 'Aucun log trouvé.';
+        try {
+          final data = json.decode(response.body);
+          logs = data['logs'] ?? 'Aucun log trouvé.';
+        } catch (_) {
+          logs = response.body; // Fallback texte brut
+        }
         
         if (mounted) {
           showDialog(
@@ -109,9 +114,16 @@ class _RecordingsTabState extends State<RecordingsTab> {
         }
       } else {
         if (mounted) {
-          final data = json.decode(response.body);
+          String errorMessage = 'Erreur serveur ${response.statusCode}';
+          try {
+            final data = json.decode(response.body);
+            errorMessage = data['error'] ?? errorMessage;
+          } catch (_) {
+            errorMessage = 'Erreur ${response.statusCode}: ${response.body}';
+          }
+          
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(data['error'] ?? 'Erreur lors de la récupération des logs'), backgroundColor: Colors.orangeAccent),
+            SnackBar(content: Text(errorMessage), backgroundColor: Colors.orangeAccent),
           );
         }
       }
