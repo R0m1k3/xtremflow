@@ -502,8 +502,10 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                     ],
                   ),
                 ),
-                // Record Button Icon Overlay (Positioned top right)
-                Positioned(
+              ],
+            ),
+            // Record Button Icon Overlay (Positioned top right)
+            Positioned(
                   top: 8,
                   right: 8,
                   child: TvFocusableCard(
