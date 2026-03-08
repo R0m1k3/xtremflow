@@ -16,8 +16,10 @@ ENV DART_VM_OPTIONS="--old_gen_heap_size=4096"
 # Enable web support (idempotent)
 RUN flutter config --enable-web
 
+# Force cache invalidation when source changes (update this value to force rebuild)
+ARG CACHEBUST=2026-03-08-v3
+
 # Copy dependency files first for better caching
-ARG CACHEBUST=2026-01-07-v1
 COPY pubspec.yaml ./
 
 # Get dependencies
