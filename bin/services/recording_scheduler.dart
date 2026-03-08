@@ -17,8 +17,8 @@ class RecordingScheduler {
 
   void start() {
     print('[RecordingScheduler] Démarrage du planificateur d\'enregistrements TV');
-    // Vérifier toutes les minutes
-    _timer = Timer.periodic(const Duration(minutes: 1), (_) => _checkAndRunRecordings());
+    // Vérifier toutes les 10 secondes (pour un démarrage quasi-immédiat)
+    _timer = Timer.periodic(const Duration(seconds: 10), (_) => _checkAndRunRecordings());
     // Lancer une première vérification immédiatement
     _checkAndRunRecordings();
   }
@@ -100,16 +100,19 @@ class RecordingScheduler {
       final fileName = '${safeTitle}_$dateStr.mp4';
       final filePath = p.join(recordingsDir.path, fileName);
 
-      // FFmpeg arguments pour transcodage H265
-      // Utilisation d'un Timeout ou d'une capture directe
+      // FFmpeg arguments pour enregistrement direct (copie sans transcodage = bien plus rapide)
+      // On résout l'URL relative en URL absolue pour que FFmpeg puisse y accéder depuis Docker
+      String streamUrl = recording.streamUrl;
+      if (streamUrl.startsWith('/')) {
+        // URL relative → URL absolue (le serveur Xtremflow tourne sur le port 8080 en interne)
+        streamUrl = 'http://localhost:8080$streamUrl';
+      }
+      
       final args = [
         '-y', // Force overwrite
-        '-i', recording.streamUrl, // Input stream
-        '-c:v', 'libx265', // Transcodage Video H.265 (HEVC)
-        '-preset', 'fast', // Preset d'encodage
-        '-c:a', 'aac', // Transcodage Audio AAC
-        '-b:a', '128k', // Bitrate audio
-        // Arrêter automatiquement après la durée (sécurité supplémentaire en plus du Timer)
+        '-i', streamUrl, // Input stream (URL absolue)
+        '-c', 'copy', // Copie directe sans transcodage (beaucoup plus rapide et fiable)
+        // Arrêter automatiquement après la durée
         '-t', '${recording.endTime.difference(DateTime.now()).inSeconds}', 
         filePath
       ];

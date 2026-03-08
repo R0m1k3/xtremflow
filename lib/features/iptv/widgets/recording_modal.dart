@@ -50,7 +50,7 @@ class _RecordingModalState extends State<RecordingModal> {
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'channel_id': widget.channel.streamId,
-          'stream_url': widget.channel.streamIcon, // Hack temp: Utiliser streamId pour générer l'url via player logic plus tard
+          'stream_url': '/api/live/${widget.channel.streamId}.ts', // URL du flux live via le proxy backend
           'title': widget.channel.name,
           'start_time': _startTime.toIso8601String(),
           'end_time': endTime.toIso8601String(),
