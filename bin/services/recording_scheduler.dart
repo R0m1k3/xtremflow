@@ -114,53 +114,72 @@ class RecordingScheduler {
         filePath
       ];
 
-      print('[RecordingScheduler] Exécution: ffmpeg ${args.join(' ')}');
-      
-      _ffmpegProcess = await Process.start('ffmpeg', args);
-
-      // Création d'un fichier de log dédié pour FFmpeg
+      // Création immédiate du fichier de log pour capturer TOUTES les erreurs
       final logFilePath = filePath.replaceAll('.mp4', '.log');
       final logFile = File(logFilePath);
       final logSink = logFile.openWrite();
+      
       logSink.writeln('[${DateTime.now()}] Démarrage de l\'enregistrement : ${recording.title}');
       logSink.writeln('URL source: ${recording.streamUrl}');
       logSink.writeln('Fichier destination: $filePath');
-      logSink.writeln('Commande: ffmpeg ${args.join(' ')}\n');
-
-      // Rediriger la sortie de ffmpeg vers ce fichier
-      _ffmpegProcess!.stdout.listen((event) {
-        logSink.add(event);
-      });
-      _ffmpegProcess!.stderr.listen((event) {
-        logSink.add(event); // FFmpeg écrit beaucoup d'infos (dont la progression) sur stderr
-      });
-
-      // Enregistrer le chemin du fichier dans la BDD
-      _db.updateRecordingStatus(recording.id, 'recording', filePath: filePath);
-
-      // Écouter de manière asynchrone la fin du processus FFmpeg
-      _ffmpegProcess!.exitCode.then((exitCode) async {
-        if (_currentRecording?.id == recording.id) {
-          logSink.writeln('\n[${DateTime.now()}] Processus FFmpeg terminé avec le code $exitCode');
-          await logSink.close();
-
-          if (exitCode == 0 || exitCode == 255) { // 255 est souvent renvoyé lors d'un arrêt forcé (SIGKILL/SIGTERM) qui est attendu
-             print('[RecordingScheduler] Enregistrement terminé avec succès (${recording.title})');
-             _db.updateRecordingStatus(recording.id, 'completed');
-          } else {
-             print('[RecordingScheduler] Erreur FFmpeg (code: $exitCode) pour l\'enregistrement ${recording.title}');
-             _db.updateRecordingStatus(recording.id, 'failed', errorReason: 'Erreur FFmpeg code $exitCode. Voir logs.');
-          }
-          _currentRecording = null;
-          _ffmpegProcess = null;
-        } else {
-          await logSink.close();
+      
+      try {
+        // En Docker, ffmpeg a été installé dans /usr/local/bin/ffmpeg
+        // On teste d'abord s'il existe à cet endroit, sinon on utilise le nom court (pour dev local)
+        String ffmpegPath = 'ffmpeg';
+        if (Platform.isLinux && await File('/usr/local/bin/ffmpeg').exists()) {
+          ffmpegPath = '/usr/local/bin/ffmpeg';
         }
-      });
 
+        logSink.writeln('Commande: $ffmpegPath ${args.join(' ')}\n');
+        print('[RecordingScheduler] Exécution: $ffmpegPath ${args.join(' ')}');
+        
+        _ffmpegProcess = await Process.start(ffmpegPath, args);
+
+        // Rediriger la sortie de ffmpeg vers ce fichier
+        _ffmpegProcess!.stdout.listen((event) {
+          logSink.add(event);
+        });
+        _ffmpegProcess!.stderr.listen((event) {
+          logSink.add(event); // FFmpeg écrit sa progression et ses erreurs ici
+        });
+
+        // Enregistrer le chemin du fichier dans la BDD (et donc marquer le log comme disponible)
+        _db.updateRecordingStatus(recording.id, 'recording', filePath: filePath);
+
+        // Écouter de manière asynchrone la fin du processus FFmpeg
+        _ffmpegProcess!.exitCode.then((exitCode) async {
+          if (_currentRecording?.id == recording.id) {
+            logSink.writeln('\n[${DateTime.now()}] Processus FFmpeg terminé avec le code $exitCode');
+            await logSink.close();
+
+            if (exitCode == 0 || exitCode == 255) { // 255 est souvent renvoyé lors d'un arrêt forcé
+               print('[RecordingScheduler] Enregistrement terminé avec succès (${recording.title})');
+               _db.updateRecordingStatus(recording.id, 'completed');
+            } else {
+               print('[RecordingScheduler] Erreur FFmpeg (code: $exitCode) pour l\'enregistrement ${recording.title}');
+               _db.updateRecordingStatus(recording.id, 'failed', errorReason: 'Erreur FFmpeg code $exitCode. Voir logs.');
+            }
+            _currentRecording = null;
+            _ffmpegProcess = null;
+          } else {
+            await logSink.close();
+          }
+        });
+
+      } catch (e) {
+        logSink.writeln('\n[${DateTime.now()}] ERREUR CRITIQUE AU LANCEMENT: $e');
+        await logSink.close();
+        
+        print('[RecordingScheduler] Impossible de démarrer FFmpeg: $e');
+        _db.updateRecordingStatus(recording.id, 'failed', errorReason: 'Impossible de lancer FFmpeg: $e', filePath: filePath);
+        _currentRecording = null;
+        _ffmpegProcess = null;
+      }
+      
     } catch (e) {
-      print('[RecordingScheduler] Impossible de démarrer FFmpeg: $e');
-      _db.updateRecordingStatus(recording.id, 'failed', errorReason: 'Impossible de lancer le processus (FFmpeg manquant?)');
+      print('[RecordingScheduler] Erreur inattendue avant lancement: $e');
+      _db.updateRecordingStatus(recording.id, 'failed', errorReason: 'Erreur inattendue: $e');
       _currentRecording = null;
       _ffmpegProcess = null;
     }
