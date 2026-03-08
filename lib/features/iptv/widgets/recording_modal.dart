@@ -50,10 +50,11 @@ class _RecordingModalState extends State<RecordingModal> {
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'channel_id': widget.channel.streamId,
-          'stream_url': '/api/live/${widget.channel.streamId}.ts', // URL du flux live via le proxy backend
+          'stream_url': '/api/live/${widget.channel.streamId}.ts',
           'title': widget.channel.name,
-          'start_time': _startTime.toIso8601String(),
-          'end_time': endTime.toIso8601String(),
+          // Forcer UTC pour éviter le décalage +01:00 (France) vs UTC (serveur Docker)
+          'start_time': _startTime.toUtc().toIso8601String(),
+          'end_time': endTime.toUtc().toIso8601String(),
         }),
       );
 
