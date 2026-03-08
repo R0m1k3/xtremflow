@@ -116,15 +116,13 @@ void main(List<String> args) async {
           .addMiddleware(authMiddleware(db))
           .addHandler(settingsHandler.router.call),
     )
-    // TV Recordings - Route des logs AVANT le mount general (évite collision shelf_router avec /<id>)
-    ..get('/api/recordings/logs/<id>', recordingsApi.getLogHandler)
-    // TV Recordings endpoints (GET /, POST /, DELETE /<id>)
-    ..mount(
-      '/api/recordings',
-      const Pipeline()
-          //.addMiddleware(authMiddleware(db)) // TODO: Activer quand UI aura l'Auth header
-          .addHandler(recordingsApi.router.call),
-    );
+    // TV Recordings - Chaque route déclarée EXPLICITEMENT pour éviter les conflits shelf_router
+    // NE PAS utiliser mount() ici car mount('/api/recordings', ...) intercepte TOUT
+    // ce qui commence par /api/recordings (y compris /api/recordings/logs/<id>)
+    ..get('/api/recordings', recordingsApi.handleGetAll)
+    ..post('/api/recordings', recordingsApi.handlePost)
+    ..delete('/api/recordings/<id>', recordingsApi.handleDelete)
+    ..get('/api/recordings/logs/<id>', recordingsApi.getLogHandler);
     // NOTE: /api/xtream is handled by proxyHandler in the Cascade below
     // Do NOT mount here as it would intercept and block the actual proxy
 
