@@ -32,7 +32,7 @@ class EpgApi {
             headers: {'Content-Type': 'application/json'});
       }
 
-      final dns = playlist.dns ?? '${playlist.serverUrl}';
+      final dns = playlist.dns;
       // Appel API Xtream pour l'EPG complet de la chaîne
       final url =
           '$dns/player_api.php?username=${playlist.username}&password=${playlist.password}'
