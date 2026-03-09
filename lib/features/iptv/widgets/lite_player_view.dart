@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,34 +39,51 @@ class _LitePlayerViewState extends ConsumerState<LitePlayerView> {
   void didUpdateWidget(LitePlayerView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.streamUrl != widget.streamUrl) {
-       _disposeControllers();
-       _initializePlayer();
+      _disposeControllers();
+      _initializePlayer();
     }
   }
 
   Future<void> _initializePlayer() async {
     try {
       setState(() => _error = false);
-      _videoController = VideoPlayerController.networkUrl(Uri.parse(widget.streamUrl));
+      _videoController =
+          VideoPlayerController.networkUrl(Uri.parse(widget.streamUrl));
       await _videoController.initialize();
-      
+
       _chewieController = ChewieController(
         videoPlayerController: _videoController,
         autoPlay: true,
         looping: false,
         isLive: widget.isLive,
-        aspectRatio: _videoController.value.aspectRatio > 0 ? _videoController.value.aspectRatio : 16/9,
+        aspectRatio: _videoController.value.aspectRatio > 0
+            ? _videoController.value.aspectRatio
+            : 16 / 9,
         materialProgressColors: ChewieProgressColors(
           playedColor: AppColors.primary,
           handleColor: Colors.white,
           backgroundColor: Colors.white24,
           bufferedColor: Colors.white54,
         ),
-        
+
+        // Fullscreen configuration for Mobile
+        allowFullScreen: true,
+        allowMuting: true,
+        showControls: true,
+        deviceOrientationsOnEnterFullScreen: [
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ],
+        deviceOrientationsAfterFullScreen: [
+          DeviceOrientation.portraitUp,
+        ],
+        systemOverlaysOnEnterFullScreen: [], // Full immersive
+        systemOverlaysAfterFullScreen: SystemUiOverlay.values,
+
         // Custom Controls to include Zapping
         additionalOptions: (context) {
           return <OptionItem>[
-             if (widget.onNext != null)
+            if (widget.onNext != null)
               OptionItem(
                 onTap: (context) {
                   widget.onNext!();
@@ -74,7 +92,7 @@ class _LitePlayerViewState extends ConsumerState<LitePlayerView> {
                 iconData: Icons.skip_next,
                 title: 'Next Channel',
               ),
-             if (widget.onPrevious != null)
+            if (widget.onPrevious != null)
               OptionItem(
                 onTap: (context) {
                   widget.onPrevious!();
@@ -86,6 +104,11 @@ class _LitePlayerViewState extends ConsumerState<LitePlayerView> {
           ];
         },
       );
+
+      _chewieController!.addListener(() {
+        if (mounted) setState(() {});
+      });
+
       setState(() {});
     } catch (e) {
       debugPrint('Error initializing Lite Player: $e');
@@ -114,12 +137,13 @@ class _LitePlayerViewState extends ConsumerState<LitePlayerView> {
           children: [
             const Icon(Icons.error_outline, color: Colors.red, size: 48),
             const SizedBox(height: 16),
-            const Text('Error loading video', style: TextStyle(color: Colors.white)),
+            const Text('Error loading video',
+                style: TextStyle(color: Colors.white)),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
-                 _disposeControllers();
-                 _initializePlayer();
+                _disposeControllers();
+                _initializePlayer();
               },
               child: const Text('Retry'),
             ),
@@ -128,40 +152,46 @@ class _LitePlayerViewState extends ConsumerState<LitePlayerView> {
       );
     }
 
-    if (_chewieController != null && _chewieController!.videoPlayerController.value.isInitialized) {
+    if (_chewieController != null &&
+        _chewieController!.videoPlayerController.value.isInitialized) {
       return Stack(
         children: [
           Chewie(controller: _chewieController!),
-          
+
           // Overlay Zapping Controls for easy access (since Chewie hides controls)
-          if (widget.onPrevious != null || widget.onNext != null)
-             Positioned(
-               bottom: 20,
-               right: 80,
-               child: Row(
-                 mainAxisSize: MainAxisSize.min,
-                 children: [
-                    if (widget.onPrevious != null) ...[
-                      IconButton(
-                        onPressed: widget.onPrevious,
-                        icon: const Icon(Icons.navigate_before, color: Colors.white, size: 32),
-                        tooltip: 'Previous Channel',
-                      ),
-                      const SizedBox(width: 16),
-                    ],
-                    if (widget.onNext != null)
-                      IconButton(
-                        onPressed: widget.onNext,
-                        icon: const Icon(Icons.navigate_next, color: Colors.white, size: 32),
-                        tooltip: 'Next Channel',
-                      ),
-                 ],
-               ),
-             ),
+          // Hide them during fullscreen to avoid clutter
+          if ((widget.onPrevious != null || widget.onNext != null) &&
+              !(_chewieController?.isFullScreen ?? false))
+            Positioned(
+              bottom: 20,
+              right: 80,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.onPrevious != null) ...[
+                    IconButton(
+                      onPressed: widget.onPrevious,
+                      icon: const Icon(Icons.navigate_before,
+                          color: Colors.white, size: 32),
+                      tooltip: 'Previous Channel',
+                    ),
+                    const SizedBox(width: 16),
+                  ],
+                  if (widget.onNext != null)
+                    IconButton(
+                      onPressed: widget.onNext,
+                      icon: const Icon(Icons.navigate_next,
+                          color: Colors.white, size: 32),
+                      tooltip: 'Next Channel',
+                    ),
+                ],
+              ),
+            ),
         ],
       );
     }
-    
-    return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+
+    return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary));
   }
 }
