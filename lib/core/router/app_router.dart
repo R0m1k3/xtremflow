@@ -8,6 +8,7 @@ import '../../features/iptv/screens/dashboard_screen.dart';
 import '../../features/admin/screens/admin_panel.dart';
 import '../../mobile/features/iptv/screens/mobile_playlist_selection_screen.dart';
 import '../../mobile/features/iptv/screens/mobile_dashboard_screen.dart';
+import '../../mobile/features/auth/screens/mobile_login_screen.dart';
 import '../widgets/themed_loading_screen.dart';
 import '../../features/iptv/providers/xtream_provider.dart';
 
