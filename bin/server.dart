@@ -18,6 +18,8 @@ import 'api/settings_handler.dart';
 import 'api/streaming_handler.dart';
 import 'api/proxy_handler.dart';
 import 'api/recordings_api.dart';
+import 'api/epg_api.dart';
+import 'api/season_passes_api.dart';
 import 'middleware/auth_middleware.dart';
 import 'middleware/security_middleware.dart';
 import 'services/cleanup_service.dart';
@@ -41,6 +43,24 @@ void main(List<String> args) async {
   // Initialize and start Recording Scheduler
   final recordingScheduler = RecordingScheduler(db);
   recordingScheduler.start();
+
+  // Injecter la config playlist dans le scheduler pour les Season Passes
+  // (on prend la playlist du premier utilisateur disponible)
+  Future<void> _injectPlaylistToScheduler() async {
+    final users = db.getAllUsers();
+    if (users.isNotEmpty) {
+      final playlists = db.getPlaylists(users[0].id);
+      if (playlists.isNotEmpty) {
+        final p = playlists.first;
+        recordingScheduler.playlistDns = p.serverUrl;
+        recordingScheduler.playlistUsername = p.username;
+        recordingScheduler.playlistPassword = p.password;
+        print('[Server] Playlist injectée dans le scheduler: ${p.name}');
+      }
+    }
+  }
+  // Injecter après 5s pour attendre l'initialisation complète
+  Future.delayed(const Duration(seconds: 5), _injectPlaylistToScheduler);
 
   // Initialize Streaming Subsystem
   await initStreaming();
@@ -90,6 +110,8 @@ void main(List<String> args) async {
   final settingsHandler = SettingsHandler(db);
   final proxyHandler = ProxyHandler(getPlaylist, db);
   final recordingsApi = RecordingsApi(db, recordingScheduler);
+  final epgApi = EpgApi(db, getPlaylist);
+  final seasonPassesApi = SeasonPassesApi(db);
 
   // Setup router
   final apiRouter = Router()
@@ -116,14 +138,18 @@ void main(List<String> args) async {
           .addMiddleware(authMiddleware(db))
           .addHandler(settingsHandler.router.call),
     )
-    // TV Recordings - Chaque route déclarée EXPLICITEMENT pour éviter les conflits shelf_router
-    // NE PAS utiliser mount() ici car mount('/api/recordings', ...) intercepte TOUT
-    // ce qui commence par /api/recordings (y compris /api/recordings/logs/<id>)
+    // TV Recordings - routes explicites
     ..get('/api/recordings', recordingsApi.handleGetAll)
     ..post('/api/recordings', recordingsApi.handlePost)
     ..delete('/api/recordings/<id>', recordingsApi.handleDelete)
     ..post('/api/recordings/stop/<id>', recordingsApi.handleStop)
-    ..get('/api/recordings/logs/<id>', recordingsApi.getLogHandler);
+    ..get('/api/recordings/logs/<id>', recordingsApi.getLogHandler)
+    // EPG - guide TV
+    ..get('/api/epg/<channelId>', epgApi.handleGetEpg)
+    // Season Passes - enregistrements répétés
+    ..get('/api/season-passes', seasonPassesApi.handleGetAll)
+    ..post('/api/season-passes', seasonPassesApi.handlePost)
+    ..delete('/api/season-passes/<id>', seasonPassesApi.handleDelete);
     // NOTE: /api/xtream is handled by proxyHandler in the Cascade below
     // Do NOT mount here as it would intercept and block the actual proxy
 

@@ -98,6 +98,20 @@ class AppDatabase {
       )
     ''');
 
+    // Season Passes table (enregistrements répétés intelligents)
+    _db.execute('''
+      CREATE TABLE IF NOT EXISTS season_passes (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        show_title TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        stream_url TEXT NOT NULL,
+        enabled INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    ''');
+
     // Indexes
     _db.execute(
       'CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)',
@@ -107,6 +121,9 @@ class AppDatabase {
     );
     _db.execute(
       'CREATE INDEX IF NOT EXISTS idx_playlists_user ON playlists(user_id)',
+    );
+    _db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_recordings_status ON tv_recordings(status)',
     );
   }
 
@@ -508,6 +525,49 @@ class AppDatabase {
   /// Supprimer un enregistrement depuis la BDD (ne supprime pas le fichier)
   void deleteRecording(String id) {
     _db.execute('DELETE FROM tv_recordings WHERE id = ?', [id]);
+  }
+
+  // ==================== Season Passes ====================
+
+  /// Créer un Season Pass (enregistrement répété par titre d'émission)
+  Map<String, dynamic> createSeasonPass({
+    required String userId,
+    required String showTitle,
+    required String channelId,
+    required String streamUrl,
+  }) {
+    final id = _uuid.v4();
+    final now = DateTime.now().toIso8601String();
+    _db.execute(
+      'INSERT INTO season_passes (id, user_id, show_title, channel_id, stream_url, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, userId, showTitle, channelId, streamUrl, now],
+    );
+    return {'id': id, 'user_id': userId, 'show_title': showTitle, 'channel_id': channelId, 'stream_url': streamUrl, 'enabled': 1, 'created_at': now};
+  }
+
+  /// Lister tous les Season Passes
+  List<Map<String, dynamic>> getAllSeasonPasses() {
+    final result = _db.select('SELECT * FROM season_passes WHERE enabled = 1 ORDER BY created_at DESC');
+    return result.map((r) => Map<String, dynamic>.from(r)).toList();
+  }
+
+  /// Supprimer un Season Pass
+  void deleteSeasonPass(String id) {
+    _db.execute('DELETE FROM season_passes WHERE id = ?', [id]);
+  }
+
+  /// Vérifier si un enregistrement existe déjà pour ce titre (déduplication)
+  /// Retourne true si un enregistrement non-échoué avec ce titre existe pour cetteémission programméeà la même heure
+  bool existsRecordingForEpisode(String title, DateTime startTime) {
+    // Normaliser le titre pour la comparaison (insensible casse, sans espaces doubles)
+    final result = _db.select(
+      '''SELECT COUNT(*) as cnt FROM tv_recordings 
+         WHERE LOWER(title) = LOWER(?) 
+         AND start_time = ?
+         AND status NOT IN ('failed')''',
+      [title, startTime.toUtc().toIso8601String()],
+    );
+    return (result.first['cnt'] as int) > 0;
   }
 
   /// Close database connection

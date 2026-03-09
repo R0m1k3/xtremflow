@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'package:http/http.dart' as http;
 import '../database/database.dart';
 import '../models/recording.dart';
 import 'package:path/path.dart' as p;
@@ -7,11 +9,18 @@ import 'package:path/path.dart' as p;
 class RecordingScheduler {
   final AppDatabase _db;
   Timer? _timer;
+  Timer? _seasonPassTimer;
   bool _isRunning = false;
 
   // Stocker l'enregistrement actuellement en cours d'exécution
   Recording? _currentRecording;
   Process? _ffmpegProcess;
+
+  // Playlist config pour les appels EPG des season passes
+  // Rempli depuis server.dart après initialisation
+  String? playlistDns;
+  String? playlistUsername;
+  String? playlistPassword;
 
   RecordingScheduler(this._db);
 
@@ -19,12 +28,17 @@ class RecordingScheduler {
     print('[RecordingScheduler] Démarrage du planificateur d\'enregistrements TV');
     // Vérifier toutes les 10 secondes (pour un démarrage quasi-immédiat)
     _timer = Timer.periodic(const Duration(seconds: 10), (_) => _checkAndRunRecordings());
+    // Season Passes : vérifier toutes les 4 heures
+    _seasonPassTimer = Timer.periodic(const Duration(hours: 4), (_) => _checkSeasonPasses());
     // Lancer une première vérification immédiatement
     _checkAndRunRecordings();
+    // Vérification initiale des season passes après 30s (laisser le serveur démarrer)
+    Timer(const Duration(seconds: 30), _checkSeasonPasses);
   }
 
   void stop() {
     _timer?.cancel();
+    _seasonPassTimer?.cancel();
     _stopCurrentRecording(reason: 'Arrêt du service planificateur');
     print('[RecordingScheduler] Arrêté');
   }
@@ -84,6 +98,83 @@ class RecordingScheduler {
       print('[RecordingScheduler] ERREUR CRITIQUE: $e\n$st');
     } finally {
       _isRunning = false;
+    }
+  }
+
+  /// Vérifier les Season Passes et créer des enregistrements pour les nouvelles diffusions
+  Future<void> _checkSeasonPasses() async {
+    final passes = _db.getAllSeasonPasses();
+    if (passes.isEmpty) return;
+
+    final dns = playlistDns;
+    final username = playlistUsername;
+    final password = playlistPassword;
+
+    if (dns == null || username == null || password == null) {
+      print('[SeasonPass] Config playlist non disponible, vérification annulée');
+      return;
+    }
+
+    print('[SeasonPass] Vérification de ${passes.length} Season Pass(s)...');
+
+    for (final pass in passes) {
+      try {
+        final channelId = pass['channel_id'] as String;
+        final streamUrl = pass['stream_url'] as String;
+        final showTitle = pass['show_title'] as String;
+        final userId = pass['user_id'] as String;
+
+        // Récupérer l'EPG de la chaîne (48 prochaines heures)
+        final url = '$dns/player_api.php?username=$username&password=$password'
+            '&action=get_simple_data_table&stream_id=$channelId&type=epg&limit=48';
+
+        final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+        if (response.statusCode != 200) continue;
+
+        final raw = json.decode(response.body);
+        final listings = (raw is Map ? raw['epg_listings'] : raw) as List<dynamic>? ?? [];
+
+        for (final item in listings) {
+          String title = item['title'] as String? ?? '';
+          try { title = utf8.decode(base64Decode(title)); } catch (_) {}
+
+          // Vérifier si le titre correspond au Season Pass (insensible casse, recherche partielle)
+          if (!title.toLowerCase().contains(showTitle.toLowerCase())) continue;
+
+          // Parser les heures de début/fin
+          final startStr = item['start'] as String? ?? '';
+          final endStr = item['stop'] as String? ?? item['end'] as String? ?? '';
+          if (startStr.isEmpty || endStr.isEmpty) continue;
+
+          DateTime startTime, endTime;
+          try {
+            startTime = DateTime.parse(startStr).toUtc();
+            endTime = DateTime.parse(endStr).toUtc();
+          } catch (_) { continue; }
+
+          // Ne pas créer pour les programmes déjà terminés
+          if (endTime.isBefore(DateTime.now().toUtc())) continue;
+
+          // Déduplication : vérifier si cet épisode est déjà planifié/enregistré
+          if (_db.existsRecordingForEpisode(title, startTime)) {
+            print('[SeasonPass] "$title" déjà enregistré, skip.');
+            continue;
+          }
+
+          // Créer l'enregistrement automatiquement
+          _db.createRecording(
+            userId: userId,
+            channelId: channelId,
+            streamUrl: streamUrl,
+            title: title,
+            startTime: startTime,
+            endTime: endTime,
+          );
+          print('[SeasonPass] ✓ Planifié automatiquement: "$title" le ${startTime.toLocal()}');
+        }
+      } catch (e) {
+        print('[SeasonPass] Erreur pour le pass "${pass['show_title']}": $e');
+      }
     }
   }
 
