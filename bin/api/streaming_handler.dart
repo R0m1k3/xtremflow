@@ -126,8 +126,9 @@ Handler createLiveStreamHandler(
 }) {
   final router = Router();
 
-  // Route: /api/live/{streamId}.m3u8 (Master playlist)
-  router.get('/<streamId>.m3u8', (Request request, String streamId) async {
+  // Route: /api/live/{streamId}/playlist.m3u8 (Master playlist)
+  router.get('/<streamId>/playlist.m3u8',
+      (Request request, String streamId) async {
     final playlist = await getPlaylist(request);
     if (playlist == null) return Response.forbidden('No playlist');
 
