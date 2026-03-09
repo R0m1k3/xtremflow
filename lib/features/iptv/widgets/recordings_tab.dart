@@ -195,11 +195,9 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView> {
                 const SizedBox(height: 8),
                 Expanded(
                   child: channelsAsync == null
-                      ? Center(
-                          child: Text('Aucune playlist
-active',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.outfit(color: Colors.white38, fontSize: 12)),
+                      ? const Center(
+                          child: Text('Aucune playlist active',
+                              textAlign: TextAlign.center),
                         )
                       : channelsAsync.when(
                           loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
