@@ -159,6 +159,12 @@
         const playOverlay = document.getElementById('play-overlay');
         const error = document.getElementById('error');
 
+        const params = new URLSearchParams(window.location.search);
+        const streamUrl = params.get('url');
+        const streamType = params.get('type') || 'live';
+
+        function log(m) { console.log('[MobilePlayer] ' + m); }
+
         playOverlay.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
