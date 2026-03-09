@@ -198,7 +198,8 @@
 
         video.addEventListener('pause', () => {
             window.parent.postMessage({ type: 'playback_status', status: 'paused' }, '*');
-            if (loading.style.display === 'none') {
+            if (video.currentTime === 0 || video.paused) {
+                loading.style.display = 'none';
                 playOverlay.style.display = 'flex';
             }
         });
@@ -232,7 +233,10 @@
                 if (video.canPlayType('application/vnd.apple.mpegurl')) {
                     video.src = url;
                     video.load();
-                    video.play().catch(() => playOverlay.style.display = 'flex');
+                    video.play().catch(() => {
+                        loading.style.display = 'none';
+                        playOverlay.style.display = 'flex';
+                    });
                     return true;
                 }
                 return false;
