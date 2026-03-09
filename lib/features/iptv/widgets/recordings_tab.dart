@@ -1,9 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
+import '../../../core/models/iptv_models.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/glass_container.dart';
+import '../providers/xtream_provider.dart';
+import '../providers/settings_provider.dart';
 
 /// Onglet "Enregistrements & Guide TV" — combine guide EPG, enregistrements actifs et season passes
 class RecordingsTab extends StatefulWidget {
@@ -95,36 +99,32 @@ class _RecordingsTabState extends State<RecordingsTab>
 //  ONGLET 1 — GUIDE TV (EPG)
 // ═══════════════════════════════════════════════════════
 
-class _EpgGuideView extends StatefulWidget {
+/// Guide TV EPG — charge les chaînes filtrées depuis les Settings (comme l'onglet TV)
+class _EpgGuideView extends ConsumerStatefulWidget {
   const _EpgGuideView();
-
   @override
-  State<_EpgGuideView> createState() => _EpgGuideViewState();
+  ConsumerState<_EpgGuideView> createState() => _EpgGuideViewState();
 }
 
-class _EpgGuideViewState extends State<_EpgGuideView> {
-  List<dynamic> _channels = [];
-  bool _loadingChannels = true;
+class _EpgGuideViewState extends ConsumerState<_EpgGuideView> {
   String? _selectedChannelId;
   String? _selectedChannelName;
   String? _selectedStreamUrl;
   List<dynamic> _programmes = [];
   bool _loadingEpg = false;
+  String _searchQuery = '';
+  final TextEditingController _searchCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadChannels();
+    _searchCtrl.addListener(() => setState(() => _searchQuery = _searchCtrl.text.toLowerCase()));
   }
 
-  Future<void> _loadChannels() async {
-    try {
-      final response = await http.get(Uri.parse('/api/recordings')); // On utilise les enregistrements pour avoir les chaînes
-      // On charge la liste depuis l'API xtream directement si disponible
-      setState(() => _loadingChannels = false);
-    } catch (_) {
-      setState(() => _loadingChannels = false);
-    }
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadEpg(String channelId) async {
@@ -145,151 +145,215 @@ class _EpgGuideViewState extends State<_EpgGuideView> {
     }
   }
 
-  void _showChannelInput() {
-    final idController = TextEditingController();
-    final nameController = TextEditingController();
-    final urlController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E2E),
-        title: Text('Sélectionner une chaîne', style: GoogleFonts.outfit(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: idController,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                labelText: 'Channel ID (ex: 554021)',
-                labelStyle: TextStyle(color: Colors.white54),
-                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: nameController,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                labelText: 'Nom de la chaîne',
-                labelStyle: TextStyle(color: Colors.white54),
-                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: urlController,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                labelText: 'stream_url (ex: /api/live/554021.ts)',
-                labelStyle: TextStyle(color: Colors.white54),
-                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            onPressed: () {
-              final id = idController.text.trim();
-              if (id.isNotEmpty) {
-                setState(() {
-                  _selectedChannelId = id;
-                  _selectedChannelName = nameController.text.trim().isEmpty ? 'Chaîne $id' : nameController.text.trim();
-                  _selectedStreamUrl = urlController.text.trim().isEmpty ? '/api/live/$id.ts' : urlController.text.trim();
-                });
-                Navigator.pop(ctx);
-                _loadEpg(id);
-              }
-            },
-            child: const Text('Charger'),
-          ),
-        ],
-      ),
-    );
+  void _selectChannel(Channel ch) {
+    setState(() {
+      _selectedChannelId = ch.streamId.toString();
+      _selectedChannelName = ch.name;
+      _selectedStreamUrl = '/api/live/${ch.streamId}.ts';
+      _programmes = [];
+    });
+    _loadEpg(ch.streamId.toString());
   }
 
   @override
   Widget build(BuildContext context) {
+    final playlist = ref.watch(selectedPlaylistProvider);
+    final settings = ref.watch(iptvSettingsProvider);
+
+    // Charger les chaînes seulement si on a une playlist active
+    final channelsAsync = playlist != null
+        ? ref.watch(liveChannelsByPlaylistProvider(playlist))
+        : null;
+
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Column(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Zone de sélection de chaîne
-          Row(
-            children: [
-              Expanded(
-                child: GlassContainer(
-                  child: InkWell(
-                    onTap: _showChannelInput,
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.tv, color: Colors.white54, size: 20),
-                          const SizedBox(width: 12),
-                          Text(
-                            _selectedChannelName ?? 'Sélectionner une chaîne...',
-                            style: TextStyle(
-                              color: _selectedChannelName != null ? Colors.white : Colors.white38,
-                              fontSize: 15,
-                            ),
-                          ),
-                          const Spacer(),
-                          const Icon(Icons.keyboard_arrow_down, color: Colors.white38),
-                        ],
-                      ),
+          // ─── Colonne gauche : liste des chaînes filtrées ───
+          SizedBox(
+            width: 220,
+            child: Column(
+              children: [
+                // Barre de recherche
+                TextField(
+                  controller: _searchCtrl,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'Chercher une chaîne...',
+                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+                    prefixIcon: const Icon(Icons.search, color: Colors.white38, size: 18),
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.07),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
                     ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
                   ),
                 ),
-              ),
-              if (_selectedChannelId != null) ...[
-                const SizedBox(width: 12),
-                IconButton(
-                  icon: const Icon(Icons.refresh, color: Colors.white70),
-                  tooltip: 'Recharger l\'EPG',
-                  onPressed: () => _loadEpg(_selectedChannelId!),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: channelsAsync == null
+                      ? Center(
+                          child: Text('Aucune playlist
+active',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.outfit(color: Colors.white38, fontSize: 12)),
+                        )
+                      : channelsAsync.when(
+                          loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                          error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: Colors.red, fontSize: 12))),
+                          data: (groupedChannels) {
+                            // Appliquer le même filtre que l'onglet TV
+                            final filteredChannels = <Channel>[];
+                            for (final entry in groupedChannels.entries) {
+                              if (settings.liveTvKeywords.isEmpty ||
+                                  settings.matchesLiveTvFilter(entry.key)) {
+                                filteredChannels.addAll(entry.value);
+                              }
+                            }
+                            // Tri alphabétique
+                            filteredChannels.sort((a, b) => a.name.compareTo(b.name));
+
+                            // Filtre par recherche
+                            final visible = _searchQuery.isEmpty
+                                ? filteredChannels
+                                : filteredChannels
+                                    .where((c) => c.name.toLowerCase().contains(_searchQuery))
+                                    .toList();
+
+                            if (visible.isEmpty) {
+                              return Center(
+                                child: Text('Aucune chaîne\n(vérifiez les filtres dans Settings)',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.outfit(color: Colors.white38, fontSize: 12)),
+                              );
+                            }
+
+                            return ListView.builder(
+                              itemCount: visible.length,
+                              itemBuilder: (ctx, i) {
+                                final ch = visible[i];
+                                final isSelected = ch.streamId.toString() == _selectedChannelId;
+                                return InkWell(
+                                  onTap: () => _selectChannel(ch),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    margin: const EdgeInsets.only(bottom: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? Colors.redAccent.withOpacity(0.2)
+                                          : Colors.white.withOpacity(0.05),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? Colors.redAccent.withOpacity(0.5)
+                                            : Colors.transparent,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        if (ch.streamIcon != null && ch.streamIcon!.isNotEmpty)
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(4),
+                                            child: Image.network(
+                                              ch.streamIcon!,
+                                              width: 28,
+                                              height: 20,
+                                              fit: BoxFit.contain,
+                                              errorBuilder: (_, __, ___) =>
+                                                  const Icon(Icons.tv, color: Colors.white38, size: 20),
+                                            ),
+                                          )
+                                        else
+                                          const Icon(Icons.tv, color: Colors.white38, size: 20),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            ch.name,
+                                            style: GoogleFonts.outfit(
+                                              color: isSelected ? Colors.white : Colors.white70,
+                                              fontSize: 12,
+                                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
                 ),
               ],
-            ],
+            ),
           ),
-          const SizedBox(height: 16),
-          // Contenu EPG
+          const SizedBox(width: 16),
+          // ─── Colonne droite : programmes de la chaîne sélectionnée ───
           Expanded(
             child: _selectedChannelId == null
                 ? Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.tv_off, size: 64, color: Colors.white12),
+                        const Icon(Icons.tv_off, size: 64, color: Color(0x1FFFFFFF)),
                         const SizedBox(height: 16),
                         Text(
                           'Sélectionnez une chaîne pour\nvoir son guide des programmes',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.outfit(color: Colors.white38, fontSize: 16),
+                          style: GoogleFonts.outfit(color: Colors.white38, fontSize: 15),
                         ),
                       ],
                     ),
                   )
-                : _loadingEpg
-                    ? const Center(child: CircularProgressIndicator())
-                    : _programmes.isEmpty
-                        ? Center(
-                            child: Text('Aucun programme EPG disponible',
-                                style: GoogleFonts.outfit(color: Colors.white38)))
-                        : ListView.builder(
-                            itemCount: _programmes.length,
-                            itemBuilder: (ctx, i) => _ProgrammeCard(
-                              programme: _programmes[i],
-                              channelName: _selectedChannelName ?? '',
-                              channelId: _selectedChannelId!,
-                              streamUrl: _selectedStreamUrl ?? '/api/live/$_selectedChannelId.ts',
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            _selectedChannelName ?? '',
+                            style: GoogleFonts.outfit(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
                           ),
+                          const Spacer(),
+                          IconButton(
+                            icon: const Icon(Icons.refresh, color: Colors.white54, size: 18),
+                            onPressed: () => _loadEpg(_selectedChannelId!),
+                            tooltip: 'Recharger l\'EPG',
+                          ),
+                        ],
+                      ),
+                      const Divider(color: Colors.white12),
+                      Expanded(
+                        child: _loadingEpg
+                            ? const Center(child: CircularProgressIndicator())
+                            : _programmes.isEmpty
+                                ? Center(
+                                    child: Text('Aucun programme EPG disponible',
+                                        style: GoogleFonts.outfit(color: Colors.white38)),
+                                  )
+                                : ListView.builder(
+                                    itemCount: _programmes.length,
+                                    itemBuilder: (ctx, i) => _ProgrammeCard(
+                                      programme: _programmes[i],
+                                      channelName: _selectedChannelName ?? '',
+                                      channelId: _selectedChannelId!,
+                                      streamUrl: _selectedStreamUrl ?? '/api/live/$_selectedChannelId.ts',
+                                    ),
+                                  ),
+                      ),
+                    ],
+                  ),
           ),
         ],
       ),
