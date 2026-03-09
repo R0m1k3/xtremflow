@@ -285,17 +285,36 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   void _toggleFullscreen() {
     try {
-      if (html.document.fullscreenElement != null) {
-        html.document.exitFullscreen();
+      final doc = html.document;
+      final isFullscreen = doc.fullscreenElement != null || 
+                          (doc as dynamic).webkitFullscreenElement != null ||
+                          (doc as dynamic).mozFullScreenElement != null;
+
+      if (isFullscreen) {
+        if (doc.exitFullscreen != null) {
+          doc.exitFullscreen();
+        } else if ((doc as dynamic).webkitExitFullscreen != null) {
+          (doc as dynamic).webkitExitFullscreen();
+        } else if ((doc as dynamic).mozCancelFullScreen != null) {
+          (doc as dynamic).mozCancelFullScreen();
+        }
       } else {
-        final element = html.document.documentElement;
+        final element = doc.documentElement;
         if (element != null) {
-          element.requestFullscreen();
+          if (element.requestFullscreen != null) {
+            element.requestFullscreen();
+          } else if ((element as dynamic).webkitRequestFullscreen != null) {
+            (element as dynamic).webkitRequestFullscreen();
+          } else if ((element as dynamic).mozRequestFullScreen != null) {
+            (element as dynamic).mozRequestFullScreen();
+          } else {
+            // Fallback: Message the player if browser API fails
+            _sendMessage({'type': 'request_fullscreen'});
+          }
         }
       }
     } catch (e) {
       print('[PlayerScreen] Fullscreen error: $e');
-      // Fallback: Message the player to try internal fullscreen
       _sendMessage({'type': 'request_fullscreen'});
     }
   }

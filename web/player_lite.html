@@ -452,11 +452,16 @@
             log('Stream type: ' + streamType);
             const lowerUrl = streamUrl.toLowerCase();
 
-            // LIVE TV: Direct MPEG-TS playback with mpegts.js
+            // LIVE TV: Try HLS first if URL contains m3u8, otherwise mpegts
             if (streamType === 'live') {
-                log('Live TV mode - using mpegts.js direct');
-                showLoading('Connecting to live stream...');
-                await playWithMpegTS(streamUrl, true);
+                if (lowerUrl.includes('.m3u8') || lowerUrl.includes('/playlist.m3u8')) {
+                    log('Live TV mode - HLS detected, using HLS.js');
+                    await playWithHLS(streamUrl);
+                } else {
+                    log('Live TV mode - using mpegts.js direct');
+                    showLoading('Connecting to live stream...');
+                    await playWithMpegTS(streamUrl, true);
+                }
                 return;
             }
 
@@ -500,12 +505,10 @@
                     video.currentTime = parseFloat(data.value);
                 }
             } else if (data.type === 'request_fullscreen') {
-                if (video.requestFullscreen) {
-                    video.requestFullscreen();
-                } else if (video.webkitRequestFullscreen) {
-                    video.webkitRequestFullscreen();
-                } else if (video.msRequestFullscreen) {
-                    video.msRequestFullscreen();
+                const el = document.documentElement;
+                const requestMethod = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+                if (requestMethod) {
+                    requestMethod.call(el).catch(e => log('Fullscreen error: ' + e));
                 }
             }
         });

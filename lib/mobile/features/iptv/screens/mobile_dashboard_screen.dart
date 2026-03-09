@@ -25,25 +25,6 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Determine which tab to show
-    Widget currentTab;
-    switch (_currentIndex) {
-      case 0:
-        currentTab = MobileLiveTVTab(playlist: widget.playlist);
-        break;
-      case 1:
-        currentTab = MobileMoviesTab(playlist: widget.playlist);
-        break;
-      case 2:
-        currentTab = MobileSeriesTab(playlist: widget.playlist);
-        break;
-      case 3:
-        currentTab = const MobileSettingsTab();
-        break;
-      default:
-        currentTab = MobileLiveTVTab(playlist: widget.playlist);
-    }
-
     return Theme(
       data: MobileTheme.darkTheme,
       child: MobileScaffold(
@@ -53,7 +34,15 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
             _currentIndex = index;
           });
         },
-        child: currentTab,
+        child: IndexedStack(
+          index: _currentIndex,
+          children: [
+            MobileLiveTVTab(playlist: widget.playlist),
+            MobileMoviesTab(playlist: widget.playlist),
+            MobileSeriesTab(playlist: widget.playlist),
+            const MobileSettingsTab(),
+          ],
+        ),
       ),
     );
   }
