@@ -245,7 +245,8 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                             return _MobileChannelTile(
                               channel: channel,
                               playlist: widget.playlist,
-                              onTap: () => _playChannel(context, channel),
+                              onTap: () => _playChannel(
+                                  context, channel, displayedChannels),
                             );
                           },
                         ),
@@ -258,7 +259,8 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
     );
   }
 
-  void _playChannel(BuildContext context, Channel channel) {
+  void _playChannel(
+      BuildContext context, Channel channel, List<Channel> channels) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => MobilePlayerScreen(
@@ -266,6 +268,7 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
           title: channel.name,
           playlist: widget.playlist,
           streamType: StreamType.live,
+          channels: channels,
         ),
       ),
     );

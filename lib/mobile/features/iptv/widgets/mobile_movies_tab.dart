@@ -139,7 +139,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
     return originalUrl;
   }
 
-  void _playMovie(Movie movie) {
+  void _playMovie(Movie movie, List<Movie> movies) {
     ref.read(watchHistoryProvider.notifier).markMovieWatched(movie.streamId);
 
     Navigator.push(
@@ -151,6 +151,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
           playlist: widget.playlist,
           streamType: StreamType.vod,
           containerExtension: movie.containerExtension ?? 'mp4',
+          channels: movies, // Pass list for zapping
         ),
       ),
     );
@@ -180,7 +181,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
             title: m.name,
             imageUrl: _getProxiedImageUrl(m.streamIcon, ref),
             subtitle: m.rating != null ? '${_formatRating(m.rating)} ★' : null,
-            onMoreInfo: () => _playMovie(m),
+            onMoreInfo: () => _playMovie(m, displayMovies),
           ),
         )
         .toList();
@@ -259,7 +260,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                     onTap: (item) {
                       final movie = _movies
                           .firstWhere((element) => element.streamId == item.id);
-                      _playMovie(movie);
+                      _playMovie(movie, _movies);
                     },
                   ),
                 ),
@@ -283,7 +284,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                   final isWatched = watchHistory.isMovieWatched(movie.streamId);
 
                   return GestureDetector(
-                    onTap: () => _playMovie(movie),
+                    onTap: () => _playMovie(movie, displayMovies),
                     onLongPress: () {
                       ref
                           .read(watchHistoryProvider.notifier)

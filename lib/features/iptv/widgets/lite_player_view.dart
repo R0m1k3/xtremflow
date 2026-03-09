@@ -5,6 +5,7 @@ import 'package:chewie/chewie.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/glass_container.dart';
 
 class LitePlayerView extends ConsumerStatefulWidget {
   final String streamUrl;
@@ -66,10 +67,14 @@ class _LitePlayerViewState extends ConsumerState<LitePlayerView> {
           bufferedColor: Colors.white54,
         ),
 
-        // Fullscreen configuration for Mobile
+        // Fullscreen configuration for Web/Mobile
         allowFullScreen: true,
         allowMuting: true,
         showControls: true,
+
+        // Orientation settings are often ignored or cause issues on web
+        // but we keep them for native mobile if needed.
+        // On web, the browser handles this.
         deviceOrientationsOnEnterFullScreen: [
           DeviceOrientation.landscapeLeft,
           DeviceOrientation.landscapeRight,
@@ -77,8 +82,6 @@ class _LitePlayerViewState extends ConsumerState<LitePlayerView> {
         deviceOrientationsAfterFullScreen: [
           DeviceOrientation.portraitUp,
         ],
-        systemOverlaysOnEnterFullScreen: [], // Full immersive
-        systemOverlaysAfterFullScreen: SystemUiOverlay.values,
 
         // Custom Controls to include Zapping
         additionalOptions: (context) {
@@ -158,35 +161,68 @@ class _LitePlayerViewState extends ConsumerState<LitePlayerView> {
         children: [
           Chewie(controller: _chewieController!),
 
-          // Overlay Zapping Controls for easy access (since Chewie hides controls)
-          // Hide them during fullscreen to avoid clutter
-          if ((widget.onPrevious != null || widget.onNext != null) &&
-              !(_chewieController?.isFullScreen ?? false))
-            Positioned(
-              bottom: 20,
-              right: 80,
-              child: Row(
+          // Right-Side Overlays (Zapping + Fullscreen)
+          Positioned(
+            right: 16,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (widget.onPrevious != null) ...[
-                    IconButton(
-                      onPressed: widget.onPrevious,
-                      icon: const Icon(Icons.navigate_before,
-                          color: Colors.white, size: 32),
-                      tooltip: 'Previous Channel',
+                  // Fullscreen Toggle
+                  IconButton(
+                    onPressed: () {
+                      if (_chewieController?.isFullScreen == true) {
+                        _chewieController?.exitFullScreen();
+                      } else {
+                        _chewieController?.enterFullScreen();
+                      }
+                    },
+                    icon: Icon(
+                        _chewieController?.isFullScreen == true
+                            ? Icons.fullscreen_exit
+                            : Icons.fullscreen,
+                        color: Colors.white,
+                        size: 32),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black87,
+                      padding: const EdgeInsets.all(12),
                     ),
-                    const SizedBox(width: 16),
-                  ],
-                  if (widget.onNext != null)
-                    IconButton(
-                      onPressed: widget.onNext,
-                      icon: const Icon(Icons.navigate_next,
-                          color: Colors.white, size: 32),
-                      tooltip: 'Next Channel',
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Zapping Controls
+                  if (widget.onPrevious != null || widget.onNext != null)
+                    GlassContainer(
+                      borderRadius: 16,
+                      opacity: 0.3,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (widget.onPrevious != null)
+                            IconButton(
+                              onPressed: widget.onPrevious,
+                              icon: const Icon(Icons.keyboard_arrow_up,
+                                  color: Colors.white, size: 36),
+                              tooltip: 'Previous Channel',
+                            ),
+                          const SizedBox(height: 8),
+                          if (widget.onNext != null)
+                            IconButton(
+                              onPressed: widget.onNext,
+                              icon: const Icon(Icons.keyboard_arrow_down,
+                                  color: Colors.white, size: 36),
+                              tooltip: 'Next Channel',
+                            ),
+                        ],
+                      ),
                     ),
                 ],
               ),
             ),
+          ),
         ],
       );
     }
