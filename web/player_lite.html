@@ -12,6 +12,7 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         html,
@@ -23,6 +24,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
         #player-container {
@@ -45,7 +47,7 @@
             transform: translate(-50%, -50%);
             color: #fff;
             text-align: center;
-            font-family: Arial, sans-serif;
+            z-index: 30;
         }
 
         #error-icon {
@@ -62,16 +64,16 @@
             transform: translate(-50%, -50%);
             color: #fff;
             text-align: center;
-            font-family: Arial, sans-serif;
+            z-index: 20;
         }
 
         .spinner {
             width: 48px;
             height: 48px;
-            border: 4px solid #fff;
-            border-top-color: transparent;
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top-color: #fff;
             border-radius: 50%;
-            animation: spin 1s linear infinite;
+            animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
             margin: 0 auto 16px;
         }
 
@@ -80,20 +82,54 @@
                 transform: rotate(360deg);
             }
         }
+
+        /* Safari Autoplay Hint Overlay */
+        #play-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 50%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 25;
+        }
+
+        #play-overlay svg {
+            width: 40px;
+            height: 40px;
+            fill: white;
+            margin-left: 4px;
+        }
     </style>
 </head>
 
 <body>
     <div id="player-container">
-        <!-- No native controls - Flutter overlay handles controls -->
-        <video id="video" autoplay playsinline></video>
+        <!-- iOS/Safari core attributes -->
+        <video id="video" autoplay playsinline webkit-playsinline preload="auto"></video>
+
+        <div id="play-overlay">
+            <svg viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+            </svg>
+        </div>
+
         <div id="loading">
             <div class="spinner"></div>
-            <div id="loading-text">Loading stream...</div>
+            <div id="loading-text">Chargement du flux...</div>
         </div>
         <div id="error">
             <div id="error-icon">⚠</div>
-            <div id="error-message">Failed to load stream</div>
+            <div id="error-message">Erreur de chargement</div>
         </div>
     </div>
 
@@ -103,6 +139,7 @@
         const loadingText = document.getElementById('loading-text');
         const error = document.getElementById('error');
         const errorMessage = document.getElementById('error-message');
+        const playOverlay = document.getElementById('play-overlay');
 
         // Get parameters from query string
         const urlParams = new URLSearchParams(window.location.search);
@@ -116,7 +153,7 @@
 
         function showLoading(msg) {
             loading.style.display = 'block';
-            loadingText.textContent = msg || 'Loading stream...';
+            loadingText.textContent = msg || 'Chargement du flux...';
             error.style.display = 'none';
         }
 
@@ -127,18 +164,23 @@
         function showError(message) {
             hideLoading();
             error.style.display = 'block';
-            errorMessage.textContent = message || 'Failed to load stream';
+            errorMessage.textContent = message || 'Erreur de chargement';
         }
+
+        playOverlay.addEventListener('click', () => {
+            log('Manual play triggered');
+            video.play();
+            playOverlay.style.display = 'none';
+        });
 
         // Seek to startTime when video is ready
         video.addEventListener('loadedmetadata', () => {
             if (startTime > 0 && startTime < video.duration) {
                 video.currentTime = startTime;
-                log('Resuming from ' + Math.floor(startTime / 60) + 'm ' + Math.floor(startTime % 60) + 's');
             }
         });
 
-        // Report position to parent for resume feature
+        // Report position to parent
         let lastReportedTime = 0;
         function reportPosition() {
             if (video.currentTime > 0 && !video.paused && video.readyState > 2) {
@@ -154,23 +196,17 @@
         }
         setInterval(reportPosition, 5000);
 
-        // Report on pause and end
         video.addEventListener('pause', () => {
-            window.parent.postMessage({
-                type: 'playback_status',
-                status: 'paused'
-            }, '*');
+            window.parent.postMessage({ type: 'playback_status', status: 'paused' }, '*');
+            if (loading.style.display === 'none') {
+                playOverlay.style.display = 'flex';
+            }
         });
 
         video.addEventListener('playing', () => {
-            window.parent.postMessage({
-                type: 'playback_status',
-                status: 'playing'
-            }, '*');
-
-            // Also reset reconnect attempts on successful playing
-            reconnectAttempts = 0;
+            window.parent.postMessage({ type: 'playback_status', status: 'playing' }, '*');
             hideLoading();
+            playOverlay.style.display = 'none';
         });
 
         video.addEventListener('ended', () => {
@@ -180,49 +216,33 @@
             }, '*');
         });
 
-        // Report user activity (mouse movement or touch) to parent for auto-hide controls
-        let lastActivityTime = 0;
+        // Activity reporting
         function reportActivity() {
-            const now = Date.now();
-            if (now - lastActivityTime > 100) { // Throttle to 100ms
-                lastActivityTime = now;
-                window.parent.postMessage({
-                    type: 'user_activity'
-                }, '*');
-            }
+            window.parent.postMessage({ type: 'user_activity' }, '*');
         }
         document.addEventListener('mousemove', reportActivity);
         document.addEventListener('touchstart', reportActivity);
-        document.addEventListener('touchmove', reportActivity);
         document.addEventListener('click', reportActivity);
-        document.addEventListener('touchend', reportActivity);
 
         async function playWithHLS(url) {
             log('Trying HLS.js with: ' + url);
-            showLoading('Loading HLS stream...');
+            showLoading('Chargement HLS...');
 
             if (!Hls.isSupported()) {
                 if (video.canPlayType('application/vnd.apple.mpegurl')) {
                     video.src = url;
-                    video.addEventListener('canplay', () => {
-                        hideLoading();
-                        video.play().catch(e => log('Autoplay prevented: ' + e));
-                    });
+                    video.load();
+                    video.play().catch(() => playOverlay.style.display = 'flex');
                     return true;
                 }
                 return false;
             }
 
             const hls = new Hls({
-                maxBufferLength: 60, // doubled for stability on mobile
+                maxBufferLength: 60,
                 maxMaxBufferLength: 120,
-                liveSyncDurationCount: 5, // more segments for safety
-                liveMaxLatencyDurationCount: 10,
-                liveDurationInfinity: true,
                 enableWorker: true,
-                backStep: 0.2, // step back slightly on stall
-                nudgeOffset: 0.1,
-                nudgeMaxRetry: 5
+                liveSyncDurationCount: 5
             });
 
             window.hlsInstance = hls;
@@ -230,22 +250,15 @@
             hls.attachMedia(video);
 
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                log('HLS manifest parsed');
                 hideLoading();
-                video.play().catch(e => log('Autoplay prevented: ' + e));
+                video.play().catch(() => playOverlay.style.display = 'flex');
             });
 
             hls.on(Hls.Events.ERROR, (event, data) => {
-                log('HLS Error: ' + data.type + ' - ' + data.details);
                 if (data.fatal) {
-                    if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                        hls.startLoad();
-                    } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-                        hls.recoverMediaError();
-                    } else {
-                        showError('HLS Error: ' + data.details);
-                        hls.destroy();
-                    }
+                    if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+                    else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+                    else showError('HLS Error: ' + data.details);
                 }
             });
 
@@ -253,282 +266,50 @@
         }
 
         async function playWithMpegTS(url, isLive = true) {
-            log('Trying mpegts.js with: ' + url + ' (isLive: ' + isLive + ')');
-            showLoading('Loading MPEG-TS stream...');
+            log('Trying mpegts.js with: ' + url);
+            showLoading('Chargement MPEG-TS...');
 
-            if (!mpegts.isSupported()) {
-                return false;
-            }
+            if (!mpegts.isSupported()) return false;
 
-            if (mpegts.getLoggingControl) {
-                mpegts.getLoggingControl().enableAll = false;
-                mpegts.getLoggingControl().enableError = true;
-            }
-
-            // Optimized configuration for stable Live TV playback
-            const playerConfig = {
+            const player = mpegts.createPlayer({
+                type: 'mpegts',
+                isLive: isLive,
+                url: url
+            }, {
                 enableWorker: true,
-                enableStashBuffer: true, // Enable buffering for stability
-                stashInitialSize: 1024 * 1024, // 1MB initial buffer
-                autoCleanupSourceBuffer: true,
-                autoCleanupMaxBackwardDuration: 60, // Keep 1 min of buffer
-                autoCleanupMinBackwardDuration: 30, // Cleanup after 30s
-                fixAudioTimestampGap: true, // Fix audio sync issues
-                liveBufferLatencyChasing: false, // Disable for stability (prevents skipping)
-                liveSync: false, // Don't auto-sync to edge
-                lazyLoad: false, // Load immediately
-                lazyLoadMaxDuration: 0,
-                lazyLoadRecoverDuration: 0,
-            };
-
-            let player = null;
-            let reconnectAttempts = 0;
-            const maxReconnectAttempts = 10;
-            let isDestroyed = false;
-
-            function createPlayer() {
-                if (isDestroyed) return;
-
-                player = mpegts.createPlayer({
-                    type: 'mpegts',
-                    isLive: isLive,
-                    url: url,
-                    hasAudio: true,
-                    hasVideo: true,
-                }, playerConfig);
-
-                player.attachMediaElement(video);
-                player.load();
-
-                // Handle stream end (auto-reconnect for live streams)
-                player.on(mpegts.Events.LOADING_COMPLETE, () => {
-                    if (isLive && !isDestroyed && reconnectAttempts < maxReconnectAttempts) {
-                        log('Stream ended, auto-reconnecting... (' + (reconnectAttempts + 1) + '/' + maxReconnectAttempts + ')');
-                        reconnectAttempts++;
-
-                        // Destroy and recreate player after delay
-                        setTimeout(() => {
-                            if (!isDestroyed) {
-                                try {
-                                    player.unload();
-                                    player.detachMediaElement();
-                                    player.destroy();
-                                } catch (e) { }
-
-                                showLoading('Reconnecting...');
-                                setTimeout(createPlayer, 500);
-                            }
-                        }, 1000);
-                    }
-                });
-
-                // Reset reconnect counter on successful playback
-                video.addEventListener('playing', () => {
-                    reconnectAttempts = 0;
-                    hideLoading();
-                });
-
-                player.on(mpegts.Events.ERROR, (errType, errDetail) => {
-                    log('mpegts error: ' + errType + ' - ' + errDetail);
-
-                    // Try to reconnect on network errors for live streams
-                    if (isLive && !isDestroyed && reconnectAttempts < maxReconnectAttempts) {
-                        log('Error occurred, attempting reconnect...');
-                        reconnectAttempts++;
-
-                        setTimeout(() => {
-                            if (!isDestroyed) {
-                                try {
-                                    player.unload();
-                                    player.detachMediaElement();
-                                    player.destroy();
-                                } catch (e) { }
-
-                                showLoading('Reconnecting...');
-                                setTimeout(createPlayer, 1000);
-                            }
-                        }, 500);
-                    } else {
-                        showError('Stream error: ' + errDetail);
-                    }
-                });
-            }
-
-            createPlayer();
-
-            video.addEventListener('canplay', () => {
-                log('MPEG-TS stream ready');
-                hideLoading();
-                video.play().catch(e => log('Autoplay prevented: ' + e));
+                stashInitialSize: 1024 * 1024,
+                enableStashBuffer: true
             });
 
-            video.addEventListener('error', () => {
-                if (!isLive || reconnectAttempts >= maxReconnectAttempts) {
-                    showError('Video error: ' + (video.error?.message || 'Unknown error'));
-                }
-            });
+            player.attachMediaElement(video);
+            player.load();
+            player.play().catch(() => playOverlay.style.display = 'flex');
 
-            // Cleanup function
-            window.cleanupMpegtsPlayer = () => {
-                isDestroyed = true;
-                if (player) {
-                    try {
-                        player.unload();
-                        player.detachMediaElement();
-                        player.destroy();
-                    } catch (e) { }
-                }
-            };
+            player.on(mpegts.Events.ERROR, () => showError('MpegTS Error'));
 
-            return true;
-        }
-
-        async function playDirect(url) {
-            log('Trying direct playback: ' + url);
-            showLoading('Loading video...');
-
-            video.preload = 'auto';
-            let playStarted = false;
-
-            video.addEventListener('waiting', () => {
-                log('Buffering...');
-                showLoading('Buffering...');
-            });
-
-            video.addEventListener('playing', () => {
-                playStarted = true;
-                hideLoading();
-            });
-
-            const onCanPlay = () => {
-                playStarted = true;
-                hideLoading();
-                // FORCE AUDIO SETTINGS
-                video.muted = false;
-                video.volume = 1.0;
-
-                video.play().catch(e => {
-                    log('Autoplay prevented: ' + e);
-                    // If autoplay prevents sound/video, we should show a UI to user but native controls are there
-                    // Try playing muted if failed
-                    video.muted = true;
-                    video.play().then(() => {
-                        log('Autoplay started muted');
-                        showError('Click to unmute'); // User can verify context
-                    }).catch(e2 => log('Autoplay failed completely: ' + e2));
-                });
-            };
-
-            const onError = async () => {
-                if (!playStarted) {
-                    log('Direct playback failed, trying fallbacks...');
-                    video.removeEventListener('canplay', onCanPlay);
-                    video.removeEventListener('error', onError);
-
-                    // Fallback 1: HLS (common for streams)
-                    log('Trying HLS fallback...');
-                    if (await playWithHLS(url)) return;
-
-                    // Fallback 2: MpegTS (for TS streams)
-                    log('Comparing HLS failed, trying MpegTS fallback...');
-                    if (await playWithMpegTS(url)) return;
-
-                    showError('Format not supported. Try Standard player mode.');
-                }
-            };
-
-            video.addEventListener('canplay', onCanPlay, { once: true });
-            video.addEventListener('error', onError, { once: true });
-
-            video.src = url;
-            video.load();
             return true;
         }
 
         async function initPlayer() {
-            if (!streamUrl) {
-                showError('No stream URL provided');
-                return;
-            }
-
+            if (!streamUrl) return showError('No URL');
             log('Stream URL: ' + streamUrl);
-            log('Stream type: ' + streamType);
+
             const lowerUrl = streamUrl.toLowerCase();
+            const isHLS = lowerUrl.includes('.m3u8') || lowerUrl.includes('/playlist.m3u8');
 
-            // LIVE TV: Try HLS first if URL contains m3u8, otherwise mpegts
-            if (streamType === 'live') {
-                if (lowerUrl.includes('.m3u8') || lowerUrl.includes('/playlist.m3u8')) {
-                    log('Live TV mode - HLS detected, using HLS.js');
-                    await playWithHLS(streamUrl);
-                } else {
-                    log('Live TV mode - using mpegts.js direct');
-                    showLoading('Connecting to live stream...');
-                    await playWithMpegTS(streamUrl, true);
-                }
-                return;
-            }
-
-            // VOD: Direct HTML5 playback with proxy
-            if (streamType === 'vod') {
-                log('VOD mode: Using direct playback');
-                showLoading('Loading video...');
-                await playDirect(streamUrl);
-                return;
-            }
-
-            // Fallback: detect from URL pattern
-            if (lowerUrl.includes('.m3u8') || lowerUrl.includes('/hls/')) {
+            if (isHLS) {
                 await playWithHLS(streamUrl);
-            } else if (lowerUrl.includes('.mp4') || lowerUrl.includes('.mkv') ||
-                lowerUrl.includes('/movie/') || lowerUrl.includes('/series/')) {
-                await playDirect(streamUrl);
-            } else if (lowerUrl.includes('.ts') || lowerUrl.includes('/live/')) {
-                await playWithMpegTS(streamUrl, true);
             } else {
-                await playDirect(streamUrl);
+                await playWithMpegTS(streamUrl, streamType === 'live');
             }
         }
 
-        // Listen for messages from Flutter
         window.addEventListener('message', (event) => {
             const data = event.data;
-            if (!data) return;
-
-            log('Received message from parent: ' + JSON.stringify(data));
-
-            if (data.type === 'play') {
-                video.play().catch(e => log('Play command failed: ' + e));
-            } else if (data.type === 'pause') {
-                video.pause();
-            } else if (data.type === 'set_volume') {
-                video.volume = Math.max(0, Math.min(1, parseFloat(data.value)));
-                video.muted = video.volume === 0;
-            } else if (data.type === 'seek') {
-                if (isFinite(video.duration)) {
-                    video.currentTime = parseFloat(data.value);
-                }
-            } else if (data.type === 'request_fullscreen') {
-                log('Fullscreen requested from parent');
-                const el = document.documentElement;
-                const requestMethod = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen || el.mozRequestFullScreen || el.msRequestFullscreen;
-
-                if (requestMethod) {
-                    // Browsers require a user gesture for fullscreen. 
-                    // This message usually comes from a Flutter button tap, so it should count as a gesture.
-                    requestMethod.call(el).catch(e => {
-                        log('Fullscreen API error: ' + e);
-                        // Fallback: try element-specific request for iOS
-                        if (video.webkitEnterFullscreen) {
-                            video.webkitEnterFullscreen();
-                        }
-                    });
-                } else if (video.webkitEnterFullscreen) {
-                    video.webkitEnterFullscreen();
-                }
-            }
+            if (data.type === 'play') video.play().catch(() => playOverlay.style.display = 'flex');
+            else if (data.type === 'pause') video.pause();
         });
 
-        // Start player
         initPlayer();
     </script>
 </body>
