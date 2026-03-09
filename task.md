@@ -23,6 +23,7 @@ Refonte du Guide TV pour inclure les catégories et corriger l'EPG.
 - [x] Compatibilité Streaming iOS (HLS Live + Proxy Streaming)
 - [x] Correction Chemins HLS Relatifs (Bug chemins absolus FFmpeg)
 - [x] Résolution Erreur 502 Proxy (Nettoyage Headers + API Buffer)
+- [x] Optimisation HLS iOS (Force Keyframes + Anti-Empty Playlist)
 
 ## Progress Log
 

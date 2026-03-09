@@ -153,29 +153,22 @@ Handler createLiveStreamHandler(
         '-i', targetUrl,
         // Video
         if (useNvidiaGpu) ...[
-          '-c:v',
-          'h264_nvenc',
-          '-preset',
-          'p1',
-          '-tune',
-          'll',
-          '-b:v',
-          '3500k',
-          '-maxrate',
-          '4000k',
-          '-bufsize',
-          '7000k',
+          '-c:v', 'h264_nvenc', '-preset', 'p1', '-tune', 'll',
+          '-b:v', '3500k', '-maxrate', '4000k', '-bufsize', '7000k',
+          '-g', '50', // Force keyframes every 2s
         ] else ...[
-          '-c:v',
-          'copy',
+          '-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency',
+          '-b:v', '3000k', '-maxrate', '3500k', '-bufsize', '6000k',
+          '-g', '50', // Force keyframes every 2s (CRITICAL for HLS)
         ],
         // Audio
         '-c:a', 'aac', '-b:a', '128k', '-ac', '2',
         // HLS Sliding Window
         '-f', 'hls',
-        '-hls_time', '2', // Small segments for low latency
-        '-hls_list_size', '5', // 10 seconds of history
-        '-hls_flags', 'delete_segments+independent_segments',
+        '-hls_time', '2',
+        '-hls_list_size', '10', // Increased for safety
+        '-hls_flags', 'delete_segments+independent_segments+discont_start',
+        '-hls_segment_type', 'mpegts',
         '-hls_segment_filename', 'seg_%03d.ts',
         'playlist.m3u8',
       ];
@@ -193,10 +186,16 @@ Handler createLiveStreamHandler(
       process.exitCode.then((_) => _liveProcesses.remove(streamId));
     }
 
-    // Wait for playlist
+    // Wait for playlist AND at least one segment reference
     final file = File('${streamDir.path}/playlist.m3u8');
     int retries = 0;
-    while (!file.existsSync() && retries < 40) {
+    while (retries < 60) {
+      if (file.existsSync()) {
+        final content = file.readAsStringSync();
+        // Live HLS needs at least 2 or 3 segments to be stable on iOS
+        // but we start as soon as we have one for speed
+        if (content.contains('.ts')) break;
+      }
       await Future.delayed(const Duration(milliseconds: 500));
       retries++;
     }
@@ -404,6 +403,7 @@ Handler createVodStreamHandler(
           '6000k',
           '-pix_fmt',
           'yuv420p',
+          '-g', '48', // Force keyframes
           '-threads',
           '0',
         ]);
@@ -433,6 +433,8 @@ Handler createVodStreamHandler(
         'event',
         '-hls_allow_cache',
         '1',
+        '-hls_flags',
+        'independent_segments',
         '-hls_segment_type',
         'mpegts',
         '-hls_segment_filename',
@@ -463,10 +465,14 @@ Handler createVodStreamHandler(
       });
     }
 
-    // Wait for playlist to appear (max 30s)
+    // Wait for playlist AND at least one segment to be referenced
     final playlistFile = File('${streamDir.path}/playlist.m3u8');
     int retries = 0;
-    while (!playlistFile.existsSync() && retries < 60) {
+    while (retries < 60) {
+      if (playlistFile.existsSync()) {
+        final content = playlistFile.readAsStringSync();
+        if (content.contains('.ts')) break; // At least one segment is ready
+      }
       await Future.delayed(const Duration(milliseconds: 500));
       retries++;
     }

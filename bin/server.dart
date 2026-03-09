@@ -59,6 +59,7 @@ void main(List<String> args) async {
       }
     }
   }
+
   // Injecter après 5s pour attendre l'initialisation complète
   Future.delayed(const Duration(seconds: 5), _injectPlaylistToScheduler);
 
@@ -82,13 +83,15 @@ void main(List<String> args) async {
       print('[getPlaylist] Total users in DB: ${users.length}');
       if (users.isNotEmpty) {
         final playlists = db.getPlaylists(users[0].id);
-        print('[getPlaylist] User ${users[0].username} has ${playlists.length} playlists');
+        print(
+            '[getPlaylist] User ${users[0].username} has ${playlists.length} playlists');
         if (playlists.isNotEmpty) playlist = playlists.first;
       }
     }
 
     if (playlist != null) {
-      print('[getPlaylist] Returning playlist: ${playlist.name} (DNS: ${playlist.serverUrl})');
+      print(
+          '[getPlaylist] Returning playlist: ${playlist.name} (DNS: ${playlist.serverUrl})');
       return PlaylistConfig(
         id: playlist.id,
         name: playlist.name,
@@ -150,8 +153,8 @@ void main(List<String> args) async {
     ..get('/api/season-passes', seasonPassesApi.handleGetAll)
     ..post('/api/season-passes', seasonPassesApi.handlePost)
     ..delete('/api/season-passes/<id>', seasonPassesApi.handleDelete);
-    // NOTE: /api/xtream is handled by proxyHandler in the Cascade below
-    // Do NOT mount here as it would intercept and block the actual proxy
+  // NOTE: /api/xtream is handled by proxyHandler in the Cascade below
+  // Do NOT mount here as it would intercept and block the actual proxy
 
   // Initialize Cleanup Service
   final cleanupService = CleanupService();
@@ -299,6 +302,7 @@ Middleware _corsMiddleware() {
 final _corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Origin, Content-Type, Accept, Authorization',
+  'Access-Control-Allow-Headers':
+      'Origin, Content-Type, Accept, Authorization, Range',
+  'Access-Control-Expose-Headers': 'Content-Length, Content-Range',
 };
-
