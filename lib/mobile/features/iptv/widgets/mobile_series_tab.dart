@@ -288,7 +288,7 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                           child:
                               series.cover != null && series.cover!.isNotEmpty
                                   ? Image.network(
-                                      _getProxiedImageUrl(series.cover),
+                                      _getProxiedImageUrl(series.cover, ref),
                                       fit: BoxFit.cover,
                                       errorBuilder: (_, __, ___) =>
                                           Container(color: Colors.white10),
