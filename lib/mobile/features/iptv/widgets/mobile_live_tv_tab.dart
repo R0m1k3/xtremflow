@@ -42,9 +42,48 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
     return Scaffold(
       backgroundColor: Colors.transparent, // Handled by MobileScaffold
       body: channelsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              const Text('Loading channels...', style: TextStyle(color: Colors.white70)),
+              const SizedBox(height: 24),
+              FutureBuilder(
+                future: Future.delayed(const Duration(seconds: 8)),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done) {
+                    return TextButton(
+                      onPressed: () => ref.refresh(liveChannelsByPlaylistProvider(widget.playlist)),
+                      child: const Text('Taking too long? Tap to retry'),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+            ],
+          ),
+        ),
         error: (e, s) => Center(
-          child: Text('Error: $e', style: const TextStyle(color: Colors.white)),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                const SizedBox(height: 16),
+                Text('Failed to load channels', style: GoogleFonts.inter(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text('$e', style: const TextStyle(color: Colors.white54), textAlign: TextAlign.center),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => ref.refresh(liveChannelsByPlaylistProvider(widget.playlist)),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
         ),
         data: (groupedChannels) {
           var categories = groupedChannels.keys.toList();

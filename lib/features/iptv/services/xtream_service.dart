@@ -18,14 +18,16 @@ class XtreamService {
   XtreamService() {
     _dio = Dio(
       BaseOptions(
-        connectTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(seconds: 30),
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 15),
+        sendTimeout: const Duration(seconds: 15),
       ),
     );
 
     // Setup caching for API responses
+    // Use MemCacheStore on Web to avoid path errors
     _cacheOptions = CacheOptions(
-      store: HiveCacheStore('./cache'),
+      store: kIsWeb ? MemCacheStore() : HiveCacheStore('./cache'),
       policy: CachePolicy.forceCache,
       maxStale: const Duration(hours: 1),
       priority: CachePriority.high,
@@ -47,11 +49,16 @@ class XtreamService {
     }
     if (kIsWeb) {
       final origin = Uri.base.origin;
+      // If we are developing locally on a different port than the backend
       if (origin.contains('localhost') && !origin.contains('8089')) {
         return 'http://localhost:8089';
       }
+      // On mobile devices, 'localhost' is the device itself.
+      // If origin is localhost but we are on mobile web, it might fail.
+      // We assume the user is accessing via an IP or hostname.
       return origin;
     }
+    // Android emulator bridge
     return 'http://10.0.2.2:8089';
   }
 
