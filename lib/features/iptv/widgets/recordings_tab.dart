@@ -9,9 +9,13 @@ import '../../../core/widgets/glass_container.dart';
 import '../providers/xtream_provider.dart';
 import '../providers/settings_provider.dart';
 
+import '../../../core/models/playlist_config.dart';
+
 /// Onglet "Enregistrements & Guide TV" — combine guide EPG, enregistrements actifs et season passes
 class RecordingsTab extends StatefulWidget {
-  const RecordingsTab({super.key});
+  final PlaylistConfig playlist;
+
+  const RecordingsTab({super.key, required this.playlist});
 
   @override
   State<RecordingsTab> createState() => _RecordingsTabState();
@@ -83,10 +87,10 @@ class _RecordingsTabState extends State<RecordingsTab>
         Expanded(
           child: TabBarView(
             controller: _tabController,
-            children: const [
-              _EpgGuideView(),
-              _RecordingsListView(),
-              _SeasonPassesView(),
+            children: [
+              _EpgGuideView(playlist: widget.playlist),
+              const _RecordingsListView(),
+              const _SeasonPassesView(),
             ],
           ),
         ),
@@ -101,7 +105,8 @@ class _RecordingsTabState extends State<RecordingsTab>
 
 /// Guide TV EPG — charge les chaînes filtrées depuis les Settings (comme l'onglet TV)
 class _EpgGuideView extends ConsumerStatefulWidget {
-  const _EpgGuideView();
+  final PlaylistConfig playlist;
+  const _EpgGuideView({required this.playlist});
   @override
   ConsumerState<_EpgGuideView> createState() => _EpgGuideViewState();
 }
@@ -157,13 +162,9 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView> {
 
   @override
   Widget build(BuildContext context) {
-    final playlist = ref.watch(selectedPlaylistProvider);
     final settings = ref.watch(iptvSettingsProvider);
-
-    // Charger les chaînes seulement si on a une playlist active
-    final channelsAsync = playlist != null
-        ? ref.watch(liveChannelsByPlaylistProvider(playlist))
-        : null;
+    // Utiliser la playlist passée en paramètre directement
+    final channelsAsync = ref.watch(liveChannelsByPlaylistProvider(widget.playlist));
 
     return Padding(
       padding: const EdgeInsets.all(16),

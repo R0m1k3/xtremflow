@@ -85,7 +85,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 LiveTVTab(playlist: widget.playlist),
                 MoviesTab(playlist: widget.playlist),
                 SeriesTab(playlist: widget.playlist),
-                const RecordingsTab(),
+                RecordingsTab(playlist: widget.playlist),
                 const SettingsTab(),
               ],
             ),
