@@ -83,28 +83,6 @@
             /* Adjust for play icon alignment */
         }
 
-        .fs-button {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            width: 44px;
-            height: 44px;
-            background: rgba(0, 0, 0, 0.6);
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            pointer-events: auto;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-        }
-
-        .fs-button svg {
-            width: 24px;
-            height: 24px;
-            fill: white;
-        }
 
         #loading {
             position: absolute;
@@ -160,11 +138,6 @@
                 </svg>
             </div>
 
-            <div class="fs-button" id="fs-toggle">
-                <svg viewBox="0 0 24 24">
-                    <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
-                </svg>
-            </div>
         </div>
 
         <div id="loading">
@@ -185,31 +158,6 @@
         const loading = document.getElementById('loading');
         const playOverlay = document.getElementById('play-overlay');
         const error = document.getElementById('error');
-        const fsToggle = document.getElementById('fs-toggle');
-
-        const params = new URLSearchParams(window.location.search);
-        const streamUrl = params.get('url');
-        const streamType = params.get('type') || 'live';
-
-        function log(m) { console.log('[MobilePlayer] ' + m); }
-
-        function toggleFullscreen() {
-            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                const el = document.documentElement;
-                if (el.requestFullscreen) el.requestFullscreen();
-                else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-                else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
-            } else {
-                if (document.exitFullscreen) document.exitFullscreen();
-                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-            }
-        }
-
-        fsToggle.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleFullscreen();
-        });
 
         playOverlay.addEventListener('click', (e) => {
             e.preventDefault();
@@ -223,9 +171,6 @@
         let lastTap = 0;
         video.addEventListener('touchend', (e) => {
             const now = Date.now();
-            if (now - lastTap < 300) {
-                toggleFullscreen();
-            }
             lastTap = now;
             // Report activity to parent
             window.parent.postMessage({ type: 'user_activity' }, '*');
@@ -330,7 +275,6 @@
             const d = e.data;
             if (d.type === 'play') video.play().catch(() => playOverlay.style.display = 'flex');
             if (d.type === 'pause') video.pause();
-            if (d.type === 'request_fullscreen') toggleFullscreen();
         });
 
         init();

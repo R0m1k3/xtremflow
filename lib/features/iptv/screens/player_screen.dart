@@ -837,15 +837,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         size: buttonSize,
       ),
 
-      if (isSmallScreen) ...[
-        SizedBox(width: spacing),
-        // Fullscreen button inside the bar for mobile
-        _buildSimpleIconButton(
-          icon: Icons.fullscreen_rounded,
-          onTap: _toggleFullscreen,
-          size: buttonSize,
-        ),
-      ],
     ];
   }
 

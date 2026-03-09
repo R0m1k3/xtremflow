@@ -231,11 +231,6 @@
                 case 'pause': video.pause(); break;
                 case 'seek': if (Number.isFinite(data.value)) video.currentTime = data.value; break;
                 case 'set_volume': video.volume = Math.max(0, Math.min(1, data.value)); video.muted = video.volume === 0; break;
-                case 'request_fullscreen':
-                    const el = document.documentElement;
-                    const rf = el.requestFullscreen || el.webkitRequestFullscreen || video.webkitEnterFullscreen;
-                    if (rf) rf.call(el === document.documentElement ? el : video).catch(e => log('FS Error: ' + e));
-                    break;
             }
         });
 
