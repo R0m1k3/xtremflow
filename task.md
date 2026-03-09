@@ -6,16 +6,17 @@ Activation de l'agent Bmad Master pour coordonner les modules BMAD et gérer le 
 
 ## Current Focus
 
-Analyse du workflow Bmad Master et configuration initiale.
+Refonte du Guide TV pour inclure les catégories et corriger l'EPG.
 
 ## Master Plan
 
 - [x] Analyser le workflow Bmad Master (`bmad-core-agents-bmad-master.md`)
 - [x] Configurer l'environnement pour l'agent Master
 - [x] Initialiser la session avec l'agent Master
-- [x] Diagnostiquer l'absence d'EPG
-- [x] Diagnostiquer le problème de tri des chaînes
-- [x] Vérifier l'état de l'agent et des sous-modules
+- [x] Correction initiale du parsing EPG
+- [x] Suppression du tri alphabétique forcé
+- [/] Refonte du Guide TV (Catégories + EPG détaillé)
+- [ ] Correction de l'endpoint EPG Backend
 
 ## Progress Log
 
@@ -23,5 +24,6 @@ Analyse du workflow Bmad Master et configuration initiale.
 - [x] Lecture du workflow et de la configuration
 - [x] Validation du plan d'activation par Michael
 - [x] Activation de l'identité Bmad Master
-- [x] Correction du parsing de date EPG (Xtream format support)
+- [x] Correction initiale du parsing EPG
 - [x] Suppression du tri alphabétique forcé
+- [x] Analyse des manques du Guide TV (tri par groupe)

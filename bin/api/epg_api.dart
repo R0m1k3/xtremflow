@@ -28,7 +28,8 @@ class EpgApi {
     try {
       final playlist = await _getPlaylist(request);
       if (playlist == null) {
-        return Response.forbidden(json.encode({'error': 'Playlist non trouvée'}),
+        return Response.forbidden(
+            json.encode({'error': 'Playlist non trouvée'}),
             headers: {'Content-Type': 'application/json'});
       }
 
@@ -38,11 +39,13 @@ class EpgApi {
           '$dns/player_api.php?username=${playlist.username}&password=${playlist.password}'
           '&action=get_epg&stream_id=$channelId&limit=48';
 
-      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+      final response =
+          await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
 
       if (response.statusCode != 200) {
         return Response(response.statusCode,
-            body: json.encode({'error': 'Erreur API Xtream: ${response.statusCode}'}),
+            body: json
+                .encode({'error': 'Erreur API Xtream: ${response.statusCode}'}),
             headers: {'Content-Type': 'application/json'});
       }
 
@@ -57,7 +60,8 @@ class EpgApi {
         expiresAt: DateTime.now().add(const Duration(minutes: 30)),
       );
 
-      return Response.ok(jsonStr, headers: {'Content-Type': 'application/json', 'X-Cache': 'MISS'});
+      return Response.ok(jsonStr,
+          headers: {'Content-Type': 'application/json', 'X-Cache': 'MISS'});
     } catch (e) {
       return Response.internalServerError(
         body: json.encode({'error': 'Erreur lors de la récupération EPG: $e'}),
@@ -80,24 +84,36 @@ class EpgApi {
         final startRaw = item['start'] as String? ?? '';
         final endRaw = item['stop'] as String? ?? item['end'] as String? ?? '';
 
+        // Normaliser les dates pour le frontend (Xtream format support)
+        final start = startRaw.contains(' ') && !startRaw.contains('T')
+            ? startRaw.replaceFirst(' ', 'T')
+            : startRaw;
+        final end = endRaw.contains(' ') && !endRaw.contains('T')
+            ? endRaw.replaceFirst(' ', 'T')
+            : endRaw;
+
         // Décoder le titre (base64 si nécessaire)
         String title = item['title'] as String? ?? '';
         try {
-          title = utf8.decode(base64Decode(title));
-        } catch (_) {
-          // n'est pas du base64, garder tel quel
-        }
+          if (title.isNotEmpty) {
+            final decoded = utf8.decode(base64Decode(title));
+            if (decoded.isNotEmpty) title = decoded;
+          }
+        } catch (_) {}
 
         String description = item['description'] as String? ?? '';
         try {
-          description = utf8.decode(base64Decode(description));
+          if (description.isNotEmpty) {
+            final decoded = utf8.decode(base64Decode(description));
+            if (decoded.isNotEmpty) description = decoded;
+          }
         } catch (_) {}
 
         return {
           'title': title,
           'description': description,
-          'start': startRaw,
-          'end': endRaw,
+          'start': start,
+          'end': end,
           'channel_id': channelId,
         };
       }).toList();

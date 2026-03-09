@@ -64,15 +64,17 @@ class _RecordingsTabState extends State<RecordingsTab>
                 unselectedLabelColor: Colors.white54,
                 indicatorColor: Colors.redAccent,
                 indicatorWeight: 3,
-                labelStyle:
-                    GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 14),
+                labelStyle: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w600, fontSize: 14),
                 unselectedLabelStyle: GoogleFonts.outfit(fontSize: 14),
                 tabs: const [
                   Tab(icon: Icon(Icons.grid_view, size: 18), text: 'Guide TV'),
                   Tab(
                       icon: Icon(Icons.fiber_manual_record, size: 18),
                       text: 'Enregistrements'),
-                  Tab(icon: Icon(Icons.repeat, size: 18), text: 'Season Passes'),
+                  Tab(
+                      icon: Icon(Icons.repeat, size: 18),
+                      text: 'Season Passes'),
                 ],
               ),
             ],
@@ -114,6 +116,7 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
   @override
   bool get wantKeepAlive => true;
 
+  String? _selectedCategory;
   Channel? _selectedChannel;
   // Map-based pour correspondre au format retourné par /api/epg/<id>
   List<Map<String, dynamic>> _programmes = [];
@@ -137,7 +140,6 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
   }
 
   /// Charge le guide EPG complet via le backend /api/epg/<channelId>
-  /// Le backend appelle get_epg (48h de programmes) et décode le base64
   Future<void> _loadEpg(Channel ch) async {
     setState(() {
       _selectedChannel = ch;
@@ -147,23 +149,20 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
     });
 
     try {
-      final response =
-          await http.get(Uri.parse('/api/epg/${ch.streamId}'));
+      final response = await http.get(Uri.parse('/api/epg/${ch.streamId}'));
       if (mounted) {
         if (response.statusCode == 200) {
           final data = json.decode(response.body) as Map<String, dynamic>;
-          final list =
-              (data['programmes'] as List<dynamic>? ?? [])
-                  .whereType<Map<String, dynamic>>()
-                  .toList();
+          final list = (data['programmes'] as List<dynamic>? ?? [])
+              .whereType<Map<String, dynamic>>()
+              .toList();
           setState(() {
             _programmes = list;
             _loadingEpg = false;
           });
         } else {
           setState(() {
-            _epgError =
-                'Erreur ${response.statusCode}: ${response.body}';
+            _epgError = 'Erreur ${response.statusCode}: ${response.body}';
             _loadingEpg = false;
           });
         }
@@ -180,229 +179,266 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // requis pour AutomaticKeepAliveClientMixin
+    super.build(context);
     final settings = ref.watch(iptvSettingsProvider);
     final channelsAsync =
         ref.watch(liveChannelsByPlaylistProvider(widget.playlist));
 
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Colonne gauche : liste des chaînes ──
-          SizedBox(
-            width: 230,
-            child: Column(children: [
-              // Barre de recherche
-              TextField(
-                controller: _searchCtrl,
-                style: const TextStyle(color: Colors.white, fontSize: 13),
-                decoration: InputDecoration(
-                  hintText: 'Rechercher...',
-                  hintStyle:
-                      const TextStyle(color: Colors.white38, fontSize: 13),
-                  prefixIcon: const Icon(Icons.search,
-                      color: Colors.white38, size: 18),
-                  filled: true,
-                  fillColor: Colors.white.withOpacity(0.07),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: channelsAsync.when(
-                  loading: () => const Center(
-                      child: CircularProgressIndicator(strokeWidth: 2)),
-                  error: (e, _) => Center(
-                      child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text('Erreur chargement chaînes:\n$e',
-                        style: const TextStyle(
-                            color: Colors.redAccent, fontSize: 11),
-                        textAlign: TextAlign.center),
-                  )),
-                  data: (groupedChannels) {
-                    // Appliquer le filtre settings (identique à l'onglet Live TV)
-                    final filtered = <Channel>[];
-                    for (final entry in groupedChannels.entries) {
-                      if (settings.liveTvKeywords.isEmpty ||
-                          settings.matchesLiveTvFilter(entry.key)) {
-                        filtered.addAll(entry.value);
-                      }
-                    }
-                    filtered.sort((a, b) => a.name.compareTo(b.name));
+      child: channelsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Erreur: $e')),
+        data: (groupedChannels) {
+          final categories = groupedChannels.keys
+              .where((cat) =>
+                  settings.liveTvKeywords.isEmpty ||
+                  settings.matchesLiveTvFilter(cat))
+              .toList();
 
-                    final visible = _searchQuery.isEmpty
-                        ? filtered
-                        : filtered
-                            .where((c) =>
-                                c.name.toLowerCase().contains(_searchQuery))
-                            .toList();
+          // Initial category selection
+          if (_selectedCategory == null && categories.isNotEmpty) {
+            _selectedCategory = categories.first;
+          }
 
-                    if (visible.isEmpty) {
-                      return Center(
-                          child: Text(
-                        settings.liveTvKeywords.isEmpty
-                            ? 'Aucune chaîne disponible'
-                            : 'Aucune chaîne correspondant\naux filtres Settings',
-                        textAlign: TextAlign.center,
+          final channelsInCategory = groupedChannels[_selectedCategory] ?? [];
+          final visibleChannels = _searchQuery.isEmpty
+              ? channelsInCategory
+              : groupedChannels.values
+                  .expand((l) => l)
+                  .where((c) => c.name.toLowerCase().contains(_searchQuery))
+                  .toList();
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Colonne 1 : CATÉGORIES ──
+              SizedBox(
+                width: 180,
+                child: Column(
+                  children: [
+                    Text('GROUPES',
                         style: GoogleFonts.outfit(
-                            color: Colors.white38, fontSize: 12),
-                      ));
-                    }
-
-                    return ListView.builder(
-                      itemCount: visible.length,
-                      itemBuilder: (ctx, i) {
-                        final ch = visible[i];
-                        final isSelected =
-                            _selectedChannel?.streamId == ch.streamId;
-                        return InkWell(
-                          onTap: () => _loadEpg(ch),
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 3),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 7),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? Colors.redAccent.withOpacity(0.2)
-                                  : Colors.white.withOpacity(0.05),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
+                            color: Colors.white38,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2)),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: categories.length,
+                        itemBuilder: (ctx, i) {
+                          final cat = categories[i];
+                          final isSelected = _selectedCategory == cat;
+                          return InkWell(
+                            onTap: () => setState(() {
+                              _selectedCategory = cat;
+                              _searchCtrl.clear();
+                              _searchQuery = '';
+                            }),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                              margin: const EdgeInsets.only(bottom: 4),
+                              decoration: BoxDecoration(
                                 color: isSelected
-                                    ? Colors.redAccent.withOpacity(0.5)
+                                    ? Colors.white.withOpacity(0.1)
                                     : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                            ),
-                            child: Row(children: [
-                              // Logo chaîne
-                              ch.streamIcon.isNotEmpty
-                                  ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(3),
-                                      child: Image.network(
-                                        ch.streamIcon,
-                                        width: 26,
-                                        height: 18,
-                                        fit: BoxFit.contain,
-                                        errorBuilder: (_, __, ___) =>
-                                            const Icon(Icons.tv,
-                                                color: Colors.white38,
-                                                size: 18),
-                                      ),
-                                    )
-                                  : const Icon(Icons.tv,
-                                      color: Colors.white38, size: 18),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  ch.name,
-                                  style: GoogleFonts.outfit(
+                              child: Text(
+                                cat,
+                                style: GoogleFonts.outfit(
                                     color: isSelected
                                         ? Colors.white
-                                        : Colors.white70,
+                                        : Colors.white60,
                                     fontSize: 12,
                                     fontWeight: isSelected
                                         ? FontWeight.bold
-                                        : FontWeight.normal,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                                        : FontWeight.normal),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            ]),
-                          ),
-                        );
-                      },
-                    );
-                  },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ]),
-          ),
 
-          const SizedBox(width: 16),
+              const VerticalDivider(width: 32, color: Colors.white10),
 
-          // ── Colonne droite : programmes EPG ──
-          Expanded(
-            child: _selectedChannel == null
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.tv_off,
-                            size: 64, color: Color(0x1FFFFFFF)),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Sélectionnez une chaîne\npour voir son guide des programmes',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.outfit(
-                              color: Colors.white38, fontSize: 15),
-                        ),
-                      ],
+              // ── Colonne 2 : CHAÎNES ──
+              SizedBox(
+                width: 250,
+                child: Column(children: [
+                  // Barre de recherche
+                  TextField(
+                    controller: _searchCtrl,
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'Rechercher...',
+                      hintStyle:
+                          const TextStyle(color: Colors.white38, fontSize: 13),
+                      prefixIcon: const Icon(Icons.search,
+                          color: Colors.white38, size: 18),
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.07),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(children: [
-                        Text(
-                          _selectedChannel!.name,
-                          style: GoogleFonts.outfit(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const Spacer(),
-                        IconButton(
-                          icon: const Icon(Icons.refresh,
-                              color: Colors.white54, size: 18),
-                          tooltip: 'Recharger l\'EPG',
-                          onPressed: () => _loadEpg(_selectedChannel!),
-                        ),
-                      ]),
-                      const Divider(color: Colors.white12),
-                      Expanded(
-                        child: _loadingEpg
-                            ? const Center(child: CircularProgressIndicator())
-                            : _epgError.isNotEmpty
-                                ? Center(
-                                    child: Text(
-                                      'Erreur EPG: $_epgError',
-                                      style: const TextStyle(
-                                          color: Colors.redAccent,
-                                          fontSize: 12),
-                                      textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: visibleChannels.isEmpty
+                        ? Center(
+                            child: Text('Aucune chaîne',
+                                style: TextStyle(
+                                    color: Colors.white24, fontSize: 12)))
+                        : ListView.builder(
+                            itemCount: visibleChannels.length,
+                            itemBuilder: (ctx, i) {
+                              final ch = visibleChannels[i];
+                              final isSelected =
+                                  _selectedChannel?.streamId == ch.streamId;
+                              return InkWell(
+                                onTap: () => _loadEpg(ch),
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 3),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? Colors.redAccent.withOpacity(0.2)
+                                        : Colors.white.withOpacity(0.05),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? Colors.redAccent.withOpacity(0.5)
+                                          : Colors.transparent,
                                     ),
-                                  )
-                                : _programmes.isEmpty
+                                  ),
+                                  child: Row(children: [
+                                    ch.streamIcon.isNotEmpty
+                                        ? Image.network(ch.streamIcon,
+                                            width: 24,
+                                            height: 16,
+                                            fit: BoxFit.contain,
+                                            errorBuilder: (_, __, ___) =>
+                                                const Icon(Icons.tv,
+                                                    color: Colors.white24,
+                                                    size: 16))
+                                        : const Icon(Icons.tv,
+                                            color: Colors.white24, size: 16),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        ch.name,
+                                        style: GoogleFonts.outfit(
+                                          color: isSelected
+                                              ? Colors.white
+                                              : Colors.white70,
+                                          fontSize: 12,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ]),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ]),
+              ),
+
+              const VerticalDivider(width: 32, color: Colors.white10),
+
+              // ── Colonne droite : programmes EPG ──
+              Expanded(
+                child: _selectedChannel == null
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.tv_off,
+                                size: 64, color: Color(0x1FFFFFFF)),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Sélectionnez une chaîne\npour voir son guide des programmes',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.outfit(
+                                  color: Colors.white38, fontSize: 15),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            Text(
+                              _selectedChannel!.name,
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              icon: const Icon(Icons.refresh,
+                                  color: Colors.white54, size: 18),
+                              tooltip: 'Recharger l\'EPG',
+                              onPressed: () => _loadEpg(_selectedChannel!),
+                            ),
+                          ]),
+                          const Divider(color: Colors.white12),
+                          Expanded(
+                            child: _loadingEpg
+                                ? const Center(
+                                    child: CircularProgressIndicator())
+                                : _epgError.isNotEmpty
                                     ? Center(
                                         child: Text(
-                                          'Aucun programme EPG disponible\npour cette chaîne',
+                                          'Erreur EPG: $_epgError',
+                                          style: const TextStyle(
+                                              color: Colors.redAccent,
+                                              fontSize: 12),
                                           textAlign: TextAlign.center,
-                                          style: GoogleFonts.outfit(
-                                              color: Colors.white38),
                                         ),
                                       )
-                                    : ListView.builder(
-                                        itemCount: _programmes.length,
-                                        itemBuilder: (ctx, i) =>
-                                            _ProgrammeCard(
-                                          programme: _programmes[i],
-                                          channel: _selectedChannel!,
-                                        ),
-                                      ),
+                                    : _programmes.isEmpty
+                                        ? Center(
+                                            child: Text(
+                                              'Aucun programme EPG disponible\npour cette chaîne',
+                                              textAlign: TextAlign.center,
+                                              style: GoogleFonts.outfit(
+                                                  color: Colors.white38),
+                                            ),
+                                          )
+                                        : ListView.builder(
+                                            itemCount: _programmes.length,
+                                            itemBuilder: (ctx, i) =>
+                                                _ProgrammeCard(
+                                              programme: _programmes[i],
+                                              channel: _selectedChannel!,
+                                            ),
+                                          ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-          ),
-        ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -429,8 +465,8 @@ class _ProgrammeCard extends StatelessWidget {
   String _fmt(String raw) {
     if (raw.isEmpty) return '';
     try {
-      // Format Xtream : "2026-03-09 09:00:00" ou ISO "2026-03-09T09:00:00Z"
-      final dt = DateTime.parse(raw.replaceFirst(' ', 'T')).toLocal();
+      final dt = EpgEntry.parseDateTime(raw)?.toLocal();
+      if (dt == null) return raw.length >= 16 ? raw.substring(11, 16) : raw;
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     } catch (_) {
       return raw.length >= 16 ? raw.substring(11, 16) : raw;
@@ -438,12 +474,7 @@ class _ProgrammeCard extends StatelessWidget {
   }
 
   DateTime? _parseTime(String raw) {
-    if (raw.isEmpty) return null;
-    try {
-      return DateTime.parse(raw.replaceFirst(' ', 'T')).toUtc();
-    } catch (_) {
-      return null;
-    }
+    return EpgEntry.parseDateTime(raw);
   }
 
   bool get _isNow {
@@ -511,8 +542,7 @@ class _ProgrammeCard extends StatelessWidget {
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Annuler')),
           ElevatedButton(
-            style:
-                ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () async {
               Navigator.pop(ctx);
               await _saveRecording(
@@ -578,8 +608,7 @@ class _ProgrammeCard extends StatelessWidget {
         ),
       ),
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
         leading: SizedBox(
           width: 52,
           child: Column(
@@ -646,7 +675,6 @@ class _ProgrammeCard extends StatelessWidget {
   }
 }
 
-
 // ═══════════════════════════════════════════════════════════════════════════
 //  ONGLET 2 — ENREGISTREMENTS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -710,8 +738,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
 
   Future<void> _showLogs(String id, String title) async {
     try {
-      final response =
-          await http.get(Uri.parse('/api/recordings/logs/$id'));
+      final response = await http.get(Uri.parse('/api/recordings/logs/$id'));
       if (!mounted) return;
       final content = response.statusCode == 200
           ? (json.decode(response.body)['logs'] as String? ?? 'Aucun log')
@@ -793,8 +820,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                 : _error != null
                     ? Center(
                         child: Text(_error!,
-                            style:
-                                const TextStyle(color: Colors.redAccent)))
+                            style: const TextStyle(color: Colors.redAccent)))
                     : _recordings.isEmpty
                         ? Center(
                             child: Column(
@@ -822,13 +848,11 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                                   color: Colors.white.withOpacity(0.05),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                      color:
-                                          Colors.white.withOpacity(0.1)),
+                                      color: Colors.white.withOpacity(0.1)),
                                 ),
                                 child: ListTile(
-                                  contentPadding:
-                                      const EdgeInsets.symmetric(
-                                          horizontal: 16, vertical: 8),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 8),
                                   leading: Icon(
                                     status == 'recording'
                                         ? Icons.fiber_manual_record
@@ -864,13 +888,11 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 10, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color:
-                                              color.withOpacity(0.15),
+                                          color: color.withOpacity(0.15),
                                           borderRadius:
                                               BorderRadius.circular(20),
                                           border: Border.all(
-                                              color:
-                                                  color.withOpacity(0.4)),
+                                              color: color.withOpacity(0.4)),
                                         ),
                                         child: Text(_statusLabel(status),
                                             style: TextStyle(
@@ -881,8 +903,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                                       const SizedBox(width: 4),
                                       if (status == 'recording')
                                         IconButton(
-                                          icon: const Icon(
-                                              Icons.stop_circle,
+                                          icon: const Icon(Icons.stop_circle,
                                               color: Colors.redAccent),
                                           tooltip: 'Arrêter',
                                           onPressed: () => _stopRecording(
@@ -898,10 +919,8 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                                             rec['id'], rec['title'] ?? ''),
                                       ),
                                       IconButton(
-                                        icon: const Icon(
-                                            Icons.delete_outline,
-                                            color: Colors.white38,
-                                            size: 20),
+                                        icon: const Icon(Icons.delete_outline,
+                                            color: Colors.white38, size: 20),
                                         tooltip: 'Supprimer',
                                         onPressed: () =>
                                             _deleteRecording(rec['id']),
@@ -984,15 +1003,16 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Text(
               'Enregistre automatiquement toutes les nouvelles diffusions d\'une émission.',
-              style:
-                  GoogleFonts.outfit(color: Colors.white54, fontSize: 13),
+              style: GoogleFonts.outfit(color: Colors.white54, fontSize: 13),
             ),
             const SizedBox(height: 16),
-            _buildField(titleCtrl, 'Titre de l\'émission (ex: Champions League)'),
+            _buildField(
+                titleCtrl, 'Titre de l\'émission (ex: Champions League)'),
             const SizedBox(height: 8),
             _buildField(channelCtrl, 'Channel ID (ex: 554021)'),
             const SizedBox(height: 8),
-            _buildField(urlCtrl, 'stream_url (optionnel, ex: /api/live/554021.ts)'),
+            _buildField(
+                urlCtrl, 'stream_url (optionnel, ex: /api/live/554021.ts)'),
           ]),
         ),
         actions: [
@@ -1000,8 +1020,8 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Annuler')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purpleAccent),
+            style:
+                ElevatedButton.styleFrom(backgroundColor: Colors.purpleAccent),
             onPressed: () async {
               final t = titleCtrl.text.trim();
               final c = channelCtrl.text.trim();
@@ -1056,11 +1076,10 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('Enregistrements automatiques',
-                style:
-                    GoogleFonts.outfit(color: Colors.white54, fontSize: 13)),
+                style: GoogleFonts.outfit(color: Colors.white54, fontSize: 13)),
             ElevatedButton.icon(
-              style:
-                  ElevatedButton.styleFrom(backgroundColor: Colors.purpleAccent),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purpleAccent),
               icon: const Icon(Icons.add, size: 18),
               label: const Text('Nouveau'),
               onPressed: _showCreate,
