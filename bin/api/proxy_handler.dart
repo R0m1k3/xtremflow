@@ -13,9 +13,7 @@ class ProxyHandler {
 
   static const _allowedHeaders = [
     'content-type',
-    'content-length',
     'content-range',
-    'transfer-encoding',
     'accept-ranges',
     'cache-control',
   ];
@@ -134,6 +132,7 @@ class ProxyHandler {
 
         final client = http.Client();
         try {
+          print('[Proxy] Forwarding to: $targetUrl');
           final proxyRequest = http.Request(request.method, targetUrl);
           proxyRequest.headers.addAll(proxyHeaders);
           proxyRequest.followRedirects = true;
@@ -155,6 +154,21 @@ class ProxyHandler {
             if (response.headers.containsKey(header)) {
               responseHeaders[header] = response.headers[header]!;
             }
+          }
+
+          // Special case for API requests (JSON list of channels etc.)
+          // If it's not a Range request and looks like JSON, read it fully
+          final isJson =
+              response.headers['content-type']?.contains('json') == true;
+          final isRange = request.headers.containsKey('range');
+
+          if (isJson && !isRange) {
+            final bytes = await response.stream.toBytes();
+            return Response(
+              response.statusCode,
+              body: bytes,
+              headers: responseHeaders,
+            );
           }
 
           return Response(
