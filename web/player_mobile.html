@@ -51,13 +51,45 @@
             z-index: 10;
         }
 
+        #play-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 50%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 25;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #play-overlay:active {
+            transform: translate(-50%, -50%) scale(0.9);
+        }
+
+        #play-overlay svg {
+            width: 40px;
+            height: 40px;
+            fill: white;
+            margin-left: 4px;
+            /* Adjust for play icon alignment */
+        }
+
         .fs-button {
             position: absolute;
             bottom: 20px;
             right: 20px;
             width: 44px;
             height: 44px;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.6);
             border-radius: 50%;
             display: flex;
             justify-content: center;
@@ -81,16 +113,17 @@
             align-items: center;
             color: white;
             z-index: 20;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
         }
 
         .spinner {
             width: 40px;
             height: 40px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
+            border: 3px solid rgba(255, 255, 255, 0.2);
             border-top-color: #fff;
             border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin-bottom: 10px;
+            animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            margin-bottom: 12px;
         }
 
         @keyframes spin {
@@ -104,19 +137,29 @@
             position: absolute;
             color: white;
             text-align: center;
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            border-radius: 12px;
+            padding: 24px;
+            background: rgba(0, 0, 0, 0.85);
+            border-radius: 16px;
             z-index: 30;
+            max-width: 80%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
     </style>
 </head>
 
 <body>
     <div id="player-container">
-        <video id="video" autoplay playsinline webkit-playsinline></video>
+        <!-- iOS/Safari core attributes: playsinline, webkit-playsinline, preload -->
+        <video id="video" autoplay playsinline webkit-playsinline preload="auto"></video>
 
         <div id="mobile-on-screen-controls">
+            <!-- Play Overlay for Safari/Autoplay blocks -->
+            <div id="play-overlay">
+                <svg viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                </svg>
+            </div>
+
             <div class="fs-button" id="fs-toggle">
                 <svg viewBox="0 0 24 24">
                     <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
@@ -126,18 +169,21 @@
 
         <div id="loading">
             <div class="spinner"></div>
-            <div id="l-text">Chargement...</div>
+            <div id="l-text" style="font-size: 14px; font-weight: 500;">Chargement...</div>
         </div>
 
         <div id="error">
-            <div style="font-size: 40px; margin-bottom: 10px;">⚠️</div>
-            <div id="err-msg">Erreur de lecture</div>
+            <div style="font-size: 40px; margin-bottom: 12px;">⚠️</div>
+            <div id="err-msg" style="font-weight: 600;">Erreur de lecture</div>
+            <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 8px;">Format non supporté ou lien
+                expiré</div>
         </div>
     </div>
 
     <script>
         const video = document.getElementById('video');
         const loading = document.getElementById('loading');
+        const playOverlay = document.getElementById('play-overlay');
         const error = document.getElementById('error');
         const fsToggle = document.getElementById('fs-toggle');
 
@@ -165,6 +211,14 @@
             toggleFullscreen();
         });
 
+        playOverlay.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            log('Manual play triggered');
+            video.play();
+            playOverlay.style.display = 'none';
+        });
+
         // Double tap for fullscreen
         let lastTap = 0;
         video.addEventListener('touchend', (e) => {
@@ -177,33 +231,67 @@
             window.parent.postMessage({ type: 'user_activity' }, '*');
         });
 
+        video.addEventListener('playing', () => {
+            loading.style.display = 'none';
+            playOverlay.style.display = 'none';
+        });
+
+        video.addEventListener('pause', () => {
+            // Only show play overlay if not loading
+            if (loading.style.display === 'none') {
+                playOverlay.style.display = 'flex';
+            }
+        });
+
+        video.addEventListener('waiting', () => {
+            loading.style.display = 'flex';
+            playOverlay.style.display = 'none';
+        });
+
+        video.addEventListener('error', () => {
+            loading.style.display = 'none';
+            playOverlay.style.display = 'none';
+            error.style.display = 'block';
+        });
+
         async function init() {
-            if (!streamUrl) return;
+            if (!streamUrl) {
+                log('No stream URL provided');
+                return;
+            }
             log('Initing mobile player for: ' + streamUrl);
 
             const isHLS = streamUrl.toLowerCase().includes('m3u8') || streamUrl.toLowerCase().includes('playlist.m3u8');
+            const isTS = streamUrl.toLowerCase().includes('/live/') || streamUrl.toLowerCase().endsWith('.ts');
 
-            // Prefer Native HLS for mobile stability (iOS especially)
+            // Safari / iOS Native HLS - MUST call load() and play()
             if (isHLS && video.canPlayType('application/vnd.apple.mpegurl')) {
-                log('Using native HLS');
+                log('Using native HLS (Safari)');
                 video.src = streamUrl;
+                video.load();
+                video.play().catch(e => {
+                    log('Autoplay blocked by Safari, showing overlay');
+                    playOverlay.style.display = 'flex';
+                });
                 return;
             }
 
-            // Use HLS.js for Android/Chrome with high-stability settings
+            // Android / Chrome - HLS.js
             if (isHLS && Hls.isSupported()) {
                 log('Using Hls.js optimized for mobile');
                 const hls = new Hls({
-                    maxBufferLength: 90, // Large buffer to handle mobile jitter
+                    maxBufferLength: 90,
                     maxMaxBufferLength: 180,
                     liveSyncDurationCount: 6,
                     liveMaxLatencyDurationCount: 12,
                     enableWorker: true,
-                    lowLatencyMode: false // Prefer stability over latency
+                    lowLatencyMode: false
                 });
                 hls.loadSource(streamUrl);
                 hls.attachMedia(video);
-                hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    video.play().catch(e => playOverlay.style.display = 'flex');
+                });
                 hls.on(Hls.Events.ERROR, (e, d) => {
                     if (d.fatal) {
                         if (d.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
@@ -213,7 +301,7 @@
                 return;
             }
 
-            // Fallback to MpegTS
+            // MpegTS Fallback
             if (mpegts.isSupported()) {
                 log('Using MpegTS optimized for mobile');
                 const player = mpegts.createPlayer({
@@ -222,30 +310,25 @@
                     url: streamUrl
                 }, {
                     enableWorker: true,
-                    stashInitialSize: 2 * 1024 * 1024, // 2MB initial buffer
+                    stashInitialSize: 2 * 1024 * 1024,
                     enableStashBuffer: true
                 });
                 player.attachMediaElement(video);
                 player.load();
-                player.play();
+                player.play().catch(e => playOverlay.style.display = 'flex');
                 return;
             }
 
-            // Absolute fallback
+            // Direct play with play overlay fallback
             video.src = streamUrl;
+            video.load();
+            video.play().catch(e => playOverlay.style.display = 'flex');
         }
-
-        video.addEventListener('playing', () => { loading.style.display = 'none'; });
-        video.addEventListener('waiting', () => { loading.style.display = 'flex'; });
-        video.addEventListener('error', () => {
-            loading.style.display = 'none';
-            error.style.display = 'block';
-        });
 
         // Communication with Flutter
         window.addEventListener('message', (e) => {
             const d = e.data;
-            if (d.type === 'play') video.play();
+            if (d.type === 'play') video.play().catch(() => playOverlay.style.display = 'flex');
             if (d.type === 'pause') video.pause();
             if (d.type === 'request_fullscreen') toggleFullscreen();
         });
