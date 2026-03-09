@@ -17,6 +17,8 @@ Refonte du Guide TV pour inclure les catégories et corriger l'EPG.
 - [x] Suppression du tri alphabétique forcé
 - [x] Refonte du Guide TV (Catégories + EPG détaillé)
 - [x] Correction de l'endpoint EPG Backend (Fallback)
+- [x] Correction du lecteur Mobile (LitePlayerView)
+- [x] Alignement UI Mobile (Tri, EPG, URLs)
 
 ## Progress Log
 
@@ -28,3 +30,5 @@ Refonte du Guide TV pour inclure les catégories et corriger l'EPG.
 - [x] Suppression du tri alphabétique forcé
 - [x] Refonte du Guide TV avec catégories
 - [x] Implémentation du fallback EPG Backend vers get_short_epg
+- [x] Diagnostic de l'incompatibilité du lecteur mobile
+- [x] Remplacement du lecteur Web par LitePlayerView sur mobile

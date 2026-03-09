@@ -129,10 +129,12 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
     return rating;
   }
 
-  String _getProxiedImageUrl(String? originalUrl) {
+  String _getProxiedImageUrl(String? originalUrl, WidgetRef ref) {
     if (originalUrl == null || originalUrl.isEmpty) return '';
-    if (originalUrl.startsWith('http://')) {
-      return '/api/xtream/$originalUrl';
+    if (originalUrl.startsWith('http')) {
+      final service = ref.read(xtreamServiceProvider(widget.playlist));
+      // Re-use core _wrapWithProxy logic (via a new public method or direct construction)
+      return '${service.backendBaseUrl}/api/xtream/$originalUrl';
     }
     return originalUrl;
   }
@@ -176,7 +178,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
           (m) => HeroItem(
             id: m.streamId,
             title: m.name,
-            imageUrl: _getProxiedImageUrl(m.streamIcon),
+            imageUrl: _getProxiedImageUrl(m.streamIcon, ref),
             subtitle: m.rating != null ? '${_formatRating(m.rating)} ★' : null,
             onMoreInfo: () => _playMovie(m),
           ),
@@ -296,7 +298,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                           child: movie.streamIcon != null &&
                                   movie.streamIcon!.isNotEmpty
                               ? Image.network(
-                                  _getProxiedImageUrl(movie.streamIcon),
+                                  _getProxiedImageUrl(movie.streamIcon, ref),
                                   fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) =>
                                       Container(color: Colors.white10),

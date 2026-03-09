@@ -53,7 +53,7 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                 .where((cat) => settings.matchesLiveTvFilter(cat))
                 .toList();
           }
-          categories.sort();
+          // REMOVED alphabetic sort to respect server/settings order
 
           List<Channel> displayedChannels = [];
           if (_searchQuery.isNotEmpty) {
@@ -69,6 +69,12 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
           } else {
             if (_selectedCategory == null && categories.isNotEmpty) {
               _selectedCategory = categories.first;
+            }
+            // If the selected category is no longer available (due to filters), reset it
+            if (_selectedCategory != null &&
+                !categories.contains(_selectedCategory)) {
+              _selectedCategory =
+                  categories.isNotEmpty ? categories.first : null;
             }
             if (_selectedCategory != null) {
               displayedChannels = groupedChannels[_selectedCategory] ?? [];

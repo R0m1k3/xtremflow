@@ -127,10 +127,11 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
     return rating;
   }
 
-  String _getProxiedImageUrl(String? originalUrl) {
+  String _getProxiedImageUrl(String? originalUrl, WidgetRef ref) {
     if (originalUrl == null || originalUrl.isEmpty) return '';
-    if (originalUrl.startsWith('http://')) {
-      return '/api/xtream/$originalUrl';
+    if (originalUrl.startsWith('http')) {
+      final service = ref.read(xtreamServiceProvider(widget.playlist));
+      return '${service.backendBaseUrl}/api/xtream/$originalUrl';
     }
     return originalUrl;
   }
@@ -168,7 +169,7 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
           (s) => HeroItem(
             id: s.seriesId.toString(),
             title: s.name,
-            imageUrl: _getProxiedImageUrl(s.cover),
+            imageUrl: _getProxiedImageUrl(s.cover, ref),
             subtitle: s.rating != null ? '${_formatRating(s.rating)} ★' : null,
             onMoreInfo: () => _openSeries(s),
           ),
