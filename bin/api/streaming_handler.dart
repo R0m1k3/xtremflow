@@ -117,172 +117,107 @@ PlaylistConfig? _getCurrentPlaylist(Request request) {
 // 1. LIVE TV HANDLER (Direct MPEG-TS Proxy)
 // ==========================================
 
+/// Active FFmpeg processes for Live HLS transcoding
+final Map<String, Process> _liveProcesses = {};
+
 Handler createLiveStreamHandler(
   Future<PlaylistConfig?> Function(Request) getPlaylist, {
   bool Function()? isGpuEnabled,
 }) {
   final router = Router();
 
-  // Route: /api/live/{streamId} (Catch all pattern to debug)
-  router.get('/<streamId|.*>', (Request request, String streamId) async {
-    print('[Live] Incoming request for streamId: $streamId');
-
-    // Remove extension if present FIRST (handle both .ts and .m3u8)
-    if (streamId.endsWith('.ts')) {
-      streamId = streamId.substring(0, streamId.length - 3);
-    } else if (streamId.endsWith('.m3u8')) {
-      streamId = streamId.substring(0, streamId.length - 5);
-    }
-
-    // Validate streamId to prevent Path Traversal (AFTER extension removal)
-    if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(streamId)) {
-      print('[Live] Invalid streamId: $streamId');
-      return Response.badRequest(body: 'Invalid stream ID');
-    }
-
+  // Route: /api/live/{streamId}.m3u8 (Master playlist)
+  router.get('/<streamId>.m3u8', (Request request, String streamId) async {
     final playlist = await getPlaylist(request);
+    if (playlist == null) return Response.forbidden('No playlist');
 
-    if (playlist == null) {
-      print('[Live] Error: No playlist found');
-      return Response.internalServerError(body: 'No playlist configured');
+    final streamDir = Directory('${_hlsTempDir.path}/live_$streamId');
+
+    // Start FFmpeg if not already running for this live stream
+    if (!_liveProcesses.containsKey(streamId)) {
+      if (streamDir.existsSync()) streamDir.deleteSync(recursive: true);
+      streamDir.createSync(recursive: true);
+
+      final targetUrl =
+          '${playlist.dns}/live/${playlist.username}/${playlist.password}/$streamId.ts';
+      print('[Live HLS] Starting for $streamId: $targetUrl');
+
+      final useNvidiaGpu = isGpuEnabled?.call() ?? _isNvidiaGpuEnabled();
+      final ffmpegArgs = <String>[
+        '-hide_banner', '-loglevel', 'warning',
+        if (useNvidiaGpu) ...['-hwaccel', 'cuda'],
+        '-headers', 'User-Agent: VLC/3.0.18 LibVLC/3.0.18\r\n',
+        '-reconnect', '1', '-reconnect_streamed', '1',
+        '-reconnect_delay_max', '10',
+        '-i', targetUrl,
+        // Video
+        if (useNvidiaGpu) ...[
+          '-c:v',
+          'h264_nvenc',
+          '-preset',
+          'p1',
+          '-tune',
+          'll',
+          '-b:v',
+          '3500k',
+          '-maxrate',
+          '4000k',
+          '-bufsize',
+          '7000k',
+        ] else ...[
+          '-c:v',
+          'copy',
+        ],
+        // Audio
+        '-c:a', 'aac', '-b:a', '128k', '-ac', '2',
+        // HLS Sliding Window
+        '-f', 'hls',
+        '-hls_time', '2', // Small segments for low latency
+        '-hls_list_size', '5', // 10 seconds of history
+        '-hls_flags', 'delete_segments+independent_segments',
+        '-hls_segment_type', 'mpegts',
+        '-hls_segment_filename', '${streamDir.path}/seg_%03d.ts',
+        '${streamDir.path}/playlist.m3u8',
+      ];
+
+      final process = await Process.start(_getFFmpegPath(), ffmpegArgs);
+      _liveProcesses[streamId] = process;
+
+      process.stderr
+          .transform(utf8.decoder)
+          .listen((d) => print('[Live HLS $streamId] $d'));
+      process.exitCode.then((_) => _liveProcesses.remove(streamId));
     }
 
-    // Use original URL - let FFmpeg handle HTTP redirects natively
-    // Manual redirect resolution consumes one-time tokens from IPTV servers
-    final targetUrl =
-        '${playlist.dns}/live/${playlist.username}/${playlist.password}/$streamId.ts';
-    print('[Live] Streaming via FFmpeg: $targetUrl');
-
-    // Check if NVIDIA GPU is enabled (from database setting or env var fallback)
-    final useNvidiaGpu = isGpuEnabled?.call() ?? _isNvidiaGpuEnabled();
-
-    // Log GPU status
-    if (useNvidiaGpu) {
-      print('[Live] Using NVIDIA GPU acceleration (NVDEC)');
+    // Wait for playlist
+    final file = File('${streamDir.path}/playlist.m3u8');
+    int retries = 0;
+    while (!file.existsSync() && retries < 40) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      retries++;
     }
 
-    // Build FFmpeg arguments
-    final ffmpegArgs = <String>[
-      '-hide_banner',
-      '-loglevel',
-      'warning', // Changed from error to see more info
-    ];
+    if (!file.existsSync())
+      return Response.internalServerError(body: 'Timeout starting live HLS');
 
-    // NVIDIA GPU Hardware Acceleration (NVDEC for decoding)
-    if (useNvidiaGpu) {
-      ffmpegArgs.addAll([
-        '-hwaccel', 'cuda', // Use NVIDIA CUDA for decoding
-        // Note: Don't use hwaccel_output_format cuda - it can cause issues with some codecs
-      ]);
-    }
+    return Response.ok(file.openRead(), headers: {
+      'Content-Type': 'application/vnd.apple.mpegurl',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'no-cache',
+    });
+  });
 
-    // Input headers and robustness flags
-    ffmpegArgs.addAll([
-      '-headers',
-      'User-Agent: VLC/3.0.18 LibVLC/3.0.18\r\nAccept: */*\r\nConnection: keep-alive\r\nReferer: ${playlist.dns}/\r\n',
-      '-reconnect',
-      '1',
-      '-reconnect_at_eof',
-      '1',
-      '-reconnect_streamed',
-      '1',
-      '-reconnect_delay_max',
-      '10', // Increased from 5
-      '-rw_timeout',
-      '30000000', // Increased from 15s to 30s
-      '-timeout',
-      '30000000', // Add explicit timeout
-      '-fflags',
-      '+nobuffer+genpts+discardcorrupt', // Added discardcorrupt for robustness
-      '-analyzeduration',
-      '5000000', // Increased for GPU decode
-      '-probesize',
-      '10000000', // Increased for GPU decode
-      '-i',
-      targetUrl,
-    ]);
+  // Route: /api/live/{streamId}/{segment}
+  router.get('/<streamId>/<segment>',
+      (Request request, String streamId, String segment) async {
+    final file = File('${_hlsTempDir.path}/live_$streamId/$segment');
+    if (!file.existsSync()) return Response.notFound('Segment not found');
 
-    // Output encoding options
-    if (useNvidiaGpu) {
-      // With GPU: Transcode using NVIDIA NVENC for hardware acceleration
-      print('[Live] Transcoding video with h264_nvenc (GPU)');
-      ffmpegArgs.addAll([
-        // Video encoding
-        '-c:v', 'h264_nvenc', // Use NVIDIA NVENC encoder
-        '-preset', 'p1', // Fastest preset for live (p1=fastest)
-        '-tune', 'll', // Low latency tuning for live streams
-        '-rc', 'cbr', // Constant bitrate for stable streaming
-        '-b:v', '4000k', // Fixed video bitrate
-        '-maxrate', '4500k', // Max bitrate
-        '-bufsize', '8000k', // Buffer for stability
-        '-g', '50', // Keyframe every 2 seconds (at 25fps)
-        '-bf', '0', // No B-frames for lower latency
-        // Audio encoding with resampling to fix timestamp gaps
-        '-af',
-        'aresample=async=1000:first_pts=0', // Auto-correct audio timestamps
-        '-c:a', 'aac', // Audio to AAC (browser compatible)
-        '-b:a', '128k', // Audio bitrate
-        '-ac', '2',
-        '-ar', '48000', // 48kHz sample rate
-        // Timestamp handling
-        '-copyts', // Copy timestamps
-        '-start_at_zero', // Start at 0
-        '-max_muxing_queue_size', '4096', // Large muxing queue
-      ]);
-    } else {
-      // Without GPU: Standard CPU processing (copy video)
-      ffmpegArgs.addAll([
-        '-c:v', 'copy', // Video: Direct copy (Very low CPU)
-        '-c:a', 'aac', // Audio: Transcode to AAC
-        '-b:a', '192k',
-        '-ac', '2',
-      ]);
-    }
-
-    ffmpegArgs.addAll(['-f', 'mpegts', 'pipe:1']);
-
-    try {
-      final ffmpegPath = _getFFmpegPath();
-      final process = await Process.start(ffmpegPath, ffmpegArgs);
-
-      // Cleanup handling: Kill FFmpeg when client disconnects
-      final controller = StreamController<List<int>>(
-        onCancel: () {
-          print('[Live] Client disconnected, killing FFmpeg for $streamId');
-          process.kill();
-        },
-      );
-
-      // Pipe stdout to controller
-      process.stdout.listen(
-        (data) => controller.add(data),
-        onDone: () {
-          print('[Live] FFmpeg stream ended for $streamId');
-          controller.close();
-        },
-        onError: (e) {
-          print('[Live] FFmpeg stream error: $e');
-          controller.addError(e);
-        },
-      );
-
-      // Log errors
-      process.stderr.transform(utf8.decoder).listen((data) {
-        print('[FFmpeg Live $streamId] $data');
-      });
-
-      return Response.ok(
-        controller.stream,
-        headers: {
-          'Content-Type': 'video/mp2t',
-          'Access-Control-Allow-Origin': '*',
-          'Cache-Control': 'no-cache',
-        },
-      );
-    } catch (e) {
-      print('[Live] Failed to start FFmpeg: $e');
-      return Response.internalServerError(body: 'Stream start error: $e');
-    }
+    return Response.ok(file.openRead(), headers: {
+      'Content-Type': 'video/mp2t',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'max-age=60',
+    });
   });
 
   return router;

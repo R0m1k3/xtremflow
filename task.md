@@ -20,6 +20,7 @@ Refonte du Guide TV pour inclure les catégories et corriger l'EPG.
 - [x] Correction du lecteur Mobile (LitePlayerView)
 - [x] Alignement UI Mobile (Tri, EPG, URLs)
 - [x] Correction Connectivité Mobile (Auto-origin + Manuel Override)
+- [x] Compatibilité Streaming iOS (HLS Live + Proxy Streaming)
 
 ## Progress Log
 

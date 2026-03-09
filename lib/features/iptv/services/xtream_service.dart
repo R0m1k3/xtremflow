@@ -78,7 +78,8 @@ class XtreamService {
   /// Generate stream URL for live TV
   String getLiveStreamUrl(String streamId) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
-    return '$_backendBaseUrl/api/live/$streamId.ts';
+    // Use HLS (.m3u8) for all live streams to ensure iOS compatibility
+    return '$_backendBaseUrl/api/live/$streamId.m3u8';
   }
 
   /// Generate stream URL for VOD (movies)

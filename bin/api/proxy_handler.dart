@@ -120,47 +120,51 @@ class ProxyHandler {
           }
         }
 
-        final proxyHeaders = {
+        final proxyHeaders = <String, String>{
           'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
           'Accept': '*/*',
-          'Accept-Encoding': 'identity', // Explicitly request non-chunked
-          'Connection': 'close', // Don't keep-alive to avoid chunked issues
+          'Accept-Encoding': 'identity',
+          'Connection': 'close',
         };
+
+        // Forward Range header if present
+        if (request.headers['range'] != null) {
+          proxyHeaders['range'] = request.headers['range']!;
+        }
 
         final client = http.Client();
         try {
-          // Use simple GET/POST instead of streaming to avoid chunked encoding issues
-          http.Response response;
+          final proxyRequest = http.Request(request.method, targetUrl);
+          proxyRequest.headers.addAll(proxyHeaders);
+          proxyRequest.followRedirects = true;
+
           if (request.method == 'POST') {
             final bodyBytes = await request.read().toList();
-            final body = bodyBytes.expand((i) => i).toList();
-            response =
-                await client.post(targetUrl, headers: proxyHeaders, body: body);
-          } else {
-            response = await client.get(targetUrl, headers: proxyHeaders);
+            proxyRequest.bodyBytes = bodyBytes.expand((i) => i).toList();
           }
 
-          // Build response headers
+          final response = await client.send(proxyRequest);
+
+          // Build response headers from source response
           final responseHeaders = <String, String>{
             'access-control-allow-origin': '*',
           };
 
-          if (response.headers['content-type'] != null) {
-            responseHeaders['content-type'] = response.headers['content-type']!;
-          }
-
-          if (response.headers['content-length'] != null) {
-            responseHeaders['content-length'] =
-                response.headers['content-length']!;
+          // Forward specific safe headers
+          for (final header in _allowedHeaders) {
+            if (response.headers.containsKey(header)) {
+              responseHeaders[header] = response.headers[header]!;
+            }
           }
 
           return Response(
             response.statusCode,
-            body: response.bodyBytes,
+            body: response.stream,
             headers: responseHeaders,
           );
-        } finally {
+        } catch (e) {
           client.close();
+          rethrow;
         }
       } catch (e) {
         print('[ProxyHandler] error on $path: $e');
