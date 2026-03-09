@@ -34,24 +34,36 @@ class EpgApi {
       }
 
       final dns = playlist.dns;
-      // Appel API Xtream pour l'EPG complet de la chaîne
-      final url =
+      // 1. Tenter d'abord l'EPG complet (48h)
+      var url =
           '$dns/player_api.php?username=${playlist.username}&password=${playlist.password}'
           '&action=get_epg&stream_id=$channelId&limit=48';
 
-      final response =
+      var response =
           await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+      Map<String, dynamic> epgData = {
+        'channel_id': channelId,
+        'programmes': []
+      };
 
-      if (response.statusCode != 200) {
-        return Response(response.statusCode,
-            body: json
-                .encode({'error': 'Erreur API Xtream: ${response.statusCode}'}),
-            headers: {'Content-Type': 'application/json'});
+      if (response.statusCode == 200) {
+        final raw = json.decode(response.body);
+        epgData = _transformEpgData(raw, channelId);
       }
 
-      // Reformater les données pour la grille TV
-      final raw = json.decode(response.body);
-      final epgData = _transformEpgData(raw, channelId);
+      // 2. Fallback EPG court si le complet est vide
+      if ((epgData['programmes'] as List).isEmpty) {
+        url =
+            '$dns/player_api.php?username=${playlist.username}&password=${playlist.password}'
+            '&action=get_short_epg&stream_id=$channelId';
+        response =
+            await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
+        if (response.statusCode == 200) {
+          final raw = json.decode(response.body);
+          epgData = _transformEpgData(raw, channelId);
+        }
+      }
+
       final jsonStr = json.encode(epgData);
 
       // Mettre en cache 30 minutes

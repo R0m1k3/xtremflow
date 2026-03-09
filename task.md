@@ -15,8 +15,8 @@ Refonte du Guide TV pour inclure les catégories et corriger l'EPG.
 - [x] Initialiser la session avec l'agent Master
 - [x] Correction initiale du parsing EPG
 - [x] Suppression du tri alphabétique forcé
-- [/] Refonte du Guide TV (Catégories + EPG détaillé)
-- [ ] Correction de l'endpoint EPG Backend
+- [x] Refonte du Guide TV (Catégories + EPG détaillé)
+- [x] Correction de l'endpoint EPG Backend (Fallback)
 
 ## Progress Log
 
@@ -26,4 +26,5 @@ Refonte du Guide TV pour inclure les catégories et corriger l'EPG.
 - [x] Activation de l'identité Bmad Master
 - [x] Correction initiale du parsing EPG
 - [x] Suppression du tri alphabétique forcé
-- [x] Analyse des manques du Guide TV (tri par groupe)
+- [x] Refonte du Guide TV avec catégories
+- [x] Implémentation du fallback EPG Backend vers get_short_epg
