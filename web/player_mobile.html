@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile IPTV Player</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.12/dist/hls.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html,
+        body {
+            background: #000;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        #player-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000;
+        }
+
+        /* Mobile-only overlay buttons */
+        #mobile-on-screen-controls {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .fs-button {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 44px;
+            height: 44px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+
+        .fs-button svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+
+        #loading {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: white;
+            z-index: 20;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 10px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        #error {
+            display: none;
+            position: absolute;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 12px;
+            z-index: 30;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="player-container">
+        <video id="video" autoplay playsinline webkit-playsinline></video>
+
+        <div id="mobile-on-screen-controls">
+            <div class="fs-button" id="fs-toggle">
+                <svg viewBox="0 0 24 24">
+                    <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
+                </svg>
+            </div>
+        </div>
+
+        <div id="loading">
+            <div class="spinner"></div>
+            <div id="l-text">Chargement...</div>
+        </div>
+
+        <div id="error">
+            <div style="font-size: 40px; margin-bottom: 10px;">⚠️</div>
+            <div id="err-msg">Erreur de lecture</div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const fsToggle = document.getElementById('fs-toggle');
+
+        const params = new URLSearchParams(window.location.search);
+        const streamUrl = params.get('url');
+        const streamType = params.get('type') || 'live';
+
+        function log(m) { console.log('[MobilePlayer] ' + m); }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                const el = document.documentElement;
+                if (el.requestFullscreen) el.requestFullscreen();
+                else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+                else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            }
+        }
+
+        fsToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleFullscreen();
+        });
+
+        // Double tap for fullscreen
+        let lastTap = 0;
+        video.addEventListener('touchend', (e) => {
+            const now = Date.now();
+            if (now - lastTap < 300) {
+                toggleFullscreen();
+            }
+            lastTap = now;
+            // Report activity to parent
+            window.parent.postMessage({ type: 'user_activity' }, '*');
+        });
+
+        async function init() {
+            if (!streamUrl) return;
+            log('Initing mobile player for: ' + streamUrl);
+
+            const isHLS = streamUrl.toLowerCase().includes('m3u8') || streamUrl.toLowerCase().includes('playlist.m3u8');
+
+            // Prefer Native HLS for mobile stability (iOS especially)
+            if (isHLS && video.canPlayType('application/vnd.apple.mpegurl')) {
+                log('Using native HLS');
+                video.src = streamUrl;
+                return;
+            }
+
+            // Use HLS.js for Android/Chrome with high-stability settings
+            if (isHLS && Hls.isSupported()) {
+                log('Using Hls.js optimized for mobile');
+                const hls = new Hls({
+                    maxBufferLength: 90, // Large buffer to handle mobile jitter
+                    maxMaxBufferLength: 180,
+                    liveSyncDurationCount: 6,
+                    liveMaxLatencyDurationCount: 12,
+                    enableWorker: true,
+                    lowLatencyMode: false // Prefer stability over latency
+                });
+                hls.loadSource(streamUrl);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+                hls.on(Hls.Events.ERROR, (e, d) => {
+                    if (d.fatal) {
+                        if (d.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+                        else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+                    }
+                });
+                return;
+            }
+
+            // Fallback to MpegTS
+            if (mpegts.isSupported()) {
+                log('Using MpegTS optimized for mobile');
+                const player = mpegts.createPlayer({
+                    type: 'mpegts',
+                    isLive: streamType === 'live',
+                    url: streamUrl
+                }, {
+                    enableWorker: true,
+                    stashInitialSize: 2 * 1024 * 1024, // 2MB initial buffer
+                    enableStashBuffer: true
+                });
+                player.attachMediaElement(video);
+                player.load();
+                player.play();
+                return;
+            }
+
+            // Absolute fallback
+            video.src = streamUrl;
+        }
+
+        video.addEventListener('playing', () => { loading.style.display = 'none'; });
+        video.addEventListener('waiting', () => { loading.style.display = 'flex'; });
+        video.addEventListener('error', () => {
+            loading.style.display = 'none';
+            error.style.display = 'block';
+        });
+
+        // Communication with Flutter
+        window.addEventListener('message', (e) => {
+            const d = e.data;
+            if (d.type === 'play') video.play();
+            if (d.type === 'pause') video.pause();
+            if (d.type === 'request_fullscreen') toggleFullscreen();
+        });
+
+        init();
+    </script>
+</body>
+
+</html>

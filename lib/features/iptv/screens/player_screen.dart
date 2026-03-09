@@ -141,13 +141,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // Force player choice based on stream type:
       // - Live TV: Player Lite (simple TS playback with mpegts.js)
       // - VOD/Series: Player Standard (fuller controls, HLS support)
+      final isMobile = MediaQuery.of(context).size.width < 600;
       final isLiveTV = widget.streamType == StreamType.live;
       // Cache buster to force reload of updated player.html
       final cacheBuster = DateTime.now().millisecondsSinceEpoch;
 
-      var playerSrc = isLiveTV
-          ? 'player_lite.html?url=$encodedUrl&type=live&v=$cacheBuster'
-          : 'player.html?url=$encodedUrl&type=vod&v=$cacheBuster';
+      final streamTypeParam = widget.streamType == StreamType.live ? 'live' : 'vod';
+      final playerFile = isMobile ? 'player_mobile.html' : (isLiveTV ? 'player_lite.html' : 'player.html');
+      var playerSrc = '$playerFile?url=$encodedUrl&type=$streamTypeParam&v=$cacheBuster';
 
       if (startTimeOverride != null) {
         playerSrc += '&t=$startTimeOverride';
@@ -241,7 +242,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       for (final frame in iframes) {
         if (frame is html.IFrameElement &&
             (frame.src?.contains('player_lite.html') == true ||
-                frame.src?.contains('player.html') == true)) {
+                frame.src?.contains('player.html') == true ||
+                frame.src?.contains('player_mobile.html') == true)) {
           iframe = frame;
           break;
         }
@@ -467,82 +469,63 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             bottom: _showControls ? 24 : -150, // More offset for stacked layout
                             left: 16,
                             right: 16,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 16,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1A1A2E).withOpacity(0.9),
-                                borderRadius: BorderRadius.circular(24),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.1),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  // EPG Info (left side)
-                                  Expanded(
-                                    child: _buildInlineEpg(),
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final isSmallScreen = constraints.maxWidth < 600;
+                                return Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isSmallScreen ? 16 : 20,
+                                    vertical: isSmallScreen ? 12 : 16,
                                   ),
-
-                                  const SizedBox(width: 24),
-
-                                  // Control Buttons (right side)
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      // Previous Channel
-                                      if (widget.channels != null &&
-                                          widget.channels!.length > 1)
-                                        _buildSimpleIconButton(
-                                          icon: Icons.skip_previous_rounded,
-                                          onTap: _previousChannel,
-                                          size: 44,
-                                        ),
-
-                                      if (widget.channels != null &&
-                                          widget.channels!.length > 1)
-                                        const SizedBox(width: 16),
-
-                                      // Play/Pause (Large)
-                                      _buildSimpleIconButton(
-                                        icon: _isPlaying
-                                            ? Icons.pause_rounded
-                                            : Icons.play_arrow_rounded,
-                                        onTap: _togglePlayPause,
-                                        size: 52,
-                                        iconSize: 28,
-                                        highlighted: true,
-                                      ),
-
-                                      if (widget.channels != null &&
-                                          widget.channels!.length > 1)
-                                        const SizedBox(width: 16),
-
-                                      // Next Channel
-                                      if (widget.channels != null &&
-                                          widget.channels!.length > 1)
-                                        _buildSimpleIconButton(
-                                          icon: Icons.skip_next_rounded,
-                                          onTap: _nextChannel,
-                                          size: 44,
-                                        ),
-
-                                      const SizedBox(width: 16),
-
-                                      // Mute button
-                                      _buildSimpleIconButton(
-                                        icon: _isMuted
-                                            ? Icons.volume_off_rounded
-                                            : Icons.volume_up_rounded,
-                                        onTap: _toggleMute,
-                                        size: 44,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF1A1A2E).withOpacity(0.95),
+                                    borderRadius: BorderRadius.circular(24),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.3),
+                                        blurRadius: 10,
+                                        spreadRadius: 2,
                                       ),
                                     ],
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.15),
+                                    ),
                                   ),
-                                ],
-                              ),
+                                  child: isSmallScreen
+                                      ? Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            // EPG Info (top in mobile)
+                                            _buildInlineEpg(),
+                                            const SizedBox(height: 12),
+                                            const Divider(color: Colors.white10),
+                                            const SizedBox(height: 8),
+                                            // Control Buttons
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.spaceEvenly,
+                                              children: _buildControlButtons(
+                                                  isSmallScreen),
+                                            ),
+                                          ],
+                                        )
+                                      : Row(
+                                          children: [
+                                            // EPG Info (left side)
+                                            Expanded(
+                                              child: _buildInlineEpg(),
+                                            ),
+                                            const SizedBox(width: 24),
+                                            // Control Buttons (right side)
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: _buildControlButtons(
+                                                  isSmallScreen),
+                                            ),
+                                          ],
+                                        ),
+                                );
+                              },
                             ),
                           ),
                         ],
@@ -1071,6 +1054,77 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           ),
         );
       },
+    );
+  }
+
+  List<Widget> _buildControlButtons(bool isSmallScreen) {
+    final buttonSize = isSmallScreen ? 40.0 : 44.0;
+    final playButtonSize = isSmallScreen ? 48.0 : 52.0;
+
+    return [
+      if (widget.channels != null && widget.channels!.length > 1) ...[
+        _buildSimpleIconButton(
+          icon: Icons.skip_previous_rounded,
+          onTap: _previousChannel,
+          size: buttonSize,
+        ),
+        SizedBox(width: isSmallScreen ? 8 : 16),
+      ],
+      _buildSimpleIconButton(
+        icon: _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+        onTap: _togglePlayPause,
+        size: playButtonSize,
+        iconSize: isSmallScreen ? 24 : 28,
+        highlighted: true,
+      ),
+      if (widget.channels != null && widget.channels!.length > 1) ...[
+        SizedBox(width: isSmallScreen ? 8 : 16),
+        _buildSimpleIconButton(
+          icon: Icons.skip_next_rounded,
+          onTap: _nextChannel,
+          size: buttonSize,
+        ),
+      ],
+      SizedBox(width: isSmallScreen ? 8 : 16),
+      _buildSimpleIconButton(
+        icon: _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+        onTap: _toggleMute,
+        size: buttonSize,
+      ),
+      if (isSmallScreen) ...[
+        SizedBox(width: isSmallScreen ? 8 : 16),
+        _buildSimpleIconButton(
+          icon: Icons.fullscreen_rounded,
+          onTap: _toggleFullscreen,
+          size: buttonSize,
+        ),
+      ],
+    ];
+  }
+
+  Widget _buildSimpleIconButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    double size = 40,
+    double iconSize = 24,
+    bool highlighted = false,
+  }) {
+    return Material(
+      color: highlighted ? AppColors.primary : Colors.white.withOpacity(0.1),
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Icon(
+            icon,
+            color: highlighted ? Colors.black : Colors.white,
+            size: iconSize,
+          ),
+        ),
+      ),
     );
   }
 }
