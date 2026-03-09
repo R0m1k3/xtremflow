@@ -432,6 +432,15 @@
                         video.muted = vol === 0;
                     }
                     break;
+                case 'request_fullscreen':
+                    if (video.requestFullscreen) {
+                        video.requestFullscreen();
+                    } else if (video.webkitRequestFullscreen) {
+                        video.webkitRequestFullscreen();
+                    } else if (video.msRequestFullscreen) {
+                        video.msRequestFullscreen();
+                    }
+                    break;
             }
         });
 

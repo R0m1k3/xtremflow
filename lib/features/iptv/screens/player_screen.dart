@@ -25,7 +25,7 @@ class PlayerScreen extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
   final StreamType streamType;
   final String containerExtension;
-  final List<Channel>? channels;
+  final List<dynamic>? channels;
   final double? startTime;
   final Duration? duration;
 
@@ -57,6 +57,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   StreamSubscription? _messageSubscription;
   final String _aspectRatio = 'contain';
   bool _isSeeking = false;
+  late final String _viewIdPrefix = DateTime.now().millisecondsSinceEpoch.toString();
   String _viewId = 'iptv-player';
   String? _currentStreamUrl;
   String _statusMessage = 'Loading...';
@@ -68,8 +69,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void initState() {
     super.initState();
     if (widget.channels != null) {
-      _currentIndex =
-          widget.channels!.indexWhere((c) => c.streamId == widget.streamId);
+      _currentIndex = widget.channels!.indexWhere((c) {
+        try {
+          return (c.streamId ?? c.id ?? '').toString() == widget.streamId;
+        } catch (_) {
+          return false;
+        }
+      });
       if (_currentIndex == -1) _currentIndex = 0;
     }
     // Show controls at start, then auto-hide after timeout
@@ -97,12 +103,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
     try {
       // Determine Stream ID (Initial or Current Index)
-      final currentStreamId = isChannelSwitch && widget.channels != null
-          ? widget.channels![_currentIndex].streamId
-          : widget.streamId;
+      String currentStreamId = widget.streamId;
+      if (isChannelSwitch && widget.channels != null) {
+        try {
+          final item = widget.channels![_currentIndex];
+          currentStreamId = (item.streamId ?? item.id ?? '').toString();
+        } catch (_) {}
+      }
 
-      _viewId =
-          'iptv-player-$currentStreamId-${DateTime.now().millisecondsSinceEpoch}';
+      // Stable view ID for the instance to prevent iframe reload on rebuild (orientation change)
+      _viewId = 'iptv-player-$currentStreamId-$_viewIdPrefix';
 
       final service = ref.read(xtreamServiceProvider(widget.playlist));
       String streamUrl = '';
@@ -274,10 +284,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   void _toggleFullscreen() {
-    if (html.document.fullscreenElement != null) {
-      html.document.exitFullscreen();
-    } else {
-      html.document.documentElement?.requestFullscreen();
+    try {
+      if (html.document.fullscreenElement != null) {
+        html.document.exitFullscreen();
+      } else {
+        final element = html.document.documentElement;
+        if (element != null) {
+          element.requestFullscreen();
+        }
+      }
+    } catch (e) {
+      print('[PlayerScreen] Fullscreen error: $e');
+      // Fallback: Message the player to try internal fullscreen
+      _sendMessage({'type': 'request_fullscreen'});
     }
   }
 
@@ -390,9 +409,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                         children: [
                                           Text(
                                             widget.channels != null
-                                                ? widget
-                                                    .channels![_currentIndex]
-                                                    .name
+                                                ? (widget.channels![_currentIndex]
+                                                            .name ??
+                                                        widget.channels![
+                                                                _currentIndex]
+                                                            .title ??
+                                                        'Unknown')
+                                                    .toString()
                                                 : widget.title,
                                             style: GoogleFonts.outfit(
                                               color: Colors.white,

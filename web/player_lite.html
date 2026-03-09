@@ -499,6 +499,14 @@
                 if (isFinite(video.duration)) {
                     video.currentTime = parseFloat(data.value);
                 }
+            } else if (data.type === 'request_fullscreen') {
+                if (video.requestFullscreen) {
+                    video.requestFullscreen();
+                } else if (video.webkitRequestFullscreen) {
+                    video.webkitRequestFullscreen();
+                } else if (video.msRequestFullscreen) {
+                    video.msRequestFullscreen();
+                }
             }
         });
 
