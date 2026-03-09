@@ -13,12 +13,11 @@ import '../widgets/themed_loading_screen.dart';
 import '../../features/iptv/providers/xtream_provider.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
-
   return GoRouter(
     initialLocation: '/login',
     refreshListenable: RouterRefreshNotifier(ref),
     redirect: (context, state) {
+      final authState = ref.read(authProvider);
       final isLoggedIn = authState.isAuthenticated;
       final isLoginRoute = state.matchedLocation == '/login';
 
@@ -97,10 +96,13 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-/// Notifier that triggers router refresh when auth state changes
+/// Notifier that triggers router refresh when auth state or selected playlist changes
 class RouterRefreshNotifier extends ChangeNotifier {
   RouterRefreshNotifier(this._ref) {
     _ref.listen(authProvider, (_, __) {
+      notifyListeners();
+    });
+    _ref.listen(selectedPlaylistProvider, (_, __) {
       notifyListeners();
     });
   }

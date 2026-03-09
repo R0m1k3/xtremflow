@@ -40,7 +40,27 @@ class MobilePlaylistSelectionScreen extends ConsumerWidget {
           ],
         ),
         body: playlistsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 24),
+                FutureBuilder(
+                  future: Future.delayed(const Duration(seconds: 5)),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done) {
+                      return TextButton(
+                        onPressed: () => ref.refresh(playlistsProvider),
+                        child: const Text('Still loading? Tap to retry'),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ],
+            ),
+          ),
           error: (error, stack) => Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
