@@ -36,7 +36,7 @@ class EpgApi {
       // Appel API Xtream pour l'EPG complet de la chaîne
       final url =
           '$dns/player_api.php?username=${playlist.username}&password=${playlist.password}'
-          '&action=get_simple_data_table&stream_id=$channelId&type=epg&limit=48';
+          '&action=get_epg&stream_id=$channelId&limit=48';
 
       final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
 

@@ -4,17 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import '../../../core/models/iptv_models.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/models/playlist_config.dart';
 import '../../../core/widgets/glass_container.dart';
 import '../providers/xtream_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/xtream_service.dart';
 
-import '../../../core/models/playlist_config.dart';
+// ═══════════════════════════════════════════════════════════════════════════
+//  ENTRÉE — Onglet "TV & Enregistrements" avec 3 sous-onglets
+// ═══════════════════════════════════════════════════════════════════════════
 
-/// Onglet "Enregistrements & Guide TV" — combine guide EPG, enregistrements actifs et season passes
 class RecordingsTab extends StatefulWidget {
   final PlaylistConfig playlist;
-
   const RecordingsTab({super.key, required this.playlist});
 
   @override
@@ -24,15 +25,11 @@ class RecordingsTab extends StatefulWidget {
 class _RecordingsTabState extends State<RecordingsTab>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  int _selectedTab = 0;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(() {
-      if (mounted) setState(() => _selectedTab = _tabController.index);
-    });
   }
 
   @override
@@ -45,45 +42,42 @@ class _RecordingsTabState extends State<RecordingsTab>
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Header + TabBar combinés
+        // Header
         Container(
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.tv, color: Colors.white, size: 28),
-                  const SizedBox(width: 12),
-                  Text(
-                    'TV & Enregistrements',
+              Row(children: [
+                const Icon(Icons.tv, color: Colors.white, size: 28),
+                const SizedBox(width: 12),
+                Text('TV & Enregistrements',
                     style: GoogleFonts.outfit(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white)),
+              ]),
               const SizedBox(height: 16),
               TabBar(
                 controller: _tabController,
-                labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 14),
-                unselectedLabelStyle: GoogleFonts.outfit(fontSize: 14),
                 labelColor: Colors.white,
                 unselectedLabelColor: Colors.white54,
                 indicatorColor: Colors.redAccent,
                 indicatorWeight: 3,
+                labelStyle:
+                    GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 14),
+                unselectedLabelStyle: GoogleFonts.outfit(fontSize: 14),
                 tabs: const [
                   Tab(icon: Icon(Icons.grid_view, size: 18), text: 'Guide TV'),
-                  Tab(icon: Icon(Icons.fiber_manual_record, size: 18), text: 'Enregistrements'),
+                  Tab(
+                      icon: Icon(Icons.fiber_manual_record, size: 18),
+                      text: 'Enregistrements'),
                   Tab(icon: Icon(Icons.repeat, size: 18), text: 'Season Passes'),
                 ],
               ),
             ],
           ),
         ),
-        // Corps des onglets
         Expanded(
           child: TabBarView(
             controller: _tabController,
@@ -99,31 +93,40 @@ class _RecordingsTabState extends State<RecordingsTab>
   }
 }
 
-// ═══════════════════════════════════════════════════════
-//  ONGLET 1 — GUIDE TV (EPG)
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+//  ONGLET 1 — GUIDE TV
+//  Charge les chaînes via liveChannelsByPlaylistProvider (même provider que
+//  l'onglet Live TV) + EPG via XtreamService.getShortEpg (même mécanisme
+//  qu'EPGWidget, qui passe par /api/xtream/ proxy).
+// ═══════════════════════════════════════════════════════════════════════════
 
-/// Guide TV EPG — charge les chaînes filtrées depuis les Settings (comme l'onglet TV)
 class _EpgGuideView extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
   const _EpgGuideView({required this.playlist});
+
   @override
   ConsumerState<_EpgGuideView> createState() => _EpgGuideViewState();
 }
 
-class _EpgGuideViewState extends ConsumerState<_EpgGuideView> {
-  String? _selectedChannelId;
-  String? _selectedChannelName;
-  String? _selectedStreamUrl;
-  List<dynamic> _programmes = [];
+class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
+    with AutomaticKeepAliveClientMixin {
+  // Garder l'état même quand l'onglet n'est pas visible
+  @override
+  bool get wantKeepAlive => true;
+
+  Channel? _selectedChannel;
+  List<EpgEntry> _programmes = [];
   bool _loadingEpg = false;
-  String _searchQuery = '';
+  String _epgError = '';
+
   final TextEditingController _searchCtrl = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _searchCtrl.addListener(() => setState(() => _searchQuery = _searchCtrl.text.toLowerCase()));
+    _searchCtrl.addListener(
+        () => setState(() => _searchQuery = _searchCtrl.text.toLowerCase()));
   }
 
   @override
@@ -132,181 +135,201 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView> {
     super.dispose();
   }
 
-  Future<void> _loadEpg(String channelId) async {
-    setState(() { _loadingEpg = true; _programmes = []; });
+  /// Charge l'EPG via XtreamService (identique à EPGWidget)
+  Future<void> _loadEpg(Channel ch) async {
+    setState(() {
+      _selectedChannel = ch;
+      _programmes = [];
+      _loadingEpg = true;
+      _epgError = '';
+    });
+
     try {
-      final response = await http.get(Uri.parse('/api/epg/$channelId'));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+      // Utiliser directement XtreamService comme EPGWidget — passe par /api/xtream/ proxy
+      final service = ref.read(xtreamServiceProvider(widget.playlist));
+      final epgEntries = await service.getShortEpg(ch.streamId);
+
+      if (mounted) {
         setState(() {
-          _programmes = (data['programmes'] as List<dynamic>? ?? []);
+          _programmes = epgEntries;
           _loadingEpg = false;
         });
-      } else {
-        setState(() => _loadingEpg = false);
       }
     } catch (e) {
-      setState(() => _loadingEpg = false);
+      if (mounted) {
+        setState(() {
+          _loadingEpg = false;
+          _epgError = e.toString();
+        });
+      }
     }
-  }
-
-  void _selectChannel(Channel ch) {
-    setState(() {
-      _selectedChannelId = ch.streamId.toString();
-      _selectedChannelName = ch.name;
-      _selectedStreamUrl = '/api/live/${ch.streamId}.ts';
-      _programmes = [];
-    });
-    _loadEpg(ch.streamId.toString());
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // requis pour AutomaticKeepAliveClientMixin
     final settings = ref.watch(iptvSettingsProvider);
-    // Utiliser la playlist passée en paramètre directement
-    final channelsAsync = ref.watch(liveChannelsByPlaylistProvider(widget.playlist));
+    final channelsAsync =
+        ref.watch(liveChannelsByPlaylistProvider(widget.playlist));
 
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ─── Colonne gauche : liste des chaînes filtrées ───
+          // ── Colonne gauche : liste des chaînes ──
           SizedBox(
-            width: 220,
-            child: Column(
-              children: [
-                // Barre de recherche
-                TextField(
-                  controller: _searchCtrl,
-                  style: const TextStyle(color: Colors.white, fontSize: 13),
-                  decoration: InputDecoration(
-                    hintText: 'Chercher une chaîne...',
-                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
-                    prefixIcon: const Icon(Icons.search, color: Colors.white38, size: 18),
-                    filled: true,
-                    fillColor: Colors.white.withOpacity(0.07),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            width: 230,
+            child: Column(children: [
+              // Barre de recherche
+              TextField(
+                controller: _searchCtrl,
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'Rechercher...',
+                  hintStyle:
+                      const TextStyle(color: Colors.white38, fontSize: 13),
+                  prefixIcon: const Icon(Icons.search,
+                      color: Colors.white38, size: 18),
+                  filled: true,
+                  fillColor: Colors.white.withOpacity(0.07),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: channelsAsync == null
-                      ? const Center(
-                          child: Text('Aucune playlist active',
-                              textAlign: TextAlign.center),
-                        )
-                      : channelsAsync.when(
-                          loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                          error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: Colors.red, fontSize: 12))),
-                          data: (groupedChannels) {
-                            // Appliquer le même filtre que l'onglet TV
-                            final filteredChannels = <Channel>[];
-                            for (final entry in groupedChannels.entries) {
-                              if (settings.liveTvKeywords.isEmpty ||
-                                  settings.matchesLiveTvFilter(entry.key)) {
-                                filteredChannels.addAll(entry.value);
-                              }
-                            }
-                            // Tri alphabétique
-                            filteredChannels.sort((a, b) => a.name.compareTo(b.name));
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: channelsAsync.when(
+                  loading: () => const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2)),
+                  error: (e, _) => Center(
+                      child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text('Erreur chargement chaînes:\n$e',
+                        style: const TextStyle(
+                            color: Colors.redAccent, fontSize: 11),
+                        textAlign: TextAlign.center),
+                  )),
+                  data: (groupedChannels) {
+                    // Appliquer le filtre settings (identique à l'onglet Live TV)
+                    final filtered = <Channel>[];
+                    for (final entry in groupedChannels.entries) {
+                      if (settings.liveTvKeywords.isEmpty ||
+                          settings.matchesLiveTvFilter(entry.key)) {
+                        filtered.addAll(entry.value);
+                      }
+                    }
+                    filtered.sort((a, b) => a.name.compareTo(b.name));
 
-                            // Filtre par recherche
-                            final visible = _searchQuery.isEmpty
-                                ? filteredChannels
-                                : filteredChannels
-                                    .where((c) => c.name.toLowerCase().contains(_searchQuery))
-                                    .toList();
+                    final visible = _searchQuery.isEmpty
+                        ? filtered
+                        : filtered
+                            .where((c) =>
+                                c.name.toLowerCase().contains(_searchQuery))
+                            .toList();
 
-                            if (visible.isEmpty) {
-                              return Center(
-                                child: Text('Aucune chaîne\n(vérifiez les filtres dans Settings)',
-                                    textAlign: TextAlign.center,
-                                    style: GoogleFonts.outfit(color: Colors.white38, fontSize: 12)),
-                              );
-                            }
+                    if (visible.isEmpty) {
+                      return Center(
+                          child: Text(
+                        settings.liveTvKeywords.isEmpty
+                            ? 'Aucune chaîne disponible'
+                            : 'Aucune chaîne correspondant\naux filtres Settings',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.outfit(
+                            color: Colors.white38, fontSize: 12),
+                      ));
+                    }
 
-                            return ListView.builder(
-                              itemCount: visible.length,
-                              itemBuilder: (ctx, i) {
-                                final ch = visible[i];
-                                final isSelected = ch.streamId.toString() == _selectedChannelId;
-                                return InkWell(
-                                  onTap: () => _selectChannel(ch),
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Container(
-                                    margin: const EdgeInsets.only(bottom: 4),
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? Colors.redAccent.withOpacity(0.2)
-                                          : Colors.white.withOpacity(0.05),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: isSelected
-                                            ? Colors.redAccent.withOpacity(0.5)
-                                            : Colors.transparent,
+                    return ListView.builder(
+                      itemCount: visible.length,
+                      itemBuilder: (ctx, i) {
+                        final ch = visible[i];
+                        final isSelected =
+                            _selectedChannel?.streamId == ch.streamId;
+                        return InkWell(
+                          onTap: () => _loadEpg(ch),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 3),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Colors.redAccent.withOpacity(0.2)
+                                  : Colors.white.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isSelected
+                                    ? Colors.redAccent.withOpacity(0.5)
+                                    : Colors.transparent,
+                              ),
+                            ),
+                            child: Row(children: [
+                              // Logo chaîne
+                              ch.streamIcon.isNotEmpty
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(3),
+                                      child: Image.network(
+                                        ch.streamIcon,
+                                        width: 26,
+                                        height: 18,
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (_, __, ___) =>
+                                            const Icon(Icons.tv,
+                                                color: Colors.white38,
+                                                size: 18),
                                       ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        if (ch.streamIcon != null && ch.streamIcon!.isNotEmpty)
-                                          ClipRRect(
-                                            borderRadius: BorderRadius.circular(4),
-                                            child: Image.network(
-                                              ch.streamIcon!,
-                                              width: 28,
-                                              height: 20,
-                                              fit: BoxFit.contain,
-                                              errorBuilder: (_, __, ___) =>
-                                                  const Icon(Icons.tv, color: Colors.white38, size: 20),
-                                            ),
-                                          )
-                                        else
-                                          const Icon(Icons.tv, color: Colors.white38, size: 20),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            ch.name,
-                                            style: GoogleFonts.outfit(
-                                              color: isSelected ? Colors.white : Colors.white70,
-                                              fontSize: 12,
-                                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                            ),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                    )
+                                  : const Icon(Icons.tv,
+                                      color: Colors.white38, size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  ch.name,
+                                  style: GoogleFonts.outfit(
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Colors.white70,
+                                    fontSize: 12,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
                                   ),
-                                );
-                              },
-                            );
-                          },
-                        ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ]),
+                          ),
+                        );
+                      },
+                    );
+                  },
                 ),
-              ],
-            ),
+              ),
+            ]),
           ),
+
           const SizedBox(width: 16),
-          // ─── Colonne droite : programmes de la chaîne sélectionnée ───
+
+          // ── Colonne droite : programmes EPG ──
           Expanded(
-            child: _selectedChannelId == null
+            child: _selectedChannel == null
                 ? Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.tv_off, size: 64, color: Color(0x1FFFFFFF)),
+                        const Icon(Icons.tv_off,
+                            size: 64, color: Color(0x1FFFFFFF)),
                         const SizedBox(height: 16),
                         Text(
-                          'Sélectionnez une chaîne pour\nvoir son guide des programmes',
+                          'Sélectionnez une chaîne\npour voir son guide des programmes',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.outfit(color: Colors.white38, fontSize: 15),
+                          style: GoogleFonts.outfit(
+                              color: Colors.white38, fontSize: 15),
                         ),
                       ],
                     ),
@@ -314,42 +337,55 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView> {
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Text(
-                            _selectedChannelName ?? '',
-                            style: GoogleFonts.outfit(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
+                      Row(children: [
+                        Text(
+                          _selectedChannel!.name,
+                          style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
                           ),
-                          const Spacer(),
-                          IconButton(
-                            icon: const Icon(Icons.refresh, color: Colors.white54, size: 18),
-                            onPressed: () => _loadEpg(_selectedChannelId!),
-                            tooltip: 'Recharger l\'EPG',
-                          ),
-                        ],
-                      ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.refresh,
+                              color: Colors.white54, size: 18),
+                          tooltip: 'Recharger l\'EPG',
+                          onPressed: () => _loadEpg(_selectedChannel!),
+                        ),
+                      ]),
                       const Divider(color: Colors.white12),
                       Expanded(
                         child: _loadingEpg
                             ? const Center(child: CircularProgressIndicator())
-                            : _programmes.isEmpty
+                            : _epgError.isNotEmpty
                                 ? Center(
-                                    child: Text('Aucun programme EPG disponible',
-                                        style: GoogleFonts.outfit(color: Colors.white38)),
-                                  )
-                                : ListView.builder(
-                                    itemCount: _programmes.length,
-                                    itemBuilder: (ctx, i) => _ProgrammeCard(
-                                      programme: _programmes[i],
-                                      channelName: _selectedChannelName ?? '',
-                                      channelId: _selectedChannelId!,
-                                      streamUrl: _selectedStreamUrl ?? '/api/live/$_selectedChannelId.ts',
+                                    child: Text(
+                                      'Erreur EPG: $_epgError',
+                                      style: const TextStyle(
+                                          color: Colors.redAccent,
+                                          fontSize: 12),
+                                      textAlign: TextAlign.center,
                                     ),
-                                  ),
+                                  )
+                                : _programmes.isEmpty
+                                    ? Center(
+                                        child: Text(
+                                          'Aucun programme EPG disponible\npour cette chaîne',
+                                          textAlign: TextAlign.center,
+                                          style: GoogleFonts.outfit(
+                                              color: Colors.white38),
+                                        ),
+                                      )
+                                    : ListView.builder(
+                                        itemCount: _programmes.length,
+                                        itemBuilder: (ctx, i) =>
+                                            _ProgrammeCard(
+                                          programme: _programmes[i],
+                                          channel: _selectedChannel!,
+                                          playlist: widget.playlist,
+                                        ),
+                                      ),
                       ),
                     ],
                   ),
@@ -360,83 +396,92 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView> {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+//  CARTE DE PROGRAMME EPG
+// ═══════════════════════════════════════════════════════════════════════════
+
 class _ProgrammeCard extends StatelessWidget {
-  final Map<String, dynamic> programme;
-  final String channelName;
-  final String channelId;
-  final String streamUrl;
+  final EpgEntry programme;
+  final Channel channel;
+  final PlaylistConfig playlist;
 
   const _ProgrammeCard({
     required this.programme,
-    required this.channelName,
-    required this.channelId,
-    required this.streamUrl,
+    required this.channel,
+    required this.playlist,
   });
 
-  String _formatTime(String rawTime) {
+  String _fmt(String raw) {
     try {
-      final dt = DateTime.parse(rawTime).toLocal();
+      final dt = DateTime.parse(raw).toLocal();
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     } catch (_) {
-      return rawTime.length >= 5 ? rawTime.substring(11, 16) : rawTime;
+      return raw.length >= 16 ? raw.substring(11, 16) : raw;
     }
   }
 
   bool get _isNow {
     try {
-      final start = DateTime.parse(programme['start'] as String);
-      final end = DateTime.parse(programme['end'] as String);
+      final s = DateTime.parse(programme.start);
+      final e = DateTime.parse(programme.end);
       final now = DateTime.now().toUtc();
-      return now.isAfter(start) && now.isBefore(end);
-    } catch (_) { return false; }
+      return now.isAfter(s) && now.isBefore(e);
+    } catch (_) {
+      return false;
+    }
   }
 
   bool get _isPast {
     try {
-      final end = DateTime.parse(programme['end'] as String);
-      return DateTime.now().toUtc().isAfter(end);
-    } catch (_) { return false; }
-  }
-
-  void _scheduleRecording(BuildContext context) {
-    try {
-      final start = DateTime.parse(programme['start'] as String).toUtc();
-      final end = DateTime.parse(programme['end'] as String).toUtc();
-      final title = programme['title'] as String? ?? channelName;
-      _showRecordingConfirm(context, title, start, end);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Impossible de programmer: $e')),
-      );
+      return DateTime.now().toUtc().isAfter(DateTime.parse(programme.end));
+    } catch (_) {
+      return false;
     }
   }
 
-  void _showRecordingConfirm(BuildContext context, String title, DateTime start, DateTime end) {
+  void _record(BuildContext context) {
+    try {
+      final start = DateTime.parse(programme.start).toUtc();
+      final end = DateTime.parse(programme.end).toUtc();
+      _showConfirm(context, programme.title, start, end);
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Erreur: $e')));
+    }
+  }
+
+  void _showConfirm(
+      BuildContext context, String title, DateTime start, DateTime end) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E2E),
-        title: Row(
-          children: [
-            const Icon(Icons.fiber_manual_record, color: Colors.redAccent, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text('Enregistrer', style: GoogleFonts.outfit(color: Colors.white))),
-          ],
-        ),
+        title: Row(children: [
+          const Icon(Icons.fiber_manual_record,
+              color: Colors.redAccent, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+              child: Text('Enregistrer',
+                  style: GoogleFonts.outfit(color: Colors.white))),
+        ]),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(title,
+                style: GoogleFonts.outfit(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16)),
             const SizedBox(height: 8),
             Text(
-              '${_formatTime(programme['start'])} → ${_formatTime(programme['end'])}',
+              '${_fmt(programme.start)} → ${_fmt(programme.end)}',
               style: const TextStyle(color: Colors.white70),
             ),
-            if ((programme['description'] as String? ?? '').isNotEmpty) ...[
+            if (programme.description.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
-                programme['description'] as String,
+                programme.description,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: Colors.white38, fontSize: 12),
@@ -445,9 +490,12 @@ class _ProgrammeCard extends StatelessWidget {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            style:
+                ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () async {
               Navigator.pop(ctx);
               await _saveRecording(context, title, start, end);
@@ -459,13 +507,15 @@ class _ProgrammeCard extends StatelessWidget {
     );
   }
 
-  Future<void> _saveRecording(BuildContext context, String title, DateTime start, DateTime end) async {
+  Future<void> _saveRecording(
+      BuildContext context, String title, DateTime start, DateTime end) async {
     try {
+      final streamUrl = '/api/live/${channel.streamId}.ts';
       final response = await http.post(
         Uri.parse('/api/recordings'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          'channel_id': channelId,
+          'channel_id': channel.streamId,
           'stream_url': streamUrl,
           'title': title,
           'start_time': start.toIso8601String(),
@@ -473,16 +523,19 @@ class _ProgrammeCard extends StatelessWidget {
         }),
       );
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response.statusCode == 200 ? '✅ "$title" planifié !' : '❌ Erreur: ${response.body}'),
-            backgroundColor: response.statusCode == 200 ? Colors.green.shade800 : Colors.red.shade800,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(response.statusCode == 200
+              ? '✅ "$title" planifié !'
+              : '❌ Erreur: ${response.body}'),
+          backgroundColor: response.statusCode == 200
+              ? Colors.green.shade800
+              : Colors.red.shade800,
+        ));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erreur: $e')));
       }
     }
   }
@@ -491,56 +544,63 @@ class _ProgrammeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isNow = _isNow;
     final isPast = _isPast;
-    final title = programme['title'] as String? ?? '—';
-    final start = programme['start'] as String? ?? '';
-    final end = programme['end'] as String? ?? '';
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
         color: isNow
             ? Colors.red.withOpacity(0.15)
             : isPast
                 ? Colors.white.withOpacity(0.03)
                 : Colors.white.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: isNow ? Colors.redAccent.withOpacity(0.5) : Colors.white.withOpacity(0.08),
+          color: isNow
+              ? Colors.redAccent.withOpacity(0.4)
+              : Colors.white.withOpacity(0.07),
         ),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            if (isNow)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.redAccent,
-                  borderRadius: BorderRadius.circular(4),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        leading: SizedBox(
+          width: 48,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (isNow)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                      color: Colors.redAccent,
+                      borderRadius: BorderRadius.circular(4)),
+                  child: Text('LIVE',
+                      style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold)),
+                )
+              else
+                Text(
+                  _fmt(programme.start),
+                  style: GoogleFonts.outfit(
+                    color: isPast ? Colors.white24 : Colors.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                child: Text('LIVE', style: GoogleFonts.outfit(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-              )
-            else
-              Text(
-                _formatTime(start),
-                style: GoogleFonts.outfit(
-                  color: isPast ? Colors.white24 : Colors.white70,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+              if (!isNow)
+                Text(
+                  _fmt(programme.end),
+                  style: GoogleFonts.outfit(
+                      color: Colors.white24, fontSize: 10),
                 ),
-              ),
-            if (!isNow)
-              Text(
-                _formatTime(end),
-                style: GoogleFonts.outfit(color: Colors.white24, fontSize: 11),
-              ),
-          ],
+            ],
+          ),
         ),
         title: Text(
-          title,
+          programme.title.isEmpty ? '—' : programme.title,
           style: GoogleFonts.outfit(
             color: isPast ? Colors.white38 : Colors.white,
             fontWeight: isNow ? FontWeight.bold : FontWeight.normal,
@@ -548,19 +608,21 @@ class _ProgrammeCard extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
-        subtitle: (programme['description'] as String? ?? '').isNotEmpty
+        subtitle: programme.description.isNotEmpty
             ? Text(
-                programme['description'] as String,
+                programme.description,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: Colors.white38, fontSize: 11),
+                style:
+                    const TextStyle(color: Colors.white38, fontSize: 11),
               )
             : null,
         trailing: !isPast
             ? IconButton(
-                icon: const Icon(Icons.fiber_manual_record, color: Colors.redAccent, size: 22),
+                icon: const Icon(Icons.fiber_manual_record,
+                    color: Colors.redAccent, size: 20),
                 tooltip: 'Enregistrer ce programme',
-                onPressed: () => _scheduleRecording(context),
+                onPressed: () => _record(context),
               )
             : null,
       ),
@@ -568,9 +630,9 @@ class _ProgrammeCard extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════
-//  ONGLET 2 — MES ENREGISTREMENTS
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+//  ONGLET 2 — ENREGISTREMENTS
+// ═══════════════════════════════════════════════════════════════════════════
 
 class _RecordingsListView extends StatefulWidget {
   const _RecordingsListView();
@@ -590,24 +652,37 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
   }
 
   Future<void> _fetchRecordings() async {
-    setState(() { _isLoading = true; _error = null; });
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
       final response = await http.get(Uri.parse('/api/recordings'));
       if (response.statusCode == 200) {
-        setState(() { _recordings = json.decode(response.body); _isLoading = false; });
+        setState(() {
+          _recordings = json.decode(response.body);
+          _isLoading = false;
+        });
       } else {
-        setState(() { _error = 'Erreur ${response.statusCode}'; _isLoading = false; });
+        setState(() {
+          _error = 'Erreur ${response.statusCode}';
+          _isLoading = false;
+        });
       }
     } catch (e) {
-      setState(() { _error = '$e'; _isLoading = false; });
+      setState(() {
+        _error = '$e';
+        _isLoading = false;
+      });
     }
   }
 
   Future<void> _stopRecording(String id, String title) async {
-    final response = await http.post(Uri.parse('/api/recordings/stop/$id'));
-    if (response.statusCode == 200) {
-      _fetchRecordings();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('⏹ "$title" arrêté')));
+    await http.post(Uri.parse('/api/recordings/stop/$id'));
+    _fetchRecordings();
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('⏹ "$title" arrêté')));
     }
   }
 
@@ -618,7 +693,8 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
 
   Future<void> _showLogs(String id, String title) async {
     try {
-      final response = await http.get(Uri.parse('/api/recordings/logs/$id'));
+      final response =
+          await http.get(Uri.parse('/api/recordings/logs/$id'));
       if (!mounted) return;
       final content = response.statusCode == 200
           ? (json.decode(response.body)['logs'] as String? ?? 'Aucun log')
@@ -627,38 +703,57 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
         context: context,
         builder: (ctx) => AlertDialog(
           backgroundColor: const Color(0xFF1E1E2E),
-          title: Text(title, style: GoogleFonts.outfit(color: Colors.white, fontSize: 14)),
+          title: Text(title,
+              style: GoogleFonts.outfit(color: Colors.white, fontSize: 14)),
           content: SizedBox(
             width: 500,
             height: 300,
             child: SingleChildScrollView(
-              child: Text(content, style: const TextStyle(color: Colors.white70, fontSize: 11, fontFamily: 'monospace')),
+              child: Text(content,
+                  style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11,
+                      fontFamily: 'monospace')),
             ),
           ),
-          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer'))],
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Fermer'))
+          ],
         ),
       );
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur logs: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erreur logs: $e')));
+      }
     }
   }
 
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'recording': return Colors.redAccent;
-      case 'completed': return Colors.green;
-      case 'failed': return Colors.orangeAccent;
-      default: return Colors.blueAccent;
-    }
-  }
+  Color _statusColor(String status) => switch (status) {
+        'recording' => Colors.redAccent,
+        'completed' => Colors.green,
+        'failed' => Colors.orangeAccent,
+        _ => Colors.blueAccent,
+      };
 
-  String _formatStatus(String status) {
-    switch (status) {
-      case 'scheduled': return 'Planifié';
-      case 'recording': return '● En cours';
-      case 'completed': return 'Terminé';
-      case 'failed': return 'Échoué';
-      default: return status;
+  String _statusLabel(String status) => switch (status) {
+        'scheduled' => 'Planifié',
+        'recording' => '● En cours',
+        'completed' => 'Terminé',
+        'failed' => 'Échoué',
+        _ => status,
+      };
+
+  String _fmtDate(dynamic raw) {
+    if (raw == null) return '?';
+    try {
+      final dt = DateTime.parse(raw.toString()).toLocal();
+      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')} '
+          '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return raw.toString();
     }
   }
 
@@ -668,30 +763,32 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.refresh, color: Colors.white70),
-                onPressed: _fetchRecordings,
-                tooltip: 'Rafraîchir',
-              ),
-            ],
-          ),
+          Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+            IconButton(
+              icon: const Icon(Icons.refresh, color: Colors.white70),
+              onPressed: _fetchRecordings,
+              tooltip: 'Rafraîchir',
+            ),
+          ]),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? Center(child: Text(_error!, style: const TextStyle(color: Colors.redAccent)))
+                    ? Center(
+                        child: Text(_error!,
+                            style:
+                                const TextStyle(color: Colors.redAccent)))
                     : _recordings.isEmpty
                         ? Center(
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.videocam_off, size: 64, color: Colors.white12),
+                                const Icon(Icons.videocam_off,
+                                    size: 64, color: Color(0x1FFFFFFF)),
                                 const SizedBox(height: 16),
                                 Text('Aucun enregistrement',
-                                    style: GoogleFonts.outfit(color: Colors.white38, fontSize: 16)),
+                                    style: GoogleFonts.outfit(
+                                        color: Colors.white38, fontSize: 16)),
                               ],
                             ),
                           )
@@ -699,65 +796,98 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                             itemCount: _recordings.length,
                             itemBuilder: (ctx, i) {
                               final rec = _recordings[i];
-                              final status = rec['status'] as String? ?? 'unknown';
-                              final statusColor = _statusColor(status);
+                              final status =
+                                  rec['status'] as String? ?? 'unknown';
+                              final color = _statusColor(status);
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 8),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.05),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                                  border: Border.all(
+                                      color:
+                                          Colors.white.withOpacity(0.1)),
                                 ),
                                 child: ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 8),
                                   leading: Icon(
-                                    status == 'recording' ? Icons.fiber_manual_record : Icons.videocam,
-                                    color: statusColor,
+                                    status == 'recording'
+                                        ? Icons.fiber_manual_record
+                                        : Icons.videocam,
+                                    color: color,
                                     size: 28,
                                   ),
                                   title: Text(rec['title'] ?? '—',
-                                      style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600)),
+                                      style: GoogleFonts.outfit(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600)),
                                   subtitle: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         '${_fmtDate(rec['start_time'])} → ${_fmtDate(rec['end_time'])}',
-                                        style: TextStyle(color: Colors.white54, fontSize: 12),
+                                        style: const TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 12),
                                       ),
                                       if (rec['error_reason'] != null)
                                         Text('⚠ ${rec['error_reason']}',
-                                            style: const TextStyle(color: Colors.orangeAccent, fontSize: 11)),
+                                            style: const TextStyle(
+                                                color: Colors.orangeAccent,
+                                                fontSize: 11)),
                                     ],
                                   ),
                                   trailing: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: statusColor.withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(20),
-                                          border: Border.all(color: statusColor.withOpacity(0.4)),
+                                          color:
+                                              color.withOpacity(0.15),
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                          border: Border.all(
+                                              color:
+                                                  color.withOpacity(0.4)),
                                         ),
-                                        child: Text(_formatStatus(status),
-                                            style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 11)),
+                                        child: Text(_statusLabel(status),
+                                            style: TextStyle(
+                                                color: color,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 11)),
                                       ),
                                       const SizedBox(width: 4),
                                       if (status == 'recording')
                                         IconButton(
-                                          icon: const Icon(Icons.stop_circle, color: Colors.redAccent),
+                                          icon: const Icon(
+                                              Icons.stop_circle,
+                                              color: Colors.redAccent),
                                           tooltip: 'Arrêter',
-                                          onPressed: () => _stopRecording(rec['id'], rec['title'] ?? ''),
+                                          onPressed: () => _stopRecording(
+                                              rec['id'], rec['title'] ?? ''),
                                         ),
                                       IconButton(
-                                        icon: const Icon(Icons.description_outlined, color: Colors.blueAccent, size: 20),
+                                        icon: const Icon(
+                                            Icons.description_outlined,
+                                            color: Colors.blueAccent,
+                                            size: 20),
                                         tooltip: 'Logs',
-                                        onPressed: () => _showLogs(rec['id'], rec['title'] ?? ''),
+                                        onPressed: () => _showLogs(
+                                            rec['id'], rec['title'] ?? ''),
                                       ),
                                       IconButton(
-                                        icon: const Icon(Icons.delete_outline, color: Colors.white38, size: 20),
+                                        icon: const Icon(
+                                            Icons.delete_outline,
+                                            color: Colors.white38,
+                                            size: 20),
                                         tooltip: 'Supprimer',
-                                        onPressed: () => _deleteRecording(rec['id']),
+                                        onPressed: () =>
+                                            _deleteRecording(rec['id']),
                                       ),
                                     ],
                                   ),
@@ -770,19 +900,11 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
       ),
     );
   }
-
-  String _fmtDate(dynamic raw) {
-    if (raw == null) return '?';
-    try {
-      final dt = DateTime.parse(raw.toString()).toLocal();
-      return '${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')} ${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
-    } catch (_) { return raw.toString(); }
-  }
 }
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
 //  ONGLET 3 — SEASON PASSES
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
 
 class _SeasonPassesView extends StatefulWidget {
   const _SeasonPassesView();
@@ -803,9 +925,12 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
   Future<void> _loadPasses() async {
     setState(() => _isLoading = true);
     try {
-      final response = await http.get(Uri.parse('/api/season-passes'));
-      if (response.statusCode == 200) {
-        setState(() { _passes = json.decode(response.body); _isLoading = false; });
+      final r = await http.get(Uri.parse('/api/season-passes'));
+      if (r.statusCode == 200) {
+        setState(() {
+          _passes = json.decode(r.body);
+          _isLoading = false;
+        });
       } else {
         setState(() => _isLoading = false);
       }
@@ -818,65 +943,68 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
     await http.delete(Uri.parse('/api/season-passes/$id'));
     _loadPasses();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Season Pass "$title" supprimé')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Season Pass "$title" supprimé')));
     }
   }
 
-  void _showCreateDialog() {
-    final titleController = TextEditingController();
-    final channelIdController = TextEditingController();
-    final streamUrlController = TextEditingController();
-
+  void _showCreate() {
+    final titleCtrl = TextEditingController();
+    final channelCtrl = TextEditingController();
+    final urlCtrl = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E2E),
-        title: Row(
-          children: [
-            const Icon(Icons.repeat, color: Colors.purpleAccent),
-            const SizedBox(width: 8),
-            Text('Nouveau Season Pass', style: GoogleFonts.outfit(color: Colors.white)),
-          ],
-        ),
+        title: Row(children: [
+          const Icon(Icons.repeat, color: Colors.purpleAccent),
+          const SizedBox(width: 8),
+          Text('Nouveau Season Pass',
+              style: GoogleFonts.outfit(color: Colors.white)),
+        ]),
         content: SizedBox(
           width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Enregistre automatiquement toutes les nouvelles diffusions d\'une émission sur une chaîne.',
-                style: GoogleFonts.outfit(color: Colors.white54, fontSize: 13),
-              ),
-              const SizedBox(height: 16),
-              _Field(controller: titleController, label: 'Titre de l\'émission (ex: Champions League)'),
-              const SizedBox(height: 8),
-              _Field(controller: channelIdController, label: 'Channel ID (ex: 554021)'),
-              const SizedBox(height: 8),
-              _Field(controller: streamUrlController, label: 'stream_url (ex: /api/live/554021.ts)'),
-            ],
-          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(
+              'Enregistre automatiquement toutes les nouvelles diffusions d\'une émission.',
+              style:
+                  GoogleFonts.outfit(color: Colors.white54, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            _buildField(titleCtrl, 'Titre de l\'émission (ex: Champions League)'),
+            const SizedBox(height: 8),
+            _buildField(channelCtrl, 'Channel ID (ex: 554021)'),
+            const SizedBox(height: 8),
+            _buildField(urlCtrl, 'stream_url (optionnel, ex: /api/live/554021.ts)'),
+          ]),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.purpleAccent),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purpleAccent),
             onPressed: () async {
-              final title = titleController.text.trim();
-              final channelId = channelIdController.text.trim();
-              final streamUrl = streamUrlController.text.trim().isEmpty
-                  ? '/api/live/${channelIdController.text.trim()}.ts'
-                  : streamUrlController.text.trim();
-              if (title.isEmpty || channelId.isEmpty) return;
+              final t = titleCtrl.text.trim();
+              final c = channelCtrl.text.trim();
+              if (t.isEmpty || c.isEmpty) return;
+              final u = urlCtrl.text.trim().isEmpty
+                  ? '/api/live/$c.ts'
+                  : urlCtrl.text.trim();
               Navigator.pop(ctx);
-              final response = await http.post(
+              final r = await http.post(
                 Uri.parse('/api/season-passes'),
                 headers: {'Content-Type': 'application/json'},
-                body: json.encode({'show_title': title, 'channel_id': channelId, 'stream_url': streamUrl}),
+                body: json.encode(
+                    {'show_title': t, 'channel_id': c, 'stream_url': u}),
               );
               _loadPasses();
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(response.statusCode == 201 ? '✅ Season Pass créé !' : '❌ ${response.body}'),
+                  content: Text(r.statusCode == 201
+                      ? '✅ Season Pass créé !'
+                      : '❌ ${r.body}'),
                 ));
               }
             },
@@ -887,123 +1015,129 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Enregistrements automatiques',
-                  style: GoogleFonts.outfit(color: Colors.white54, fontSize: 13)),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.purpleAccent),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Nouveau'),
-                onPressed: _showCreateDialog,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Explication du fonctionnement
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.purpleAccent.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.purpleAccent.withOpacity(0.2)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.info_outline, color: Colors.purpleAccent, size: 18),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Le Season Pass scanne l\'EPG toutes les 4h et programme automatiquement les nouvelles diffusions. Seuls les nouveaux épisodes sont enregistrés.',
-                    style: GoogleFonts.outfit(color: Colors.purpleAccent.shade100, fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _passes.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.repeat, size: 64, color: Colors.white12),
-                            const SizedBox(height: 16),
-                            Text('Aucun Season Pass actif',
-                                style: GoogleFonts.outfit(color: Colors.white38, fontSize: 16)),
-                            const SizedBox(height: 8),
-                            Text('Créez-en un pour enregistrer automatiquement vos émissions préférées',
-                                style: GoogleFonts.outfit(color: Colors.white24, fontSize: 12),
-                                textAlign: TextAlign.center),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: _passes.length,
-                        itemBuilder: (ctx, i) {
-                          final pass = _passes[i];
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.purpleAccent.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.purpleAccent.withOpacity(0.2)),
-                            ),
-                            child: ListTile(
-                              leading: const Icon(Icons.repeat, color: Colors.purpleAccent),
-                              title: Text(pass['show_title'] ?? '—',
-                                  style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600)),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Chaîne : ${pass['channel_id']}',
-                                      style: const TextStyle(color: Colors.white54, fontSize: 11)),
-                                  Text('Flux : ${pass['stream_url']}',
-                                      style: const TextStyle(color: Colors.white38, fontSize: 10)),
-                                ],
-                              ),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.white38),
-                                tooltip: 'Supprimer',
-                                onPressed: () => _deletePass(pass['id'], pass['show_title'] ?? ''),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Field extends StatelessWidget {
-  final TextEditingController controller;
-  final String label;
-  const _Field({required this.controller, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildField(TextEditingController c, String label) {
     return TextField(
-      controller: controller,
+      controller: c,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: Colors.white54, fontSize: 12),
-        enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-        focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.purpleAccent)),
+        enabledBorder: const UnderlineInputBorder(
+            borderSide: BorderSide(color: Colors.white24)),
+        focusedBorder: const UnderlineInputBorder(
+            borderSide: BorderSide(color: Colors.purpleAccent)),
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Enregistrements automatiques',
+                style:
+                    GoogleFonts.outfit(color: Colors.white54, fontSize: 13)),
+            ElevatedButton.icon(
+              style:
+                  ElevatedButton.styleFrom(backgroundColor: Colors.purpleAccent),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Nouveau'),
+              onPressed: _showCreate,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.purpleAccent.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.purpleAccent.withOpacity(0.2)),
+          ),
+          child: Row(children: [
+            const Icon(Icons.info_outline,
+                color: Colors.purpleAccent, size: 18),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Scanne l\'EPG toutes les 4h et programme automatiquement les nouvelles diffusions. Seuls les nouveaux épisodes sont enregistrés.',
+                style: GoogleFonts.outfit(
+                    color: Colors.purpleAccent.shade100, fontSize: 12),
+              ),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 16),
+        Expanded(
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _passes.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.repeat,
+                              size: 64, color: Color(0x1FFFFFFF)),
+                          const SizedBox(height: 16),
+                          Text('Aucun Season Pass actif',
+                              style: GoogleFonts.outfit(
+                                  color: Colors.white38, fontSize: 16)),
+                          const SizedBox(height: 8),
+                          Text(
+                              'Créez-en un pour enregistrer automatiquement vos émissions préférées',
+                              style: GoogleFonts.outfit(
+                                  color: Colors.white24, fontSize: 12),
+                              textAlign: TextAlign.center),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: _passes.length,
+                      itemBuilder: (ctx, i) {
+                        final p = _passes[i];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.purpleAccent.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: Colors.purpleAccent.withOpacity(0.2)),
+                          ),
+                          child: ListTile(
+                            leading: const Icon(Icons.repeat,
+                                color: Colors.purpleAccent),
+                            title: Text(p['show_title'] ?? '—',
+                                style: GoogleFonts.outfit(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600)),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Chaîne : ${p['channel_id']}',
+                                    style: const TextStyle(
+                                        color: Colors.white54, fontSize: 11)),
+                                Text('Flux : ${p['stream_url']}',
+                                    style: const TextStyle(
+                                        color: Colors.white38, fontSize: 10)),
+                              ],
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline,
+                                  color: Colors.white38),
+                              tooltip: 'Supprimer',
+                              onPressed: () =>
+                                  _deletePass(p['id'], p['show_title'] ?? ''),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+        ),
+      ]),
     );
   }
 }
