@@ -135,9 +135,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       _currentStreamUrl = streamUrl;
 
       final encodedUrl = Uri.encodeComponent(streamUrl);
-      final streamTypeParam =
-          widget.streamType == StreamType.live ? 'live' : 'vod';
-
       // Force player choice based on stream type:
       // - Live TV: Player Lite (simple TS playback with mpegts.js)
       // - VOD/Series: Player Standard (fuller controls, HLS support)
@@ -1057,74 +1054,4 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     );
   }
 
-  List<Widget> _buildControlButtons(bool isSmallScreen) {
-    final buttonSize = isSmallScreen ? 40.0 : 44.0;
-    final playButtonSize = isSmallScreen ? 48.0 : 52.0;
-
-    return [
-      if (widget.channels != null && widget.channels!.length > 1) ...[
-        _buildSimpleIconButton(
-          icon: Icons.skip_previous_rounded,
-          onTap: _previousChannel,
-          size: buttonSize,
-        ),
-        SizedBox(width: isSmallScreen ? 8 : 16),
-      ],
-      _buildSimpleIconButton(
-        icon: _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-        onTap: _togglePlayPause,
-        size: playButtonSize,
-        iconSize: isSmallScreen ? 24 : 28,
-        highlighted: true,
-      ),
-      if (widget.channels != null && widget.channels!.length > 1) ...[
-        SizedBox(width: isSmallScreen ? 8 : 16),
-        _buildSimpleIconButton(
-          icon: Icons.skip_next_rounded,
-          onTap: _nextChannel,
-          size: buttonSize,
-        ),
-      ],
-      SizedBox(width: isSmallScreen ? 8 : 16),
-      _buildSimpleIconButton(
-        icon: _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-        onTap: _toggleMute,
-        size: buttonSize,
-      ),
-      if (isSmallScreen) ...[
-        SizedBox(width: isSmallScreen ? 8 : 16),
-        _buildSimpleIconButton(
-          icon: Icons.fullscreen_rounded,
-          onTap: _toggleFullscreen,
-          size: buttonSize,
-        ),
-      ],
-    ];
-  }
-
-  Widget _buildSimpleIconButton({
-    required IconData icon,
-    required VoidCallback onTap,
-    double size = 40,
-    double iconSize = 24,
-    bool highlighted = false,
-  }) {
-    return Material(
-      color: highlighted ? AppColors.primary : Colors.white.withOpacity(0.1),
-      shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: SizedBox(
-          width: size,
-          height: size,
-          child: Icon(
-            icon,
-            color: highlighted ? Colors.black : Colors.white,
-            size: iconSize,
-          ),
-        ),
-      ),
-    );
-  }
 }
