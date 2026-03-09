@@ -464,9 +464,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           // Unified Bottom Bar - EPG + Controls in one bar
                           AnimatedPositioned(
                             duration: const Duration(milliseconds: 200),
-                            bottom: _showControls ? 24 : -100,
-                            left: 24,
-                            right: 24,
+                            bottom: _showControls ? 24 : -150, // More offset for stacked layout
+                            left: 16,
+                            right: 16,
                             child: Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 20,
