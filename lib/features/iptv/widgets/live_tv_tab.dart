@@ -73,7 +73,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                 .where((cat) => settings.matchesLiveTvFilter(cat))
                 .toList();
           }
-          categories.sort();
+          // REMOVED: categories.sort(); - Respect API/Settings order
 
           List<Channel> displayedChannels = [];
           bool showingCategoryGrid = false;
@@ -387,125 +387,129 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                     // Icon Area
                     Expanded(
                       child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white
-                          .withOpacity(0.05), // Subtle transparent background
-                      borderRadius:
-                          const BorderRadius.vertical(top: Radius.circular(12)),
-                    ),
-                    padding: const EdgeInsets.all(16),
-                    child: Center(
-                      child: channel.streamIcon.isNotEmpty
-                          ? Image.network(
-                              _getProxiedIconUrl(channel.streamIcon)!,
-                              errorBuilder: (_, __, ___) => Icon(
-                                Icons.tv,
-                                color: Colors.white.withOpacity(0.3),
-                                size: 40,
-                              ),
-                            )
-                          : Text(
-                              channel.name.characters.first.toUpperCase(),
-                              style: GoogleFonts.outfit(
-                                fontSize: 40,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white24,
-                              ),
-                            ),
-                    ),
-                  ),
-                ),
-                // Footer
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  color: Colors.black54,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        channel.name,
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(
+                              0.05), // Subtle transparent background
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(12)),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        padding: const EdgeInsets.all(16),
+                        child: Center(
+                          child: channel.streamIcon.isNotEmpty
+                              ? Image.network(
+                                  _getProxiedIconUrl(channel.streamIcon)!,
+                                  errorBuilder: (_, __, ___) => Icon(
+                                    Icons.tv,
+                                    color: Colors.white.withOpacity(0.3),
+                                    size: 40,
+                                  ),
+                                )
+                              : Text(
+                                  channel.name.characters.first.toUpperCase(),
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 40,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white24,
+                                  ),
+                                ),
+                        ),
                       ),
-                      const SizedBox(height: 4),
-                      Consumer(
-                        builder: (context, ref, _) {
-                          final epgAsync = ref.watch(
-                            epgByPlaylistProvider(
-                              EpgRequestKey(
-                                playlist: widget.playlist,
-                                streamId: channel.streamId,
-                              ),
+                    ),
+                    // Footer
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      color: Colors.black54,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            channel.name,
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
                             ),
-                          );
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Consumer(
+                            builder: (context, ref, _) {
+                              final epgAsync = ref.watch(
+                                epgByPlaylistProvider(
+                                  EpgRequestKey(
+                                    playlist: widget.playlist,
+                                    streamId: channel.streamId,
+                                  ),
+                                ),
+                              );
 
-                          return epgAsync.when(
-                            data: (epgList) {
-                              if (epgList.isEmpty) {
-                                return Text(
-                                  'No Info',
+                              return epgAsync.when(
+                                data: (epgList) {
+                                  if (epgList.isEmpty) {
+                                    return Text(
+                                      'No Info',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white54,
+                                        fontSize: 10,
+                                      ),
+                                    );
+                                  }
+                                  final now = DateTime.now();
+                                  final currentProgram = epgList.firstWhere(
+                                    (entry) {
+                                      try {
+                                        final start =
+                                            EpgEntry.parseDateTime(entry.start);
+                                        final end =
+                                            EpgEntry.parseDateTime(entry.end);
+                                        if (start == null || end == null)
+                                          return false;
+                                        return now.isAfter(start) &&
+                                            now.isBefore(end);
+                                      } catch (e) {
+                                        return false;
+                                      }
+                                    },
+                                    orElse: () => epgList.first,
+                                  );
+
+                                  return Text(
+                                    currentProgram.title,
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFFFFD700),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  );
+                                },
+                                loading: () => Text(
+                                  '...',
                                   style: GoogleFonts.inter(
-                                    color: Colors.white54,
+                                    color: Colors.white24,
                                     fontSize: 10,
                                   ),
-                                );
-                              }
-                              final now = DateTime.now();
-                              final currentProgram = epgList.firstWhere(
-                                (entry) {
-                                  try {
-                                    final start = DateTime.parse(entry.start);
-                                    final end = DateTime.parse(entry.end);
-                                    return now.isAfter(start) &&
-                                        now.isBefore(end);
-                                  } catch (e) {
-                                    return false;
-                                  }
-                                },
-                                orElse: () => epgList.first,
-                              );
-
-                              return Text(
-                                currentProgram.title,
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFFFD700),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                error: (_, __) => Text(
+                                  'Err',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.red,
+                                    fontSize: 10,
+                                  ),
+                                ),
                               );
                             },
-                            loading: () => Text(
-                              '...',
-                              style: GoogleFonts.inter(
-                                color: Colors.white24,
-                                fontSize: 10,
-                              ),
-                            ),
-                            error: (_, __) => Text(
-                              'Err',
-                              style: GoogleFonts.inter(
-                                color: Colors.red,
-                                fontSize: 10,
-                              ),
-                            ),
-                          );
-                        },
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            // Record Button Icon Overlay (Positioned top right)
-            Positioned(
+                // Record Button Icon Overlay (Positioned top right)
+                Positioned(
                   top: 8,
                   right: 8,
                   child: TvFocusableCard(

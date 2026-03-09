@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 /// Channel model for Live TV
 class Channel {
   final String streamId;
@@ -169,6 +170,21 @@ class EpgEntry {
     );
   }
 
+  /// Robustly parse date strings from Xtream API
+  static DateTime? parseDateTime(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return null;
+    try {
+      // Xtream often uses "YYYY-MM-DD HH:MM:SS" which is not ISO 8601
+      // ISO 8601 needs "T" separator: "YYYY-MM-DDTHH:MM:SS"
+      final normalizedDate = dateStr.contains(' ') && !dateStr.contains('T')
+          ? dateStr.replaceFirst(' ', 'T')
+          : dateStr;
+      return DateTime.tryParse(normalizedDate);
+    } catch (_) {
+      return null;
+    }
+  }
+
   static String _decodeBase64(String? text) {
     if (text == null || text.isEmpty) return '';
     try {
@@ -182,10 +198,11 @@ class EpgEntry {
   /// Calculate progress percentage for current program
   double getProgress() {
     try {
-      final startTime = DateTime.parse(start);
-      final endTime = DateTime.parse(end);
+      final startTime = parseDateTime(start);
+      final endTime = parseDateTime(end);
       final now = DateTime.now();
 
+      if (startTime == null || endTime == null) return 0.0;
       if (now.isBefore(startTime)) return 0.0;
       if (now.isAfter(endTime)) return 1.0;
 

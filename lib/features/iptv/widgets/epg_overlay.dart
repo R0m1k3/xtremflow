@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/playlist_config.dart';
+import '../../../core/models/iptv_models.dart';
 import '../providers/xtream_provider.dart';
 
 /// Minimal EPG overlay - shows program title and info
@@ -32,8 +33,9 @@ class EpgOverlay extends ConsumerWidget {
         final now = DateTime.now();
         final currentProgram = epgEntries.firstWhere(
           (entry) {
-            final start = DateTime.parse(entry.start);
-            final end = DateTime.parse(entry.end);
+            final start = EpgEntry.parseDateTime(entry.start);
+            final end = EpgEntry.parseDateTime(entry.end);
+            if (start == null || end == null) return false;
             return now.isAfter(start) && now.isBefore(end);
           },
           orElse: () => epgEntries.first,

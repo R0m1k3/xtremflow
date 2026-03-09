@@ -1,24 +1,27 @@
-# Fix Docker & Proxy Issues
+# Activation de l'Agent Bmad Master
 
-## Completed
+## Context
 
-- [x] Database permissions (`entrypoint.sh` + `Dockerfile`)
-- [x] Proxy 401 errors (removed broken mount in `server.dart`)
-- [x] Proxy chunked encoding error (buffered response in `proxy_handler.dart`)
+Activation de l'agent Bmad Master pour coordonner les modules BMAD et gérer le flux de travail du projet xtremflow.
 
-## Changes
+## Current Focus
 
-| File | Change |
-|------|--------|
-| `entrypoint.sh` | NEW - fixes /app/data permissions, runs as xtremuser via gosu |
-| `Dockerfile` | Added gosu, ENTRYPOINT |
-| `bin/server.dart` | Removed broken /api/xtream mount, added logging |
-| `bin/api/proxy_handler.dart` | Changed from streaming to buffered response |
+Analyse du workflow Bmad Master et configuration initiale.
 
-## Deploy
+## Master Plan
 
-```bash
-git add .
-git commit -m "fix: database permissions + proxy errors"
-git push && docker compose up --build -d
-```
+- [x] Analyser le workflow Bmad Master (`bmad-core-agents-bmad-master.md`)
+- [x] Configurer l'environnement pour l'agent Master
+- [x] Initialiser la session avec l'agent Master
+- [x] Diagnostiquer l'absence d'EPG
+- [x] Diagnostiquer le problème de tri des chaînes
+- [x] Vérifier l'état de l'agent et des sous-modules
+
+## Progress Log
+
+- [x] Identification du workflow dans `.agent/workflows/bmad/`
+- [x] Lecture du workflow et de la configuration
+- [x] Validation du plan d'activation par Michael
+- [x] Activation de l'identité Bmad Master
+- [x] Correction du parsing de date EPG (Xtream format support)
+- [x] Suppression du tri alphabétique forcé

@@ -10,7 +10,7 @@ import '../database/database.dart';
 class ProxyHandler {
   final Future<PlaylistConfig?> Function(Request) _getPlaylist;
   final AppDatabase _db;
-  
+
   static const _allowedHeaders = [
     'content-type',
     'content-length',
@@ -60,60 +60,63 @@ class ProxyHandler {
       // NOTE: Authentication REMOVED from proxy to allow browser-initiated requests (img src, etc.)
       // SSRF protection is still active via domain validation below.
 
-        Uri? targetUrl;
-        
-        // === PROXY LOGIC ===
-        try {
-          // Extract target URL from request
-          // Format: /api/xtream/http://server:port/path
-          String apiPath = path.substring('api/xtream/'.length);
+      Uri? targetUrl;
 
-          // Decode URL if it's encoded
-          if (apiPath.startsWith('http%3A') || apiPath.startsWith('https%3A')) {
-            apiPath = Uri.decodeComponent(apiPath);
+      // === PROXY LOGIC ===
+      try {
+        // Extract target URL from request
+        // Format: /api/xtream/http://server:port/path
+        String apiPath = path.substring('api/xtream/'.length);
+
+        // Decode URL if it's encoded
+        if (apiPath.startsWith('http%3A') || apiPath.startsWith('https%3A')) {
+          apiPath = Uri.decodeComponent(apiPath);
+        }
+
+        if (!apiPath.startsWith('http://') && !apiPath.startsWith('https://')) {
+          return Response.badRequest(
+            body: 'Invalid API URL. Expected format: /api/xtream/http://...',
+          );
+        }
+
+        String fullUrl = apiPath;
+        if (request.url.query.isNotEmpty) {
+          if (fullUrl.contains('?')) {
+            fullUrl = '$fullUrl&${request.url.query}';
+          } else {
+            fullUrl = '$fullUrl?${request.url.query}';
           }
+        }
 
-          if (!apiPath.startsWith('http://') && !apiPath.startsWith('https://')) {
-            return Response.badRequest(
-              body: 'Invalid API URL. Expected format: /api/xtream/http://...',
-            );
-          }
-
-          String fullUrl = apiPath;
-          if (request.url.query.isNotEmpty) {
-            if (fullUrl.contains('?')) {
-              fullUrl = '$fullUrl&${request.url.query}';
-            } else {
-              fullUrl = '$fullUrl?${request.url.query}';
-            }
-          }
-
-          targetUrl = Uri.parse(fullUrl);
+        targetUrl = Uri.parse(fullUrl);
 
         // SSRF Protection - but allow images/static assets from any host
         // Xtream providers often use separate CDN servers for picons/images
         final isStaticAsset = targetUrl.path.endsWith('.png') ||
-                              targetUrl.path.endsWith('.jpg') ||
-                              targetUrl.path.endsWith('.jpeg') ||
-                              targetUrl.path.endsWith('.gif') ||
-                              targetUrl.path.endsWith('.webp') ||
-                              targetUrl.path.endsWith('.ico') ||
-                              targetUrl.path.contains('/picons/') ||
-                              targetUrl.path.contains('/logos/');
+            targetUrl.path.endsWith('.jpg') ||
+            targetUrl.path.endsWith('.jpeg') ||
+            targetUrl.path.endsWith('.gif') ||
+            targetUrl.path.endsWith('.webp') ||
+            targetUrl.path.endsWith('.ico') ||
+            targetUrl.path.contains('/picons/') ||
+            targetUrl.path.contains('/logos/');
 
         if (!isStaticAsset) {
           // For API calls, enforce domain allowlist
           final playlist = await _getPlaylist(request);
           if (playlist == null) {
-               return Response.forbidden('No active playlist configuration found to validate request');
+            return Response.forbidden(
+                'No active playlist configuration found to validate request');
           }
-          
+
           final targetHost = targetUrl.host.toLowerCase();
           final allowedHost = Uri.parse(playlist.dns).host.toLowerCase();
 
           if (targetHost != allowedHost) {
-              print('[Proxy] Blocked SSRF attempt to $targetHost (Allowed: $allowedHost)');
-               return Response.forbidden('Access to this domain is forbidden by policy');
+            print(
+                '[Proxy] Blocked SSRF attempt to $targetHost (Allowed: $allowedHost)');
+            return Response.forbidden(
+                'Access to this domain is forbidden by policy');
           }
         }
 
@@ -131,7 +134,8 @@ class ProxyHandler {
           if (request.method == 'POST') {
             final bodyBytes = await request.read().toList();
             final body = bodyBytes.expand((i) => i).toList();
-            response = await client.post(targetUrl, headers: proxyHeaders, body: body);
+            response =
+                await client.post(targetUrl, headers: proxyHeaders, body: body);
           } else {
             response = await client.get(targetUrl, headers: proxyHeaders);
           }
@@ -140,13 +144,14 @@ class ProxyHandler {
           final responseHeaders = <String, String>{
             'access-control-allow-origin': '*',
           };
-          
+
           if (response.headers['content-type'] != null) {
             responseHeaders['content-type'] = response.headers['content-type']!;
           }
-          
+
           if (response.headers['content-length'] != null) {
-            responseHeaders['content-length'] = response.headers['content-length']!;
+            responseHeaders['content-length'] =
+                response.headers['content-length']!;
           }
 
           return Response(
@@ -157,16 +162,17 @@ class ProxyHandler {
         } finally {
           client.close();
         }
-
-      } catch (e, stackTrace) {
+      } catch (e) {
         print('[ProxyHandler] error on $path: $e');
-        
+
         // Return transparent 1x1 pixel image fallback for images
-        if (targetUrl?.path.endsWith('.png') == true || targetUrl?.path.endsWith('.jpg') == true) {
-             return Response.ok(
-                 base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='),
-                 headers: {'content-type': 'image/png'},
-             );
+        if (targetUrl?.path.endsWith('.png') == true ||
+            targetUrl?.path.endsWith('.jpg') == true) {
+          return Response.ok(
+            base64Decode(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='),
+            headers: {'content-type': 'image/png'},
+          );
         }
 
         return Response.internalServerError(
