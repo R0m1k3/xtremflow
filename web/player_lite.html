@@ -214,12 +214,15 @@
             }
 
             const hls = new Hls({
-                maxBufferLength: 30,
-                maxMaxBufferLength: 60,
-                liveSyncDurationCount: 3,
-                liveMaxLatencyDurationCount: 6,
+                maxBufferLength: 60, // doubled for stability on mobile
+                maxMaxBufferLength: 120,
+                liveSyncDurationCount: 5, // more segments for safety
+                liveMaxLatencyDurationCount: 10,
                 liveDurationInfinity: true,
-                enableWorker: true
+                enableWorker: true,
+                backStep: 0.2, // step back slightly on stall
+                nudgeOffset: 0.1,
+                nudgeMaxRetry: 5
             });
 
             window.hlsInstance = hls;
@@ -505,10 +508,22 @@
                     video.currentTime = parseFloat(data.value);
                 }
             } else if (data.type === 'request_fullscreen') {
+                log('Fullscreen requested from parent');
                 const el = document.documentElement;
                 const requestMethod = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+
                 if (requestMethod) {
-                    requestMethod.call(el).catch(e => log('Fullscreen error: ' + e));
+                    // Browsers require a user gesture for fullscreen. 
+                    // This message usually comes from a Flutter button tap, so it should count as a gesture.
+                    requestMethod.call(el).catch(e => {
+                        log('Fullscreen API error: ' + e);
+                        // Fallback: try element-specific request for iOS
+                        if (video.webkitEnterFullscreen) {
+                            video.webkitEnterFullscreen();
+                        }
+                    });
+                } else if (video.webkitEnterFullscreen) {
+                    video.webkitEnterFullscreen();
                 }
             }
         });

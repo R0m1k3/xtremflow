@@ -811,6 +811,64 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     );
   }
 
+  List<Widget> _buildControlButtons(bool isSmallScreen) {
+    final buttonSize = isSmallScreen ? 40.0 : 44.0;
+    final playButtonSize = isSmallScreen ? 48.0 : 52.0;
+    final spacing = isSmallScreen ? 8.0 : 16.0;
+
+    return [
+      // Previous Channel
+      if (widget.channels != null && widget.channels!.length > 1)
+        _buildSimpleIconButton(
+          icon: Icons.skip_previous_rounded,
+          onTap: _previousChannel,
+          size: buttonSize,
+        ),
+
+      if (widget.channels != null && widget.channels!.length > 1)
+        SizedBox(width: spacing),
+
+      // Play/Pause (Large)
+      _buildSimpleIconButton(
+        icon: _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+        onTap: _togglePlayPause,
+        size: playButtonSize,
+        iconSize: isSmallScreen ? 24 : 28,
+        highlighted: true,
+      ),
+
+      if (widget.channels != null && widget.channels!.length > 1)
+        SizedBox(width: spacing),
+
+      // Next Channel
+      if (widget.channels != null && widget.channels!.length > 1)
+        _buildSimpleIconButton(
+          icon: Icons.skip_next_rounded,
+          onTap: _nextChannel,
+          size: buttonSize,
+        ),
+
+      SizedBox(width: spacing),
+
+      // Mute button
+      _buildSimpleIconButton(
+        icon: _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+        onTap: _toggleMute,
+        size: buttonSize,
+      ),
+
+      if (isSmallScreen) ...[
+        SizedBox(width: spacing),
+        // Fullscreen button inside the bar for mobile
+        _buildSimpleIconButton(
+          icon: Icons.fullscreen_rounded,
+          onTap: _toggleFullscreen,
+          size: buttonSize,
+        ),
+      ],
+    ];
+  }
+
   // Simple Icon Button for Live TV player (no BackdropFilter issues)
   Widget _buildSimpleIconButton({
     required IconData icon,
