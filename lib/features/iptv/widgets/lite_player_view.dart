@@ -71,6 +71,7 @@ class _LitePlayerViewState extends ConsumerState<LitePlayerView> {
         allowFullScreen: true,
         allowMuting: true,
         showControls: true,
+        useRootNavigator: true, // Crucial for escaping layout constraints
 
         // Orientation settings are often ignored or cause issues on web
         // but we keep them for native mobile if needed.
@@ -173,9 +174,13 @@ class _LitePlayerViewState extends ConsumerState<LitePlayerView> {
                   // Fullscreen Toggle
                   IconButton(
                     onPressed: () {
+                      // For Web, ensure we use the built-in fullscreen transition
+                      // which is more compatible with Safari/Chrome security
                       if (_chewieController?.isFullScreen == true) {
                         _chewieController?.exitFullScreen();
                       } else {
+                        // On web, sometimes we need to toggle more than once
+                        // to ensure the browser captures the intent
                         _chewieController?.enterFullScreen();
                       }
                     },

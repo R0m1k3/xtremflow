@@ -4,7 +4,7 @@ import 'package:equatable/equatable.dart';
 part 'playlist_config.g.dart';
 
 /// Hive model for Xtream Codes playlist configuration
-/// 
+///
 /// Stores credentials for connecting to an Xtream server
 @HiveType(typeId: 1)
 class PlaylistConfig extends Equatable {
@@ -75,5 +75,28 @@ class PlaylistConfig extends Equatable {
         createdAt,
         isActive,
       ];
-}
 
+  factory PlaylistConfig.fromJson(Map<String, dynamic> json) {
+    return PlaylistConfig(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      dns: json['dns'] as String,
+      username: json['username'] as String,
+      password: json['password'] as String,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      isActive: json['isActive'] as bool? ?? true,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'dns': dns,
+      'username': username,
+      'password': password,
+      'createdAt': createdAt.toIso8601String(),
+      'isActive': isActive,
+    };
+  }
+}

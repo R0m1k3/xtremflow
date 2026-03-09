@@ -6,11 +6,10 @@ import '../../features/auth/screens/login_screen.dart';
 import '../../features/iptv/screens/playlist_selection_screen.dart';
 import '../../features/iptv/screens/dashboard_screen.dart';
 import '../../features/admin/screens/admin_panel.dart';
-import '../models/playlist_config.dart';
-import '../../mobile/features/auth/screens/mobile_login_screen.dart';
 import '../../mobile/features/iptv/screens/mobile_playlist_selection_screen.dart';
 import '../../mobile/features/iptv/screens/mobile_dashboard_screen.dart';
 import '../widgets/themed_loading_screen.dart';
+import '../../features/iptv/providers/xtream_provider.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -42,6 +41,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/playlists';
       }
 
+      // If we are on dashboard but have no playlist selected, try to restore it
+      if (state.matchedLocation == '/dashboard') {
+        final playlist = ref.read(selectedPlaylistProvider);
+        if (playlist == null) {
+          return '/playlists';
+        }
+      }
+
       return null;
     },
     routes: [
@@ -66,18 +73,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/dashboard',
         builder: (context, state) {
-          final playlist = state.extra as PlaylistConfig?;
+          final playlist = ref.watch(selectedPlaylistProvider);
           if (playlist == null) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              context.go('/playlists');
-            });
             return const Scaffold(
               body: ThemedLoading(),
             );
           }
-          
-          if (MediaQuery.of(context).size.width < 768) {
-             return MobileDashboardScreen(playlist: playlist);
+
+          // Adaptive layout without forcing a router rebuild on every pixel change
+          final isMobile = MediaQuery.sizeOf(context).width < 768;
+          if (isMobile) {
+            return MobileDashboardScreen(playlist: playlist);
           }
           return DashboardScreen(playlist: playlist);
         },

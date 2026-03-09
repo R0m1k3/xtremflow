@@ -108,7 +108,7 @@ class MobilePlayerScreen extends ConsumerWidget {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Center(
+      body: SizedBox.expand(
         child: LitePlayerView(
           streamUrl: streamUrl,
           isLive: streamType == StreamType.live,

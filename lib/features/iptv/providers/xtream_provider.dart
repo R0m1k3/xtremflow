@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:html' as html;
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/playlist_config.dart';
 import '../services/xtream_service.dart';
@@ -23,13 +26,39 @@ final _singletonXtreamServiceProvider = Provider<XtreamService>((ref) {
   return service;
 });
 
-/// Current selected playlist provider
-final selectedPlaylistProvider = StateProvider<PlaylistConfig?>((ref) => null);
+/// Current selected playlist provider with persistence for Web
+final selectedPlaylistProvider = StateProvider<PlaylistConfig?>((ref) {
+  // Restore from localStorage if on web
+  try {
+    final stored = html.window.localStorage['selected_playlist'];
+    if (stored != null) {
+      final data = jsonDecode(stored) as Map<String, dynamic>;
+      return PlaylistConfig.fromJson(data);
+    }
+  } catch (e) {
+    debugPrint('Error restoring playlist: $e');
+  }
+  return null;
+});
+
+// Listener to save selected playlist
+final playlistPersistenceProvider = Provider<void>((ref) {
+  ref.listen(selectedPlaylistProvider, (previous, next) {
+    if (next != null) {
+      html.window.localStorage['selected_playlist'] = jsonEncode(next.toJson());
+    } else {
+      html.window.localStorage.remove('selected_playlist');
+    }
+  });
+});
 
 /// Provider that watches for playlist changes and updates Xtream service
 final activeXtreamServiceProvider = Provider<XtreamService>((ref) {
   final service = ref.watch(_singletonXtreamServiceProvider);
   final playlist = ref.watch(selectedPlaylistProvider);
+
+  // Ensure persistence listener is active
+  ref.read(playlistPersistenceProvider);
 
   if (playlist != null) {
     service.setPlaylist(playlist);

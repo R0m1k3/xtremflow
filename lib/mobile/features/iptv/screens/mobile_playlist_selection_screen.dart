@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../features/iptv/providers/xtream_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/playlist_api_service.dart';
 import '../../../../core/models/playlist_config.dart';
@@ -44,7 +45,8 @@ class MobilePlaylistSelectionScreen extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                const Icon(Icons.error_outline,
+                    size: 48, color: AppColors.error),
                 const SizedBox(height: 16),
                 Text('Error loading playlists', style: GoogleFonts.inter()),
                 TextButton(
@@ -60,9 +62,12 @@ class MobilePlaylistSelectionScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.playlist_remove, size: 48, color: AppColors.textSecondary),
+                    const Icon(Icons.playlist_remove,
+                        size: 48, color: AppColors.textSecondary),
                     const SizedBox(height: 16),
-                    Text('No playlists available', style: GoogleFonts.inter(color: AppColors.textSecondary)),
+                    Text('No playlists available',
+                        style:
+                            GoogleFonts.inter(color: AppColors.textSecondary)),
                   ],
                 ),
               );
@@ -77,8 +82,11 @@ class MobilePlaylistSelectionScreen extends ConsumerWidget {
                 return _MobilePlaylistCard(
                   playlist: playlist,
                   onTap: () {
-                    // Mobile navigation to dashboard with playlist
-                    context.go('/dashboard', extra: playlist); 
+                    // Update provider which will be persisted
+                    ref.read(selectedPlaylistProvider.notifier).state =
+                        playlist;
+                    // Navigate without extra (it will be picked up from provider)
+                    context.go('/dashboard');
                   },
                 );
               },
@@ -130,7 +138,8 @@ class _MobilePlaylistCard extends StatelessWidget {
                     color: AppColors.primary.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.playlist_play, color: AppColors.primary, size: 28),
+                  child: const Icon(Icons.playlist_play,
+                      color: AppColors.primary, size: 28),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
