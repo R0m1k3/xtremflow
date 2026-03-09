@@ -34,16 +34,33 @@ class XtreamService {
     _dio.interceptors.add(DioCacheInterceptor(options: _cacheOptions));
   }
 
+  String? _manualBackendUrl;
+
   /// Get dynamic base URL for the local backend
-  /// On Web: use localhost (proxy handles it)
-  /// On Mobile: default to host machine IP for emulator
+  /// Priority:
+  /// 1. Manual override from settings
+  /// 2. Detected origin (Web)
+  /// 3. Host machine IP (Emulator)
   String get _backendBaseUrl {
-    if (kIsWeb) return 'http://localhost:8089';
-    // On Android emulator, 10.0.2.2 points to host machine's localhost
+    if (_manualBackendUrl != null && _manualBackendUrl!.isNotEmpty) {
+      return _manualBackendUrl!;
+    }
+    if (kIsWeb) {
+      final origin = Uri.base.origin;
+      if (origin.contains('localhost') && !origin.contains('8089')) {
+        return 'http://localhost:8089';
+      }
+      return origin;
+    }
     return 'http://10.0.2.2:8089';
   }
 
   String get backendBaseUrl => _backendBaseUrl;
+
+  /// Set manual backend URL override
+  void setBackendUrl(String? url) {
+    _manualBackendUrl = url;
+  }
 
   /// Wrap URL with proxy for all external IPTV URLs
   String _wrapWithProxy(String url) {

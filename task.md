@@ -19,6 +19,7 @@ Refonte du Guide TV pour inclure les catégories et corriger l'EPG.
 - [x] Correction de l'endpoint EPG Backend (Fallback)
 - [x] Correction du lecteur Mobile (LitePlayerView)
 - [x] Alignement UI Mobile (Tri, EPG, URLs)
+- [x] Correction Connectivité Mobile (Auto-origin + Manuel Override)
 
 ## Progress Log
 

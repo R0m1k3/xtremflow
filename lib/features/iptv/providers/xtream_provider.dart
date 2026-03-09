@@ -1,10 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/playlist_config.dart';
 import '../services/xtream_service.dart';
+import 'settings_provider.dart';
 
 /// Family provider for Xtream service - one instance per playlist
-final xtreamServiceProvider = Provider.family<XtreamService, PlaylistConfig>((ref, playlist) {
+final xtreamServiceProvider =
+    Provider.family<XtreamService, PlaylistConfig>((ref, playlist) {
   final service = XtreamService();
+  final settings = ref.watch(iptvSettingsProvider);
+  service.setBackendUrl(settings.backendUrl);
   service.setPlaylist(playlist);
   ref.onDispose(() => service.dispose());
   return service;
@@ -13,6 +17,8 @@ final xtreamServiceProvider = Provider.family<XtreamService, PlaylistConfig>((re
 /// Singleton Xtream service provider (legacy, for activeXtreamServiceProvider)
 final _singletonXtreamServiceProvider = Provider<XtreamService>((ref) {
   final service = XtreamService();
+  final settings = ref.watch(iptvSettingsProvider);
+  service.setBackendUrl(settings.backendUrl);
   ref.onDispose(() => service.dispose());
   return service;
 });
@@ -24,11 +30,11 @@ final selectedPlaylistProvider = StateProvider<PlaylistConfig?>((ref) => null);
 final activeXtreamServiceProvider = Provider<XtreamService>((ref) {
   final service = ref.watch(_singletonXtreamServiceProvider);
   final playlist = ref.watch(selectedPlaylistProvider);
-  
+
   if (playlist != null) {
     service.setPlaylist(playlist);
   }
-  
+
   return service;
 });
 
@@ -39,7 +45,8 @@ final liveChannelsProvider = FutureProvider.autoDispose((ref) async {
 });
 
 /// Provider for live TV channels by playlist (family provider)
-final liveChannelsByPlaylistProvider = FutureProvider.family.autoDispose((ref, PlaylistConfig playlist) async {
+final liveChannelsByPlaylistProvider =
+    FutureProvider.family.autoDispose((ref, PlaylistConfig playlist) async {
   final service = ref.watch(xtreamServiceProvider(playlist));
   return await service.getLiveChannels();
 });
@@ -57,7 +64,8 @@ final seriesProvider = FutureProvider.autoDispose((ref) async {
 });
 
 /// Provider for EPG of a specific stream
-final epgProvider = FutureProvider.family.autoDispose((ref, String streamId) async {
+final epgProvider =
+    FutureProvider.family.autoDispose((ref, String streamId) async {
   final service = ref.watch(activeXtreamServiceProvider);
   return await service.getShortEpg(streamId);
 });
@@ -66,9 +74,9 @@ final epgProvider = FutureProvider.family.autoDispose((ref, String streamId) asy
 class EpgRequestKey {
   final PlaylistConfig playlist;
   final String streamId;
-  
+
   const EpgRequestKey({required this.playlist, required this.streamId});
-  
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -82,7 +90,8 @@ class EpgRequestKey {
 }
 
 /// Provider for EPG with playlist context
-final epgByPlaylistProvider = FutureProvider.family.autoDispose((ref, EpgRequestKey key) async {
+final epgByPlaylistProvider =
+    FutureProvider.family.autoDispose((ref, EpgRequestKey key) async {
   final service = ref.watch(xtreamServiceProvider(key.playlist));
   return await service.getShortEpg(key.streamId);
 });

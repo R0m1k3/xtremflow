@@ -17,7 +17,8 @@ class MobileSettingsTab extends ConsumerStatefulWidget {
 class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
   late TextEditingController _liveTvController;
   late TextEditingController _moviesController;
-  late TextEditingController _seriesController;
+  late final TextEditingController _seriesController;
+  late final TextEditingController _backendUrlController;
   bool _initialized = false;
 
   @override
@@ -26,6 +27,7 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
     _liveTvController = TextEditingController();
     _moviesController = TextEditingController();
     _seriesController = TextEditingController();
+    _backendUrlController = TextEditingController();
   }
 
   @override
@@ -33,6 +35,7 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
     _liveTvController.dispose();
     _moviesController.dispose();
     _seriesController.dispose();
+    _backendUrlController.dispose();
     super.dispose();
   }
 
@@ -48,6 +51,9 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
     if (!_initialized ||
         _seriesController.text != settings.seriesCategoryFilter) {
       _seriesController.text = settings.seriesCategoryFilter;
+    }
+    if (!_initialized || _backendUrlController.text != settings.backendUrl) {
+      _backendUrlController.text = settings.backendUrl;
     }
     _initialized = true;
   }
@@ -268,6 +274,40 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                       .setAutoReconnect(val),
                   activeThumbColor: AppColors.primary,
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          const _SectionHeader(title: 'Server Settings'),
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                _FilterInput(
+                  label: 'Backend URL Override',
+                  icon: Icons.lan,
+                  controller: _backendUrlController,
+                  onChanged: (val) => ref
+                      .read(iptvSettingsProvider.notifier)
+                      .setBackendUrl(val),
+                ),
+                if (settings.backendUrl.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8, left: 32),
+                    child: Text(
+                      'Currently using: ${Uri.base.origin}',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textSecondary,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
