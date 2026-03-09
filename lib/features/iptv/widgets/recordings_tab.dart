@@ -115,7 +115,8 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
   bool get wantKeepAlive => true;
 
   Channel? _selectedChannel;
-  List<EpgEntry> _programmes = [];
+  // Map-based pour correspondre au format retourné par /api/epg/<id>
+  List<Map<String, dynamic>> _programmes = [];
   bool _loadingEpg = false;
   String _epgError = '';
 
@@ -135,7 +136,8 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
     super.dispose();
   }
 
-  /// Charge l'EPG via XtreamService (identique à EPGWidget)
+  /// Charge le guide EPG complet via le backend /api/epg/<channelId>
+  /// Le backend appelle get_epg (48h de programmes) et décode le base64
   Future<void> _loadEpg(Channel ch) async {
     setState(() {
       _selectedChannel = ch;
@@ -145,15 +147,26 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
     });
 
     try {
-      // Utiliser directement XtreamService comme EPGWidget — passe par /api/xtream/ proxy
-      final service = ref.read(xtreamServiceProvider(widget.playlist));
-      final epgEntries = await service.getShortEpg(ch.streamId);
-
+      final response =
+          await http.get(Uri.parse('/api/epg/${ch.streamId}'));
       if (mounted) {
-        setState(() {
-          _programmes = epgEntries;
-          _loadingEpg = false;
-        });
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body) as Map<String, dynamic>;
+          final list =
+              (data['programmes'] as List<dynamic>? ?? [])
+                  .whereType<Map<String, dynamic>>()
+                  .toList();
+          setState(() {
+            _programmes = list;
+            _loadingEpg = false;
+          });
+        } else {
+          setState(() {
+            _epgError =
+                'Erreur ${response.statusCode}: ${response.body}';
+            _loadingEpg = false;
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -383,7 +396,6 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                                             _ProgrammeCard(
                                           programme: _programmes[i],
                                           channel: _selectedChannel!,
-                                          playlist: widget.playlist,
                                         ),
                                       ),
                       ),
@@ -401,53 +413,58 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
 // ═══════════════════════════════════════════════════════════════════════════
 
 class _ProgrammeCard extends StatelessWidget {
-  final EpgEntry programme;
+  final Map<String, dynamic> programme;
   final Channel channel;
-  final PlaylistConfig playlist;
 
   const _ProgrammeCard({
     required this.programme,
     required this.channel,
-    required this.playlist,
   });
 
+  String get _start => programme['start'] as String? ?? '';
+  String get _end => programme['end'] as String? ?? '';
+  String get _title => programme['title'] as String? ?? '';
+  String get _description => programme['description'] as String? ?? '';
+
   String _fmt(String raw) {
+    if (raw.isEmpty) return '';
     try {
-      final dt = DateTime.parse(raw).toLocal();
+      // Format Xtream : "2026-03-09 09:00:00" ou ISO "2026-03-09T09:00:00Z"
+      final dt = DateTime.parse(raw.replaceFirst(' ', 'T')).toLocal();
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     } catch (_) {
       return raw.length >= 16 ? raw.substring(11, 16) : raw;
     }
   }
 
-  bool get _isNow {
+  DateTime? _parseTime(String raw) {
+    if (raw.isEmpty) return null;
     try {
-      final s = DateTime.parse(programme.start);
-      final e = DateTime.parse(programme.end);
-      final now = DateTime.now().toUtc();
-      return now.isAfter(s) && now.isBefore(e);
+      return DateTime.parse(raw.replaceFirst(' ', 'T')).toUtc();
     } catch (_) {
-      return false;
+      return null;
     }
+  }
+
+  bool get _isNow {
+    final s = _parseTime(_start);
+    final e = _parseTime(_end);
+    if (s == null || e == null) return false;
+    final now = DateTime.now().toUtc();
+    return now.isAfter(s) && now.isBefore(e);
   }
 
   bool get _isPast {
-    try {
-      return DateTime.now().toUtc().isAfter(DateTime.parse(programme.end));
-    } catch (_) {
-      return false;
-    }
+    final e = _parseTime(_end);
+    if (e == null) return false;
+    return DateTime.now().toUtc().isAfter(e);
   }
 
   void _record(BuildContext context) {
-    try {
-      final start = DateTime.parse(programme.start).toUtc();
-      final end = DateTime.parse(programme.end).toUtc();
-      _showConfirm(context, programme.title, start, end);
-    } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Erreur: $e')));
-    }
+    final s = _parseTime(_start);
+    final e = _parseTime(_end);
+    if (s == null || e == null) return;
+    _showConfirm(context, _title, s, e);
   }
 
   void _showConfirm(
@@ -468,20 +485,20 @@ class _ProgrammeCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title,
+            Text(title.isEmpty ? channel.name : title,
                 style: GoogleFonts.outfit(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 16)),
             const SizedBox(height: 8),
             Text(
-              '${_fmt(programme.start)} → ${_fmt(programme.end)}',
+              '${_fmt(_start)} → ${_fmt(_end)}',
               style: const TextStyle(color: Colors.white70),
             ),
-            if (programme.description.isNotEmpty) ...[
+            if (_description.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
-                programme.description,
+                _description,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: Colors.white38, fontSize: 12),
@@ -498,7 +515,8 @@ class _ProgrammeCard extends StatelessWidget {
                 ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () async {
               Navigator.pop(ctx);
-              await _saveRecording(context, title, start, end);
+              await _saveRecording(
+                  context, title.isEmpty ? channel.name : title, start, end);
             },
             child: const Text('🔴 Enregistrer'),
           ),
@@ -510,13 +528,12 @@ class _ProgrammeCard extends StatelessWidget {
   Future<void> _saveRecording(
       BuildContext context, String title, DateTime start, DateTime end) async {
     try {
-      final streamUrl = '/api/live/${channel.streamId}.ts';
       final response = await http.post(
         Uri.parse('/api/recordings'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'channel_id': channel.streamId,
-          'stream_url': streamUrl,
+          'stream_url': '/api/live/${channel.streamId}.ts',
           'title': title,
           'start_time': start.toIso8601String(),
           'end_time': end.toIso8601String(),
@@ -564,7 +581,7 @@ class _ProgrammeCard extends StatelessWidget {
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
         leading: SizedBox(
-          width: 48,
+          width: 52,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -583,7 +600,7 @@ class _ProgrammeCard extends StatelessWidget {
                 )
               else
                 Text(
-                  _fmt(programme.start),
+                  _fmt(_start),
                   style: GoogleFonts.outfit(
                     color: isPast ? Colors.white24 : Colors.white70,
                     fontSize: 13,
@@ -592,15 +609,15 @@ class _ProgrammeCard extends StatelessWidget {
                 ),
               if (!isNow)
                 Text(
-                  _fmt(programme.end),
-                  style: GoogleFonts.outfit(
-                      color: Colors.white24, fontSize: 10),
+                  _fmt(_end),
+                  style:
+                      GoogleFonts.outfit(color: Colors.white24, fontSize: 10),
                 ),
             ],
           ),
         ),
         title: Text(
-          programme.title.isEmpty ? '—' : programme.title,
+          _title.isEmpty ? '—' : _title,
           style: GoogleFonts.outfit(
             color: isPast ? Colors.white38 : Colors.white,
             fontWeight: isNow ? FontWeight.bold : FontWeight.normal,
@@ -608,13 +625,12 @@ class _ProgrammeCard extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
-        subtitle: programme.description.isNotEmpty
+        subtitle: _description.isNotEmpty
             ? Text(
-                programme.description,
+                _description,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style:
-                    const TextStyle(color: Colors.white38, fontSize: 11),
+                style: const TextStyle(color: Colors.white38, fontSize: 11),
               )
             : null,
         trailing: !isPast
@@ -629,6 +645,7 @@ class _ProgrammeCard extends StatelessWidget {
     );
   }
 }
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  ONGLET 2 — ENREGISTREMENTS
