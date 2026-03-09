@@ -176,12 +176,15 @@ Handler createLiveStreamHandler(
         '-hls_time', '2', // Small segments for low latency
         '-hls_list_size', '5', // 10 seconds of history
         '-hls_flags', 'delete_segments+independent_segments',
-        '-hls_segment_type', 'mpegts',
-        '-hls_segment_filename', '${streamDir.path}/seg_%03d.ts',
-        '${streamDir.path}/playlist.m3u8',
+        '-hls_segment_filename', 'seg_%03d.ts',
+        'playlist.m3u8',
       ];
 
-      final process = await Process.start(_getFFmpegPath(), ffmpegArgs);
+      final process = await Process.start(
+        _getFFmpegPath(),
+        ffmpegArgs,
+        workingDirectory: streamDir.path,
+      );
       _liveProcesses[streamId] = process;
 
       process.stderr
@@ -205,6 +208,7 @@ Handler createLiveStreamHandler(
       'Content-Type': 'application/vnd.apple.mpegurl',
       'Access-Control-Allow-Origin': '*',
       'Cache-Control': 'no-cache',
+      'X-Content-Type-Options': 'nosniff',
     });
   });
 
@@ -432,14 +436,18 @@ Handler createVodStreamHandler(
         '-hls_segment_type',
         'mpegts',
         '-hls_segment_filename',
-        '${streamDir.path}/segment_%03d.ts',
+        'segment_%03d.ts',
         '-start_number',
         '0',
-        '${streamDir.path}/playlist.m3u8',
+        'playlist.m3u8',
       ]);
 
       final ffmpegPath = _getFFmpegPath();
-      Process.start(ffmpegPath, ffmpegArgs).then((process) {
+      Process.start(
+        ffmpegPath,
+        ffmpegArgs,
+        workingDirectory: streamDir.path,
+      ).then((process) {
         _vodProcesses[streamId] = process;
 
         process.stderr.transform(utf8.decoder).listen((data) {
