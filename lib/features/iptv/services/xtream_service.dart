@@ -18,9 +18,9 @@ class XtreamService {
   XtreamService() {
     _dio = Dio(
       BaseOptions(
-        connectTimeout: const Duration(seconds: 300),
-        receiveTimeout: const Duration(seconds: 300),
-        sendTimeout: const Duration(seconds: 300),
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 60),
+        sendTimeout: const Duration(seconds: 60),
       ),
     );
 
@@ -28,8 +28,8 @@ class XtreamService {
     // Use MemCacheStore on Web to avoid path errors
     _cacheOptions = CacheOptions(
       store: kIsWeb ? MemCacheStore() : HiveCacheStore('./cache'),
-      policy: CachePolicy.refresh, // Allow refresh if stale
-      maxStale: const Duration(minutes: 15), // Reduced from 1h to 15m for better sync
+      policy: CachePolicy.forceCache, // Prioritize local cache
+      maxStale: const Duration(hours: 1), // Increase to 1h for stability
       priority: CachePriority.high,
     );
 

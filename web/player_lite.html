@@ -243,11 +243,11 @@
             }
 
             const hls = new Hls({
-                maxBufferLength: 30, // 30s is plenty for desktop stability
-                maxMaxBufferLength: 60,
+                maxBufferLength: 60, // Increased for better stability
+                maxMaxBufferLength: 120,
                 enableWorker: true,
-                liveSyncDurationCount: 3,
-                liveMaxLatencyDurationCount: 10,
+                liveSyncDurationCount: 5, // More stable sync
+                liveMaxLatencyDurationCount: 15,
                 lowLatencyMode: true
             });
 
