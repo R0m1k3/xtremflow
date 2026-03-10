@@ -40,7 +40,7 @@ class EpgApi {
           '&action=get_epg&stream_id=$channelId&limit=48';
 
       var response =
-          await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+          await http.get(Uri.parse(url)).timeout(const Duration(seconds: 60));
       Map<String, dynamic> epgData = {
         'channel_id': channelId,
         'programmes': []
@@ -57,7 +57,7 @@ class EpgApi {
             '$dns/player_api.php?username=${playlist.username}&password=${playlist.password}'
             '&action=get_short_epg&stream_id=$channelId';
         response =
-            await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
+            await http.get(Uri.parse(url)).timeout(const Duration(seconds: 60));
         if (response.statusCode == 200) {
           final raw = json.decode(response.body);
           epgData = _transformEpgData(raw, channelId);

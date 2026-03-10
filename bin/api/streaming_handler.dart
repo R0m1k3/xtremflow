@@ -69,7 +69,7 @@ Future<String> _resolveRedirects(String url, {int maxRedirects = 5}) async {
       request.followRedirects = false;
 
       final response = await client.send(request).timeout(
-            const Duration(seconds: 10),
+            const Duration(seconds: 30),
             onTimeout: () =>
                 throw TimeoutException('Redirect resolution timeout'),
           );

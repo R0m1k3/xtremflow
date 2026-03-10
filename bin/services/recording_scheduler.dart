@@ -128,7 +128,7 @@ class RecordingScheduler {
         final url = '$dns/player_api.php?username=$username&password=$password'
             '&action=get_simple_data_table&stream_id=$channelId&type=epg&limit=48';
 
-        final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+        final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 60));
         if (response.statusCode != 200) continue;
 
         final raw = json.decode(response.body);
