@@ -1,5 +1,5 @@
-# Stage 1: Build Flutter Web Application
-FROM ghcr.io/cirruslabs/flutter:stable AS web-builder
+# Stage 1: Build Environment (Combined for stability and resource management)
+FROM ghcr.io/cirruslabs/flutter:stable AS builder
 
 USER root
 WORKDIR /app
@@ -7,47 +7,35 @@ WORKDIR /app
 # Optimize DART VM Memory for build
 ENV DART_VM_OPTIONS="--old_gen_heap_size=16384"
 ENV FLUTTER_NO_ANALYTICS=1
+ENV PUB_SUMMARY_ONLY=1
 
-# Enable web support and pre-download artifacts
+# 1. Pre-download artifacts (Crucial for Docker stability)
 RUN flutter config --enable-web && flutter precache --web
 
-# Copy dependency files first
+# 2. Copy dependency files first for better caching
+# Root (Flutter Web)
 COPY pubspec.yaml ./
-RUN flutter pub get
+# Server (Dart shelf)
+COPY bin/pubspec.yaml ./bin/
 
-# Copy source code
+# 3. Get dependencies sequentially to avoid network/CPU contention
+RUN flutter pub get && cd bin && dart pub get
+
+# 4. Copy source code
 COPY . .
 
-# Generate code
+# 5. Generate code (build_runner)
 RUN dart run build_runner build --delete-conflicting-outputs
 
-# Build web application
-RUN flutter build web --release --base-href="/" --no-tree-shake-icons
+# 6. Build web application (VERBOSE to see progress/blocks)
+RUN flutter build web --release --base-href="/" --no-tree-shake-icons --verbose
 
-# ============================================
-# Stage 2: Compile Configurable Server (Native)
-# ============================================
-# Server has its own pubspec.yaml in bin/ directory with shelf, shelf_router, etc.
-# We use dart:stable here since bin/pubspec.yaml does NOT depend on Flutter SDK
-FROM dart:stable AS server-builder
-
-WORKDIR /app
-
-# Copy server-specific pubspec and source files
-# NOTE: bin/ has its own pubspec.yaml with server dependencies
-COPY bin/ ./bin/
-# lib/ is needed for shared models between frontend and backend
-COPY lib/ ./lib/
-
-# Get server dependencies (from bin/pubspec.yaml)
+# 7. Compile server to native executable
 WORKDIR /app/bin
-RUN dart pub get
-
-# Compile server to native executable
 RUN dart compile exe server.dart -o server
 
 # ============================================
-# Stage 3: Production Runtime (with NVENC support)
+# Stage 2: Production Runtime (with NVENC support)
 # ============================================
 FROM debian:stable-slim
 
@@ -80,9 +68,9 @@ WORKDIR /app
 RUN mkdir -p /app/data /app/web /app/recordings /tmp/xtremflow_streams \
     && chown -R xtremuser:xtremuser /app /tmp/xtremflow_streams
 
-# Copy built artifacts
-COPY --from=web-builder /app/build/web /app/web
-COPY --from=server-builder /app/bin/server /app/server
+# Copy built artifacts from builder stage
+COPY --from=builder /app/build/web /app/web
+COPY --from=builder /app/bin/server /app/server
 
 # Copy entrypoint script and set permissions
 COPY entrypoint.sh /app/entrypoint.sh
