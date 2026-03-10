@@ -296,7 +296,7 @@
                 url: url
             }, {
                 enableWorker: true,
-                stashInitialSize: 64 * 1024, // Turbo Start: 64KB initial buffer
+                stashInitialSize: 256 * 1024, // Optimized Turbo Start: 256KB initial buffer
                 enableStashBuffer: true,
                 liveBufferLatencyChasing: true,
                 liveBufferLatencyChasingOnPaused: true,
@@ -310,7 +310,20 @@
             player.load();
             player.play().catch(() => playOverlay.style.display = 'flex');
 
-            player.on(mpegts.Events.ERROR, () => showError('MpegTS Error'));
+            player.on(mpegts.Events.ERROR, (type, detail, info) => {
+                log('MpegTS Error: ' + type + ' - ' + detail);
+                // Auto-recover after 2 seconds
+                setTimeout(() => {
+                    try {
+                        player.unload();
+                        player.detachMediaElement();
+                        player.destroy();
+                        playWithMpegTS(url, isLive);
+                    } catch (e) {
+                        showError('MpegTS Recovery Failed');
+                    }
+                }, 2000);
+            });
 
             return true;
         }

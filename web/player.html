@@ -292,13 +292,20 @@
             if (!mpegts.isSupported()) return false;
             const player = mpegts.createPlayer({ type: 'mpegts', isLive: isLive, url: url }, { 
                 enableWorker: true, 
-                stashInitialSize: 64 * 1024, // Turbo Start: 64KB initial buffer
+                stashInitialSize: 256 * 1024, // Optimized Turbo Start
                 maxStashSize: 20 * 1024 * 1024 // 20MB buffer capacity
             });
             player.attachMediaElement(video);
             player.load();
             player.play().catch(() => playOverlay.style.display = 'flex');
-            player.on(mpegts.Events.ERROR, () => showError('Stream error'));
+            
+            player.on(mpegts.Events.ERROR, (type, detail) => {
+                log('MpegTS Error: ' + type + ' - ' + detail);
+                setTimeout(() => {
+                    player.destroy();
+                    playWithMpegTS(url, isLive);
+                }, 2000);
+            });
             return true;
         }
 
