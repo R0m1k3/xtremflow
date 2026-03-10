@@ -245,22 +245,19 @@
             const isTurbo = urlParams.get('turbo') === 'true';
 
             const hls = new Hls({
-                maxBufferLength: 120, // Doubled for stability
+                maxBufferLength: 120,
                 maxMaxBufferLength: 240,
                 enableWorker: true,
-                liveSyncDurationCount: 6, // Slightly more buffer for micro-cut protection
-                liveMaxLatencyDurationCount: 40,
-                lowLatencyMode: false, // Disabled for better stability on laggy connections
-                // Robustness features
-                nudgeOffset: 0.6, // More aggressive jump over corrupted frames
-                nudgeMaxRetries: 25,
-                maxLiveSyncPlaybackRate: 1.2, // Smooth catch-up
-                // Turbo-Start specific
-                startLevel: 0,
-                initialLiveManifestSize: 1,
-                abrEwmaDefaultEstimate: 700000,
-                manifestLoadingRetryDelay: 500,
-                levelLoadingRetryDelay: 500
+                liveSyncDurationCount: 10,
+                liveMaxLatencyDurationCount: 30,
+                lowLatencyMode: false,
+                nudgeOffset: 0.8,
+                nudgeMaxRetries: 30,
+                maxLiveSyncPlaybackRate: 1.1,
+                initialLiveManifestSize: 3,
+                abrEwmaDefaultEstimate: 1000000,
+                manifestLoadingRetryDelay: 1000,
+                levelLoadingRetryDelay: 1000
             });
 
             window.hlsInstance = hls;
@@ -269,7 +266,12 @@
 
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
                 hideLoading();
-                video.play().catch(() => playOverlay.style.display = 'flex');
+                const checkBuffer = setInterval(() => {
+                    if (video.buffered.length > 0 && video.buffered.end(0) > 1.5) {
+                        clearInterval(checkBuffer);
+                        video.play().catch(() => playOverlay.style.display = 'flex');
+                    }
+                }, 200);
             });
 
             hls.on(Hls.Events.ERROR, (event, data) => {
