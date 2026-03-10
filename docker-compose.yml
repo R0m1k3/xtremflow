@@ -1,7 +1,7 @@
 services:
   xtremflow:
     build:
-      context: https://github.com/R0m1k3/xtremflow.git
+      context: .
       dockerfile: Dockerfile
     container_name: xtremflow
     ports:
