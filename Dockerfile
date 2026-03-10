@@ -22,12 +22,7 @@ COPY . .
 RUN dart run build_runner build --delete-conflicting-outputs
 
 # Build web application
-RUN flutter build web --release \
-    --base-href="/" \
-    --no-pub \
-    --no-wasm-dry-run \
-    --no-tree-shake-icons \
-    --verbose
+RUN flutter build web --release --base-href="/" --no-tree-shake-icons
 
 # ============================================
 # Stage 2: Compile Configurable Server (Native)
