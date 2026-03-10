@@ -231,12 +231,16 @@
                 const isTurbo = urlParams.get('turbo') === 'true';
 
                 const hls = new Hls({
-                    maxBufferLength: isTurbo ? 45 : 60,
-                    maxMaxBufferLength: isTurbo ? 90 : 120,
-                    liveSyncDurationCount: isTurbo ? 3 : 5, // Improved stability
-                    liveMaxLatencyDurationCount: isTurbo ? 15 : 20,
+                    maxBufferLength: 60,
+                    maxMaxBufferLength: 120,
+                    liveSyncDurationCount: 6,
+                    liveMaxLatencyDurationCount: 20,
                     enableWorker: true,
                     lowLatencyMode: true,
+                    // Robustness
+                    nudgeOffset: 0.2,
+                    nudgeMaxRetries: 10,
+                    maxLiveSyncPlaybackRate: 1.1,
                     // Turbo-Start specific
                     startLevel: isTurbo ? 0 : -1,
                     initialLiveManifestSize: 1,

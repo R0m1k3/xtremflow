@@ -245,12 +245,16 @@
             const isTurbo = urlParams.get('turbo') === 'true';
 
             const hls = new Hls({
-                maxBufferLength: isTurbo ? 45 : 60,
-                maxMaxBufferLength: isTurbo ? 90 : 120,
+                maxBufferLength: 60, // Increased for stability
+                maxMaxBufferLength: 120,
                 enableWorker: true,
-                liveSyncDurationCount: isTurbo ? 3 : 5, // Improved stability
-                liveMaxLatencyDurationCount: isTurbo ? 15 : 20,
+                liveSyncDurationCount: 6, // More distance from live edge (TiviMate style)
+                liveMaxLatencyDurationCount: 20,
                 lowLatencyMode: true,
+                // Robustness features
+                nudgeOffset: 0.2, // Jump over discontinuities
+                nudgeMaxRetries: 10,
+                maxLiveSyncPlaybackRate: 1.1, // Smooth catch-up
                 // Turbo-Start specific
                 startLevel: isTurbo ? 0 : -1,
                 initialLiveManifestSize: 1,
@@ -292,12 +296,14 @@
                 url: url
             }, {
                 enableWorker: true,
-                stashInitialSize: isTurbo ? 512 * 1024 : 1024 * 1024, // 512KB for better stability
-                enableStashBuffer: true, // Re-enable stash buffer for stability
-                liveBufferLatencyChasing: true, // Correct drift
+                stashInitialSize: isTurbo ? 1024 * 1024 : 1024 * 1024, // 1MB Large buffer for everyone
+                enableStashBuffer: true,
+                liveBufferLatencyChasing: true,
                 liveBufferLatencyChasingOnPaused: true,
+                liveBufferLatencyMaxLatency: 3.0, // Safety margin
+                liveBufferLatencyMinLatency: 1.0,
                 lazyLoad: false,
-                maxStashSize: 1024 * 1024 // 1MB Max
+                maxStashSize: 2 * 1024 * 1024 // 2MB Max
             });
 
             player.attachMediaElement(video);
