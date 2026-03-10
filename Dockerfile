@@ -11,10 +11,11 @@ WORKDIR /app
 RUN git config --global --add safe.directory /app
 
 # Optimize DART VM Memory for build to prevent OOM
-ENV DART_VM_OPTIONS="--old_gen_heap_size=4096"
+# Increased to 16GB for high-performance servers
+ENV DART_VM_OPTIONS="--old_gen_heap_size=16384"
 
-# Enable web support (idempotent)
-RUN flutter config --enable-web
+# Enable web support and PRECACHE artifacts to avoid downloads during build
+RUN flutter config --enable-web && flutter precache --web
 
 # Clean build environment at the START if needed, but usually redundant in fresh image
 # RUN flutter clean
