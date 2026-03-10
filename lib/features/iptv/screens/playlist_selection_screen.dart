@@ -17,7 +17,6 @@ class PlaylistSelectionScreen extends ConsumerWidget {
   const PlaylistSelectionScreen({super.key});
 
   @override
-  @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentUser = ref.watch(authProvider).currentUser;
     final playlistsAsync = ref.watch(playlistsProvider);
@@ -149,7 +148,10 @@ class PlaylistSelectionScreen extends ConsumerWidget {
                 return _PlaylistCard(
                   playlist: playlist,
                   onTap: () {
-                    context.go('/dashboard', extra: playlist);
+                    // Update current selected playlist provider first
+                    ref.read(selectedPlaylistProvider.notifier).state = playlist;
+                    // Then navigate to dashboard
+                    context.go('/dashboard');
                   },
                 );
               },
