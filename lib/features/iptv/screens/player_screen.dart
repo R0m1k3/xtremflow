@@ -132,20 +132,29 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       }
 
       // Store URL for Lite Player
+      final isMobile = MediaQuery.of(context).size.width < 600;
+      final isLiveTV = widget.streamType == StreamType.live;
+      
+      // TURBO-START: Use direct MPEG-TS for Live TV on Desktop/Android for instant zapping
+      if (isLiveTV && !isMobile) {
+        streamUrl = service.getLiveStreamUrlTs(currentStreamId);
+      }
+
       _currentStreamUrl = streamUrl;
 
       final encodedUrl = Uri.encodeComponent(streamUrl);
       // Force player choice based on stream type:
       // - Live TV: Player Lite (simple TS playback with mpegts.js)
       // - VOD/Series: Player Standard (fuller controls, HLS support)
-      final isMobile = MediaQuery.of(context).size.width < 600;
-      final isLiveTV = widget.streamType == StreamType.live;
+      
       // Cache buster to force reload of updated player.html
       final cacheBuster = DateTime.now().millisecondsSinceEpoch;
 
       final streamTypeParam = widget.streamType == StreamType.live ? 'live' : 'vod';
       final playerFile = isMobile ? 'player_mobile.html' : (isLiveTV ? 'player_lite.html' : 'player.html');
-      var playerSrc = '$playerFile?url=$encodedUrl&type=$streamTypeParam&v=$cacheBuster';
+      
+      // Inject Turbo-Start flag
+      var playerSrc = '$playerFile?url=$encodedUrl&type=$streamTypeParam&turbo=true&v=$cacheBuster';
 
       if (startTimeOverride != null) {
         playerSrc += '&t=$startTimeOverride';

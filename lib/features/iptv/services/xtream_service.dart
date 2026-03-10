@@ -89,11 +89,22 @@ class XtreamService {
     _currentPlaylist = playlist;
   }
 
-  /// Generate stream URL for live TV
+  /// Generate stream URL for live TV (HLS)
   String getLiveStreamUrl(String streamId) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
-    // Use HLS (.m3u8) with a subpath to ensure relative segments resolve correctly
     return '$_backendBaseUrl/api/live/$streamId/playlist.m3u8';
+  }
+
+  /// Generate stream URL for live TV (Direct MPEG-TS)
+  /// Faster zapping on compatible players (mpegts.js)
+  String getLiveStreamUrlTs(String streamId) {
+    if (_currentPlaylist == null) throw Exception('No playlist configured');
+    // Direct link to the .ts stream through our proxy
+    final dns = _currentPlaylist!.dns;
+    final user = _currentPlaylist!.username;
+    final pass = _currentPlaylist!.password;
+    final url = '$dns/live/$user/$pass/$streamId.ts';
+    return '$_backendBaseUrl/api/xtream/${Uri.encodeComponent(url)}';
   }
 
   /// Generate stream URL for VOD (movies)

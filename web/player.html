@@ -250,7 +250,19 @@
                 return false;
             }
 
-            const hls = new Hls({ maxBufferLength: 45, enableWorker: true });
+            const isTurbo = urlParams.get('turbo') === 'true';
+
+            const hls = new Hls({
+                maxBufferLength: isTurbo ? 30 : 45,
+                enableWorker: true,
+                liveSyncDurationCount: isTurbo ? 2 : 4,
+                // Turbo-Start specific
+                startLevel: isTurbo ? 0 : -1,
+                initialLiveManifestSize: 1,
+                abrEwmaDefaultEstimate: 500000,
+                manifestLoadingRetryDelay: 500,
+                levelLoadingRetryDelay: 500
+            });
             window.hlsInstance = hls;
             hls.loadSource(url);
             hls.attachMedia(video);

@@ -228,13 +228,21 @@
             // Android / Chrome - HLS.js
             if (isHLS && Hls.isSupported()) {
                 log('Using Hls.js optimized for mobile');
+                const isTurbo = urlParams.get('turbo') === 'true';
+
                 const hls = new Hls({
-                    maxBufferLength: 60, // More buffer for mobile stability
-                    maxMaxBufferLength: 120,
-                    liveSyncDurationCount: 5,
-                    liveMaxLatencyDurationCount: 15,
+                    maxBufferLength: isTurbo ? 30 : 60,
+                    maxMaxBufferLength: isTurbo ? 60 : 120,
+                    liveSyncDurationCount: isTurbo ? 2 : 5,
+                    liveMaxLatencyDurationCount: isTurbo ? 10 : 15,
                     enableWorker: true,
-                    lowLatencyMode: false // Disable low latency for continuity
+                    lowLatencyMode: !isTurbo, // Prioritize stability unless Turbo requested
+                    // Turbo-Start specific
+                    startLevel: isTurbo ? 0 : -1,
+                    initialLiveManifestSize: 1,
+                    abrEwmaDefaultEstimate: 500000,
+                    manifestLoadingRetryDelay: 500,
+                    levelLoadingRetryDelay: 500
                 });
                 hls.loadSource(streamUrl);
                 hls.attachMedia(video);

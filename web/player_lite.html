@@ -242,13 +242,21 @@
                 return false;
             }
 
+            const isTurbo = urlParams.get('turbo') === 'true';
+
             const hls = new Hls({
-                maxBufferLength: 60, // Increased for better stability
-                maxMaxBufferLength: 120,
+                maxBufferLength: isTurbo ? 30 : 60,
+                maxMaxBufferLength: isTurbo ? 60 : 120,
                 enableWorker: true,
-                liveSyncDurationCount: 5, // More stable sync
-                liveMaxLatencyDurationCount: 15,
-                lowLatencyMode: true
+                liveSyncDurationCount: isTurbo ? 2 : 5, // Aggressive sync for Turbo
+                liveMaxLatencyDurationCount: isTurbo ? 10 : 15,
+                lowLatencyMode: true,
+                // Turbo-Start specific
+                startLevel: isTurbo ? 0 : -1, // Lowest bitrate first
+                initialLiveManifestSize: 1,
+                abrEwmaDefaultEstimate: 500000, // Start with conservative estimate
+                manifestLoadingRetryDelay: 500,
+                levelLoadingRetryDelay: 500
             });
 
             window.hlsInstance = hls;
@@ -277,14 +285,15 @@
 
             if (!mpegts.isSupported()) return false;
 
+            const isTurbo = urlParams.get('turbo') === 'true';
             const player = mpegts.createPlayer({
                 type: 'mpegts',
                 isLive: isLive,
                 url: url
             }, {
                 enableWorker: true,
-                stashInitialSize: 512 * 1024, // Smaller stash for faster start and better audio sync
-                enableStashBuffer: true,
+                stashInitialSize: isTurbo ? 128 * 1024 : 512 * 1024, // Tiny stash for Turbo zapping
+                enableStashBuffer: !isTurbo, // Direct pass-through for Live TV Turbo
                 lazyLoad: false
             });
 
