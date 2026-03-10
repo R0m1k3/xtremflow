@@ -1,0 +1,45 @@
+# Dockerfile optimisé pour mises à jour rapides (Fast-Path)
+# Ce Dockerfile assume que les fichiers Flutter Web ont déjà été compilés en local
+# dans le dossier `build/web`.
+
+FROM debian:stable-slim
+
+# Éviter les prompts à l'installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Installation des dépendances minimales (Dart + FFmpeg)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget \
+    ca-certificates \
+    unzip \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Installation de Dart SDK (version spécifique pour compatibilité)
+RUN wget https://storage.googleapis.com/dart-archive/channels/stable/release/3.3.0/sdk/dartsdk-linux-x64-release.zip -O /tmp/dart-sdk.zip && \
+    unzip /tmp/dart-sdk.zip -d /usr/lib && \
+    rm /tmp/dart-sdk.zip
+
+ENV PATH="/usr/lib/dart-sdk/bin:${PATH}"
+
+# Création de l'utilisateur non-root
+RUN useradd -m xtremuser
+WORKDIR /app
+
+# Création des dossiers de données avec permissions
+RUN mkdir -p /app/data/logs /app/data/tmp /app/web && \
+    chown -R xtremuser:xtremuser /app
+
+# Copie des fichiers pré-compilés du serveur (doit être compilé en local si possible, sinon ici)
+COPY --chown=xtremuser:xtremuser bin/ /app/bin/
+RUN cd bin && dart pub get
+
+# Copie des fichiers pré-compilés du frontend (build/web doit exister en local)
+COPY --chown=xtremuser:xtremuser build/web/ /app/web/
+
+USER xtremuser
+EXPOSE 8089
+
+# Commande de lancement (compilation JIT du serveur pour rapidité de build, ou EXE si déjà fait)
+# Pour une rapidité maximale de "build", on lance le script dart directement car la compilation EXE prend du temps.
+CMD ["dart", "bin/server.dart", "--port", "8089", "--path", "/app/web"]

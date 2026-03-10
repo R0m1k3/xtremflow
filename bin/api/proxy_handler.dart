@@ -10,6 +10,7 @@ import '../database/database.dart';
 class ProxyHandler {
   final Future<PlaylistConfig?> Function(Request) _getPlaylist;
   final AppDatabase _db;
+  final http.Client _client = http.Client();
 
   static const _allowedHeaders = [
     'content-type',
@@ -122,7 +123,6 @@ class ProxyHandler {
           'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
           'Accept': '*/*',
           'Accept-Encoding': 'identity',
-          'Connection': 'close',
         };
 
         // Forward Range header if present
@@ -130,7 +130,6 @@ class ProxyHandler {
           proxyHeaders['range'] = request.headers['range']!;
         }
 
-        final client = http.Client();
         try {
           print('[Proxy] Forwarding to: $targetUrl');
           final proxyRequest = http.Request(request.method, targetUrl);
@@ -142,7 +141,10 @@ class ProxyHandler {
             proxyRequest.bodyBytes = bodyBytes.expand((i) => i).toList();
           }
 
-          final response = await client.send(proxyRequest);
+          // Added 90s timeout to allow frontend (60s) to time out gracefully first
+          final response = await _client
+              .send(proxyRequest)
+              .timeout(const Duration(seconds: 90));
 
           // Build response headers from source response
           final responseHeaders = <String, String>{
@@ -177,7 +179,6 @@ class ProxyHandler {
             headers: responseHeaders,
           );
         } catch (e) {
-          client.close();
           rethrow;
         }
       } catch (e) {

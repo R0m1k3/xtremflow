@@ -10,20 +10,35 @@ import 'settings_provider.dart';
 final xtreamServiceProvider =
     Provider.family<XtreamService, PlaylistConfig>((ref, playlist) {
   final service = XtreamService();
-  final settings = ref.watch(iptvSettingsProvider);
+  final settings = ref.read(iptvSettingsProvider);
   service.setBackendUrl(settings.backendUrl);
   service.updateTimeouts(settings.timeoutSeconds);
   service.setPlaylist(playlist);
-  ref.onDispose(() => service.dispose());
+
+  // Update instance without rebuilding the provider to keep connectivity active
+  ref.listen(iptvSettingsProvider, (previous, next) {
+    service.setBackendUrl(next.backendUrl);
+    service.updateTimeouts(next.timeoutSeconds);
+  });
+
+  // ref.onDispose(() => service.dispose()); // Removed to prevent premature Dio destruction
   return service;
 });
 
 /// Singleton Xtream service provider (legacy, for activeXtreamServiceProvider)
 final _singletonXtreamServiceProvider = Provider<XtreamService>((ref) {
   final service = XtreamService();
-  final settings = ref.watch(iptvSettingsProvider);
+  final settings = ref.read(iptvSettingsProvider);
   service.setBackendUrl(settings.backendUrl);
-  ref.onDispose(() => service.dispose());
+  service.updateTimeouts(settings.timeoutSeconds);
+
+  // Update instance without rebuilding the provider
+  ref.listen(iptvSettingsProvider, (previous, next) {
+    service.setBackendUrl(next.backendUrl);
+    service.updateTimeouts(next.timeoutSeconds);
+  });
+
+  // ref.onDispose(() => service.dispose()); // Removed to prevent premature Dio destruction
   return service;
 });
 
