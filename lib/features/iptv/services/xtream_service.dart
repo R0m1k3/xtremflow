@@ -291,7 +291,7 @@ class XtreamService {
           'password': _currentPlaylist!.password,
           'action': 'get_series_categories',
         },
-        options: Options(extra: options),
+        options: Options(extra: _cacheOptions.toExtra()),
       );
 
       final List<dynamic> categories = response.data as List<dynamic>;

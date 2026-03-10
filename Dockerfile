@@ -8,8 +8,8 @@ WORKDIR /app
 ENV DART_VM_OPTIONS="--old_gen_heap_size=16384"
 ENV FLUTTER_NO_ANALYTICS=1
 
-# Enable web support
-RUN flutter config --enable-web
+# Enable web support and pre-download artifacts
+RUN flutter config --enable-web && flutter precache --web
 
 # Copy dependency files first
 COPY pubspec.yaml ./
