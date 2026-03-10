@@ -1,45 +1,35 @@
-# Stage 1: Build Environment
+# Stage 1: Build Environment (Optimized for Docker Caching)
 FROM ghcr.io/cirruslabs/flutter:stable AS builder
 
 USER root
 WORKDIR /app
 
-# Version tag to identify the build in logs
-RUN echo "XTREMFLOW_BUILD_VERSION: 2.0_STABLE_TIMEOUTS"
-
-# Optimize DART VM Memory for build
+# Optimize DART VM Memory
 ENV DART_VM_OPTIONS="--old_gen_heap_size=16384"
 ENV FLUTTER_NO_ANALYTICS=1
-ENV PUB_SUMMARY_ONLY=1
 
-# 1. Pre-download artifacts (Force download before build starts)
-RUN echo "Step 1: Flutter Config and Precache..." && \
-    flutter config --enable-web && \
-    flutter precache --web --verbose
+# 1. System Config & Precache (RARELY CHANGES)
+RUN flutter config --enable-web && flutter precache --web
 
-# 2. Copy dependency files first for caching
+# 2. Dependency Resolution (ONLY UPDATES IF PUBSPEC CHANGES)
 COPY pubspec.yaml ./
 COPY bin/pubspec.yaml ./bin/
+# Note: No .lock files found locally, so we fetch fresh ones here
+RUN flutter pub get && cd bin && dart pub get
 
-# 3. Get dependencies (Verbose to see progress)
-RUN echo "Step 3: Fetching dependencies..." && \
-    flutter pub get --verbose && \
-    cd bin && dart pub get --verbose
-
-# 4. Copy source code
+# 3. Source Code Copy (CHANGES OFTEN)
+# Everything except what's in .dockerignore (built-in protection)
 COPY . .
 
-# 5. Generate code (build_runner)
-RUN echo "Step 5: Code Generation..." && \
-    dart run build_runner build --delete-conflicting-outputs
+# 4. Code Generation
+RUN dart run build_runner build --delete-conflicting-outputs
 
-# 6. Build web application (VERBOSE + NO-PUB to prevent network access)
-RUN echo "Step 6: Building Web Application..." && \
-    flutter build web --release --base-href="/" --no-tree-shake-icons --no-pub --verbose
+# 5. Compilation (SLOWEST STEP - INEVITABLE)
+# This step MUST run if you modified any Dart file.
+RUN flutter build web --release --base-href="/" --no-tree-shake-icons --no-pub
 
-# 7. Compile server to native executable
-RUN echo "Step 7: Compiling Backend Server..." && \
-    cd bin && dart compile exe server.dart -o server
+# 6. Native Server Compilation
+RUN cd bin && dart compile exe server.dart -o server
 
 # ============================================
 # Stage 2: Production Runtime
@@ -56,7 +46,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gosu \
     && rm -rf /var/lib/apt/lists/*
 
-# FFmpeg with NVENC
+# FFmpeg with NVENC (cached unless this RUN changes)
 RUN wget -q https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz \
     && tar xf ffmpeg-master-latest-linux64-gpl.tar.xz \
     && mv ffmpeg-master-latest-linux64-gpl/bin/ffmpeg /usr/local/bin/ \
