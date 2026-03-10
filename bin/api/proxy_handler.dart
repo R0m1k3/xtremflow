@@ -12,12 +12,41 @@ class ProxyHandler {
   final AppDatabase _db;
   final http.Client _client = http.Client();
 
+  final Map<String, (PlaylistConfig, DateTime)> _playlistCache = {};
+  static const _cacheDuration = Duration(minutes: 5);
+
   static const _allowedHeaders = [
     'content-type',
     'content-range',
     'accept-ranges',
     'cache-control',
+    'server',
+    'date',
   ];
+
+  static const _allowedRequestHeaders = [
+    'user-agent',
+    'accept',
+    'range',
+    'referer',
+  ];
+
+  Future<PlaylistConfig?> _getCachedPlaylist(Request request) async {
+    // Basic caching to avoid DB overhead on every video segment
+    final now = DateTime.now();
+    final cacheKey = 'global_playlist'; // Currently app has one primary playlist per user/global
+    
+    if (_playlistCache.containsKey(cacheKey)) {
+      final (cached, expiry) = _playlistCache[cacheKey]!;
+      if (now.isBefore(expiry)) return cached;
+    }
+
+    final playlist = await _getPlaylist(request);
+    if (playlist != null) {
+      _playlistCache[cacheKey] = (playlist, now.add(_cacheDuration));
+    }
+    return playlist;
+  }
 
   ProxyHandler(this._getPlaylist, this._db);
 
@@ -102,7 +131,7 @@ class ProxyHandler {
 
         if (!isStaticAsset) {
           // For API calls, enforce domain allowlist
-          final playlist = await _getPlaylist(request);
+          final playlist = await _getCachedPlaylist(request);
           if (playlist == null) {
             return Response.forbidden(
                 'No active playlist configuration found to validate request');
@@ -123,7 +152,7 @@ class ProxyHandler {
           'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
           'Accept': '*/*',
           'Accept-Encoding': 'identity',
-          'Connection': 'close', // Forced close for better IPTV server compatibility
+          'Keep-Alive': 'timeout=30, max=100', // Request persistent connection
         };
 
         // Forward Range header if present
@@ -134,6 +163,14 @@ class ProxyHandler {
         try {
           print('[Proxy] Forwarding to: $targetUrl');
           final proxyRequest = http.Request(request.method, targetUrl);
+          
+          // Forward safe request headers
+          for (final header in _allowedRequestHeaders) {
+            if (request.headers.containsKey(header)) {
+              proxyHeaders[header] = request.headers[header]!;
+            }
+          }
+          
           proxyRequest.headers.addAll(proxyHeaders);
           proxyRequest.followRedirects = true;
 
@@ -150,6 +187,8 @@ class ProxyHandler {
           // Build response headers from source response
           final responseHeaders = <String, String>{
             'access-control-allow-origin': '*',
+            'connection': 'keep-alive',
+            'keep-alive': 'timeout=30',
           };
 
           // Forward specific safe headers

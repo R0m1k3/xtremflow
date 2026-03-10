@@ -233,18 +233,18 @@
                 const hls = new Hls({
                     maxBufferLength: 60,
                     maxMaxBufferLength: 120,
-                    liveSyncDurationCount: 3, // Reduced for faster initial sync on mobile
-                    liveMaxLatencyDurationCount: 15,
+                    liveSyncDurationCount: 5, // Balanced sync
+                    liveMaxLatencyDurationCount: 20,
                     enableWorker: true,
-                    lowLatencyMode: true,
+                    lowLatencyMode: false, // Disabled for stability against micro-cuts
                     // Robustness
-                    nudgeOffset: 0.2,
-                    nudgeMaxRetries: 10,
-                    maxLiveSyncPlaybackRate: 1.1,
+                    nudgeOffset: 0.6, // More aggressive jump over corrupted frames
+                    nudgeMaxRetries: 25,
+                    maxLiveSyncPlaybackRate: 1.2,
                     // Turbo-Start specific
-                    startLevel: 0, // Force lowest level for instant start
+                    startLevel: 0,
                     initialLiveManifestSize: 1,
-                    abrEwmaDefaultEstimate: 500000,
+                    abrEwmaDefaultEstimate: 700000,
                     manifestLoadingRetryDelay: 500,
                     levelLoadingRetryDelay: 500
                 });
