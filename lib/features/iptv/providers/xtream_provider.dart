@@ -12,6 +12,7 @@ final xtreamServiceProvider =
   final service = XtreamService();
   final settings = ref.watch(iptvSettingsProvider);
   service.setBackendUrl(settings.backendUrl);
+  service.updateTimeouts(settings.timeoutSeconds);
   service.setPlaylist(playlist);
   ref.onDispose(() => service.dispose());
   return service;
@@ -62,6 +63,8 @@ final activeXtreamServiceProvider = Provider<XtreamService>((ref) {
 
   if (playlist != null) {
     service.setPlaylist(playlist);
+    final settings = ref.read(iptvSettingsProvider);
+    service.updateTimeouts(settings.timeoutSeconds);
   }
 
   return service;

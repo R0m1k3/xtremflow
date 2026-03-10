@@ -69,6 +69,13 @@ class XtreamService {
     _manualBackendUrl = url;
   }
 
+  /// Update connection timeouts
+  void updateTimeouts(int seconds) {
+    _dio.options.connectTimeout = Duration(seconds: seconds);
+    _dio.options.receiveTimeout = Duration(seconds: seconds);
+    _dio.options.sendTimeout = Duration(seconds: seconds);
+  }
+
   /// Wrap URL with proxy for all external IPTV URLs
   String _wrapWithProxy(String url) {
     if (url.startsWith('http')) {

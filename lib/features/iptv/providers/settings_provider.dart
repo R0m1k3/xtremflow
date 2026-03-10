@@ -19,9 +19,9 @@ enum BufferSize {
 
 /// Connection timeout presets
 enum ConnectionTimeout {
-  short, // 15 seconds
-  medium, // 30 seconds
-  long, // 60 seconds
+  short, // 30 seconds
+  medium, // 60 seconds
+  long, // 120 seconds
 }
 
 /// EPG cache duration presets
@@ -205,11 +205,11 @@ class IptvSettings {
   int get timeoutSeconds {
     switch (connectionTimeout) {
       case ConnectionTimeout.short:
-        return 15;
-      case ConnectionTimeout.medium:
         return 30;
-      case ConnectionTimeout.long:
+      case ConnectionTimeout.medium:
         return 60;
+      case ConnectionTimeout.long:
+        return 120;
     }
   }
 
