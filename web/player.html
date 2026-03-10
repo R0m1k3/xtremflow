@@ -255,16 +255,16 @@
             const hls = new Hls({
                 maxBufferLength: 120,
                 enableWorker: true,
-                liveSyncDurationCount: 10, // Increased for desktop stability
+                liveSyncDurationCount: 3, // Reduced for faster initial sync
                 nudgeOffset: 0.4,
                 nudgeMaxRetries: 15,
                 maxLiveSyncPlaybackRate: 1.15,
                 // Turbo-Start specific
-                startLevel: isTurbo ? 0 : -1,
+                startLevel: 0, // Force lowest level for instant start
                 initialLiveManifestSize: 1,
                 abrEwmaDefaultEstimate: 500000,
-                manifestLoadingRetryDelay: 1000,
-                levelLoadingRetryDelay: 1000
+                manifestLoadingRetryDelay: 500,
+                levelLoadingRetryDelay: 500
             });
             window.hlsInstance = hls;
             hls.loadSource(url);
@@ -292,7 +292,7 @@
             if (!mpegts.isSupported()) return false;
             const player = mpegts.createPlayer({ type: 'mpegts', isLive: isLive, url: url }, { 
                 enableWorker: true, 
-                stashInitialSize: 512 * 1024,
+                stashInitialSize: 64 * 1024, // Turbo Start: 64KB initial buffer
                 maxStashSize: 20 * 1024 * 1024 // 20MB buffer capacity
             });
             player.attachMediaElement(video);

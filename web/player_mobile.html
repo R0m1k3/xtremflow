@@ -233,8 +233,8 @@
                 const hls = new Hls({
                     maxBufferLength: 60,
                     maxMaxBufferLength: 120,
-                    liveSyncDurationCount: 6,
-                    liveMaxLatencyDurationCount: 20,
+                    liveSyncDurationCount: 3, // Reduced for faster initial sync on mobile
+                    liveMaxLatencyDurationCount: 15,
                     enableWorker: true,
                     lowLatencyMode: true,
                     // Robustness
@@ -242,11 +242,11 @@
                     nudgeMaxRetries: 10,
                     maxLiveSyncPlaybackRate: 1.1,
                     // Turbo-Start specific
-                    startLevel: isTurbo ? 0 : -1,
+                    startLevel: 0, // Force lowest level for instant start
                     initialLiveManifestSize: 1,
                     abrEwmaDefaultEstimate: 500000,
-                    manifestLoadingRetryDelay: 800,
-                    levelLoadingRetryDelay: 800
+                    manifestLoadingRetryDelay: 500,
+                    levelLoadingRetryDelay: 500
                 });
                 hls.loadSource(streamUrl);
                 hls.attachMedia(video);
@@ -271,8 +271,9 @@
                     url: streamUrl
                 }, {
                     enableWorker: true,
-                    stashInitialSize: 2 * 1024 * 1024,
-                    enableStashBuffer: true
+                    stashInitialSize: 128 * 1024, // Turbo Start: 128KB initial buffer
+                    enableStashBuffer: true,
+                    maxStashSize: 20 * 1024 * 1024 // 20MB Max for stability
                 });
                 player.attachMediaElement(video);
                 player.load();

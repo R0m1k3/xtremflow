@@ -248,7 +248,7 @@
                 maxBufferLength: 120, // Doubled for stability
                 maxMaxBufferLength: 240,
                 enableWorker: true,
-                liveSyncDurationCount: 12, // Increased distance from live edge (TiviMate style) for high latency
+                liveSyncDurationCount: 3, // Reduced for faster initial sync
                 liveMaxLatencyDurationCount: 40,
                 lowLatencyMode: false, // Disabled for better stability on laggy connections
                 // Robustness features
@@ -256,11 +256,11 @@
                 nudgeMaxRetries: 20,
                 maxLiveSyncPlaybackRate: 1.2, // Smooth catch-up
                 // Turbo-Start specific
-                startLevel: isTurbo ? 0 : -1,
+                startLevel: 0, // Force lowest level for instant start
                 initialLiveManifestSize: 1,
                 abrEwmaDefaultEstimate: 500000,
-                manifestLoadingRetryDelay: 1000,
-                levelLoadingRetryDelay: 1000
+                manifestLoadingRetryDelay: 500,
+                levelLoadingRetryDelay: 500
             });
 
             window.hlsInstance = hls;
@@ -296,7 +296,7 @@
                 url: url
             }, {
                 enableWorker: true,
-                stashInitialSize: 512 * 1024,
+                stashInitialSize: 64 * 1024, // Turbo Start: 64KB initial buffer
                 enableStashBuffer: true,
                 liveBufferLatencyChasing: true,
                 liveBufferLatencyChasingOnPaused: true,
