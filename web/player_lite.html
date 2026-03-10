@@ -245,18 +245,18 @@
             const isTurbo = urlParams.get('turbo') === 'true';
 
             const hls = new Hls({
-                maxBufferLength: isTurbo ? 30 : 60,
-                maxMaxBufferLength: isTurbo ? 60 : 120,
+                maxBufferLength: isTurbo ? 45 : 60,
+                maxMaxBufferLength: isTurbo ? 90 : 120,
                 enableWorker: true,
-                liveSyncDurationCount: isTurbo ? 2 : 5, // Aggressive sync for Turbo
-                liveMaxLatencyDurationCount: isTurbo ? 10 : 15,
+                liveSyncDurationCount: isTurbo ? 3 : 5, // Improved stability
+                liveMaxLatencyDurationCount: isTurbo ? 15 : 20,
                 lowLatencyMode: true,
                 // Turbo-Start specific
-                startLevel: isTurbo ? 0 : -1, // Lowest bitrate first
+                startLevel: isTurbo ? 0 : -1,
                 initialLiveManifestSize: 1,
-                abrEwmaDefaultEstimate: 500000, // Start with conservative estimate
-                manifestLoadingRetryDelay: 500,
-                levelLoadingRetryDelay: 500
+                abrEwmaDefaultEstimate: 500000,
+                manifestLoadingRetryDelay: 800,
+                levelLoadingRetryDelay: 800
             });
 
             window.hlsInstance = hls;
@@ -292,9 +292,12 @@
                 url: url
             }, {
                 enableWorker: true,
-                stashInitialSize: isTurbo ? 128 * 1024 : 512 * 1024, // Tiny stash for Turbo zapping
-                enableStashBuffer: !isTurbo, // Direct pass-through for Live TV Turbo
-                lazyLoad: false
+                stashInitialSize: isTurbo ? 512 * 1024 : 1024 * 1024, // 512KB for better stability
+                enableStashBuffer: true, // Re-enable stash buffer for stability
+                liveBufferLatencyChasing: true, // Correct drift
+                liveBufferLatencyChasingOnPaused: true,
+                lazyLoad: false,
+                maxStashSize: 1024 * 1024 // 1MB Max
             });
 
             player.attachMediaElement(video);

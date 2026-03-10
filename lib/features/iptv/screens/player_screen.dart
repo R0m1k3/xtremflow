@@ -140,6 +140,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         streamUrl = service.getLiveStreamUrlTs(currentStreamId);
       }
 
+      // STABILIZATION: Lock background requests during stream init
+      service.isPlaybackLoading = true;
+      Future.delayed(const Duration(seconds: 10), () {
+        service.isPlaybackLoading = false;
+      });
+
       _currentStreamUrl = streamUrl;
 
       final encodedUrl = Uri.encodeComponent(streamUrl);

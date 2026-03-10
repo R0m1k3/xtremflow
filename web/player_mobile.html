@@ -231,18 +231,18 @@
                 const isTurbo = urlParams.get('turbo') === 'true';
 
                 const hls = new Hls({
-                    maxBufferLength: isTurbo ? 30 : 60,
-                    maxMaxBufferLength: isTurbo ? 60 : 120,
-                    liveSyncDurationCount: isTurbo ? 2 : 5,
-                    liveMaxLatencyDurationCount: isTurbo ? 10 : 15,
+                    maxBufferLength: isTurbo ? 45 : 60,
+                    maxMaxBufferLength: isTurbo ? 90 : 120,
+                    liveSyncDurationCount: isTurbo ? 3 : 5, // Improved stability
+                    liveMaxLatencyDurationCount: isTurbo ? 15 : 20,
                     enableWorker: true,
-                    lowLatencyMode: !isTurbo, // Prioritize stability unless Turbo requested
+                    lowLatencyMode: true,
                     // Turbo-Start specific
                     startLevel: isTurbo ? 0 : -1,
                     initialLiveManifestSize: 1,
                     abrEwmaDefaultEstimate: 500000,
-                    manifestLoadingRetryDelay: 500,
-                    levelLoadingRetryDelay: 500
+                    manifestLoadingRetryDelay: 800,
+                    levelLoadingRetryDelay: 800
                 });
                 hls.loadSource(streamUrl);
                 hls.attachMedia(video);

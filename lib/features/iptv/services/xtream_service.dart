@@ -15,6 +15,13 @@ class XtreamService {
 
   PlaylistConfig? _currentPlaylist;
 
+  /// Flag to indicate that a playback is currently loading
+  /// Used to throttle background requests (EPG, images)
+  bool isPlaybackLoading = false;
+
+  /// Minimum delay for background requests when playback is loading
+  static const _throttleDelay = Duration(seconds: 8);
+
   XtreamService() {
     _dio = Dio(
       BaseOptions(
@@ -616,6 +623,11 @@ class XtreamService {
   Future<List<EpgEntry>> getShortEpg(String streamId) async {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
 
+    if (isPlaybackLoading) {
+      debugPrint('[XtreamService] Throttling short EPG for $streamId');
+      await Future.delayed(_throttleDelay);
+    }
+
     try {
       final response = await _dio.get(
         _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
@@ -652,6 +664,11 @@ class XtreamService {
   /// Get short EPG as ShortEPG object (for EPGWidget)
   Future<xm.ShortEPG> getShortEPG(String streamId) async {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
+
+    if (isPlaybackLoading) {
+      debugPrint('[XtreamService] Throttling short EPG metadata for $streamId');
+      await Future.delayed(_throttleDelay);
+    }
 
     try {
       final response = await _dio.get(
