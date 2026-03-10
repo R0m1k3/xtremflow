@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:html' as html;
 import 'package:dio/dio.dart';
 import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 import 'package:dio_cache_interceptor_hive_store/dio_cache_interceptor_hive_store.dart';
@@ -190,42 +192,78 @@ class XtreamService {
         : _cacheOptions.toExtra();
 
     try {
-      // First, load categories to get the mapping
-      final categoryMap = await _getLiveCategories();
+      // Parallelize categories and streams fetching
+      final results = await Future.wait([
+        _getLiveCategories(),
+        _dio.get(
+          _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
+          queryParameters: {
+            'username': _currentPlaylist!.username,
+            'password': _currentPlaylist!.password,
+            'action': 'get_live_streams',
+          },
+          options: Options(extra: options),
+        ),
+      ]);
 
-      final response = await _dio.get(
-        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
-        queryParameters: {
-          'username': _currentPlaylist!.username,
-          'password': _currentPlaylist!.password,
-          'action': 'get_live_streams',
-        },
-        options: Options(extra: options),
-      );
+      final categoryMap = results[0] as Map<String, String>;
+      final response = results[1] as Response;
 
-      final List<dynamic> streams = response.data as List<dynamic>;
-      final Map<String, List<Channel>> groupedChannels = {};
+      final groupedChannels = <String, List<Channel>>{};
 
       for (final streamData in streams) {
         final data = streamData as Map<String, dynamic>;
-        // Get category name from our mapping using category_id
         final categoryId = data['category_id']?.toString() ?? '';
         final categoryName = categoryMap[categoryId] ?? 'Uncategorized';
-
-        // Inject category_name into data before parsing
         data['category_name'] = categoryName;
 
         final channel = Channel.fromJson(data);
-
-        if (!groupedChannels.containsKey(categoryName)) {
-          groupedChannels[categoryName] = [];
-        }
-        groupedChannels[categoryName]!.add(channel);
+        groupedChannels.putIfAbsent(categoryName, () => []).add(channel);
       }
+
+      // Save to local cache for instant display next time
+      _saveToLocalCache('live_channels', groupedChannels);
 
       return groupedChannels;
     } catch (e) {
+      // Try to return from local cache if network fails
+      final cached = _loadFromLocalCache<Channel>('live_channels', Channel.fromJson);
+      if (cached.isNotEmpty) return cached;
       throw Exception('Failed to fetch live channels: $e');
+    }
+  }
+
+  void _saveToLocalCache(String key, Map<String, dynamic> data) {
+    if (!kIsWeb) return;
+    try {
+      final jsonStr = jsonEncode(data);
+      html.window.localStorage['xtream_cache_${_currentPlaylist?.id}_$key'] = jsonStr;
+    } catch (e) {
+      debugPrint('Error saving to local cache ($key): $e');
+    }
+  }
+
+  Map<String, List<T>> _loadFromLocalCache<T>(
+      String key, T Function(Map<String, dynamic>) fromJson) {
+    if (!kIsWeb) return {};
+    try {
+      final jsonStr = html.window.localStorage['xtream_cache_${_currentPlaylist?.id}_$key'];
+      if (jsonStr == null) return {};
+      
+      final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+      final result = <String, List<T>>{};
+      
+      data.forEach((cat, items) {
+        if (items is List) {
+          result[cat] = items
+              .map((i) => fromJson(i as Map<String, dynamic>))
+              .toList();
+        }
+      });
+      return result;
+    } catch (e) {
+      debugPrint('Error loading from local cache ($key): $e');
+      return {};
     }
   }
 
@@ -269,17 +307,22 @@ class XtreamService {
         : _cacheOptions.toExtra();
 
     try {
-      final categoryMap = await _getVodCategories();
+      // Parallelize VOD categories and streams fetching
+      final results = await Future.wait([
+        _getVodCategories(),
+        _dio.get(
+          _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
+          queryParameters: {
+            'username': _currentPlaylist!.username,
+            'password': _currentPlaylist!.password,
+            'action': 'get_vod_streams',
+          },
+          options: Options(extra: options),
+        ),
+      ]);
 
-      final response = await _dio.get(
-        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
-        queryParameters: {
-          'username': _currentPlaylist!.username,
-          'password': _currentPlaylist!.password,
-          'action': 'get_vod_streams',
-        },
-        options: Options(extra: options),
-      );
+      final categoryMap = results[0] as Map<String, String>;
+      final response = results[1] as Response;
 
       final List<dynamic> vods = response.data as List<dynamic>;
       final Map<String, List<VodItem>> groupedVods = {};
@@ -291,15 +334,17 @@ class XtreamService {
         data['category_name'] = categoryName;
 
         final vod = VodItem.fromJson(data);
-
-        if (!groupedVods.containsKey(categoryName)) {
-          groupedVods[categoryName] = [];
-        }
-        groupedVods[categoryName]!.add(vod);
+        groupedVods.putIfAbsent(categoryName, () => []).add(vod);
       }
+
+      // Save to local cache
+      _saveToLocalCache('vod_items', groupedVods);
 
       return groupedVods;
     } catch (e) {
+      // Try to return from local cache if network fails
+      final cached = _loadFromLocalCache<VodItem>('vod_items', VodItem.fromJson);
+      if (cached.isNotEmpty) return cached;
       throw Exception('Failed to fetch VOD items: $e');
     }
   }
@@ -344,17 +389,22 @@ class XtreamService {
         : _cacheOptions.toExtra();
 
     try {
-      final categoryMap = await _getSeriesCategories();
+      // Parallelize Series categories and streams fetching
+      final results = await Future.wait([
+        _getSeriesCategories(),
+        _dio.get(
+          _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
+          queryParameters: {
+            'username': _currentPlaylist!.username,
+            'password': _currentPlaylist!.password,
+            'action': 'get_series',
+          },
+          options: Options(extra: options),
+        ),
+      ]);
 
-      final response = await _dio.get(
-        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
-        queryParameters: {
-          'username': _currentPlaylist!.username,
-          'password': _currentPlaylist!.password,
-          'action': 'get_series',
-        },
-        options: Options(extra: options),
-      );
+      final categoryMap = results[0] as Map<String, String>;
+      final response = results[1] as Response;
 
       final List<dynamic> seriesList = response.data as List<dynamic>;
       final Map<String, List<Series>> groupedSeries = {};
@@ -366,15 +416,17 @@ class XtreamService {
         data['category_name'] = categoryName;
 
         final series = Series.fromJson(data);
-
-        if (!groupedSeries.containsKey(categoryName)) {
-          groupedSeries[categoryName] = [];
-        }
-        groupedSeries[categoryName]!.add(series);
+        groupedSeries.putIfAbsent(categoryName, () => []).add(series);
       }
+
+      // Save to local cache
+      _saveToLocalCache('series_items', groupedSeries);
 
       return groupedSeries;
     } catch (e) {
+      // Try to return from local cache if network fails
+      final cached = _loadFromLocalCache<Series>('series_items', Series.fromJson);
+      if (cached.isNotEmpty) return cached;
       throw Exception('Failed to fetch series: $e');
     }
   }
