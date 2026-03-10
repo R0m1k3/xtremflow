@@ -208,7 +208,7 @@ class XtreamService {
 
       final categoryMap = results[0] as Map<String, String>;
       final response = results[1] as Response;
-
+      final List<dynamic> streams = response.data as List<dynamic>;
       final groupedChannels = <String, List<Channel>>{};
 
       for (final streamData in streams) {
