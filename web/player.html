@@ -255,14 +255,14 @@
             const hls = new Hls({
                 maxBufferLength: 120,
                 enableWorker: true,
-                liveSyncDurationCount: 3, // Reduced for faster initial sync
-                nudgeOffset: 0.4,
-                nudgeMaxRetries: 15,
+                liveSyncDurationCount: 6, // Slightly more buffer for micro-cut protection
+                nudgeOffset: 0.6, // More aggressive jump over corrupted frames
+                nudgeMaxRetries: 25,
                 maxLiveSyncPlaybackRate: 1.15,
                 // Turbo-Start specific
-                startLevel: 0, // Force lowest level for instant start
+                startLevel: 0,
                 initialLiveManifestSize: 1,
-                abrEwmaDefaultEstimate: 500000,
+                abrEwmaDefaultEstimate: 700000,
                 manifestLoadingRetryDelay: 500,
                 levelLoadingRetryDelay: 500
             });

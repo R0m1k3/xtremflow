@@ -248,17 +248,17 @@
                 maxBufferLength: 120, // Doubled for stability
                 maxMaxBufferLength: 240,
                 enableWorker: true,
-                liveSyncDurationCount: 3, // Reduced for faster initial sync
+                liveSyncDurationCount: 6, // Slightly more buffer for micro-cut protection
                 liveMaxLatencyDurationCount: 40,
                 lowLatencyMode: false, // Disabled for better stability on laggy connections
                 // Robustness features
-                nudgeOffset: 0.5, // Jump over discontinuities more aggressively
-                nudgeMaxRetries: 20,
+                nudgeOffset: 0.6, // More aggressive jump over corrupted frames
+                nudgeMaxRetries: 25,
                 maxLiveSyncPlaybackRate: 1.2, // Smooth catch-up
                 // Turbo-Start specific
-                startLevel: 0, // Force lowest level for instant start
+                startLevel: 0,
                 initialLiveManifestSize: 1,
-                abrEwmaDefaultEstimate: 500000,
+                abrEwmaDefaultEstimate: 700000,
                 manifestLoadingRetryDelay: 500,
                 levelLoadingRetryDelay: 500
             });
