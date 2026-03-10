@@ -153,16 +153,17 @@ Handler createLiveStreamHandler(
         '-i', targetUrl,
         // Video
         if (useNvidiaGpu) ...[
-          '-c:v', 'h264_nvenc', '-preset', 'p1', '-tune', 'll',
-          '-b:v', '3500k', '-maxrate', '4000k', '-bufsize', '7000k',
-          '-g', '50', // Force keyframes every 2s
+          '-c:v', 'h264_nvenc', '-preset', 'p4', '-tune', 'hq', // Better quality preset for NVENC
+          '-b:v', '8000k', '-maxrate', '12000k', '-bufsize', '16000k', // Quality native / high bitrate
+          '-g', '50', 
         ] else ...[
-          '-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency',
-          '-b:v', '3000k', '-maxrate', '3500k', '-bufsize', '6000k',
-          '-g', '50', // Force keyframes every 2s (CRITICAL for HLS)
+          '-c:v', 'libx264', '-preset', 'medium', '-tune', 'zerolatency', // Better detail than ultrafast
+          '-b:v', '6000k', '-maxrate', '8000k', '-bufsize', '12000k',
+          '-g', '50', 
         ],
-        // Audio
-        '-c:a', 'aac', '-b:a', '128k', '-ac', '2',
+        // Audio: High quality + Sync filter
+        '-c:a', 'aac', '-b:a', '192k', '-ac', '2', '-ar', '48000',
+        '-af', 'aresample=async=1', 
         // HLS Sliding Window
         '-f', 'hls',
         '-hls_time', '2',
@@ -390,20 +391,16 @@ Handler createVodStreamHandler(
           '-c:v',
           'libx264',
           '-preset',
-          'ultrafast',
-          '-tune',
-          'zerolatency',
-          '-tune',
-          'fastdecode',
+          'medium', // Quality over raw speed for VOD
           '-crf',
-          '23',
+          '18', // Near-native visual quality
           '-maxrate',
-          '3000k',
+          '12000k',
           '-bufsize',
-          '6000k',
+          '24000k',
           '-pix_fmt',
           'yuv420p',
-          '-g', '48', // Force keyframes
+          '-g', '48',
           '-threads',
           '0',
         ]);

@@ -28,8 +28,8 @@ class XtreamService {
     // Use MemCacheStore on Web to avoid path errors
     _cacheOptions = CacheOptions(
       store: kIsWeb ? MemCacheStore() : HiveCacheStore('./cache'),
-      policy: CachePolicy.forceCache,
-      maxStale: const Duration(hours: 1),
+      policy: CachePolicy.refresh, // Allow refresh if stale
+      maxStale: const Duration(minutes: 15), // Reduced from 1h to 15m for better sync
       priority: CachePriority.high,
     );
 
@@ -112,7 +112,7 @@ class XtreamService {
           'username': _currentPlaylist!.username,
           'password': _currentPlaylist!.password,
         },
-        options: Options(extra: _cacheOptions.toExtra()),
+        options: Options(extra: options),
       );
 
       return response.data as Map<String, dynamic>;
@@ -133,7 +133,7 @@ class XtreamService {
           'password': _currentPlaylist!.password,
           'action': 'get_live_categories',
         },
-        options: Options(extra: _cacheOptions.toExtra()),
+        options: Options(extra: options),
       );
 
       final List<dynamic> categories = response.data as List<dynamic>;
@@ -157,8 +157,12 @@ class XtreamService {
   /// Get all live TV channels grouped by category
   ///
   /// Returns a Map where key is category name and value is list of channels
-  Future<Map<String, List<Channel>>> getLiveChannels() async {
+  Future<Map<String, List<Channel>>> getLiveChannels({bool refresh = false}) async {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
+
+    final options = refresh 
+        ? _cacheOptions.copyWith(policy: CachePolicy.refreshForceCache).toExtra()
+        : _cacheOptions.toExtra();
 
     try {
       // First, load categories to get the mapping
@@ -171,7 +175,7 @@ class XtreamService {
           'password': _currentPlaylist!.password,
           'action': 'get_live_streams',
         },
-        options: Options(extra: _cacheOptions.toExtra()),
+        options: Options(extra: options),
       );
 
       final List<dynamic> streams = response.data as List<dynamic>;
@@ -212,7 +216,7 @@ class XtreamService {
           'password': _currentPlaylist!.password,
           'action': 'get_vod_categories',
         },
-        options: Options(extra: _cacheOptions.toExtra()),
+        options: Options(extra: options),
       );
 
       final List<dynamic> categories = response.data as List<dynamic>;
@@ -232,8 +236,12 @@ class XtreamService {
   }
 
   /// Get all VOD items (movies) grouped by category
-  Future<Map<String, List<VodItem>>> getVodItems() async {
+  Future<Map<String, List<VodItem>>> getVodItems({bool refresh = false}) async {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
+
+    final options = refresh 
+        ? _cacheOptions.copyWith(policy: CachePolicy.refreshForceCache).toExtra()
+        : _cacheOptions.toExtra();
 
     try {
       final categoryMap = await _getVodCategories();
@@ -245,7 +253,7 @@ class XtreamService {
           'password': _currentPlaylist!.password,
           'action': 'get_vod_streams',
         },
-        options: Options(extra: _cacheOptions.toExtra()),
+        options: Options(extra: options),
       );
 
       final List<dynamic> vods = response.data as List<dynamic>;
@@ -283,7 +291,7 @@ class XtreamService {
           'password': _currentPlaylist!.password,
           'action': 'get_series_categories',
         },
-        options: Options(extra: _cacheOptions.toExtra()),
+        options: Options(extra: options),
       );
 
       final List<dynamic> categories = response.data as List<dynamic>;
@@ -303,8 +311,12 @@ class XtreamService {
   }
 
   /// Get all series grouped by category
-  Future<Map<String, List<Series>>> getSeries() async {
+  Future<Map<String, List<Series>>> getSeries({bool refresh = false}) async {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
+
+    final options = refresh 
+        ? _cacheOptions.copyWith(policy: CachePolicy.refreshForceCache).toExtra()
+        : _cacheOptions.toExtra();
 
     try {
       final categoryMap = await _getSeriesCategories();
@@ -316,7 +328,7 @@ class XtreamService {
           'password': _currentPlaylist!.password,
           'action': 'get_series',
         },
-        options: Options(extra: _cacheOptions.toExtra()),
+        options: Options(extra: options),
       );
 
       final List<dynamic> seriesList = response.data as List<dynamic>;
@@ -358,7 +370,7 @@ class XtreamService {
           'password': _currentPlaylist!.password,
           'action': 'get_vod_streams',
         },
-        options: Options(extra: _cacheOptions.toExtra()),
+        options: Options(extra: options),
       );
 
       final List<dynamic> allMovies = response.data as List<dynamic>;
@@ -397,7 +409,7 @@ class XtreamService {
           'password': _currentPlaylist!.password,
           'action': 'get_vod_streams',
         },
-        options: Options(extra: _cacheOptions.toExtra()),
+        options: Options(extra: options),
       );
 
       final List<dynamic> allMovies = response.data as List<dynamic>;
@@ -438,7 +450,7 @@ class XtreamService {
           'password': _currentPlaylist!.password,
           'action': 'get_series',
         },
-        options: Options(extra: _cacheOptions.toExtra()),
+        options: Options(extra: options),
       );
 
       final List<dynamic> allSeries = response.data as List<dynamic>;
@@ -477,7 +489,7 @@ class XtreamService {
           'password': _currentPlaylist!.password,
           'action': 'get_series',
         },
-        options: Options(extra: _cacheOptions.toExtra()),
+        options: Options(extra: options),
       );
 
       final List<dynamic> allSeries = response.data as List<dynamic>;
@@ -515,7 +527,7 @@ class XtreamService {
           'action': 'get_series_info',
           'series_id': seriesId,
         },
-        options: Options(extra: _cacheOptions.toExtra()),
+        options: Options(extra: options),
       );
 
       return xm.SeriesInfo.fromJson(response.data as Map<String, dynamic>);
@@ -539,7 +551,7 @@ class XtreamService {
           'action': 'get_vod_info',
           'vod_id': vodId,
         },
-        options: Options(extra: _cacheOptions.toExtra()),
+        options: Options(extra: options),
       );
 
       final data = response.data as Map<String, dynamic>;

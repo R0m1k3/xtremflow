@@ -229,12 +229,12 @@
             if (isHLS && Hls.isSupported()) {
                 log('Using Hls.js optimized for mobile');
                 const hls = new Hls({
-                    maxBufferLength: 90,
-                    maxMaxBufferLength: 180,
-                    liveSyncDurationCount: 6,
-                    liveMaxLatencyDurationCount: 12,
+                    maxBufferLength: 30,
+                    maxMaxBufferLength: 60,
+                    liveSyncDurationCount: 3,
+                    liveMaxLatencyDurationCount: 10,
                     enableWorker: true,
-                    lowLatencyMode: false
+                    lowLatencyMode: true
                 });
                 hls.loadSource(streamUrl);
                 hls.attachMedia(video);

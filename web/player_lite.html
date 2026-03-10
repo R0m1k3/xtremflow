@@ -243,10 +243,12 @@
             }
 
             const hls = new Hls({
-                maxBufferLength: 60,
-                maxMaxBufferLength: 120,
+                maxBufferLength: 30, // 30s is plenty for desktop stability
+                maxMaxBufferLength: 60,
                 enableWorker: true,
-                liveSyncDurationCount: 5
+                liveSyncDurationCount: 3,
+                liveMaxLatencyDurationCount: 10,
+                lowLatencyMode: true
             });
 
             window.hlsInstance = hls;
@@ -281,8 +283,9 @@
                 url: url
             }, {
                 enableWorker: true,
-                stashInitialSize: 1024 * 1024,
-                enableStashBuffer: true
+                stashInitialSize: 512 * 1024, // Smaller stash for faster start and better audio sync
+                enableStashBuffer: true,
+                lazyLoad: false
             });
 
             player.attachMediaElement(video);
