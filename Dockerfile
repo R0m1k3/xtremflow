@@ -1,41 +1,32 @@
 # Stage 1: Build Flutter Web Application
 FROM ghcr.io/cirruslabs/flutter:stable AS web-builder
 
-# Run as root for setup
 USER root
 WORKDIR /app
 
-# Disable analytics and precache early to cache this layer
-ENV FLUTTER_NO_ANALYTICS=1
-RUN flutter config --no-analytics && \
-    flutter config --enable-web && \
-    flutter precache --web
-
 # Optimize DART VM Memory for build
 ENV DART_VM_OPTIONS="--old_gen_heap_size=16384"
+ENV FLUTTER_NO_ANALYTICS=1
 
-# Safe directory configuration for git (needed even if we ignore .git for some flutter tools)
-RUN git config --global --add safe.directory /app
+# Enable web support
+RUN flutter config --enable-web
 
-# Copy dependency files first for better caching
+# Copy dependency files first
 COPY pubspec.yaml ./
 RUN flutter pub get
 
-# Copy source code (respecting .dockerignore)
+# Copy source code
 COPY . .
 
 # Generate code
 RUN dart run build_runner build --delete-conflicting-outputs
 
 # Build web application
-# --no-pub ensures we use what we got in the previous layer
-# --web-renderer canvaskit for higher quality (since we have 64GB RAM)
 RUN flutter build web --release \
     --base-href="/" \
     --no-pub \
     --no-wasm-dry-run \
     --no-tree-shake-icons \
-    --web-renderer canvaskit \
     --verbose
 
 # ============================================

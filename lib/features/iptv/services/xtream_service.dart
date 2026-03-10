@@ -370,7 +370,7 @@ class XtreamService {
           'password': _currentPlaylist!.password,
           'action': 'get_vod_streams',
         },
-        options: Options(extra: options),
+        options: Options(extra: _cacheOptions.toExtra()),
       );
 
       final List<dynamic> allMovies = response.data as List<dynamic>;
@@ -409,7 +409,7 @@ class XtreamService {
           'password': _currentPlaylist!.password,
           'action': 'get_vod_streams',
         },
-        options: Options(extra: options),
+        options: Options(extra: _cacheOptions.toExtra()),
       );
 
       final List<dynamic> allMovies = response.data as List<dynamic>;
@@ -450,7 +450,7 @@ class XtreamService {
           'password': _currentPlaylist!.password,
           'action': 'get_series',
         },
-        options: Options(extra: options),
+        options: Options(extra: _cacheOptions.toExtra()),
       );
 
       final List<dynamic> allSeries = response.data as List<dynamic>;
@@ -489,7 +489,7 @@ class XtreamService {
           'password': _currentPlaylist!.password,
           'action': 'get_series',
         },
-        options: Options(extra: options),
+        options: Options(extra: _cacheOptions.toExtra()),
       );
 
       final List<dynamic> allSeries = response.data as List<dynamic>;
@@ -527,7 +527,7 @@ class XtreamService {
           'action': 'get_series_info',
           'series_id': seriesId,
         },
-        options: Options(extra: options),
+        options: Options(extra: _cacheOptions.toExtra()),
       );
 
       return xm.SeriesInfo.fromJson(response.data as Map<String, dynamic>);
@@ -551,7 +551,7 @@ class XtreamService {
           'action': 'get_vod_info',
           'vod_id': vodId,
         },
-        options: Options(extra: options),
+        options: Options(extra: _cacheOptions.toExtra()),
       );
 
       final data = response.data as Map<String, dynamic>;
