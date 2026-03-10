@@ -112,7 +112,7 @@ class XtreamService {
           'username': _currentPlaylist!.username,
           'password': _currentPlaylist!.password,
         },
-        options: Options(extra: options),
+        options: Options(extra: _cacheOptions.toExtra()),
       );
 
       return response.data as Map<String, dynamic>;
@@ -133,7 +133,7 @@ class XtreamService {
           'password': _currentPlaylist!.password,
           'action': 'get_live_categories',
         },
-        options: Options(extra: options),
+        options: Options(extra: _cacheOptions.toExtra()),
       );
 
       final List<dynamic> categories = response.data as List<dynamic>;
@@ -216,7 +216,7 @@ class XtreamService {
           'password': _currentPlaylist!.password,
           'action': 'get_vod_categories',
         },
-        options: Options(extra: options),
+        options: Options(extra: _cacheOptions.toExtra()),
       );
 
       final List<dynamic> categories = response.data as List<dynamic>;
