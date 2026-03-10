@@ -296,19 +296,21 @@
                 url: url
             }, {
                 enableWorker: true,
-                stashInitialSize: 256 * 1024, // Optimized Turbo Start: 256KB initial buffer
+                stashInitialSize: 512 * 1024,
                 enableStashBuffer: true,
-                liveBufferLatencyChasing: true,
-                liveBufferLatencyChasingOnPaused: true,
-                liveBufferLatencyMaxLatency: 10.0,
-                liveBufferLatencyMinLatency: 2.0,
-                lazyLoad: false,
-                maxStashSize: 20 * 1024 * 1024
+                liveBufferLatencyChasing: false,
+                maxStashSize: 30 * 1024 * 1024
             });
 
             player.attachMediaElement(video);
             player.load();
-            player.play().catch(() => playOverlay.style.display = 'flex');
+            
+            const checkBuffer = setInterval(() => {
+                if (video.buffered.length > 0 && video.buffered.end(0) > 1.0) {
+                    clearInterval(checkBuffer);
+                    player.play().catch(() => playOverlay.style.display = 'flex');
+                }
+            }, 200);
 
             player.on(mpegts.Events.ERROR, (type, detail, info) => {
                 log('MpegTS Error: ' + type + ' - ' + detail);

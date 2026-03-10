@@ -255,23 +255,32 @@
             const hls = new Hls({
                 maxBufferLength: 120,
                 enableWorker: true,
-                liveSyncDurationCount: 6, // Slightly more buffer for micro-cut protection
-                nudgeOffset: 0.6, // More aggressive jump over corrupted frames
-                nudgeMaxRetries: 25,
-                maxLiveSyncPlaybackRate: 1.15,
-                // Turbo-Start specific
-                startLevel: 0,
-                initialLiveManifestSize: 1,
-                abrEwmaDefaultEstimate: 700000,
-                manifestLoadingRetryDelay: 500,
-                levelLoadingRetryDelay: 500
+                liveSyncDurationCount: 10, // Buffer-First: 10 segments safety margin
+                liveMaxLatencyDurationCount: 20,
+                nudgeOffset: 0.8, // More aggressive jump over corrupted frames
+                nudgeMaxRetries: 30,
+                maxLiveSyncPlaybackRate: 1.1, // Slower catch-up to avoid chaos
+                // Stabilization
+                initialLiveManifestSize: 3, // Wait for more segments before starting
+                abrEwmaDefaultEstimate: 1000000,
+                manifestLoadingRetryDelay: 1000,
+                levelLoadingRetryDelay: 1000
             });
             window.hlsInstance = hls;
             hls.loadSource(url);
             hls.attachMedia(video);
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
                 hideLoading();
-                video.play().catch(() => playOverlay.style.display = 'flex');
+                // Wait for a small buffer before playing to avoid chaos
+                const checkBuffer = setInterval(() => {
+                    if (video.buffered.length > 0) {
+                        const bufferEnd = video.buffered.end(0);
+                        if (bufferEnd > 1.5) { // 1.5s buffer-first
+                            clearInterval(checkBuffer);
+                            video.play().catch(() => playOverlay.style.display = 'flex');
+                        }
+                    }
+                }, 200);
             });
             hls.on(Hls.Events.LEVEL_LOADED, (e, d) => {
                 if (d.details && d.details.totalduration > injectedDuration) window.currentHlsDuration = d.details.totalduration;
@@ -292,12 +301,23 @@
             if (!mpegts.isSupported()) return false;
             const player = mpegts.createPlayer({ type: 'mpegts', isLive: isLive, url: url }, { 
                 enableWorker: true, 
-                stashInitialSize: 256 * 1024, // Optimized Turbo Start
-                maxStashSize: 20 * 1024 * 1024 // 20MB buffer capacity
+                stashInitialSize: 512 * 1024, // Buffer-First: 512KB
+                enableStashBuffer: true,
+                liveBufferLatencyChasing: false, // Avoid chaotic catch-up
+                maxStashSize: 30 * 1024 * 1024
             });
             player.attachMediaElement(video);
             player.load();
-            player.play().catch(() => playOverlay.style.display = 'flex');
+            
+            // Wait for buffer to fill slightly before playing
+            const checkBuffer = setInterval(() => {
+                if (video.buffered.length > 0) {
+                    if (video.buffered.end(0) > 1.0) {
+                        clearInterval(checkBuffer);
+                        player.play().catch(() => playOverlay.style.display = 'flex');
+                    }
+                }
+            }, 200);
             
             player.on(mpegts.Events.ERROR, (type, detail) => {
                 log('MpegTS Error: ' + type + ' - ' + detail);
