@@ -6,6 +6,7 @@ import '../../../core/services/playlist_api_service.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../providers/xtream_provider.dart';
 
 /// Provider for fetching playlists from API
 final playlistsProvider = FutureProvider<List<PlaylistConfig>>((ref) async {
