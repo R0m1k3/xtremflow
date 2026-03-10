@@ -245,22 +245,22 @@
             const isTurbo = urlParams.get('turbo') === 'true';
 
             const hls = new Hls({
-                maxBufferLength: 60, // Increased for stability
-                maxMaxBufferLength: 120,
+                maxBufferLength: 120, // Doubled for stability
+                maxMaxBufferLength: 240,
                 enableWorker: true,
-                liveSyncDurationCount: 6, // More distance from live edge (TiviMate style)
-                liveMaxLatencyDurationCount: 20,
-                lowLatencyMode: true,
+                liveSyncDurationCount: 12, // Increased distance from live edge (TiviMate style) for high latency
+                liveMaxLatencyDurationCount: 40,
+                lowLatencyMode: false, // Disabled for better stability on laggy connections
                 // Robustness features
-                nudgeOffset: 0.2, // Jump over discontinuities
-                nudgeMaxRetries: 10,
-                maxLiveSyncPlaybackRate: 1.1, // Smooth catch-up
+                nudgeOffset: 0.5, // Jump over discontinuities more aggressively
+                nudgeMaxRetries: 20,
+                maxLiveSyncPlaybackRate: 1.2, // Smooth catch-up
                 // Turbo-Start specific
                 startLevel: isTurbo ? 0 : -1,
                 initialLiveManifestSize: 1,
                 abrEwmaDefaultEstimate: 500000,
-                manifestLoadingRetryDelay: 800,
-                levelLoadingRetryDelay: 800
+                manifestLoadingRetryDelay: 1000,
+                levelLoadingRetryDelay: 1000
             });
 
             window.hlsInstance = hls;
@@ -296,14 +296,14 @@
                 url: url
             }, {
                 enableWorker: true,
-                stashInitialSize: isTurbo ? 1024 * 1024 : 1024 * 1024, // 1MB Large buffer for everyone
+                stashInitialSize: 512 * 1024,
                 enableStashBuffer: true,
                 liveBufferLatencyChasing: true,
                 liveBufferLatencyChasingOnPaused: true,
-                liveBufferLatencyMaxLatency: 3.0, // Safety margin
-                liveBufferLatencyMinLatency: 1.0,
+                liveBufferLatencyMaxLatency: 10.0,
+                liveBufferLatencyMinLatency: 2.0,
                 lazyLoad: false,
-                maxStashSize: 2 * 1024 * 1024 // 2MB Max
+                maxStashSize: 20 * 1024 * 1024
             });
 
             player.attachMediaElement(video);
