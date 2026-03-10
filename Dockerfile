@@ -16,6 +16,9 @@ ENV DART_VM_OPTIONS="--old_gen_heap_size=4096"
 # Enable web support (idempotent)
 RUN flutter config --enable-web
 
+# Clean build environment at the START if needed, but usually redundant in fresh image
+# RUN flutter clean
+
 # Force cache invalidation when source changes (update this value to force rebuild)
 ARG CACHEBUST=2026-03-09-mobile-v1
 
@@ -28,17 +31,12 @@ RUN flutter pub get
 # Copy source code
 COPY . .
 
-# Re-run pub get
-RUN flutter pub get
-
 # Generate code
 RUN dart run build_runner build --delete-conflicting-outputs
 
-# Clean build environment
-RUN flutter clean
-
 # Build web application
-RUN flutter build web --release --base-href="/" --no-wasm-dry-run --no-tree-shake-icons --verbose
+# We use --no-pub because we already ran it
+RUN flutter build web --release --base-href="/" --no-pub --no-wasm-dry-run --no-tree-shake-icons --verbose
 
 # ============================================
 # Stage 2: Compile Configurable Server (Native)
