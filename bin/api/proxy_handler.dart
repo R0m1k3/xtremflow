@@ -123,6 +123,7 @@ class ProxyHandler {
           'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
           'Accept': '*/*',
           'Accept-Encoding': 'identity',
+          'Connection': 'close', // Forced close for better IPTV server compatibility
         };
 
         // Forward Range header if present
@@ -158,21 +159,7 @@ class ProxyHandler {
             }
           }
 
-          // Special case for API requests (JSON list of channels etc.)
-          // If it's not a Range request and looks like JSON, read it fully
-          final isJson =
-              response.headers['content-type']?.contains('json') == true;
-          final isRange = request.headers.containsKey('range');
-
-          if (isJson && !isRange) {
-            final bytes = await response.stream.toBytes();
-            return Response(
-              response.statusCode,
-              body: bytes,
-              headers: responseHeaders,
-            );
-          }
-
+          // ALWAYS stream the response for maximum performance and to avoid memory issues with large JSONs
           return Response(
             response.statusCode,
             body: response.stream,
