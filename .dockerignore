@@ -1,21 +1,24 @@
-# Git
 .git
 .gitignore
-
-# Flutter/Dart
-.dart_tool/
+.dart_tool
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages
-.pub-cache/
-.pub/
+.pub-cache
 build/
-
-# IDEs
-.idea/
-.vscode/
-*.iml
-
-# OS
-.DS_Store
-Thumbs.db
+bin/.dart_tool
+bin/.packages
+bin/pubspec.lock
+ios/
+android/
+windows/
+linux/
+macos/
+*.log
+Dockerfile
+docker-compose.yml
+entrypoint.sh
+README.md
+task.md
+implementation_plan.md
+walkthrough.md

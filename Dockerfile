@@ -1,43 +1,42 @@
-# ============================================
 # Stage 1: Build Flutter Web Application
-# ============================================
 FROM ghcr.io/cirruslabs/flutter:stable AS web-builder
 
+# Run as root for setup
 USER root
-
 WORKDIR /app
 
-# Safe directory configuration for git
-RUN git config --global --add safe.directory /app
+# Disable analytics and precache early to cache this layer
+ENV FLUTTER_NO_ANALYTICS=1
+RUN flutter config --no-analytics && \
+    flutter config --enable-web && \
+    flutter precache --web
 
-# Optimize DART VM Memory for build to prevent OOM
-# Increased to 16GB for high-performance servers
+# Optimize DART VM Memory for build
 ENV DART_VM_OPTIONS="--old_gen_heap_size=16384"
 
-# Enable web support and PRECACHE artifacts to avoid downloads during build
-RUN flutter config --enable-web && flutter precache --web
-
-# Clean build environment at the START if needed, but usually redundant in fresh image
-# RUN flutter clean
-
-# Force cache invalidation when source changes (update this value to force rebuild)
-ARG CACHEBUST=2026-03-09-mobile-v1
+# Safe directory configuration for git (needed even if we ignore .git for some flutter tools)
+RUN git config --global --add safe.directory /app
 
 # Copy dependency files first for better caching
 COPY pubspec.yaml ./
-
-# Get dependencies
 RUN flutter pub get
 
-# Copy source code
+# Copy source code (respecting .dockerignore)
 COPY . .
 
 # Generate code
 RUN dart run build_runner build --delete-conflicting-outputs
 
 # Build web application
-# We use --no-pub because we already ran it
-RUN flutter build web --release --base-href="/" --no-pub --no-wasm-dry-run --no-tree-shake-icons --verbose
+# --no-pub ensures we use what we got in the previous layer
+# --web-renderer canvaskit for higher quality (since we have 64GB RAM)
+RUN flutter build web --release \
+    --base-href="/" \
+    --no-pub \
+    --no-wasm-dry-run \
+    --no-tree-shake-icons \
+    --web-renderer canvaskit \
+    --verbose
 
 # ============================================
 # Stage 2: Compile Configurable Server (Native)
