@@ -212,6 +212,33 @@ Handler createLiveStreamHandler(
     });
   });
 
+  // Route: /api/live/{streamId}.ts (Direct Proxy for internal recordings or raw playback)
+  router.get('/<streamId>.ts', (Request request, String streamId) async {
+    final playlist = await getPlaylist(request);
+    if (playlist == null) return Response.forbidden('No playlist');
+
+    final targetUrl =
+        '${playlist.dns}/live/${playlist.username}/${playlist.password}/$streamId.ts';
+    print('[Live Proxy] Forwarding $streamId: $targetUrl');
+
+    final client = http.Client();
+    final proxyRequest = http.Request('GET', Uri.parse(targetUrl));
+    proxyRequest.headers['User-Agent'] = 'VLC/3.0.18 LibVLC/3.0.18';
+    proxyRequest.headers['Accept'] = '*/*';
+
+    final response = await client.send(proxyRequest);
+
+    return Response(
+      response.statusCode,
+      body: response.stream,
+      headers: {
+        'Content-Type': 'video/mp2t',
+        'Access-Control-Allow-Origin': '*',
+        'Connection': 'keep-alive',
+      },
+    );
+  });
+
   // Route: /api/live/{streamId}/{segment}
   router.get('/<streamId>/<segment>',
       (Request request, String streamId, String segment) async {

@@ -81,8 +81,8 @@ class ProxyHandler {
       // Only handle /api/xtream/* requests
       // CRITICAL: Check path BEFORE anything else so non-proxy requests fall through to static handler
       if (!path.startsWith('api/xtream/')) {
-        // Return 404 so Cascade tries next handler (staticHandler)
-        return Response.notFound('Not an xtream proxy request');
+        // Return 404 so Cascade tries next handler (streamingRouter)
+        return Response.notFound(null);
       }
 
       // NOTE: Authentication REMOVED from proxy to allow browser-initiated requests (img src, etc.)
