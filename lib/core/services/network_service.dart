@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:io';
 
 /// Advanced network configuration for streaming
 class NetworkConfig {
@@ -73,7 +74,7 @@ class OptimizedNetworkService {
 
     // Configure proxy if specified
     if (_config.proxyUrl != null) {
-      _dio.httpClientAdapter = _createProxyAdapter(_config.proxyUrl!);
+      _configureProxy(_config.proxyUrl!);
     }
 
     // Add interceptors
@@ -84,11 +85,21 @@ class OptimizedNetworkService {
     ]);
   }
 
-  /// Create HTTP client adapter with proxy support
-  dynamic _createProxyAdapter(String proxyUrl) {
-    // Implementation for proxy support
-    // This would need to handle HTTP/HTTPS proxies
-    return null;
+  /// Configure native Dart HttpClient with proxy
+  void _configureProxy(String proxyUrl) {
+    try {
+      final uri = Uri.parse(proxyUrl);
+      _dio.httpClientAdapter = HttpClientAdapter(
+        onHttpClientCreate: (client) {
+          client.findProxy = (uri) {
+            return 'PROXY ${uri.host}:${uri.port}';
+          };
+          return client;
+        },
+      );
+    } catch (e) {
+      print('Error configuring proxy: $e');
+    }
   }
 
   /// Update network configuration
