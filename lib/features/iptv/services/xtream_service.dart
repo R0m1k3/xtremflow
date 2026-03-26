@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:html' as html;
 import 'package:dio/dio.dart';
 import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
-import 'package:dio_cache_interceptor_hive_store/dio_cache_interceptor_hive_store.dart';
 import 'package:flutter/foundation.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/models/iptv_models.dart';
@@ -34,9 +33,9 @@ class XtreamService {
     );
 
     // Setup caching for API responses
-    // Use MemCacheStore on Web to avoid path errors
+    // Use MemCacheStore for in-memory caching
     _cacheOptions = CacheOptions(
-      store: kIsWeb ? MemCacheStore() : HiveCacheStore('./cache'),
+      store: MemCacheStore(),
       policy: CachePolicy.forceCache, // Prioritize local cache
       maxStale: const Duration(hours: 1), // Increase to 1h for stability
       priority: CachePriority.high,
