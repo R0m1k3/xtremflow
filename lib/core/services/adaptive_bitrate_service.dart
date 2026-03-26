@@ -28,10 +28,10 @@ class QualityLevel {
   String get videoBitrateArg => '${(bitrateBps * 0.75).toInt() ~/ 1000}k';
 
   /// Get FFmpeg maxrate argument (150% of bitrate)
-  String get maxRateArg => '${(bitrateBps * 1.5 ~/ 1000).toInt()}k';
+  String get maxRateArg => '${((bitrateBps * 1.5).toInt() ~/ 1000)}k';
 
   /// Get FFmpeg buffer size argument
-  String get bufferSizeArg => '${(bitrateBps * 2 ~/ 1000).toInt()}k';
+  String get bufferSizeArg => '${((bitrateBps * 2).toInt() ~/ 1000)}k';
 
   @override
   String toString() => '$label ($resolution - ${bitrateBps ~/ 1000000}Mbps)';
