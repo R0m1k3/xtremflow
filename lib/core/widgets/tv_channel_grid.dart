@@ -29,7 +29,7 @@ class TvChannelGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    
+
     // Responsive column count
     int columnCount;
     if (screenWidth > 1920) {
@@ -44,6 +44,10 @@ class TvChannelGrid extends StatelessWidget {
       columnCount = 2;
     }
 
+    // Calculate horizontal padding safely
+    final paddingValue = padding.resolve(TextDirection.ltr);
+    final horizontalPadding = paddingValue.left + paddingValue.right;
+
     return SingleChildScrollView(
       controller: scrollController,
       physics: physics,
@@ -54,8 +58,8 @@ class TvChannelGrid extends StatelessWidget {
         children: [
           for (int i = 0; i < children.length; i++)
             SizedBox(
-              width: (screenWidth - 
-                  (padding.horizontal) - 
+              width: (screenWidth -
+                  horizontalPadding -
                   (horizontalSpacing * (columnCount - 1))) / columnCount,
               child: children[i],
             ),
