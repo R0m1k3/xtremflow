@@ -1,56 +1,113 @@
 import 'package:flutter/material.dart';
 
-/// XtremFlow Apple TV Modern Palette (tvOS 18+ inspired)
-///
-/// Premium, sophisticated color system designed for immersive TV viewing.
-/// - Dark foundation with subtle greys
-/// - Vibrant accent colors for focus states
-/// - Rich glassmorphism effects
-/// - Category-specific semantic colors
+/// XtremFlow Apple TV Premium Color System
+/// 
+/// Designed for modern tvOS aesthetic:
+/// - OLED-optimized blacks
+/// - Sophisticated, understated accent colors
+/// - Premium glass effects
+/// - Apple-compliant semantic colors
 class AppColors {
   AppColors._();
 
-  // ============ BACKGROUNDS ============
-  /// Pure black background - OLED optimized
+  // ============ BACKGROUNDS (OLED Optimized) ============
+  /// Pure black, optimal for OLED screens
   static const Color background = Color(0xFF000000);
 
-  /// Primary dark surface for cards/containers
-  static const Color surface = Color(0xFF1C1C1E);
+  /// Deep black with minimal elevation
+  static const Color backgroundAlt = Color(0xFF0A0A0A);
 
-  /// Secondary surface - slightly lighter for hierarchy
-  static const Color surfaceVariant = Color(0xFF2A2A2E);
+  // ============ SURFACE LAYERS (Material Design 3) ============
+  /// Level 1 - Primary card surfaces, containers
+  static const Color surface = Color(0xFF1A1A1A);
 
-  /// Tertiary surface - subtle depth
-  static const Color surfaceTertiary = Color(0xFF383838);
+  /// Level 2 - Elevated surfaces, hovered cards
+  static const Color surfaceVariant = Color(0xFF2A2A2A);
 
-  /// Glass effect overlay
-  static const Color surfaceGlass = Color(0x0DFFFFFF);
+  /// Level 3 - Disabled states, secondary containers
+  static const Color surfaceTertiary = Color(0xFF3A3A3A);
 
-  /// Glass border subtle line
-  static const Color border = Color(0xFF3A3A3C);
-  static const Color borderLight = Color(0xFF5A5A5C);
-  static const Color focusBorder = Color(0xFFFFFFFF);
+  /// Level 4 - Dividers and minimal visible elements
+  static const Color surfaceQuad = Color(0xFF4A4A4A);
 
-  // ============ PRIMARY ACCENTS ============
-  /// Main brand color - vibrant and attention-grabbing
-  static const Color primary = Color(0xFF00D4FF); // Cyan/Sky Blue
+  /// Level 5 - Premium elevated containers
+  static const Color surfaceFive = Color(0xFF5A5A5A);
 
-  /// Secondary accent for variety
-  static const Color secondary = Color(0xFFFF6B6B); // Soft Red
+  // ============ PRIMARY ACCENT (Sophisticated Teal) ============
+  /// Main interactive color for focus states and CTAs
+  /// Refined from #00D4FF to sophisticated #00A0D2 (80% saturation)
+  static const Color primary = Color(0xFF00A0D2);
 
-  /// Tertiary accent for highlights
-  static const Color tertiary = Color(0xFF00E5BB); // Mint
+  /// Darker teal for hover/pressed states
+  static const Color primaryDark = Color(0xFF0092BC);
 
-  /// Main accent for focused elements
-  static const Color accent = Color(0xFF00D4FF);
+  /// Lighter teal for disabled variants
+  static const Color primaryLight = Color(0xFF1BC4E5);
 
-  /// Focus/interactive state - white
+  // ============ SECONDARY ACCENT (Apple Red) ============
+  /// Error, warning, live indicator colors
+  /// Uses Apple's official red (#FF3B30)
+  static const Color secondary = Color(0xFFFF3B30);
+
+  /// Darker red for hover states
+  static const Color secondaryDark = Color(0xFFE62817);
+
+  /// Lighter red for disabled states
+  static const Color secondaryLight = Color(0xFFFF6B6B);
+
+  // ============ TERTIARY ACCENT (Apple Green) ============
+  /// Success and positive state indicator
+  static const Color tertiary = Color(0xFF34C759);
+
+  // ============ PRIMARY TEXT (Hierarchy) ============
+  /// Primary text - pure white for maximum readability
+  static const Color textPrimary = Color(0xFFFFFFFF);
+
+  /// Secondary text - 60% opacity white
+  static const Color textSecondary = Color(0xFF999999);
+
+  /// Tertiary text - 40% opacity white
+  static const Color textTertiary = Color(0xFF666666);
+
+  /// Quaternary text - 25% opacity white
+  static const Color textQuaternary = Color(0xFF404040);
+
+  // ============ STATE COLORS (Semantic) ============
+  static const Color success = Color(0xFF34C759);
+  static const Color warning = Color(0xFFFF9500);
+  static const Color error = Color(0xFFFF3B30);
+  static const Color info = Color(0xFF32ADE6);
+  static const Color disabled = Color(0xFF888888);
+
+  // ============ FOCUS STATES (Remote Control) ============
+  /// Focus border color - white for maximum contrast
   static const Color focusColor = Color(0xFFFFFFFF);
 
-  // ============ GRADIENTS ============
-  /// Primary action gradient
+  /// Focus border (use with 2px stroke width)
+  static const Color focusBorder = Color(0xFFFFFFFF);
+
+  // ============ GLASS EFFECTS (Premium Refinement) ============
+  /// Glass background - 6% white opacity (refined from 8%)
+  /// Creates premium glassmorphic effect without being too visible
+  static final Color glassBackground =
+      const Color(0xFFFFFFFF).withOpacity(0.06);
+
+  /// Glass border - 12% white opacity
+  static final Color glassBorder =
+      const Color(0xFFFFFFFF).withOpacity(0.12);
+
+  /// Premium glass variant - 10% white opacity
+  static final Color glassPremium =
+      const Color(0xFFFFFFFF).withOpacity(0.10);
+
+  /// Dark glass for overlays and scrim effects
+  static final Color glassBackgroundDark =
+      const Color(0xFF000000).withOpacity(0.50);
+
+  // ============ GRADIENTS (Premium) ============
+  /// Primary gradient for CTAs and highlights
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF00D4FF), Color(0xFF00E5BB)],
+    colors: [Color(0xFF00A0D2), Color(0xFF00D4AA)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -62,107 +119,32 @@ class AppColors {
     end: Alignment.bottomCenter,
   );
 
-  /// Success-to-info gradient
-  static const LinearGradient successGradient = LinearGradient(
-    colors: [Color(0xFF00E5BB), Color(0xFF00D4FF)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
+  // ============ RATING & BADGE COLORS ============
+  /// Premium gold for ratings and premium badges
+  static const Color ratingGold = Color(0xFFFFD700);
 
-  /// Premium gradient for hero elements
-  static const LinearGradient premiumGradient = LinearGradient(
-    colors: [Color(0xFFFF6B6B), Color(0xFFFFB347)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
+  /// Premium indicator color
+  static const Color ratingPremium = Color(0xFFFFD700);
 
-  // ============ SEMANTIC COLORS ============
-  /// Success state - green
-  static const Color success = Color(0xFF34C759);
-
-  /// Warning state - orange/amber
-  static const Color warning = Color(0xFFFF9500);
-
-  /// Error state - red
-  static const Color error = Color(0xFFFF3B30);
-
-  /// Info state - blue
-  static const Color info = Color(0xFF30B0C0);
-
-  /// Neutral/disabled state
-  static const Color disabled = Color(0xFF8E8E93);
-
-  // ============ TEXT HIERARCHY ============
-  /// Primary text - white
-  static const Color textPrimary = Color(0xFFFFFFFF);
-
-  /// Secondary text - light grey (60%)
-  static const Color textSecondary = Color(0xFF999999);
-
-  /// Tertiary text - medium grey (40%)
-  static const Color textTertiary = Color(0xFF666666);
-
-  /// Quaternary text - dark grey (25%)
-  static const Color textQuaternary = Color(0xFF404040);
-
-  // ============ CATEGORY COLORS ============
-  /// Live content - bright red
-  static const Color live = Color(0xFFFF3B30);
-
-  /// Movies content - electric blue
-  static const Color movies = Color(0xFF00B4E8);
-
-  /// Series content - mint green
-  static const Color series = Color(0xFF00E5BB);
-
-  /// Sports content - purple
-  static const Color sports = Color(0xFFBF5AF0);
-
-  /// News content - yellow
-  static const Color news = Color(0xFFFFC300);
-
-  /// Music content - pink
-  static const Color music = Color(0xFFFF2D55);
-
-  // ============ RATINGS ============
-  /// IMDb-style gold for ratings
-  static const Color ratingGold = Color(0xFFFDB913);
-
-  /// Premium/VIP gold
-  static const Color premiumGold = Color(0xFFFFD700);
-
-  /// Trending gradient
-  static const LinearGradient trendingGradient = LinearGradient(
-    colors: [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-
-  // ============ GLASS EFFECTS ============
-  /// Glass background - frozen white at 20% opacity
-  static final Color glassBackground = const Color(0xFFFFFFFF).withOpacity(0.08);
-
-  /// Glass border - white line at 15% opacity
-  static final Color glassBorder = const Color(0xFFFFFFFF).withOpacity(0.15);
-
-  /// Dark glass - for overlays
-  static final Color glassBackgroundDark = const Color(0xFF000000).withOpacity(0.5);
-
-  /// Premium glass - stronger visibility
-  static final Color glassPremium = const Color(0xFFFFFFFF).withOpacity(0.12);
-
-  // ============ OVERLAY COLORS ============
-  /// Overlay for modals/dialogs
+  // ============ OVERLAY & SCRIM ============
+  /// Semi-opaque overlay for modals (50%)
   static const Color overlay = Color(0x80000000);
 
-  /// Scrim color
+  /// Dark scrim for modal backgrounds
   static final Color scrim = Colors.black.withOpacity(0.4);
 
-  /// Loading shimmer color
-  static const Color shimmer = Color(0xFF2A2A2E);
+  // ============ DIVIDERS & BORDERS ============
+  /// Default border color (subtle white line)
+  static final Color border = const Color(0xFFFFFFFF).withOpacity(0.1);
 
-  // ============ THEME SCHEMES ============
-  /// Dark mode color scheme (main)
+  /// Strong border for emphasis
+  static final Color borderStrong = const Color(0xFFFFFFFF).withOpacity(0.2);
+
+  // ============ LIVE INDICATOR ============
+  static const Color live = Color(0xFFFF3B30);
+
+  // ============ COLOR SCHEME (Material 3 Compatible) ============
+  /// Complete Material 3 color scheme for ThemeData
   static ColorScheme get darkColorScheme => const ColorScheme.dark(
         primary: primary,
         onPrimary: Color(0xFF000000),
@@ -176,14 +158,5 @@ class AppColors {
         onError: Color(0xFFFFFFFF),
         brightness: Brightness.dark,
         scrim: overlay,
-      );
-
-  /// Light mode color scheme (fallback)
-  static ColorScheme get lightColorScheme => const ColorScheme.light(
-        primary: Color(0xFF0084FF),
-        secondary: Color(0xFFFF3B30),
-        surface: Color(0xFFFAFAFA),
-        error: error,
-        brightness: Brightness.light,
       );
 }

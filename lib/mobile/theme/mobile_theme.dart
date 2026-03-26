@@ -305,7 +305,7 @@ class MobileTheme {
     final baseTheme = ThemeData.light(useMaterial3: true);
 
     return baseTheme.copyWith(
-      colorScheme: AppColors.lightColorScheme,
+      colorScheme: AppColors.darkColorScheme,
       textTheme: GoogleFonts.interTextTheme(baseTheme.textTheme),
     );
   }
