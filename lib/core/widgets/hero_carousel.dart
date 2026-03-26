@@ -196,8 +196,8 @@ class _HeroCarouselState extends State<HeroCarousel>
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Colors.black.withOpacity(0.3),
-                Colors.black.withOpacity(0.8),
+                AppColors.background.withOpacity(0.3),
+                AppColors.background.withOpacity(0.8),
               ],
             ),
           ),
@@ -223,7 +223,7 @@ class _HeroCarouselState extends State<HeroCarousel>
               style: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: Colors.black,
+                color: AppColors.primary,
                 letterSpacing: 0.5,
               ),
             ),
@@ -285,14 +285,14 @@ class _HeroCarouselState extends State<HeroCarousel>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.play_arrow, color: Colors.black),
+                          const Icon(Icons.play_arrow, color: AppColors.textPrimary),
                           const SizedBox(width: 8),
                           Text(
                             'Play',
                             style: GoogleFonts.inter(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
-                              color: Colors.black,
+                              color: AppColors.primary,
                             ),
                           ),
                         ],

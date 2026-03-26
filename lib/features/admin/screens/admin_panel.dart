@@ -26,14 +26,13 @@ class AdminPanel extends StatelessWidget {
       extendBodyBehindAppBar: true,
       body: Container(
         decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment.center,
-            radius: 1.5,
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF2C2C2E), // Dark Grey (Apple TV Surface)
-              Color(0xFF000000), // Pure Black
+              AppColors.surfaceVariant,
+              AppColors.background,
             ],
-            stops: [0.0, 1.0],
           ),
         ),
         child: const AdminContent(),

@@ -45,14 +45,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           Positioned.fill(
             child: Container(
               decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF0F1014), // Deep Space Blue-Grey
-                    Color(0xFF181920), // Darker shade
-                  ],
-                ),
+                gradient: AppColors.backgroundGradient,
               ),
             ),
           ),

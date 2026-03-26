@@ -54,15 +54,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           // 1. Cinematic Background (Abstract Gradient)
           Container(
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF0D0D0D), // Almost Black
-                  Color(0xFF1A1A1A), // Dark Grey
-                  Color(0xFF0F0F0F), // Deep Dark
-                ],
-              ),
+              gradient: AppColors.backgroundGradient,
             ),
           ),
 
@@ -121,7 +113,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [Color(0xFF2C2C2E), Color(0xFF000000)],
+                          colors: [AppColors.surfaceVariant, AppColors.background],
                         ),
                         borderRadius: BorderRadius.circular(32),
                         boxShadow: [
@@ -134,7 +126,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       child: const Icon(
                         Icons.play_arrow_rounded,
-                        color: Colors.white,
+                        color: AppColors.textPrimary,
                         size: 64,
                       ),
                     ),

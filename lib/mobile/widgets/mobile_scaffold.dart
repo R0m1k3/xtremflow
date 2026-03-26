@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:ui';
+import '../../core/theme/app_colors.dart';
 
 class MobileScaffold extends ConsumerWidget {
   final Widget child;
@@ -19,19 +20,19 @@ class MobileScaffold extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       extendBody: true,
-      backgroundColor: Colors.black, // Base color
+      backgroundColor: AppColors.background,
       body: Stack(
         fit: StackFit.expand,
         children: [
           // Global Background
           Container(
             decoration: const BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment.center,
-                radius: 1.5,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
                 colors: [
-                  Color(0xFF1C1C1E),
-                  Color(0xFF000000),
+                  AppColors.surfaceVariant,
+                  AppColors.background,
                 ],
               ),
             ),
@@ -46,10 +47,10 @@ class MobileScaffold extends ConsumerWidget {
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF1C1C1E).withOpacity(0.85),
+              color: AppColors.surface.withOpacity(0.9),
               border: Border(
                 top: BorderSide(
-                  color: Colors.white.withOpacity(0.1),
+                  color: AppColors.border,
                   width: 0.5,
                 ),
               ),
@@ -60,8 +61,8 @@ class MobileScaffold extends ConsumerWidget {
               backgroundColor: Colors.transparent,
               type: BottomNavigationBarType.fixed,
               elevation: 0,
-              selectedItemColor: Colors.white,
-              unselectedItemColor: Colors.white38,
+              selectedItemColor: AppColors.primary,
+              unselectedItemColor: AppColors.textSecondary,
               selectedLabelStyle:
                   GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 11),
               unselectedLabelStyle:

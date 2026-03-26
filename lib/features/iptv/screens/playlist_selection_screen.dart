@@ -29,7 +29,7 @@ class PlaylistSelectionScreen extends ConsumerWidget {
           'Select Playlist',
           style: GoogleFonts.roboto(
             fontWeight: FontWeight.w600,
-            color: Colors.white,
+            color: AppColors.textPrimary,
           ),
         ),
         backgroundColor: Colors.transparent,
@@ -38,12 +38,12 @@ class PlaylistSelectionScreen extends ConsumerWidget {
           if (currentUser?.isAdmin ?? false)
             IconButton(
               icon:
-                  const Icon(Icons.admin_panel_settings, color: Colors.white70),
+                  const Icon(Icons.admin_panel_settings, color: AppColors.textSecondary),
               onPressed: () => context.go('/admin'),
               tooltip: 'Admin Panel',
             ),
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white70),
+            icon: const Icon(Icons.logout, color: AppColors.textSecondary),
             onPressed: () async {
               await ref.read(authProvider.notifier).logout();
               if (context.mounted) {
@@ -56,14 +56,7 @@ class PlaylistSelectionScreen extends ConsumerWidget {
       ),
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF0F1014), // Deep Space Dark
-              Color(0xFF181920), // Soft Eerie Black
-            ],
-          ),
+          gradient: AppColors.backgroundGradient,
         ),
         child: playlistsAsync.when(
           loading: () => const Center(
@@ -80,7 +73,7 @@ class PlaylistSelectionScreen extends ConsumerWidget {
                   'Error loading playlists',
                   style: GoogleFonts.outfit(
                     fontSize: 18,
-                    color: Colors.white70,
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -88,7 +81,7 @@ class PlaylistSelectionScreen extends ConsumerWidget {
                   onPressed: () => ref.refresh(playlistsProvider),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.textPrimary,
                   ),
                   child: Text('Retry', style: GoogleFonts.inter()),
                 ),
