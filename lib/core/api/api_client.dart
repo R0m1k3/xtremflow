@@ -16,12 +16,24 @@ class ApiClient {
       connectTimeout: const Duration(seconds: 60),
       receiveTimeout: const Duration(seconds: 60),
     ),);
-    
+
     // Add interceptor for logging
     _dio.interceptors.add(LogInterceptor(
       requestBody: true,
       responseBody: true,
     ),);
+
+    // Restore token from localStorage on initialization
+    _restoreTokenFromStorage();
+  }
+
+  /// Restore token from localStorage on app startup
+  void _restoreTokenFromStorage() {
+    final storedToken = getStoredToken();
+    if (storedToken != null) {
+      _token = storedToken;
+      _dio.options.headers['Authorization'] = 'Bearer $storedToken';
+    }
   }
 
   /// Get base URL (same origin for production)
