@@ -46,10 +46,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                   colors: [
-                    AppColors.background,
+                    Color(0xFF050505), // Very dark top
+                    AppColors.background, // Black bottom
                     Color(0xFF0A0A0A), // Slightly darker for depth
                   ],
                 ),
@@ -57,18 +58,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
           ),
 
-          // Ambient Glow Top-Left - Teal (Primary)
+          // Ambient Glow Top-Left - Teal (Primary) - VISIBLE
           Positioned(
-            top: -200,
-            left: -200,
+            top: -300,
+            left: -300,
             child: Container(
-              width: 600,
-              height: 600,
+              width: 800,
+              height: 800,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.primary.withOpacity(0.25),
+                    AppColors.primary.withOpacity(0.4),
+                    AppColors.primary.withOpacity(0.1),
                     Colors.transparent,
                   ],
                 ),
@@ -76,18 +78,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
           ),
 
-          // Ambient Glow Bottom-Right - Subtle Blue
+          // Ambient Glow Bottom-Right - Blue - VISIBLE
           Positioned(
-            bottom: -150,
-            right: -150,
+            bottom: -250,
+            right: -250,
             child: Container(
-              width: 500,
-              height: 500,
+              width: 700,
+              height: 700,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.info.withOpacity(0.15),
+                    AppColors.info.withOpacity(0.35),
+                    AppColors.info.withOpacity(0.1),
                     Colors.transparent,
                   ],
                 ),
