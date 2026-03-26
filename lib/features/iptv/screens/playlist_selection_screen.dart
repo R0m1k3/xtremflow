@@ -54,11 +54,64 @@ class PlaylistSelectionScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppColors.backgroundGradient,
-        ),
-        child: playlistsAsync.when(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Background with glows
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF050505),
+                  AppColors.background,
+                  Color(0xFF0A0A0A),
+                ],
+              ),
+            ),
+          ),
+          // Ambient Glow Top-Left - Teal
+          Positioned(
+            top: -200,
+            left: -200,
+            child: Container(
+              width: 600,
+              height: 600,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.primary.withOpacity(0.3),
+                    AppColors.primary.withOpacity(0.05),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Ambient Glow Bottom-Right - Blue
+          Positioned(
+            bottom: -200,
+            right: -200,
+            child: Container(
+              width: 600,
+              height: 600,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.info.withOpacity(0.25),
+                    AppColors.info.withOpacity(0.05),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Content
+          SingleChildScrollView(
+            child: playlistsAsync.when(
           loading: () => const Center(
             child: CircularProgressIndicator(color: AppColors.primary),
           ),
@@ -151,7 +204,9 @@ class PlaylistSelectionScreen extends ConsumerWidget {
               },
             );
           },
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }

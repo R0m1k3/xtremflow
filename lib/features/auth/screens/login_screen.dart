@@ -51,46 +51,54 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // 1. Cinematic Background (Abstract Gradient)
+          // 1. Cinematic Background (Deep Space - Premium Apple TV)
           Container(
             decoration: const BoxDecoration(
-              gradient: AppColors.backgroundGradient,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF050505),
+                  AppColors.background,
+                  Color(0xFF0A0A0A),
+                ],
+              ),
             ),
           ),
 
-          // 2. Ambient Glows (Apple TV Style)
+          // 2. Ambient Glows (Apple TV Style - VISIBLE)
           Positioned(
-            top: -size.height * 0.2,
-            right: -size.width * 0.1,
+            top: -size.height * 0.3,
+            right: -size.width * 0.2,
             child: Container(
-              width: size.width * 0.6,
-              height: size.width * 0.6,
+              width: size.width * 0.8,
+              height: size.width * 0.8,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.textPrimary.withOpacity(0.05),
+                    AppColors.primary.withOpacity(0.4),
+                    AppColors.primary.withOpacity(0.1),
                     Colors.transparent,
                   ],
-                  radius: 0.5,
                 ),
               ),
             ),
           ),
           Positioned(
-            bottom: -size.height * 0.2,
-            left: -size.width * 0.1,
+            bottom: -size.height * 0.3,
+            left: -size.width * 0.2,
             child: Container(
-              width: size.width * 0.6,
-              height: size.width * 0.6,
+              width: size.width * 0.8,
+              height: size.width * 0.8,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Colors.blue.withOpacity(0.03), // Subtle blue hint
+                    AppColors.info.withOpacity(0.3),
+                    AppColors.info.withOpacity(0.05),
                     Colors.transparent,
                   ],
-                  radius: 0.5,
                 ),
               ),
             ),
