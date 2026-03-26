@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/glass_container.dart';
 import '../providers/favorites_provider.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../iptv/providers/xtream_provider.dart';
 
+/// Modern Apple TV Channel Card
+/// 
+/// Features:
+/// - Live indicator with pulse animation
+/// - Favorite button with smooth interaction
+/// - EPG information display
+/// - Focus-aware scaling
+/// - Smooth image loading with skeleton loading
 class ChannelCard extends ConsumerStatefulWidget {
   final String streamId;
   final String name;
@@ -27,8 +37,8 @@ class ChannelCard extends ConsumerStatefulWidget {
     this.currentProgram,
     this.isLive = true,
     this.onTap,
-    this.width,
-    this.height,
+    this.width = 200,
+    this.height = 120,
   });
 
   @override
@@ -39,15 +49,260 @@ class _ChannelCardState extends ConsumerState<ChannelCard>
     with SingleTickerProviderStateMixin {
   bool _isHovered = false;
   late AnimationController _pulseController;
-  
-  // EPG State
-  String? _epgNow;
-  bool _epgLoaded = false;
+  late Animation<double> _pulseAnimation;
 
+  bool? _epgLoaded;
+  String? _epgNow;
 
   @override
   void initState() {
     super.initState();
+    
+    // Pulse animation for live indicator
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
+
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.5)
+        .animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut));
+
+    _epgLoaded = false;
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isFavorite = ref.watch(favoritesProvider).contains(widget.streamId);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedScale(
+          scale: _isHovered ? 1.08 : 1.0,
+          duration: AppTheme.durationMd,
+          curve: AppTheme.curveDefault,
+          child: GlassCard(
+            borderRadius: AppTheme.radiusLg,
+            padding: EdgeInsets.zero,
+            interactive: true,
+            onTap: widget.onTap,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // ============ BACKGROUND IMAGE ============
+                _buildChannelImage(),
+
+                // ============ GRADIENT OVERLAY ============
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(_isHovered ? 0.7 : 0.5),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ============ CONTENT ============
+                Positioned(
+                  left: AppTheme.spacing12,
+                  right: AppTheme.spacing12,
+                  bottom: AppTheme.spacing12,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Channel name
+                      Text(
+                        widget.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.outfit(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+
+                      if (widget.currentProgram != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          widget.currentProgram!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                // ============ TOP INDICATORS ============
+                Positioned(
+                  top: AppTheme.spacing12,
+                  left: AppTheme.spacing12,
+                  right: AppTheme.spacing12,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Live indicator
+                      if (widget.isLive) _buildLiveIndicator(),
+
+                      // Favorite button
+                      _buildFavoriteButton(isFavorite),
+                    ],
+                  ),
+                ),
+
+                // ============ FOCUS STATE ============
+                if (_isHovered)
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                      border: Border.all(
+                        color: AppColors.primary,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build channel image with skeleton loading
+  Widget _buildChannelImage() {
+    if (widget.iconUrl == null || widget.iconUrl!.isEmpty) {
+      return Container(
+        color: AppColors.surface,
+        child: Center(
+          child: Icon(
+            Icons.tv,
+            color: AppColors.textSecondary,
+            size: 48,
+          ),
+        ),
+      );
+    }
+
+    return CachedNetworkImage(
+      imageUrl: widget.iconUrl!,
+      fit: BoxFit.cover,
+      placeholder: (context, url) => _buildImageSkeleton(),
+      errorWidget: (context, url, error) => Container(
+        color: AppColors.surface,
+        child: Center(
+          child: Icon(
+            Icons.broken_image_outlined,
+            color: AppColors.textSecondary,
+            size: 48,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Skeleton loader for images
+  Widget _buildImageSkeleton() {
+    return Container(
+      color: AppColors.shimmer,
+      child: const Center(
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation(AppColors.primary),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build animated live indicator
+  Widget _buildLiveIndicator() {
+    return ScaleTransition(
+      scale: _pulseAnimation,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppColors.live,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: AppColors.textPrimary,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'LIVE',
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build favorite button with interaction
+  Widget _buildFavoriteButton(bool isFavorite) {
+    return GestureDetector(
+      onTap: () {
+        ref.read(favoritesProvider.notifier).toggle(widget.streamId);
+      },
+      child: AnimatedScale(
+        scale: isFavorite ? 1.0 : 0.9,
+        duration: AppTheme.durationSm,
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: AppColors.surface.withOpacity(0.8),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: isFavorite ? AppColors.secondary : AppColors.border,
+              width: 1.5,
+            ),
+          ),
+          child: Icon(
+            isFavorite ? Icons.favorite : Icons.favorite_border,
+            color: isFavorite ? AppColors.secondary : AppColors.textSecondary,
+            size: 18,
+          ),
+        ),
+      ),
+    );
+  }
+}
     _pulseController = AnimationController(
        vsync: this, 
        duration: const Duration(milliseconds: 1000),
