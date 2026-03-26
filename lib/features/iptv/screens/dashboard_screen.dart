@@ -96,7 +96,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               // blur is hardcoded in GlassContainer (15), so we don't pass it
               // border is bool, borderColor allows customization
               hasBorder: true,
-              borderColor: Colors.white.withOpacity(0.1),
+              borderColor: AppColors.border,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -119,7 +119,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ),
                       child: const Icon(
                         Icons.play_arrow_rounded,
-                        color: Colors.white,
+                        color: AppColors.textPrimary,
                         size: 28,
                       ),
                     ),
@@ -155,7 +155,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           child: Icon(
                             _icons[index],
                             color: isSelected
-                                ? Colors.white
+                                ? AppColors.textPrimary
                                 : AppColors.textSecondary,
                             size: 24,
                           ),
@@ -175,10 +175,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       scaleFactor: 1.1,
                       child: CircleAvatar(
                         radius: 20,
-                        backgroundColor: Colors.white.withOpacity(0.1),
+                        backgroundColor: AppColors.primary.withOpacity(0.1),
                         child: const Icon(
                           Icons.person,
-                          color: Colors.white70,
+                          color: AppColors.textSecondary,
                           size: 20,
                         ),
                       ),

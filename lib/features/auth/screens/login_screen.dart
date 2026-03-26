@@ -69,7 +69,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Colors.white.withOpacity(0.05),
+                    AppColors.textPrimary.withOpacity(0.05),
                     Colors.transparent,
                   ],
                   radius: 0.5,
@@ -118,7 +118,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         borderRadius: BorderRadius.circular(32),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.5),
+                            color: AppColors.background.withOpacity(0.5),
                             blurRadius: 30,
                             offset: const Offset(0, 15),
                           ),
@@ -239,13 +239,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           TvFocusableCard(
                             onTap: _handleLogin,
                             scaleFactor: 1.03,
-                            focusColor: Colors.white,
+                            focusColor: AppColors.primary,
                             borderRadius: 16,
                             child: Container(
                               height: 60,
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: AppColors.textPrimary,
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: authState.isLoading
@@ -254,13 +254,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       height: 24,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2.5,
-                                        color: Colors.black,
+                                        color: AppColors.primary,
                                       ),
                                     )
                                   : Text(
                                       'Sign In',
                                       style: GoogleFonts.inter(
-                                        color: Colors.black,
+                                        color: AppColors.primary,
                                         fontSize: 18,
                                         fontWeight: FontWeight.w600,
                                       ),

@@ -379,7 +379,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // LITE PLAYER MODE for Live TV - Simplified UI (no BackdropFilter)
     if (isLiveTV) {
       return Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: AppColors.background,
         body: Stack(
           fit: StackFit.expand,
           children: [
@@ -420,7 +420,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
                                   colors: [
-                                    Colors.black.withOpacity(0.8),
+                                    AppColors.background.withOpacity(0.8),
                                     Colors.transparent,
                                   ],
                                 ),
@@ -451,7 +451,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                                     .toString()
                                                 : widget.title,
                                             style: GoogleFonts.outfit(
-                                              color: Colors.white,
+                                              color: AppColors.textPrimary,
                                               fontSize: 18,
                                               fontWeight: FontWeight.w600,
                                             ),
@@ -490,17 +490,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                     vertical: isSmallScreen ? 12 : 16,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF1A1A2E).withOpacity(0.95),
+                                    color: AppColors.surface.withOpacity(0.95),
                                     borderRadius: BorderRadius.circular(24),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.3),
+                                        color: AppColors.background.withOpacity(0.3),
                                         blurRadius: 10,
                                         spreadRadius: 2,
                                       ),
                                     ],
                                     border: Border.all(
-                                      color: Colors.white.withOpacity(0.15),
+                                      color: AppColors.textPrimary.withOpacity(0.15),
                                     ),
                                   ),
                                   child: isSmallScreen

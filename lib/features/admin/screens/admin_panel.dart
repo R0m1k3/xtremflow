@@ -80,13 +80,13 @@ class _AdminContentState extends ConsumerState<AdminContent>
                   padding: const EdgeInsets.all(8),
                   showBorder: false,
                   onTap: () => context.go('/playlists'),
-                  child: const Icon(Icons.arrow_back, color: Colors.white70),
+                  child: const Icon(Icons.arrow_back, color: AppColors.textSecondary),
                 ),
                 const SizedBox(width: 16),
                 Text(
                   'Administration',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: Colors.white,
+                        color: AppColors.textPrimary,
                         fontWeight: FontWeight.bold,
                       ),
                 ),
@@ -147,7 +147,7 @@ class _AdminContentState extends ConsumerState<AdminContent>
                 Icon(
                   icon,
                   size: 18,
-                  color: isSelected ? Colors.black : Colors.white70,
+                  color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -155,7 +155,7 @@ class _AdminContentState extends ConsumerState<AdminContent>
                   style: GoogleFonts.inter(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
-                    color: isSelected ? Colors.black : Colors.white70,
+                    color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
                   ),
                 ),
               ],
@@ -187,7 +187,7 @@ class _PlaylistsTab extends ConsumerWidget {
                 style: Theme.of(context)
                     .textTheme
                     .bodyLarge
-                    ?.copyWith(color: Colors.white70),
+                    ?.copyWith(color: AppColors.textSecondary),
               ),
               GradientButton(
                 label: 'Add Playlist',
@@ -462,7 +462,7 @@ class _UsersTab extends ConsumerWidget {
                 style: Theme.of(context)
                     .textTheme
                     .bodyLarge
-                    ?.copyWith(color: Colors.white70),
+                    ?.copyWith(color: AppColors.textSecondary),
               ),
               GradientButton(
                 label: 'Create User',
