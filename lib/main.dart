@@ -26,18 +26,22 @@ class MyApp extends ConsumerWidget {
       themeMode: themeState.themeMode,
       routerConfig: router,
       builder: (context, child) {
-        return Container(
-          decoration: BoxDecoration(
-            gradient: AppColors.grayGlossyGradient,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.white.withOpacity(0.08),
-                blurRadius: 40,
-                spreadRadius: 20,
+        return Stack(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                gradient: AppColors.grayGlossyGradient,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.08),
+                    blurRadius: 40,
+                    spreadRadius: 20,
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: child,
+            ),
+            child!,
+          ],
         );
       },
     );
