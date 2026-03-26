@@ -110,101 +110,100 @@ class PlaylistSelectionScreen extends ConsumerWidget {
             ),
           ),
           // Content
-          SingleChildScrollView(
-            child: playlistsAsync.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.primary),
-          ),
-          error: (error, stack) => Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline,
-                    size: 64, color: AppColors.error),
-                const SizedBox(height: 16),
-                Text(
-                  'Error loading playlists',
-                  style: GoogleFonts.outfit(
-                    fontSize: 18,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: () => ref.refresh(playlistsProvider),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.textPrimary,
-                  ),
-                  child: Text('Retry', style: GoogleFonts.inter()),
-                ),
-              ],
+          playlistsAsync.when(
+            loading: () => const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
             ),
-          ),
-          data: (playlists) {
-            if (playlists.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.playlist_remove,
-                      size: 64,
-                      color: Colors.white24,
+            error: (error, stack) => Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline,
+                      size: 64, color: AppColors.error),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error loading playlists',
+                    style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      color: AppColors.textSecondary,
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No playlists available',
-                      style: GoogleFonts.outfit(
-                        fontSize: 18,
-                        color: Colors.white60,
-                      ),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () => ref.refresh(playlistsProvider),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.textPrimary,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      currentUser?.isAdmin ?? false
-                          ? 'Add playlists in Admin Panel'
-                          : 'Contact administrator',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: Colors.white38,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            return GridView.builder(
-              padding: const EdgeInsets.fromLTRB(
-                48,
-                100,
-                48,
-                48,
-              ), // More padding for cinematic feel
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount:
-                    MediaQuery.of(context).size.width > 1200 ? 4 : 3,
-                crossAxisSpacing: 32,
-                mainAxisSpacing: 32,
-                childAspectRatio: 1.4,
+                    child: Text('Retry', style: GoogleFonts.inter()),
+                  ),
+                ],
               ),
-              itemCount: playlists.length,
-              itemBuilder: (context, index) {
-                final playlist = playlists[index];
-                return _PlaylistCard(
-                  playlist: playlist,
-                  onTap: () {
-                    // Update current selected playlist provider first
-                    ref.read(selectedPlaylistProvider.notifier).state = playlist;
-                    // Then navigate to dashboard
-                    context.go('/dashboard');
-                  },
-                );
-              },
-            );
-          },
             ),
+            data: (playlists) {
+              if (playlists.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.playlist_remove,
+                        size: 64,
+                        color: Colors.white24,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No playlists available',
+                        style: GoogleFonts.outfit(
+                          fontSize: 18,
+                          color: Colors.white60,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        currentUser?.isAdmin ?? false
+                            ? 'Add playlists in Admin Panel'
+                            : 'Contact administrator',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: Colors.white38,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return GridView.builder(
+                padding: const EdgeInsets.fromLTRB(
+                  48,
+                  100,
+                  48,
+                  48,
+                ), // More padding for cinematic feel
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount:
+                      MediaQuery.of(context).size.width > 1200 ? 4 : 3,
+                  crossAxisSpacing: 32,
+                  mainAxisSpacing: 32,
+                  childAspectRatio: 1.4,
+                ),
+                itemCount: playlists.length,
+                itemBuilder: (context, index) {
+                  final playlist = playlists[index];
+                  return _PlaylistCard(
+                    playlist: playlist,
+                    onTap: () {
+                      // Update current selected playlist provider first
+                      ref.read(selectedPlaylistProvider.notifier).state =
+                          playlist;
+                      // Then navigate to dashboard
+                      context.go('/dashboard');
+                    },
+                  );
+                },
+              );
+            },
           ),
         ],
       ),
