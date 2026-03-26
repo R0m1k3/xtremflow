@@ -47,8 +47,21 @@ dependencies:
   intl: ^0.19.0
   equatable: ^2.0.5
   shared_preferences: ^2.3.2
-
   
+  # Premium Features
+  lottie: ^3.1.0
+  animations: ^2.0.0
+  flutter_animate: ^4.0.0
+  percent_indicator: ^4.1.0
+  
+  # Subtitles & Media
+  subtitle: ^0.0.6
+  
+  # Download Manager
+  dio_downloader: ^2.1.4
+  
+  # Network & Proxy
+  http_client_adapter: ^1.0.0
 
 
 dev_dependencies:
