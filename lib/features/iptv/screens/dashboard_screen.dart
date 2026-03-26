@@ -41,19 +41,45 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // 1. Cinematic Deep Space Background
+          // 1. Cinematic Deep Space Background - Premium Apple TV Style
           Positioned.fill(
             child: Container(
               decoration: const BoxDecoration(
-                gradient: AppColors.backgroundGradient,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.background,
+                    Color(0xFF0A0A0A), // Slightly darker for depth
+                  ],
+                ),
               ),
             ),
           ),
 
-          // Ambient Glow (Subtle accent)
+          // Ambient Glow Top-Left - Teal (Primary)
           Positioned(
-            top: -100,
-            left: -100,
+            top: -200,
+            left: -200,
+            child: Container(
+              width: 600,
+              height: 600,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.primary.withOpacity(0.25),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Ambient Glow Bottom-Right - Subtle Blue
+          Positioned(
+            bottom: -150,
+            right: -150,
             child: Container(
               width: 500,
               height: 500,
@@ -61,7 +87,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.primary.withOpacity(0.2),
+                    AppColors.info.withOpacity(0.15),
                     Colors.transparent,
                   ],
                 ),

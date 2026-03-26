@@ -294,15 +294,15 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
             padding: const EdgeInsets.all(0),
             child: Stack(
               children: [
-                // Background Gradient
+                // Background Gradient - Apple TV Style
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        Colors.white.withOpacity(0.05),
-                        Colors.blue.withOpacity(0.05),
+                        AppColors.primary.withOpacity(0.15),
+                        AppColors.primary.withOpacity(0.05),
                       ],
                     ),
                   ),
