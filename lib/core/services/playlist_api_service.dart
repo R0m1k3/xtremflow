@@ -5,28 +5,29 @@ import '../models/playlist_config.dart';
 class PlaylistApiService {
   final ApiClient _api = ApiClient();
 
-  /// Get all playlists for current user
+  /// Get all playlists for current user.
+  ///
+  /// Throws on API error so the Riverpod [FutureProvider] can expose the
+  /// [AsyncError] state — ensuring the UI shows a proper error with Retry,
+  /// instead of silently rendering an empty list.
   Future<List<PlaylistConfig>> getPlaylists() async {
-    try {
-      final response = await _api.get('/api/playlists');
-      final data = response.data as Map<String, dynamic>;
-      final playlistsData = data['playlists'] as List<dynamic>;
+    final response = await _api.get('/api/playlists');
+    final data = response.data as Map<String, dynamic>;
+    final playlistsData = data['playlists'] as List<dynamic>;
 
-      return playlistsData.map((p) {
-        final playlist = p as Map<String, dynamic>;
-        return PlaylistConfig(
-          id: playlist['id'] as String,
-          name: playlist['name'] as String,
-          dns: playlist['serverUrl'] as String? ?? playlist['dns'] as String,
-          username: playlist['username'] as String,
-          password: playlist['password'] as String,
-          createdAt: DateTime.tryParse(playlist['createdAt'] as String? ?? '') ?? DateTime.now(),
-        );
-      }).toList();
-    } catch (e) {
-      print('Error fetching playlists: $e');
-      return [];
-    }
+    return playlistsData.map((p) {
+      final playlist = p as Map<String, dynamic>;
+      return PlaylistConfig(
+        id: playlist['id'] as String,
+        name: playlist['name'] as String,
+        dns: playlist['serverUrl'] as String? ?? playlist['dns'] as String,
+        username: playlist['username'] as String,
+        password: playlist['password'] as String,
+        createdAt:
+            DateTime.tryParse(playlist['createdAt'] as String? ?? '') ??
+                DateTime.now(),
+      );
+    }).toList();
   }
 
   /// Create a new playlist

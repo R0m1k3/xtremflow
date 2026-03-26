@@ -30,8 +30,14 @@ class TvChannelGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
 
+    // Guard: during first Flutter Web layout pass, size may be 0 or NaN.
+    // LayoutBuilder will re-trigger build once the real size is known.
+    if (screenWidth <= 0 || screenWidth.isNaN || screenWidth.isInfinite) {
+      return const SizedBox.shrink();
+    }
+
     // Responsive column count
-    int columnCount;
+    final int columnCount;
     if (screenWidth > 1920) {
       columnCount = 6;
     } else if (screenWidth > 1600) {
@@ -44,9 +50,14 @@ class TvChannelGrid extends StatelessWidget {
       columnCount = 2;
     }
 
-    // Calculate horizontal padding safely
-    final paddingValue = padding.resolve(TextDirection.ltr);
-    final horizontalPadding = paddingValue.left + paddingValue.right;
+    // Calculate horizontal padding safely using resolved EdgeInsets.
+    final resolvedPadding = padding.resolve(TextDirection.ltr);
+    final horizontalPadding = resolvedPadding.left + resolvedPadding.right;
+
+    // Compute item width, clamped to avoid negative/NaN values.
+    final totalSpacing = horizontalSpacing * (columnCount - 1);
+    final availableWidth = screenWidth - horizontalPadding - totalSpacing;
+    final itemWidth = (availableWidth / columnCount).clamp(1.0, double.infinity);
 
     return SingleChildScrollView(
       controller: scrollController,
@@ -58,9 +69,7 @@ class TvChannelGrid extends StatelessWidget {
         children: [
           for (int i = 0; i < children.length; i++)
             SizedBox(
-              width: (screenWidth -
-                  horizontalPadding -
-                  (horizontalSpacing * (columnCount - 1))) / columnCount,
+              width: itemWidth,
               child: children[i],
             ),
         ],
@@ -117,7 +126,9 @@ class TvHorizontalList extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             padding: EdgeInsets.symmetric(
               horizontal: 32,
-              vertical: padding.vertical as double? ?? 0,
+              // Resolve EdgeInsetsGeometry to a concrete EdgeInsets before
+              // accessing vertical — casting EdgeInsetsGeometry to double throws.
+              vertical: padding.resolve(TextDirection.ltr).top,
             ),
             itemCount: children.length,
             separatorBuilder: (_, __) => SizedBox(width: spacing),
