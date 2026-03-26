@@ -15,6 +15,166 @@ final playlistsProvider = FutureProvider<List<PlaylistConfig>>((ref) async {
 });
 
 class PlaylistSelectionScreen extends ConsumerWidget {
+  const PlaylistSelectionScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentUser = ref.watch(authProvider).currentUser;
+    final playlistsAsync = ref.watch(playlistsProvider);
+
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: Text(
+          'Select Playlist',
+          style: GoogleFonts.roboto(
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          if (currentUser?.isAdmin ?? false)
+            IconButton(
+              icon: const Icon(Icons.admin_panel_settings,
+                  color: AppColors.textSecondary),
+              onPressed: () => context.go('/admin'),
+              tooltip: 'Admin Panel',
+            ),
+          IconButton(
+            icon: const Icon(Icons.logout, color: AppColors.textSecondary),
+            onPressed: () async {
+              await ref.read(authProvider.notifier).logout();
+              if (context.mounted) {
+                context.go('/login');
+              }
+            },
+            tooltip: 'Logout',
+          ),
+        ],
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF050505),
+              AppColors.background,
+              Color(0xFF0A0A0A),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Safety: if constraints are invalid, show loading spinner
+              if (!constraints.maxWidth.isFinite ||
+                  constraints.maxWidth <= 0 ||
+                  !constraints.maxHeight.isFinite ||
+                  constraints.maxHeight <= 0) {
+                return const Center(
+                    child:
+                        CircularProgressIndicator(color: AppColors.primary));
+              }
+
+              return playlistsAsync.when(
+                loading: () => const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
+                error: (error, stack) => Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline,
+                          size: 64, color: AppColors.error),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Error loading playlists',
+                        style: GoogleFonts.outfit(
+                          fontSize: 18,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: () => ref.refresh(playlistsProvider),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.textPrimary,
+                        ),
+                        child: Text('Retry', style: GoogleFonts.inter()),
+                      ),
+                    ],
+                  ),
+                ),
+                data: (playlists) {
+                  if (playlists.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.playlist_remove,
+                            size: 64,
+                            color: Colors.white24,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No playlists available',
+                            style: GoogleFonts.outfit(
+                              fontSize: 18,
+                              color: Colors.white60,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            currentUser?.isAdmin ?? false
+                                ? 'Add playlists in Admin Panel'
+                                : 'Contact administrator',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: Colors.white38,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  // Simple Wrap layout - no grid, no NaN-prone calculations
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(48, 32, 48, 48),
+                    child: Wrap(
+                      spacing: 32,
+                      runSpacing: 32,
+                      children: playlists.map((playlist) {
+                        return SizedBox(
+                          width: 340,
+                          height: 240,
+                          child: _PlaylistCard(
+                            playlist: playlist,
+                            onTap: () {
+                              ref
+                                  .read(selectedPlaylistProvider.notifier)
+                                  .state = playlist;
+                              context.go('/dashboard');
+                            },
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _PlaylistCard extends StatefulWidget {
   final PlaylistConfig playlist;
@@ -45,7 +205,7 @@ class _PlaylistCardState extends State<_PlaylistCard> {
           decoration: BoxDecoration(
             color: _isHovered
                 ? Colors.white.withOpacity(0.1)
-                : Colors.white.withOpacity(0.03), // Subtle glass
+                : Colors.white.withOpacity(0.03),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
               color: _isHovered
