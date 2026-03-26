@@ -1,5 +1,30 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+/// Cache entry with metadata
+class CacheEntry<T> {
+  final T data;
+  final DateTime timestamp;
+  final int sizeEstimate;
+  int accessCount;
+  DateTime lastAccess;
+
+  CacheEntry({
+    required this.data,
+    required this.sizeEstimate,
+  })  : timestamp = DateTime.now(),
+      lastAccess = DateTime.now(),
+      accessCount = 0;
+
+  bool isExpired({Duration ttl = const Duration(hours: 24)}) {
+    return DateTime.now().difference(timestamp) > ttl;
+  }
+
+  void markAccess() {
+    accessCount++;
+    lastAccess = DateTime.now();
+  }
+}
+
 /// Optimized cache service for memory management
 class CacheService {
   static const _maxMemoryCacheSizeMb = 200;
@@ -7,31 +32,6 @@ class CacheService {
 
   final Map<String, CacheEntry> _cache = {};
   int _totalSizeBytes = 0;
-
-  /// Cache entry with metadata
-  class CacheEntry<T> {
-    final T data;
-    final DateTime timestamp;
-    final int sizeEstimate;
-    int accessCount;
-    DateTime lastAccess;
-
-    CacheEntry({
-      required this.data,
-      required this.sizeEstimate,
-    })  : timestamp = DateTime.now(),
-        lastAccess = DateTime.now(),
-        accessCount = 0;
-
-    bool isExpired({Duration ttl = const Duration(hours: 24)}) {
-      return DateTime.now().difference(timestamp) > ttl;
-    }
-
-    void markAccess() {
-      accessCount++;
-      lastAccess = DateTime.now();
-    }
-  }
 
   /// Cache data with automatic size management
   void cache<T>(String key, T value, {int estimatedSize = 1000}) {
@@ -111,6 +111,19 @@ class CacheService {
   }
 }
 
+/// Cached image metadata
+class CachedImage {
+  final String url;
+  final int sizeBytes;
+  final DateTime cachedAt;
+  int accessCount = 0;
+
+  CachedImage({
+    required this.url,
+    required this.sizeBytes,
+  }) : cachedAt = DateTime.now();
+}
+
 /// Image cache with size limiting
 class ImageCacheManager {
   static const _maxImageMemoryMb = 100;
@@ -118,18 +131,6 @@ class ImageCacheManager {
 
   final Map<String, CachedImage> _imageCache = {};
   int _totalMemoryBytes = 0;
-
-  class CachedImage {
-    final String url;
-    final int sizeBytes;
-    final DateTime cachedAt;
-    int accessCount = 0;
-
-    CachedImage({
-      required this.url,
-      required this.sizeBytes,
-    }) : cachedAt = DateTime.now();
-  }
 
   /// Add image to cache
   void cacheImage(String url, int sizeEstimateBytes) {
