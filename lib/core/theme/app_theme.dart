@@ -116,8 +116,8 @@ class AppTheme {
     return baseTheme.copyWith(
       useMaterial3: true,
       colorScheme: AppColors.darkColorScheme,
-      scaffoldBackgroundColor: AppColors.background,
-      canvasColor: AppColors.background,
+      scaffoldBackgroundColor: const Color(0xFF1A1A1A),
+      canvasColor: const Color(0xFF1A1A1A),
 
       // ============ TYPOGRAPHY (Apple TV Optimized for 10ft Viewing) ============
       textTheme: TextTheme(
