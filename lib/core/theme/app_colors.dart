@@ -134,11 +134,11 @@ class AppColors {
   static final Color scrim = Colors.black.withOpacity(0.4);
 
   // ============ DIVIDERS & BORDERS ============
-  /// Default border color (subtle white line)
-  static final Color border = const Color(0xFFFFFFFF).withOpacity(0.1);
+  /// Default border color (subtle white line at 10% opacity)
+  static const Color border = Color(0x1AFFFFFF);
 
-  /// Strong border for emphasis
-  static final Color borderStrong = const Color(0xFFFFFFFF).withOpacity(0.2);
+  /// Strong border for emphasis (20% opacity)
+  static const Color borderStrong = Color(0x33FFFFFF);
 
   // ============ LIVE INDICATOR ============
   static const Color live = Color(0xFFFF3B30);

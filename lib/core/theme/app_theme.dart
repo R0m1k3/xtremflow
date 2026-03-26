@@ -37,8 +37,16 @@ class AppTheme {
   static const double radiusFull = 999.0;
 
   // ============ ELEVATION (5-level cinematic shadow system) ============
+  // Simple elevation values
+  static const double elevationXs = 2.0;
+  static const double elevationSm = 4.0;
+  static const double elevationMd = 8.0;
+  static const double elevationLg = 16.0;
+  static const double elevationXl = 24.0;
+
+  // Shadow lists for advanced effects
   // Level 1: Depth 1px - minimal elevation (UI borders)
-  static const List<BoxShadow> elevationXs = [
+  static const List<BoxShadow> shadowXs = [
     BoxShadow(
       color: Color(0x0D000000),
       blurRadius: 2,
@@ -47,7 +55,7 @@ class AppTheme {
   ];
 
   // Level 2: Depth 4px - cards, buttons
-  static const List<BoxShadow> elevationSm = [
+  static const List<BoxShadow> shadowSm = [
     BoxShadow(
       color: Color(0x14000000),
       blurRadius: 4,
@@ -56,7 +64,7 @@ class AppTheme {
   ];
 
   // Level 3: Depth 8px - hovered cards, modals
-  static const List<BoxShadow> elevationMd = [
+  static const List<BoxShadow> shadowMd = [
     BoxShadow(
       color: Color(0x23000000),
       blurRadius: 8,
@@ -65,7 +73,7 @@ class AppTheme {
   ];
 
   // Level 4: Depth 16px - elevated panels, bottom sheets
-  static const List<BoxShadow> elevationLg = [
+  static const List<BoxShadow> shadowLg = [
     BoxShadow(
       color: Color(0x38000000),
       blurRadius: 16,
@@ -74,7 +82,7 @@ class AppTheme {
   ];
 
   // Level 5: Depth 24px - floating menus, dropdowns
-  static const List<BoxShadow> elevationXl = [
+  static const List<BoxShadow> shadowXl = [
     BoxShadow(
       color: Color(0x4D000000),
       blurRadius: 24,
