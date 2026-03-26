@@ -119,6 +119,13 @@ class AppColors {
     end: Alignment.bottomCenter,
   );
 
+  /// Gray gradient background with glossy effect
+  static const LinearGradient grayGlossyGradient = LinearGradient(
+    colors: [Color(0xFF2A2A2A), Color(0xFF1A1A1A)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
   // ============ RATING & BADGE COLORS ============
   /// Premium gold for ratings and premium badges
   static const Color ratingGold = Color(0xFFFFD700);
