@@ -102,7 +102,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               opacity: 0.1,
               // blur is hardcoded in GlassContainer (15), so we don't pass it
               // border is bool, borderColor allows customization
-              border: true,
+              hasBorder: true,
               borderColor: Colors.white.withOpacity(0.1),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,

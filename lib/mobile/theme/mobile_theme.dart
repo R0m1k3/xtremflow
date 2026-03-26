@@ -260,7 +260,7 @@ class MobileTheme {
       ),
 
       // ============ CARDS ============
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: AppColors.surface,
         elevation: 0,
         margin: EdgeInsets.zero,
@@ -271,7 +271,7 @@ class MobileTheme {
       ),
 
       // ============ DIALOGS ============
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         backgroundColor: AppColors.surface,
         elevation: AppTheme.elevationLg,
         shape: RoundedRectangleBorder(

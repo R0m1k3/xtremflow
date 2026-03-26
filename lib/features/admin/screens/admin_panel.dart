@@ -137,7 +137,7 @@ class _AdminContentState extends ConsumerState<AdminContent>
         return GestureDetector(
           onTap: () => _tabController.animateTo(index),
           child: AnimatedContainer(
-            duration: AppTheme.durationFast,
+            duration: AppTheme.durationSm,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             decoration: BoxDecoration(
               color: isSelected ? AppColors.focusColor : Colors.transparent,

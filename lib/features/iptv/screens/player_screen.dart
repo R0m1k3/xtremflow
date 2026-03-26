@@ -636,7 +636,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         child: GlassContainer(
                           borderRadius: 24,
                           opacity: 0.2, // Slightly more opaque for controls
-                          border: true,
+                          hasBorder: true,
                           borderColor: Colors.white.withOpacity(0.1),
                           padding: const EdgeInsets.all(24),
                           child: Column(

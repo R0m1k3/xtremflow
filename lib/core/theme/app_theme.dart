@@ -279,7 +279,7 @@ class AppTheme {
             borderRadius: BorderRadius.circular(radiusMd),
           ),
           padding:
-              const EdgeInsets.symmetric(horizontal: spacing20, vertical: spacing10),
+              const EdgeInsets.symmetric(horizontal: spacing20, vertical: spacing12),
           textStyle: GoogleFonts.inter(
             fontWeight: FontWeight.w600,
             fontSize: 14,
@@ -301,7 +301,7 @@ class AppTheme {
       ),
 
       // ============ CARDS ============
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: AppColors.surface,
         elevation: 0,
         margin: EdgeInsets.zero,
@@ -312,7 +312,7 @@ class AppTheme {
       ),
 
       // ============ DIALOGS & BOTTOM SHEETS ============
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         backgroundColor: AppColors.surface,
         elevation: elevationXl,
         shape: RoundedRectangleBorder(

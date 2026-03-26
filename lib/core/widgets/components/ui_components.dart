@@ -79,7 +79,7 @@ class _GradientButtonState extends State<GradientButton>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: AppTheme.durationFast,
+      duration: AppTheme.durationSm,
       vsync: this,
     );
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
@@ -356,10 +356,10 @@ class _MediaCardState extends State<MediaCard>
             Expanded(
               child: AnimatedScale(
                 scale: _isHovered ? 1.05 : 1.0,
-                duration: AppTheme.durationFast,
+                duration: AppTheme.durationSm,
                 curve: AppTheme.curveDefault,
                 child: AnimatedContainer(
-                  duration: AppTheme.durationFast,
+                  duration: AppTheme.durationSm,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                     color: AppColors.surface,
