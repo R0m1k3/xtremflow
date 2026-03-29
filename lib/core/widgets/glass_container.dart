@@ -55,56 +55,61 @@ class GlassContainer extends StatelessWidget {
     final finalBgColor = backgroundColor ?? AppColors.glassBackground;
     final finalBorderColor = borderColor ?? AppColors.glassBorder;
 
+    // BackdropFilter is extremely expensive in Flutter Web on mobile Safari.
+    // On mobile web (width < 600), skip the blur entirely.
+    final screenWidth = MediaQuery.of(context).size.width;
+    final useBlur = blur > 0 && !(Theme.of(context).platform == TargetPlatform.iOS && screenWidth < 600);
+
+    final inner = Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(borderRadius),
+        gradient: showGradient
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  finalBgColor.withOpacity(finalOpacity * 1.2),
+                  finalBgColor.withOpacity(finalOpacity * 0.6),
+                ],
+              )
+            : null,
+        color: showGradient ? null : finalBgColor.withOpacity(finalOpacity),
+        border: hasBorder
+            ? Border.all(color: finalBorderColor, width: borderWidth)
+            : null,
+        boxShadow: showShadow
+            ? [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 24,
+                  spreadRadius: -6,
+                  offset: const Offset(0, 8),
+                ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 12,
+                  spreadRadius: -3,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : [],
+      ),
+      child: child,
+    );
+
     return Container(
       width: width,
       height: height,
       margin: margin,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-          child: Container(
-            padding: padding,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(borderRadius),
-              // Subtle gradient overlay for depth
-              gradient: showGradient
-                  ? LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        finalBgColor.withOpacity(finalOpacity * 1.2),
-                        finalBgColor.withOpacity(finalOpacity * 0.6),
-                      ],
-                    )
-                  : null,
-              border: hasBorder
-                  ? Border.all(
-                      color: finalBorderColor,
-                      width: borderWidth,
-                    )
-                  : null,
-              // Premium shadow
-              boxShadow: showShadow
-                  ? [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
-                        blurRadius: 24,
-                        spreadRadius: -6,
-                        offset: const Offset(0, 8),
-                      ),
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
-                        blurRadius: 12,
-                        spreadRadius: -3,
-                        offset: const Offset(0, 4),
-                      ),
-                    ]
-                  : [],
-            ),
-            child: child,
-          ),
-        ),
+        child: useBlur
+            ? BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+                child: inner,
+              )
+            : inner,
       ),
     );
   }

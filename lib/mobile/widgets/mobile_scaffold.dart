@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'dart:ui';
 import '../../core/theme/app_colors.dart';
 
 class MobileScaffold extends ConsumerWidget {
@@ -42,12 +41,9 @@ class MobileScaffold extends ConsumerWidget {
           child,
         ],
       ),
-      bottomNavigationBar: ClipRRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
+      bottomNavigationBar: Container(
             decoration: BoxDecoration(
-              color: AppColors.surface.withOpacity(0.9),
+              color: AppColors.surface,
               border: const Border(
                 top: BorderSide(
                   color: AppColors.border,
@@ -90,8 +86,6 @@ class MobileScaffold extends ConsumerWidget {
               ],
             ),
           ),
-        ),
-      ),
     );
   }
 }
