@@ -292,7 +292,6 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                             final channel = displayedChannels[index];
                             return _MobileChannelTile(
                               channel: channel,
-                              playlist: widget.playlist,
                               onTap: () => _playChannel(
                                 context,
                                 channel,
@@ -329,30 +328,21 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
   }
 }
 
-class _MobileChannelTile extends ConsumerWidget {
+class _MobileChannelTile extends StatelessWidget {
   final Channel channel;
-  final PlaylistConfig playlist;
   final VoidCallback onTap;
 
   const _MobileChannelTile({
     required this.channel,
-    required this.playlist,
     required this.onTap,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final iconUrl =
         channel.streamIcon.isNotEmpty && channel.streamIcon.startsWith('http')
             ? '/api/xtream/${channel.streamIcon}'
             : null;
-
-    // Fetch EPG
-    final epgAsync = ref.watch(
-      epgByPlaylistProvider(
-        EpgRequestKey(playlist: playlist, streamId: channel.streamId),
-      ),
-    );
 
     return GlassContainer(
       borderRadius: 12,
@@ -384,56 +374,15 @@ class _MobileChannelTile extends ConsumerWidget {
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      channel.name,
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-
-                    // EPG Only (Replaces Channel Number)
-                    epgAsync.when(
-                      data: (epgList) {
-                        if (epgList.isEmpty) {
-                          return Text(
-                            'No Info',
-                            style: GoogleFonts.inter(
-                              color: Colors.white38,
-                              fontSize: 12,
-                            ),
-                          );
-                        }
-                        final current = epgList.first;
-                        return Text(
-                          current.title,
-                          style: GoogleFonts.inter(
-                            color: const Color(
-                              0xFFFFD700,
-                            ), // Gold/Amber for visibility check
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        );
-                      },
-                      loading: () => const Text(
-                        '...',
-                        style: TextStyle(color: Colors.white38, fontSize: 12),
-                      ),
-                      error: (err, stack) => const Text(
-                        'Err',
-                        style: TextStyle(color: Colors.red, fontSize: 10),
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  channel.name,
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               Container(
