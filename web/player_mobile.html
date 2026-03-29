@@ -196,21 +196,29 @@
         });
 
 
-        video.addEventListener('error', () => {
+        video.addEventListener('error', (e) => {
             loading.style.display = 'none';
             playOverlay.style.display = 'none';
             error.style.display = 'block';
+            const errorCode = video.error?.code || 'unknown';
+            const errorMsg = video.error?.message || 'Unknown error';
+            log('Video error - code: ' + errorCode + ', message: ' + errorMsg);
+            document.getElementById('err-msg').textContent = 'Erreur ' + errorCode + ': ' + errorMsg;
         });
 
         async function init() {
             if (!streamUrl) {
                 log('No stream URL provided');
+                error.style.display = 'block';
+                document.getElementById('err-msg').textContent = 'No stream URL provided';
                 return;
             }
             log('Initing mobile player for: ' + streamUrl);
+            log('Stream type param: ' + streamType);
 
             const isHLS = streamUrl.toLowerCase().includes('m3u8') || streamUrl.toLowerCase().includes('playlist.m3u8');
             const isTS = streamUrl.toLowerCase().includes('/live/') || streamUrl.toLowerCase().endsWith('.ts');
+            log('Format detection - isHLS: ' + isHLS + ', isTS: ' + isTS);
 
             // Safari / iOS Native HLS - MUST call load() and play()
             if (isHLS && video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -255,9 +263,20 @@
                     }, 200);
                 });
                 hls.on(Hls.Events.ERROR, (e, d) => {
+                    log('HLS Error - type: ' + d.type + ', fatal: ' + d.fatal + ', details: ' + JSON.stringify(d.details));
                     if (d.fatal) {
-                        if (d.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
-                        else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+                        log('Fatal error, attempting recovery...');
+                        if (d.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                            log('Network error, restarting load');
+                            hls.startLoad();
+                        } else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                            log('Media error, recovering');
+                            hls.recoverMediaError();
+                        } else {
+                            log('Unknown fatal error');
+                            error.style.display = 'block';
+                            document.getElementById('err-msg').textContent = 'Erreur HLS fatal: ' + d.type;
+                        }
                     }
                 });
                 return;
@@ -277,13 +296,23 @@
                     liveBufferLatencyChasing: false,
                     maxStashSize: 30 * 1024 * 1024
                 });
+
+                player.on(mpegts.Events.ERROR, (type, detail) => {
+                    log('MpegTS Error - type: ' + type + ', detail: ' + JSON.stringify(detail));
+                    error.style.display = 'block';
+                    document.getElementById('err-msg').textContent = 'Erreur MpegTS: ' + type;
+                });
+
                 player.attachMediaElement(video);
                 player.load();
-                
+
                 const checkBuffer = setInterval(() => {
                     if (video.buffered.length > 0 && video.buffered.end(0) > 1.0) {
                         clearInterval(checkBuffer);
-                        player.play().catch(e => playOverlay.style.display = 'flex');
+                        player.play().catch(e => {
+                            log('MpegTS play error: ' + e);
+                            playOverlay.style.display = 'flex';
+                        });
                     }
                 }, 200);
                 return;
