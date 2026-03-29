@@ -12,8 +12,8 @@ class CacheEntry<T> {
     required this.data,
     required this.sizeEstimate,
   })  : timestamp = DateTime.now(),
-      lastAccess = DateTime.now(),
-      accessCount = 0;
+        lastAccess = DateTime.now(),
+        accessCount = 0;
 
   bool isExpired({Duration ttl = const Duration(hours: 24)}) {
     return DateTime.now().difference(timestamp) > ttl;
@@ -52,7 +52,7 @@ class CacheService {
 
   /// Get cached data
   T? get<T>(String key) {
-    final entry = _cache[key] as CacheEntry?;
+    final entry = _cache[key];
     if (entry != null && !entry.isExpired()) {
       entry.markAccess();
       return entry.data as T;
@@ -68,11 +68,12 @@ class CacheService {
 
   /// Get cache stats
   Map<String, dynamic> getStats() => {
-    'totalSize': _totalSizeBytes,
-    'totalSizeMb': _totalSizeBytes / (1024 * 1024),
-    'itemCount': _cache.length,
-    'averageSizePerItem': _cache.isEmpty ? 0 : _totalSizeBytes ~/ _cache.length,
-  };
+        'totalSize': _totalSizeBytes,
+        'totalSizeMb': _totalSizeBytes / (1024 * 1024),
+        'itemCount': _cache.length,
+        'averageSizePerItem':
+            _cache.isEmpty ? 0 : _totalSizeBytes ~/ _cache.length,
+      };
 
   /// Clear all cache
   void clear() {
@@ -96,7 +97,7 @@ class CacheService {
 
   /// Trim cache by removing least recently used entries
   void _trimCacheIfNeeded() {
-    final maxSize = _maxMemoryCacheSizeMb * 1024 * 1024;
+    const maxSize = _maxMemoryCacheSizeMb * 1024 * 1024;
     if (_totalSizeBytes > maxSize) {
       // Remove least recently accessed entries
       final sorted = _cache.entries.toList()
@@ -173,10 +174,10 @@ class ImageCacheManager {
 
   /// Get cache stats
   Map<String, dynamic> getStats() => {
-    'totalMemoryMb': _totalMemoryBytes / (1024 * 1024),
-    'cachedImages': _imageCache.length,
-    'maxImages': _maxImages,
-  };
+        'totalMemoryMb': _totalMemoryBytes / (1024 * 1024),
+        'cachedImages': _imageCache.length,
+        'maxImages': _maxImages,
+      };
 
   /// Clear all image cache
   void clear() {
@@ -196,9 +197,8 @@ final imageCacheManagerProvider = Provider<ImageCacheManager>((ref) {
 });
 
 /// Provider for cache statistics
-final cacheStatsProvider = StateNotifierProvider<
-    CacheStatsNotifier,
-    Map<String, dynamic>>((ref) {
+final cacheStatsProvider =
+    StateNotifierProvider<CacheStatsNotifier, Map<String, dynamic>>((ref) {
   final cacheService = ref.watch(cacheServiceProvider);
   return CacheStatsNotifier(cacheService);
 });
@@ -206,8 +206,7 @@ final cacheStatsProvider = StateNotifierProvider<
 class CacheStatsNotifier extends StateNotifier<Map<String, dynamic>> {
   final CacheService _cacheService;
 
-  CacheStatsNotifier(this._cacheService)
-      : super(_cacheService.getStats());
+  CacheStatsNotifier(this._cacheService) : super(_cacheService.getStats());
 
   void refreshStats() {
     state = _cacheService.getStats();

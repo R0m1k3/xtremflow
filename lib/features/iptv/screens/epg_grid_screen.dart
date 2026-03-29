@@ -30,7 +30,7 @@ class EpgProgram {
   });
 
   Duration get duration => endTime.difference(startTime);
-  
+
   double get progress {
     if (!isNow) return 0;
     final now = DateTime.now();
@@ -45,9 +45,9 @@ class EpgGridScreen extends ConsumerStatefulWidget {
   final Playlist playlist;
 
   const EpgGridScreen({
-    Key? key,
+    super.key,
     required this.playlist,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<EpgGridScreen> createState() => _EpgGridScreenState();
@@ -112,7 +112,9 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen>
   }
 
   List<EpgProgram> _parseEpgPrograms(
-      Map<String, dynamic> epgData, String channelId) {
+    Map<String, dynamic> epgData,
+    String channelId,
+  ) {
     final programs = <EpgProgram>[];
     final now = DateTime.now();
 
@@ -130,17 +132,19 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen>
             final start = _parseEpgTime(startStr);
             final end = _parseEpgTime(endStr);
 
-            programs.add(EpgProgram(
-              id: '${channelId}_${start.millisecondsSinceEpoch}',
-              channelId: channelId,
-              title: title,
-              description: desc,
-              startTime: start,
-              endTime: end,
-              isNow: now.isAfter(start) && now.isBefore(end),
-              isNext: start.isAfter(now) &&
-                  start.difference(now).inMinutes < 60,
-            ));
+            programs.add(
+              EpgProgram(
+                id: '${channelId}_${start.millisecondsSinceEpoch}',
+                channelId: channelId,
+                title: title,
+                description: desc,
+                startTime: start,
+                endTime: end,
+                isNow: now.isAfter(start) && now.isBefore(end),
+                isNext:
+                    start.isAfter(now) && start.difference(now).inMinutes < 60,
+              ),
+            );
           }
         } catch (e) {
           continue;
@@ -192,7 +196,9 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(day, style: const TextStyle(fontSize: 11)),
-                  Text(dateNum, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  Text(dateNum,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.bold)),
                 ],
               ),
             );
@@ -250,7 +256,8 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen>
                       child: Center(
                         child: Text(
                           '$hour:00',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                              fontSize: 11, fontWeight: FontWeight.bold),
                         ),
                       ),
                     );
@@ -335,7 +342,8 @@ class _EpgChannelRow extends StatelessWidget {
         // Programs
         ...programs.map((program) {
           final duration = program.duration.inMinutes;
-          final width = (duration / 60 * 100).clamp(40, double.infinity).toDouble();
+          final width =
+              (duration / 60 * 100).clamp(40, double.infinity).toDouble();
 
           return GestureDetector(
             onTap: () => onProgramTap(program),
@@ -397,8 +405,7 @@ class _EpgChannelRow extends StatelessWidget {
                           value: program.progress / 100,
                           minHeight: 3,
                           backgroundColor: Colors.white24,
-                          valueColor:
-                              const AlwaysStoppedAnimation(Colors.red),
+                          valueColor: const AlwaysStoppedAnimation(Colors.red),
                         ),
                       ),
                     ),
@@ -455,7 +462,9 @@ class _ProgramDetailSheet extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            program.description.isEmpty ? 'No description available' : program.description,
+            program.description.isEmpty
+                ? 'No description available'
+                : program.description,
             style: const TextStyle(fontSize: 14),
           ),
           const SizedBox(height: 24),

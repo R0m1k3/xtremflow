@@ -285,7 +285,8 @@ class _HeroCarouselState extends State<HeroCarousel>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.play_arrow, color: AppColors.textPrimary),
+                          const Icon(Icons.play_arrow,
+                              color: AppColors.textPrimary),
                           const SizedBox(width: 8),
                           Text(
                             'Play',
@@ -320,8 +321,10 @@ class _HeroCarouselState extends State<HeroCarousel>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.info_outline,
-                            color: AppColors.textPrimary),
+                        const Icon(
+                          Icons.info_outline,
+                          color: AppColors.textPrimary,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'More Info',
@@ -361,9 +364,8 @@ class _HeroCarouselState extends State<HeroCarousel>
             width: _currentIndex == index ? 32 : 8,
             height: 8,
             decoration: BoxDecoration(
-              color: _currentIndex == index
-                  ? AppColors.primary
-                  : AppColors.border,
+              color:
+                  _currentIndex == index ? AppColors.primary : AppColors.border,
               borderRadius: BorderRadius.circular(4),
             ),
           ),

@@ -183,11 +183,14 @@ class XtreamService {
   /// Get all live TV channels grouped by category
   ///
   /// Returns a Map where key is category name and value is list of channels
-  Future<Map<String, List<Channel>>> getLiveChannels({bool refresh = false}) async {
+  Future<Map<String, List<Channel>>> getLiveChannels(
+      {bool refresh = false}) async {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
 
-    final options = refresh 
-        ? _cacheOptions.copyWith(policy: CachePolicy.refreshForceCache).toExtra()
+    final options = refresh
+        ? _cacheOptions
+            .copyWith(policy: CachePolicy.refreshForceCache)
+            .toExtra()
         : _cacheOptions.toExtra();
 
     try {
@@ -226,7 +229,8 @@ class XtreamService {
       return groupedChannels;
     } catch (e) {
       // Try to return from local cache if network fails
-      final cached = _loadFromLocalCache<Channel>('live_channels', Channel.fromJson);
+      final cached =
+          _loadFromLocalCache<Channel>('live_channels', Channel.fromJson);
       if (cached.isNotEmpty) return cached;
       throw Exception('Failed to fetch live channels: $e');
     }
@@ -236,27 +240,30 @@ class XtreamService {
     if (!kIsWeb) return;
     try {
       final jsonStr = jsonEncode(data);
-      html.window.localStorage['xtream_cache_${_currentPlaylist?.id}_$key'] = jsonStr;
+      html.window.localStorage['xtream_cache_${_currentPlaylist?.id}_$key'] =
+          jsonStr;
     } catch (e) {
       debugPrint('Error saving to local cache ($key): $e');
     }
   }
 
   Map<String, List<T>> _loadFromLocalCache<T>(
-      String key, T Function(Map<String, dynamic>) fromJson) {
+    String key,
+    T Function(Map<String, dynamic>) fromJson,
+  ) {
     if (!kIsWeb) return {};
     try {
-      final jsonStr = html.window.localStorage['xtream_cache_${_currentPlaylist?.id}_$key'];
+      final jsonStr =
+          html.window.localStorage['xtream_cache_${_currentPlaylist?.id}_$key'];
       if (jsonStr == null) return {};
-      
+
       final data = jsonDecode(jsonStr) as Map<String, dynamic>;
       final result = <String, List<T>>{};
-      
+
       data.forEach((cat, items) {
         if (items is List) {
-          result[cat] = items
-              .map((i) => fromJson(i as Map<String, dynamic>))
-              .toList();
+          result[cat] =
+              items.map((i) => fromJson(i as Map<String, dynamic>)).toList();
         }
       });
       return result;
@@ -301,8 +308,10 @@ class XtreamService {
   Future<Map<String, List<VodItem>>> getVodItems({bool refresh = false}) async {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
 
-    final options = refresh 
-        ? _cacheOptions.copyWith(policy: CachePolicy.refreshForceCache).toExtra()
+    final options = refresh
+        ? _cacheOptions
+            .copyWith(policy: CachePolicy.refreshForceCache)
+            .toExtra()
         : _cacheOptions.toExtra();
 
     try {
@@ -342,7 +351,8 @@ class XtreamService {
       return groupedVods;
     } catch (e) {
       // Try to return from local cache if network fails
-      final cached = _loadFromLocalCache<VodItem>('vod_items', VodItem.fromJson);
+      final cached =
+          _loadFromLocalCache<VodItem>('vod_items', VodItem.fromJson);
       if (cached.isNotEmpty) return cached;
       throw Exception('Failed to fetch VOD items: $e');
     }
@@ -383,8 +393,10 @@ class XtreamService {
   Future<Map<String, List<Series>>> getSeries({bool refresh = false}) async {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
 
-    final options = refresh 
-        ? _cacheOptions.copyWith(policy: CachePolicy.refreshForceCache).toExtra()
+    final options = refresh
+        ? _cacheOptions
+            .copyWith(policy: CachePolicy.refreshForceCache)
+            .toExtra()
         : _cacheOptions.toExtra();
 
     try {
@@ -424,15 +436,18 @@ class XtreamService {
       return groupedSeries;
     } catch (e) {
       // Try to return from local cache if network fails
-      final cached = _loadFromLocalCache<Series>('series_items', Series.fromJson);
+      final cached =
+          _loadFromLocalCache<Series>('series_items', Series.fromJson);
       if (cached.isNotEmpty) return cached;
       throw Exception('Failed to fetch series: $e');
     }
   }
 
   /// Get movies with pagination support
-  Future<List<xm.Movie>> getMoviesPaginated(
-      {int offset = 0, int limit = 100}) async {
+  Future<List<xm.Movie>> getMoviesPaginated({
+    int offset = 0,
+    int limit = 100,
+  }) async {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
 
     try {
@@ -511,8 +526,10 @@ class XtreamService {
   }
 
   /// Get series with pagination support (returns flat list)
-  Future<List<xm.Series>> getSeriesPaginated(
-      {int offset = 0, int limit = 100}) async {
+  Future<List<xm.Series>> getSeriesPaginated({
+    int offset = 0,
+    int limit = 100,
+  }) async {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
 
     try {

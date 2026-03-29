@@ -29,8 +29,9 @@ class EpgApi {
       final playlist = await _getPlaylist(request);
       if (playlist == null) {
         return Response.forbidden(
-            json.encode({'error': 'Playlist non trouvée'}),
-            headers: {'Content-Type': 'application/json'});
+          json.encode({'error': 'Playlist non trouvée'}),
+          headers: {'Content-Type': 'application/json'},
+        );
       }
 
       final dns = playlist.dns;
@@ -43,7 +44,7 @@ class EpgApi {
           await http.get(Uri.parse(url)).timeout(const Duration(seconds: 60));
       Map<String, dynamic> epgData = {
         'channel_id': channelId,
-        'programmes': []
+        'programmes': [],
       };
 
       if (response.statusCode == 200) {
@@ -72,8 +73,10 @@ class EpgApi {
         expiresAt: DateTime.now().add(const Duration(minutes: 30)),
       );
 
-      return Response.ok(jsonStr,
-          headers: {'Content-Type': 'application/json', 'X-Cache': 'MISS'});
+      return Response.ok(
+        jsonStr,
+        headers: {'Content-Type': 'application/json', 'X-Cache': 'MISS'},
+      );
     } catch (e) {
       return Response.internalServerError(
         body: json.encode({'error': 'Erreur lors de la récupération EPG: $e'}),

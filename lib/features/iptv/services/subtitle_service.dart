@@ -17,12 +17,12 @@ class SubtitleTrack {
   });
 
   SubtitleTrack copyWith({bool? isEnabled}) => SubtitleTrack(
-    id: id,
-    name: name,
-    language: language,
-    url: url,
-    isEnabled: isEnabled ?? this.isEnabled,
-  );
+        id: id,
+        name: name,
+        language: language,
+        url: url,
+        isEnabled: isEnabled ?? this.isEnabled,
+      );
 }
 
 /// Subtitle content with timing
@@ -42,16 +42,17 @@ class SubtitleEntry {
 
 /// Service for handling subtitles
 class SubtitleService {
-  static const _srtPattern = r'(\d+)\n(\d{2}):(\d{2}):(\d{2}),(\d{3}) --> (\d{2}):(\d{2}):(\d{2}),(\d{3})\n([\s\S]*?)(?=\n\n|\Z)';
+  static const _srtPattern =
+      r'(\d+)\n(\d{2}):(\d{2}):(\d{2}),(\d{3}) --> (\d{2}):(\d{2}):(\d{2}),(\d{3})\n([\s\S]*?)(?=\n\n|\Z)';
 
   /// Parse SRT subtitle content
   static List<SubtitleEntry> parseSrt(String content) {
     final entries = <SubtitleEntry>[];
     final blocks = content.split('\n\n');
-    
+
     for (final block in blocks) {
       if (block.trim().isEmpty) continue;
-      
+
       final lines = block.trim().split('\n');
       if (lines.length < 3) continue;
 
@@ -67,12 +68,14 @@ class SubtitleService {
         final startTime = _parseTime(times[0].trim());
         final endTime = _parseTime(times[1].trim());
 
-        entries.add(SubtitleEntry(
-          index: index,
-          startTime: startTime,
-          endTime: endTime,
-          text: text,
-        ));
+        entries.add(
+          SubtitleEntry(
+            index: index,
+            startTime: startTime,
+            endTime: endTime,
+            text: text,
+          ),
+        );
       } catch (e) {
         continue;
       }
@@ -85,10 +88,10 @@ class SubtitleService {
   static List<SubtitleEntry> parseWebVtt(String content) {
     final entries = <SubtitleEntry>[];
     final blocks = content.split('\n\n');
-    
+
     for (final block in blocks) {
       if (block.trim().isEmpty || block.startsWith('WEBVTT')) continue;
-      
+
       final lines = block.trim().split('\n');
       if (lines.length < 2) continue;
 
@@ -103,12 +106,14 @@ class SubtitleService {
         final startTime = _parseWebVttTime(times[0].trim());
         final endTime = _parseWebVttTime(times[1].trim());
 
-        entries.add(SubtitleEntry(
-          index: entries.length,
-          startTime: startTime,
-          endTime: endTime,
-          text: text,
-        ));
+        entries.add(
+          SubtitleEntry(
+            index: entries.length,
+            startTime: startTime,
+            endTime: endTime,
+            text: text,
+          ),
+        );
       } catch (e) {
         continue;
       }
@@ -120,7 +125,8 @@ class SubtitleService {
   /// Get subtitle at specific time
   static String? getSubtitleAtTime(List<SubtitleEntry> entries, Duration time) {
     for (final entry in entries) {
-      if (time.compareTo(entry.startTime) >= 0 && time.compareTo(entry.endTime) <= 0) {
+      if (time.compareTo(entry.startTime) >= 0 &&
+          time.compareTo(entry.endTime) <= 0) {
         return entry.text;
       }
     }

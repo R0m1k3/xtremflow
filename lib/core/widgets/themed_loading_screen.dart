@@ -17,15 +17,15 @@ class ThemedLoading extends StatelessWidget {
           ],
         ),
       ),
-      child: Center(
+      child: const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const CircularProgressIndicator(
+            CircularProgressIndicator(
               color: AppColors.primary,
               strokeWidth: 3,
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text(
               'Loading...',
               style: TextStyle(

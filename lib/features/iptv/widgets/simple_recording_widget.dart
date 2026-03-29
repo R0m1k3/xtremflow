@@ -47,7 +47,7 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
           _isRecording = true;
           _status = '🔴 Recording for $minutes min';
         });
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('✅ Recording started!')),
@@ -80,7 +80,7 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
 
       if (response.statusCode == 200) {
         setState(() => _status = '⏰ Scheduled for ${_startTime.toLocal()}');
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('✅ Recording scheduled!')),
@@ -253,10 +253,12 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
                               value: _durationMinutes,
                               dropdownColor: Colors.grey[800],
                               items: [30, 60, 120, 240, 480]
-                                  .map((m) => DropdownMenuItem(
-                                value: m,
-                                child: Text('$m min'),
-                              ))
+                                  .map(
+                                    (m) => DropdownMenuItem(
+                                      value: m,
+                                      child: Text('$m min'),
+                                    ),
+                                  )
                                   .toList(),
                               onChanged: (v) {
                                 if (v != null) {

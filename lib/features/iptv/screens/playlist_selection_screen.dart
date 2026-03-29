@@ -37,8 +37,10 @@ class PlaylistSelectionScreen extends ConsumerWidget {
         actions: [
           if (currentUser?.isAdmin ?? false)
             IconButton(
-              icon: const Icon(Icons.admin_panel_settings,
-                  color: AppColors.textSecondary),
+              icon: const Icon(
+                Icons.admin_panel_settings,
+                color: AppColors.textSecondary,
+              ),
               onPressed: () => context.go('/admin'),
               tooltip: 'Admin Panel',
             ),
@@ -75,8 +77,8 @@ class PlaylistSelectionScreen extends ConsumerWidget {
                   !constraints.maxHeight.isFinite ||
                   constraints.maxHeight <= 0) {
                 return const Center(
-                    child:
-                        CircularProgressIndicator(color: AppColors.primary));
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                );
               }
 
               return playlistsAsync.when(
@@ -87,8 +89,11 @@ class PlaylistSelectionScreen extends ConsumerWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline,
-                          size: 64, color: AppColors.error),
+                      const Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: AppColors.error,
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         'Error loading playlists',

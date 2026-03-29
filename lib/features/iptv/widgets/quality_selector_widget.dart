@@ -8,10 +8,10 @@ class QualitySelectorWidget extends ConsumerStatefulWidget {
   final VoidCallback onClose;
 
   const QualitySelectorWidget({
-    Key? key,
+    super.key,
     required this.qualitySelector,
     required this.onClose,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<QualitySelectorWidget> createState() =>
@@ -43,7 +43,7 @@ class _QualitySelectorWidgetState extends ConsumerState<QualitySelectorWidget> {
           // Header
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               border: Border(
                 bottom: BorderSide(color: Colors.white24),
               ),
@@ -109,13 +109,16 @@ class _QualitySelectorWidgetState extends ConsumerState<QualitySelectorWidget> {
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                 leading: isSelected
                     ? const Icon(Icons.check_circle, color: Colors.blue)
-                    : const Icon(Icons.radio_button_unchecked,
-                        color: Colors.white30),
+                    : const Icon(
+                        Icons.radio_button_unchecked,
+                        color: Colors.white30,
+                      ),
                 title: Text(
                   quality.label,
                   style: TextStyle(
                     color: isSelected ? Colors.blue : Colors.white,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
                 subtitle: Text(
@@ -136,7 +139,7 @@ class _QualitySelectorWidgetState extends ConsumerState<QualitySelectorWidget> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 border: Border(
                   top: BorderSide(color: Colors.white24),
                 ),
@@ -177,10 +180,10 @@ class QualityIndicator extends ConsumerWidget {
   final VoidCallback onTap;
 
   const QualityIndicator({
-    Key? key,
+    super.key,
     required this.qualitySelector,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -219,9 +222,9 @@ class BandwidthMonitor extends ConsumerWidget {
   final QualitySelector qualitySelector;
 
   const BandwidthMonitor({
-    Key? key,
+    super.key,
     required this.qualitySelector,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

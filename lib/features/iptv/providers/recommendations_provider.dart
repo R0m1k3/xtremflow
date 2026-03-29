@@ -33,20 +33,23 @@ class RecommendationService {
     List<Playlist> allContent,
   ) {
     final recommendations = <Recommendation>[];
-    
+
     for (final item in allContent) {
       final historyKey = item.streamId.toString();
       if (watchHistory.containsKey(historyKey)) {
         final lastPosition = watchHistory[historyKey] as double? ?? 0.0;
-        
+
         // Only show if watched more than 5 seconds ago and less than 95% complete
         if (lastPosition > 5 && lastPosition < 95) {
-          recommendations.add(Recommendation(
-            item: item,
-            type: RecommendationType.continueWatching,
-            score: 100.0 - lastPosition, // Score higher if recently started
-            reason: 'Continue watching from ${lastPosition.toStringAsFixed(0)}%',
-          ));
+          recommendations.add(
+            Recommendation(
+              item: item,
+              type: RecommendationType.continueWatching,
+              score: 100.0 - lastPosition, // Score higher if recently started
+              reason:
+                  'Continue watching from ${lastPosition.toStringAsFixed(0)}%',
+            ),
+          );
         }
       }
     }
@@ -62,16 +65,18 @@ class RecommendationService {
     List<Playlist> allContent,
   ) {
     final recommendations = <Recommendation>[];
-    
+
     for (final item in allContent) {
       final views = viewCounts[item.streamId.toString()] ?? 0;
       if (views > 0) {
-        recommendations.add(Recommendation(
-          item: item,
-          type: RecommendationType.trending,
-          score: views.toDouble(),
-          reason: '$views views - Trending now',
-        ));
+        recommendations.add(
+          Recommendation(
+            item: item,
+            type: RecommendationType.trending,
+            score: views.toDouble(),
+            reason: '$views views - Trending now',
+          ),
+        );
       }
     }
 
@@ -82,7 +87,7 @@ class RecommendationService {
   /// Get recently added content
   static List<Recommendation> getRecentlyAdded(List<Playlist> allContent) {
     final recommendations = <Recommendation>[];
-    
+
     // Sort by added date (most recent first)
     final sorted = [...allContent];
     sorted.sort((a, b) {
@@ -95,13 +100,15 @@ class RecommendationService {
       final daysAgo = DateTime.now()
           .difference(DateTime.tryParse(item.added ?? '') ?? DateTime(2000))
           .inDays;
-      
-      recommendations.add(Recommendation(
-        item: item,
-        type: RecommendationType.recentlyAdded,
-        score: (20 - daysAgo).toDouble().clamp(0, 100),
-        reason: 'Added $daysAgo days ago',
-      ));
+
+      recommendations.add(
+        Recommendation(
+          item: item,
+          type: RecommendationType.recentlyAdded,
+          score: (20 - daysAgo).toDouble().clamp(0, 100),
+          reason: 'Added $daysAgo days ago',
+        ),
+      );
     }
 
     return recommendations.take(10).toList();
@@ -113,7 +120,7 @@ class RecommendationService {
     List<Playlist> allContent,
   ) {
     final recommendations = <Recommendation>[];
-    
+
     // Collect watched categories
     final watchedCategories = <String>{};
     watchHistory.forEach((key, value) {
@@ -125,12 +132,14 @@ class RecommendationService {
     // Recommend similar content
     for (final item in allContent) {
       if (watchedCategories.contains(item.categoryId)) {
-        recommendations.add(Recommendation(
-          item: item,
-          type: RecommendationType.forYou,
-          score: 75.0,
-          reason: 'Based on your interests',
-        ));
+        recommendations.add(
+          Recommendation(
+            item: item,
+            type: RecommendationType.forYou,
+            score: 75.0,
+            reason: 'Based on your interests',
+          ),
+        );
       }
     }
 
@@ -146,12 +155,14 @@ class RecommendationService {
       final rating = double.tryParse(i.rating ?? '0') ?? 0.0;
       return rating >= 7.5;
     }).take(5)) {
-      recommendations.add(Recommendation(
-        item: item,
-        type: RecommendationType.topRated,
-        score: double.tryParse(item.rating ?? '0') ?? 0.0,
-        reason: 'Highly rated - ${item.rating}/10',
-      ));
+      recommendations.add(
+        Recommendation(
+          item: item,
+          type: RecommendationType.topRated,
+          score: double.tryParse(item.rating ?? '0') ?? 0.0,
+          reason: 'Highly rated - ${item.rating}/10',
+        ),
+      );
     }
 
     // Remove duplicates and limit
@@ -169,9 +180,8 @@ class RecommendationService {
 }
 
 /// Provider for watch history
-final watchHistoryProvider = StateNotifierProvider<
-    WatchHistoryNotifier,
-    Map<String, dynamic>>((ref) {
+final watchHistoryProvider =
+    StateNotifierProvider<WatchHistoryNotifier, Map<String, dynamic>>((ref) {
   return WatchHistoryNotifier();
 });
 
@@ -194,9 +204,8 @@ class WatchHistoryNotifier extends StateNotifier<Map<String, dynamic>> {
 }
 
 /// Provider for view counts/trending
-final trendingProvider = StateNotifierProvider<
-    TrendingNotifier,
-    Map<String, int>>((ref) {
+final trendingProvider =
+    StateNotifierProvider<TrendingNotifier, Map<String, int>>((ref) {
   return TrendingNotifier();
 });
 
@@ -213,11 +222,11 @@ class TrendingNotifier extends StateNotifier<Map<String, int>> {
 }
 
 /// Provider for recommendations
-final recommendationsProvider =
-    FutureProvider.family<List<Recommendation>, (Playlist, Map<String, dynamic>, Map<String, int>, List<Playlist>)>(
+final recommendationsProvider = FutureProvider.family<List<Recommendation>,
+    (Playlist, Map<String, dynamic>, Map<String, int>, List<Playlist>)>(
   (ref, params) async {
     final (playlist, watchHistory, trending, allContent) = params;
-    
+
     // Combine all recommendation types
     final allRecommendations = <Recommendation>[
       ...RecommendationService.getContinueWatching(watchHistory, allContent),
@@ -229,7 +238,7 @@ final recommendationsProvider =
     // Deduplicate and score
     final seen = <int>{};
     final scored = <Recommendation>[];
-    
+
     for (final rec in allRecommendations) {
       if (!seen.contains(rec.item.streamId)) {
         scored.add(rec);

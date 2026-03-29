@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 
 /// Apple TV Modern Channel Grid
-/// 
+///
 /// Responsive grid layout for channels with:
 /// - Flexible column count based on screen size
 /// - Smooth animations
@@ -57,7 +56,8 @@ class TvChannelGrid extends StatelessWidget {
     // Compute item width, clamped to avoid negative/NaN values.
     final totalSpacing = horizontalSpacing * (columnCount - 1);
     final availableWidth = screenWidth - horizontalPadding - totalSpacing;
-    final itemWidth = (availableWidth / columnCount).clamp(1.0, double.infinity);
+    final itemWidth =
+        (availableWidth / columnCount).clamp(1.0, double.infinity);
 
     return SingleChildScrollView(
       controller: scrollController,

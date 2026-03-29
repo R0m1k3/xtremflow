@@ -389,9 +389,11 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                       child: Container(
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(
-                              0.05), // Subtle transparent background
+                            0.05,
+                          ), // Subtle transparent background
                           borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(12)),
+                            top: Radius.circular(12),
+                          ),
                         ),
                         padding: const EdgeInsets.all(16),
                         child: Center(
@@ -418,7 +420,9 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                     // Footer
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       color: Colors.black54,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -464,8 +468,9 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                                             EpgEntry.parseDateTime(entry.start);
                                         final end =
                                             EpgEntry.parseDateTime(entry.end);
-                                        if (start == null || end == null)
+                                        if (start == null || end == null) {
                                           return false;
+                                        }
                                         return now.isAfter(start) &&
                                             now.isBefore(end);
                                       } catch (e) {

@@ -31,7 +31,6 @@ class MobileTheme {
     final baseTheme = ThemeData.dark(useMaterial3: true);
 
     return baseTheme.copyWith(
-      useMaterial3: true,
       colorScheme: AppColors.darkColorScheme,
       scaffoldBackgroundColor: AppColors.background,
       canvasColor: AppColors.background,

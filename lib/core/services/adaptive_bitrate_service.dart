@@ -1,10 +1,8 @@
 /// Adaptive Bitrate (ABR) Streaming Handler for HLS
-/// 
+///
 /// Supports multi-bitrate HLS playlists for adaptive streaming
 /// with fallback options for poor network conditions
-
-import 'dart:async';
-import 'dart:io';
+library;
 
 /// Represents a video quality level for adaptive bitrate streaming
 class QualityLevel {
@@ -108,23 +106,23 @@ class QualityProfiles {
 
   /// Get default profiles for balanced streaming
   static List<QualityLevel> getBalancedProfiles() => [
-    mobile240p,
-    mobile360p,
-    hd480p,
-    hd720p,
-    fhd1080p,
-  ];
+        mobile240p,
+        mobile360p,
+        hd480p,
+        hd720p,
+        fhd1080p,
+      ];
 
   /// Get all available profiles
   static List<QualityLevel> getAllProfiles() => [
-    mobile240p,
-    mobile360p,
-    hd480p,
-    hd720p,
-    fhd1080p,
-    uhd2k,
-    uhd4k,
-  ];
+        mobile240p,
+        mobile360p,
+        hd480p,
+        hd720p,
+        fhd1080p,
+        uhd2k,
+        uhd4k,
+      ];
 
   /// Get profiles suitable for streaming type
   static List<QualityLevel> getProfiles({
@@ -159,8 +157,8 @@ class QualityProfiles {
 /// Bandwidth detector for adaptive bitrate selection
 class BandwidthDetector {
   final _samples = <DateTime, int>{}; // timestamp -> bytes downloaded
-  int _totalBytesLastPeriod = 0;
-  Duration _sampleWindow = const Duration(seconds: 10);
+  final int _totalBytesLastPeriod = 0;
+  final Duration _sampleWindow = const Duration(seconds: 10);
 
   /// Record bytes downloaded at current time
   void recordBytes(int bytes) {
@@ -177,7 +175,9 @@ class BandwidthDetector {
     if (_samples.isEmpty) return 0;
 
     int totalBytes = 0;
-    _samples.values.forEach((bytes) => totalBytes += bytes);
+    for (var bytes in _samples.values) {
+      totalBytes += bytes;
+    }
 
     final timeSpan = DateTime.now()
         .difference(
@@ -236,10 +236,10 @@ class HlsMasterPlaylistGenerator {
 
     // Variant streams (quality levels)
     for (final quality in qualityLevels) {
+      buffer.writeln('#EXT-X-STREAM-INF:BANDWIDTH=${quality.bitrateBps},'
+          'RESOLUTION=${quality.width}x${quality.height}');
       buffer
-          .writeln('#EXT-X-STREAM-INF:BANDWIDTH=${quality.bitrateBps},'
-              'RESOLUTION=${quality.width}x${quality.height}');
-      buffer.writeln('$baseUrl/variant_${quality.width}x${quality.height}.m3u8');
+          .writeln('$baseUrl/variant_${quality.width}x${quality.height}.m3u8');
     }
 
     return buffer.toString();
@@ -317,7 +317,8 @@ class QualitySelector {
 
     // Only switch if significantly different from current
     final overhead = _currentQuality.bitrateBps * 1.2;
-    if (bandwidthBps > overhead || bandwidthBps < _currentQuality.bitrateBps * 0.5) {
+    if (bandwidthBps > overhead ||
+        bandwidthBps < _currentQuality.bitrateBps * 0.5) {
       final bestQuality =
           BandwidthDetector.selectBestQuality(bandwidthBps, availableProfiles);
       setQuality(bestQuality);

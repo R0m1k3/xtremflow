@@ -1,6 +1,7 @@
 /// Application optimization configuration
-/// 
+///
 /// This file contains performance tuning settings for XtremFlow
+library;
 
 class OptimizationConfig {
   // ============================================
@@ -26,7 +27,8 @@ class OptimizationConfig {
   static const bool enableHlsCompression = true;
 
   /// FFmpeg preset for live transcoding
-  static const String ffmpegLivePreset = 'medium'; // ultrafast, fast, medium, slow
+  static const String ffmpegLivePreset =
+      'medium'; // ultrafast, fast, medium, slow
 
   /// FFmpeg preset for VOD transcoding
   static const String ffmpegVodPreset = 'medium';
@@ -175,64 +177,64 @@ class OptimizationConfig {
 
   /// Get optimized image cache settings
   static Map<String, dynamic> getImageCacheSettings() => {
-    'maxSize': maxImageCacheMb * 1024 * 1024,
-    'maxItems': maxCachedImages,
-    'enableAnimation': enableImageFadeAnimation,
-    'fadeAnimationMs': imageFadeAnimationMs,
-  };
+        'maxSize': maxImageCacheMb * 1024 * 1024,
+        'maxItems': maxCachedImages,
+        'enableAnimation': enableImageFadeAnimation,
+        'fadeAnimationMs': imageFadeAnimationMs,
+      };
 
   /// Get streaming configuration
   static Map<String, dynamic> getStreamingConfig() => {
-    'enableAdaptiveBitrate': enableAdaptiveBitrate,
-    'defaultQuality': defaultQualityResolution,
-    'maxBuffer': maxBufferSeconds,
-    'minBuffer': minBufferSeconds,
-    'targetBuffer': targetBufferSeconds,
-    'enableHlsCompression': enableHlsCompression,
-    'ffmpegPreset': ffmpegLivePreset,
-    'enableGpu': enableNvidiaGpu,
-  };
+        'enableAdaptiveBitrate': enableAdaptiveBitrate,
+        'defaultQuality': defaultQualityResolution,
+        'maxBuffer': maxBufferSeconds,
+        'minBuffer': minBufferSeconds,
+        'targetBuffer': targetBufferSeconds,
+        'enableHlsCompression': enableHlsCompression,
+        'ffmpegPreset': ffmpegLivePreset,
+        'enableGpu': enableNvidiaGpu,
+      };
 
   /// Get network configuration
   static Map<String, dynamic> getNetworkConfig() => {
-    'connectTimeout': connectionTimeoutSeconds,
-    'receiveTimeout': receiveTimeoutSeconds,
-    'enableAutoRetry': enableAutoRetry,
-    'maxRetries': maxRetryAttempts,
-    'enableGzip': enableGzipCompression,
-    'enableCache': enableNetworkCache,
-    'cacheRetentionDays': networkCacheRetentionDays,
-  };
+        'connectTimeout': connectionTimeoutSeconds,
+        'receiveTimeout': receiveTimeoutSeconds,
+        'enableAutoRetry': enableAutoRetry,
+        'maxRetries': maxRetryAttempts,
+        'enableGzip': enableGzipCompression,
+        'enableCache': enableNetworkCache,
+        'cacheRetentionDays': networkCacheRetentionDays,
+      };
 
   /// Get UI performance settings
   static Map<String, dynamic> getUiPerformanceSettings() => {
-    'itemsPerPage': itemsPerPage,
-    'liveItemsPerPage': liveItemsPerPage,
-    'enableLazyLoading': enableLazyLoading,
-    'enableSmoothScroll': enableSmoothScroll,
-    'maxTexturePoolSize': videoTexturePoolSize,
-  };
+        'itemsPerPage': itemsPerPage,
+        'liveItemsPerPage': liveItemsPerPage,
+        'enableLazyLoading': enableLazyLoading,
+        'enableSmoothScroll': enableSmoothScroll,
+        'maxTexturePoolSize': videoTexturePoolSize,
+      };
 
   /// Get memory optimization settings
   static Map<String, dynamic> getMemoryOptimizationSettings() => {
-    'enableProfiling': enableMemoryProfiling,
-    'profilingInterval': memoryProfilingIntervalSeconds,
-    'aggressiveCleanup': enableMemoryCleanupOnBackground,
-    'maxImageCacheMb': maxImageCacheMb,
-    'maxMemoryCacheMb': maxMemoryCacheMb,
-  };
+        'enableProfiling': enableMemoryProfiling,
+        'profilingInterval': memoryProfilingIntervalSeconds,
+        'aggressiveCleanup': enableMemoryCleanupOnBackground,
+        'maxImageCacheMb': maxImageCacheMb,
+        'maxMemoryCacheMb': maxMemoryCacheMb,
+      };
 
   /// Get all enabled features
   static List<String> getEnabledFeatures() => [
-    if (enableEpg) 'EPG',
-    if (enableOfflineDownloads) 'OfflineDownloads',
-    if (enableContinueWatching) 'ContinueWatching',
-    if (enableTrending) 'Trending',
-    if (enableQualitySelector) 'QualitySelector',
-    if (enableSubtitles) 'Subtitles',
-    if (enableWatchHistory) 'WatchHistory',
-    if (enableFavorites) 'Favorites',
-  ];
+        if (enableEpg) 'EPG',
+        if (enableOfflineDownloads) 'OfflineDownloads',
+        if (enableContinueWatching) 'ContinueWatching',
+        if (enableTrending) 'Trending',
+        if (enableQualitySelector) 'QualitySelector',
+        if (enableSubtitles) 'Subtitles',
+        if (enableWatchHistory) 'WatchHistory',
+        if (enableFavorites) 'Favorites',
+      ];
 
   /// Print configuration summary
   static void printSummary() {
@@ -285,13 +287,15 @@ class RuntimeOptimizations {
     // Detect low storage
     if (storageFreeMb < 1000) {
       print(
-          '[WARNING] Low storage available: ${storageFreeMb}MB. Disabling offline downloads.');
+        '[WARNING] Low storage available: ${storageFreeMb}MB. Disabling offline downloads.',
+      );
     }
 
     // High performance device detection
     hasHighPerformanceDevice = totalMemoryMb > 4000 && storageFreeMb > 5000;
 
-    print('[Device Calibration] Memory: ${freeMemoryMb}MB, Storage: ${storageFreeMb}MB');
+    print(
+        '[Device Calibration] Memory: ${freeMemoryMb}MB, Storage: ${storageFreeMb}MB');
   }
 
   /// Get dynamic cache size based on available memory

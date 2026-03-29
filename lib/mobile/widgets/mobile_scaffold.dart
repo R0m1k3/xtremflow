@@ -48,7 +48,7 @@ class MobileScaffold extends ConsumerWidget {
           child: Container(
             decoration: BoxDecoration(
               color: AppColors.surface.withOpacity(0.9),
-              border: Border(
+              border: const Border(
                 top: BorderSide(
                   color: AppColors.border,
                   width: 0.5,

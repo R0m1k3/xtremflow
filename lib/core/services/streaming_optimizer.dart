@@ -23,10 +23,7 @@ class StreamingMetrics {
   });
 
   double get totalPlaybackSeconds =>
-      (endTime ?? DateTime.now())
-          .difference(startTime)
-          .inSeconds
-          .toDouble();
+      (endTime ?? DateTime.now()).difference(startTime).inSeconds.toDouble();
 
   double get qualityScore {
     // Score based on metrics
@@ -67,7 +64,7 @@ class StreamingOptimizer {
       StreamController.broadcast();
   late Timer _metricsTimer;
 
-  int _segmentStartTime = 0;
+  final int _segmentStartTime = 0;
   int _totalBytesDownloaded = 0;
   int _rebufferCount = 0;
   int _lastBufferNotificationTime = 0;
@@ -98,8 +95,7 @@ class StreamingOptimizer {
     final bandwidthBps = qualitySelector.getEstimatedBandwidthMbps() * 1000000;
     _currentMetrics = StreamingMetrics(
       averageNetworkBitrate: _totalBytesDownloaded > 0
-          ? (_totalBytesDownloaded * 8 /
-              _currentMetrics.totalPlaybackSeconds)
+          ? (_totalBytesDownloaded * 8 / _currentMetrics.totalPlaybackSeconds)
           : 0,
       currentNetworkBitrate: bandwidthBps,
       bufferDurationMs: _currentMetrics.bufferDurationMs,
@@ -235,14 +231,16 @@ class StreamingOptimizerNotifier extends StateNotifier<StreamingMetrics> {
   late StreamingOptimizer _optimizer;
 
   StreamingOptimizerNotifier(this._qualitySelector)
-      : super(StreamingMetrics(
-          averageNetworkBitrate: 0,
-          currentNetworkBitrate: 0,
-          bufferDurationMs: 0,
-          segmentDownloadTimeMs: 0,
-          rebufferCount: 0,
-          startTime: DateTime.now(),
-        )) {
+      : super(
+          StreamingMetrics(
+            averageNetworkBitrate: 0,
+            currentNetworkBitrate: 0,
+            bufferDurationMs: 0,
+            segmentDownloadTimeMs: 0,
+            rebufferCount: 0,
+            startTime: DateTime.now(),
+          ),
+        ) {
     _optimizer = StreamingOptimizer(qualitySelector: _qualitySelector);
 
     // Listen to metrics updates

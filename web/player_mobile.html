@@ -228,7 +228,6 @@
             // Android / Chrome - HLS.js
             if (isHLS && Hls.isSupported()) {
                 log('Using Hls.js optimized for mobile');
-                const isTurbo = urlParams.get('turbo') === 'true';
 
                 const hls = new Hls({
                     maxBufferLength: 60,

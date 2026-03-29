@@ -4,10 +4,10 @@ import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 
 /// Modern Apple TV Glass Container
-/// 
+///
 /// Sophisticated glassmorphism with premium blur effects,
 /// configurable transparency, and elegant borders.
-/// 
+///
 /// Features:
 /// - Backdrop blur (iOS-style glass effect)
 /// - Subtle gradient overlay
@@ -151,11 +151,11 @@ class _GlassCardState extends State<GlassCard>
       duration: AppTheme.durationMd,
     );
 
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.04)
-        .animate(CurvedAnimation(parent: _controller, curve: AppTheme.curveDefault));
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.04).animate(
+        CurvedAnimation(parent: _controller, curve: AppTheme.curveDefault));
 
-    _opacityAnimation = Tween<double>(begin: 1.0, end: 0.8)
-        .animate(CurvedAnimation(parent: _controller, curve: AppTheme.curveDefault));
+    _opacityAnimation = Tween<double>(begin: 1.0, end: 0.8).animate(
+        CurvedAnimation(parent: _controller, curve: AppTheme.curveDefault));
   }
 
   @override
@@ -189,12 +189,16 @@ class _GlassCardState extends State<GlassCard>
         child: GestureDetector(
           onTap: widget.onTap,
           onLongPress: widget.onLongPress,
-          onTapDown: (_) => _onPointerDown(PointerDownEvent(
-            position: Offset.zero,
-          )),
-          onTapUp: (_) => _onPointerUp(PointerUpEvent(
-            position: Offset.zero,
-          )),
+          onTapDown: (_) => _onPointerDown(
+            const PointerDownEvent(
+              position: Offset.zero,
+            ),
+          ),
+          onTapUp: (_) => _onPointerUp(
+            const PointerUpEvent(
+              position: Offset.zero,
+            ),
+          ),
           onTapCancel: () => _controller.reverse(),
           child: ScaleTransition(
             scale: _scaleAnimation,
@@ -211,7 +215,7 @@ class _GlassCardState extends State<GlassCard>
       content = Stack(
         children: [
           Opacity(opacity: 0.5, child: content),
-          Center(
+          const Center(
             child: SizedBox(
               width: 40,
               height: 40,

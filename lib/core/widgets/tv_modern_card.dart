@@ -6,7 +6,7 @@ import '../theme/app_theme.dart';
 import 'glass_container.dart';
 
 /// Apple TV Modern Content Card
-/// 
+///
 /// Premium card for displaying movies, shows, or other content with:
 /// - Poster image with skeleton loading
 /// - Title and metadata
@@ -149,19 +149,19 @@ class _TvModernCardState extends State<TvModernCard>
                         right: 0,
                         child: Container(
                           height: 3,
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             borderRadius: BorderRadius.vertical(
                               bottom: Radius.circular(AppTheme.radiusLg),
                             ),
                           ),
                           child: ClipRRect(
-                            borderRadius: BorderRadius.vertical(
+                            borderRadius: const BorderRadius.vertical(
                               bottom: Radius.circular(AppTheme.radiusLg),
                             ),
                             child: LinearProgressIndicator(
                               value: widget.progress,
                               backgroundColor: AppColors.surfaceVariant,
-                              valueColor: AlwaysStoppedAnimation(
+                              valueColor: const AlwaysStoppedAnimation(
                                 AppColors.primary,
                               ),
                               minHeight: 3,
@@ -171,7 +171,8 @@ class _TvModernCardState extends State<TvModernCard>
                       ),
 
                     // Action buttons (on hover)
-                    if (_isHovered && (widget.onPlayTap != null || widget.onMoreTap != null))
+                    if (_isHovered &&
+                        (widget.onPlayTap != null || widget.onMoreTap != null))
                       Center(
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -182,7 +183,8 @@ class _TvModernCardState extends State<TvModernCard>
                                 label: 'Play',
                                 onTap: widget.onPlayTap!,
                               ),
-                            if (widget.onPlayTap != null && widget.onMoreTap != null)
+                            if (widget.onPlayTap != null &&
+                                widget.onMoreTap != null)
                               const SizedBox(width: 16),
                             if (widget.onMoreTap != null)
                               _buildActionButton(
@@ -219,7 +221,7 @@ class _TvModernCardState extends State<TvModernCard>
               Row(
                 children: [
                   if (widget.rating != null) ...[
-                    Icon(
+                    const Icon(
                       Icons.star,
                       size: 14,
                       color: AppColors.ratingGold,
@@ -258,7 +260,7 @@ class _TvModernCardState extends State<TvModernCard>
     if (widget.imageUrl == null || widget.imageUrl!.isEmpty) {
       return Container(
         color: AppColors.surface,
-        child: Center(
+        child: const Center(
           child: Icon(
             Icons.image_outlined,
             color: AppColors.textSecondary,
@@ -273,7 +275,7 @@ class _TvModernCardState extends State<TvModernCard>
       fit: BoxFit.cover,
       placeholder: (context, url) => Container(
         color: AppColors.shimmer,
-        child: Center(
+        child: const Center(
           child: SizedBox(
             width: 40,
             height: 40,
@@ -286,7 +288,7 @@ class _TvModernCardState extends State<TvModernCard>
       ),
       errorWidget: (context, url, error) => Container(
         color: AppColors.surface,
-        child: Center(
+        child: const Center(
           child: Icon(
             Icons.broken_image_outlined,
             color: AppColors.textSecondary,

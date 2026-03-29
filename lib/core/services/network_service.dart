@@ -203,7 +203,9 @@ class _RetryInterceptor extends Interceptor {
 
   @override
   Future<void> onError(
-      DioException err, ErrorInterceptorHandler handler) async {
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) async {
     // Only retry on timeout or connection errors
     if (err.type == DioExceptionType.connectionTimeout ||
         err.type == DioExceptionType.receiveTimeout) {
@@ -248,9 +250,11 @@ final networkConfigProvider =
 
 class NetworkConfigNotifier extends StateNotifier<NetworkConfig> {
   NetworkConfigNotifier()
-      : super(const NetworkConfig(
-          userAgent: 'VLC/3.0.18 LibVLC/3.0.18',
-        ));
+      : super(
+          const NetworkConfig(
+            userAgent: 'VLC/3.0.18 LibVLC/3.0.18',
+          ),
+        );
 
   void setProxy(String? proxyUrl) {
     state = state.copyWith(proxyUrl: proxyUrl);

@@ -23,9 +23,9 @@ class AppTheme {
   static const double spacing24 = 24.0;
   static const double spacing32 = 32.0;
   static const double spacing40 = 40.0;
-  static const double spacing48 = 48.0;  // TV minimum safe area
+  static const double spacing48 = 48.0; // TV minimum safe area
   static const double spacing56 = 56.0;
-  static const double spacing64 = 64.0;  // Hero section padding
+  static const double spacing64 = 64.0; // Hero section padding
 
   // ============ RADIUS (modern, organic curves) ============
   static const double radiusXs = 4.0;
@@ -114,7 +114,6 @@ class AppTheme {
     final baseTheme = ThemeData.dark(useMaterial3: true);
 
     return baseTheme.copyWith(
-      useMaterial3: true,
       colorScheme: AppColors.darkColorScheme,
       scaffoldBackgroundColor: AppColors.background,
       canvasColor: AppColors.background,
@@ -387,7 +386,7 @@ class AppTheme {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusLg),
-          side: BorderSide(
+          side: const BorderSide(
             color: AppColors.border,
             width: 1,
           ),
@@ -400,7 +399,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusXl),
-          side: BorderSide(
+          side: const BorderSide(
             color: AppColors.border,
             width: 1,
           ),
@@ -498,14 +497,14 @@ class AppTheme {
       ),
 
       // ============ NAVIGATION RAIL (Side menu) ============
-      navigationRailTheme: NavigationRailThemeData(
+      navigationRailTheme: const NavigationRailThemeData(
         backgroundColor: AppColors.surface,
         elevation: 0,
-        selectedIconTheme: const IconThemeData(
+        selectedIconTheme: IconThemeData(
           color: AppColors.primary,
           size: 28,
         ),
-        unselectedIconTheme: const IconThemeData(
+        unselectedIconTheme: IconThemeData(
           color: AppColors.textSecondary,
           size: 24,
         ),
@@ -538,7 +537,7 @@ class AppTheme {
 
   static const double buttonHeightSm = 36.0;
   static const double buttonHeightMd = 44.0;
-  static const double buttonHeightLg = 56.0;  // TV-comfortable tap target
+  static const double buttonHeightLg = 56.0; // TV-comfortable tap target
 
   // ============ ASPECT RATIOS ============
   static const double posterAspectRatio = 2 / 3;
@@ -564,29 +563,29 @@ class _AppThemeExtension extends ThemeExtension<_AppThemeExtension> {
   final List<BoxShadow>? elevatedShadow;
 
   static _AppThemeExtension get dark => _AppThemeExtension(
-    glassShadow: [
-      BoxShadow(
-        color: Colors.black.withOpacity(0.15),
-        blurRadius: 16,
-        spreadRadius: -4,
-      ),
-    ],
-    focusShadow: [
-      BoxShadow(
-        color: AppColors.primary.withOpacity(0.5),
-        blurRadius: 20,
-        spreadRadius: 4,
-      ),
-    ],
-    elevatedShadow: [
-      BoxShadow(
-        color: Colors.black.withOpacity(0.25),
-        blurRadius: 12,
-        spreadRadius: 0,
-        offset: const Offset(0, 4),
-      ),
-    ],
-  );
+        glassShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 16,
+            spreadRadius: -4,
+          ),
+        ],
+        focusShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.5),
+            blurRadius: 20,
+            spreadRadius: 4,
+          ),
+        ],
+        elevatedShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.25),
+            blurRadius: 12,
+            spreadRadius: 0,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      );
 
   @override
   ThemeExtension<_AppThemeExtension> copyWith({

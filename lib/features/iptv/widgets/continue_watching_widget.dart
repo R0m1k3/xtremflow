@@ -12,11 +12,11 @@ class ContinueWatchingWidget extends ConsumerStatefulWidget {
   final VoidCallback? onItemTap;
 
   const ContinueWatchingWidget({
-    Key? key,
+    super.key,
     required this.playlist,
     required this.content,
     this.onItemTap,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<ContinueWatchingWidget> createState() =>
@@ -68,12 +68,12 @@ class _ContinueWatchingWidgetState
                 const SizedBox(width: 16),
                 ...continueWatching.take(5).map((rec) {
                   final item = rec.item;
-                  final percentage = watchHistory[item.streamId.toString()]
-                          is Map
-                      ? (watchHistory[item.streamId.toString()]
-                              as Map)['percentage'] as double? ??
-                          0.0
-                      : 0.0;
+                  final percentage =
+                      watchHistory[item.streamId.toString()] is Map
+                          ? (watchHistory[item.streamId.toString()]
+                                  as Map)['percentage'] as double? ??
+                              0.0
+                          : 0.0;
 
                   return Container(
                     margin: const EdgeInsets.only(right: 12),
@@ -132,9 +132,10 @@ class _ContinueWatchingCard extends StatelessWidget {
                     placeholder: (context, url) => Container(
                       color: Colors.grey[800],
                     ),
-                    errorWidget: (context, url, error) =>
-                        Icon(Icons.image_not_supported,
-                            color: Colors.grey[600]),
+                    errorWidget: (context, url, error) => Icon(
+                      Icons.image_not_supported,
+                      color: Colors.grey[600],
+                    ),
                   ),
                 ),
 
@@ -239,11 +240,11 @@ class TrendingWidget extends ConsumerWidget {
   final VoidCallback? onItemTap;
 
   const TrendingWidget({
-    Key? key,
+    super.key,
     required this.playlist,
     required this.content,
     this.onItemTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -265,12 +266,15 @@ class TrendingWidget extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
+                const Row(
                   children: [
-                    const Icon(Icons.local_fire_department,
-                        color: Colors.red, size: 24),
-                    const SizedBox(width: 8),
-                    const Text(
+                    Icon(
+                      Icons.local_fire_department,
+                      color: Colors.red,
+                      size: 24,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
                       'Trending Now',
                       style: TextStyle(
                         fontSize: 18,
@@ -354,9 +358,10 @@ class _TrendingCard extends StatelessWidget {
                       placeholder: (context, url) => Container(
                         color: Colors.grey[800],
                       ),
-                      errorWidget: (context, url, error) =>
-                          Icon(Icons.image_not_supported,
-                              color: Colors.grey[600]),
+                      errorWidget: (context, url, error) => Icon(
+                        Icons.image_not_supported,
+                        color: Colors.grey[600],
+                      ),
                     ),
                   ),
                 ),
@@ -379,8 +384,11 @@ class _TrendingCard extends StatelessWidget {
                       if (item.rating != null)
                         Row(
                           children: [
-                            const Icon(Icons.star,
-                                color: Colors.amber, size: 12),
+                            const Icon(
+                              Icons.star,
+                              color: Colors.amber,
+                              size: 12,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               item.rating ?? '0',
@@ -444,11 +452,11 @@ class RecentlyAddedWidget extends ConsumerWidget {
   final VoidCallback? onItemTap;
 
   const RecentlyAddedWidget({
-    Key? key,
+    super.key,
     required this.playlist,
     required this.content,
     this.onItemTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -463,9 +471,9 @@ class RecentlyAddedWidget extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: const Text(
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text(
               'Recently Added',
               style: TextStyle(
                 fontSize: 18,

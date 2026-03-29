@@ -2,16 +2,15 @@ import 'dart:async';
 import 'dart:io';
 import 'package:uuid/uuid.dart';
 import '../database/database.dart';
-import '../models/recording.dart';
 
 /// 🎯 SIMPLIFIED Recording System - One job: Record streams
 class SimpleRecorder {
   final AppDatabase db;
   final String recordingsDir;
-  
+
   // Active recordings (streamId -> process)
   final Map<String, _ActiveRecording> _active = {};
-  
+
   SimpleRecorder(this.db, {this.recordingsDir = '/app/recordings'});
 
   /// Initialize recordings directory
@@ -56,9 +55,12 @@ class SimpleRecorder {
     try {
       final ffmpeg = await Process.start('ffmpeg', [
         '-y',
-        '-i', streamUrl,
-        '-c', 'copy',
-        '-t', '${duration.inSeconds}',
+        '-i',
+        streamUrl,
+        '-c',
+        'copy',
+        '-t',
+        '${duration.inSeconds}',
         filepath,
       ]);
 
@@ -78,7 +80,8 @@ class SimpleRecorder {
         _active.remove(channelId);
         print('✅ Recording done: $title');
       }).catchError((e) {
-        db.updateRecordingStatus(recordingId, 'failed', errorReason: 'FFmpeg error');
+        db.updateRecordingStatus(recordingId, 'failed',
+            errorReason: 'FFmpeg error');
         _active.remove(channelId);
       });
 
@@ -99,7 +102,7 @@ class SimpleRecorder {
     required DateTime endTime,
   }) async {
     final recordingId = const Uuid().v4();
-    
+
     // Create in DB with 'scheduled' status
     db.createRecording(
       userId: 'system',
@@ -167,22 +170,23 @@ class SimpleRecorder {
 
   /// Get active recordings
   List<Map<String, dynamic>> getActive() {
-    return _active.entries.map((e) => {
-      'id': e.value.id,
-      'channel': e.key,
-      'filepath': e.value.filepath,
-      'endsAt': e.value.endTime.toIso8601String(),
-    }).toList();
+    return _active.entries
+        .map(
+          (e) => {
+            'id': e.value.id,
+            'channel': e.key,
+            'filepath': e.value.filepath,
+            'endsAt': e.value.endTime.toIso8601String(),
+          },
+        )
+        .toList();
   }
 
   /// Cleanup old recordings (keep last 20)
   Future<void> cleanupOld({int keepCount = 20}) async {
     final dir = Directory(recordingsDir);
-    final files = dir
-        .listSync()
-        .whereType<File>()
-        .toList()
-        ..sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified));
+    final files = dir.listSync().whereType<File>().toList()
+      ..sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified));
 
     if (files.length > keepCount) {
       for (final file in files.skip(keepCount)) {
@@ -194,7 +198,8 @@ class SimpleRecorder {
 
   String _safeName(String title, String id) {
     final safe = title.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
-    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '').split('.')[0];
+    final timestamp =
+        DateTime.now().toIso8601String().replaceAll(':', '').split('.')[0];
     return '${safe}_$timestamp.mkv';
   }
 

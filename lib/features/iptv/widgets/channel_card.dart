@@ -79,7 +79,9 @@ class _ChannelCardState extends State<ChannelCard>
       child: GestureDetector(
         onTap: widget.onTap,
         child: ScaleTransition(
-          scale: widget.isActive ? _pulseAnimation : AlwaysStoppedAnimation(1.0),
+          scale: widget.isActive
+              ? _pulseAnimation
+              : const AlwaysStoppedAnimation(1.0),
           child: AnimatedContainer(
             duration: AppTheme.durationMd,
             curve: AppTheme.curveDefault,
@@ -90,7 +92,9 @@ class _ChannelCardState extends State<ChannelCard>
               border: Border.all(
                 color: widget.isActive
                     ? AppColors.primary
-                    : (_isHovered ? AppColors.border : AppColors.border.withOpacity(0.5)),
+                    : (_isHovered
+                        ? AppColors.border
+                        : AppColors.border.withOpacity(0.5)),
                 width: widget.isActive ? 2.5 : 1.5,
               ),
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),

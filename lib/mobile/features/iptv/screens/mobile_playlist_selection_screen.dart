@@ -65,8 +65,11 @@ class MobilePlaylistSelectionScreen extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline,
-                    size: 48, color: AppColors.error),
+                const Icon(
+                  Icons.error_outline,
+                  size: 48,
+                  color: AppColors.error,
+                ),
                 const SizedBox(height: 16),
                 Text('Error loading playlists', style: GoogleFonts.inter()),
                 TextButton(
@@ -82,12 +85,16 @@ class MobilePlaylistSelectionScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.playlist_remove,
-                        size: 48, color: AppColors.textSecondary),
+                    const Icon(
+                      Icons.playlist_remove,
+                      size: 48,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(height: 16),
-                    Text('No playlists available',
-                        style:
-                            GoogleFonts.inter(color: AppColors.textSecondary)),
+                    Text(
+                      'No playlists available',
+                      style: GoogleFonts.inter(color: AppColors.textSecondary),
+                    ),
                   ],
                 ),
               );
@@ -158,8 +165,11 @@ class _MobilePlaylistCard extends StatelessWidget {
                     color: AppColors.primary.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.playlist_play,
-                      color: AppColors.primary, size: 28),
+                  child: const Icon(
+                    Icons.playlist_play,
+                    color: AppColors.primary,
+                    size: 28,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(

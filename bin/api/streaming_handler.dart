@@ -153,17 +153,20 @@ Handler createLiveStreamHandler(
         '-i', targetUrl,
         // Video
         if (useNvidiaGpu) ...[
-          '-c:v', 'h264_nvenc', '-preset', 'p4', '-tune', 'hq', // Better quality preset for NVENC
-          '-b:v', '8000k', '-maxrate', '12000k', '-bufsize', '16000k', // Quality native / high bitrate
-          '-g', '50', 
+          '-c:v', 'h264_nvenc', '-preset', 'p4', '-tune',
+          'hq', // Better quality preset for NVENC
+          '-b:v', '8000k', '-maxrate', '12000k', '-bufsize',
+          '16000k', // Quality native / high bitrate
+          '-g', '50',
         ] else ...[
-          '-c:v', 'libx264', '-preset', 'medium', '-tune', 'zerolatency', // Better detail than ultrafast
+          '-c:v', 'libx264', '-preset', 'medium', '-tune',
+          'zerolatency', // Better detail than ultrafast
           '-b:v', '6000k', '-maxrate', '8000k', '-bufsize', '12000k',
-          '-g', '50', 
+          '-g', '50',
         ],
         // Audio: High quality + Sync filter
         '-c:a', 'aac', '-b:a', '192k', '-ac', '2', '-ar', '48000',
-        '-af', 'aresample=async=1', 
+        '-af', 'aresample=async=1',
         // HLS Sliding Window
         '-f', 'hls',
         '-hls_time', '2',
@@ -201,15 +204,19 @@ Handler createLiveStreamHandler(
       retries++;
     }
 
-    if (!file.existsSync())
+    if (!file.existsSync()) {
       return Response.internalServerError(body: 'Timeout starting live HLS');
+    }
 
-    return Response.ok(file.openRead(), headers: {
-      'Content-Type': 'application/vnd.apple.mpegurl',
-      'Access-Control-Allow-Origin': '*',
-      'Cache-Control': 'no-cache',
-      'X-Content-Type-Options': 'nosniff',
-    });
+    return Response.ok(
+      file.openRead(),
+      headers: {
+        'Content-Type': 'application/vnd.apple.mpegurl',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-cache',
+        'X-Content-Type-Options': 'nosniff',
+      },
+    );
   });
 
   // Route: /api/live/{streamId}.ts (Direct Proxy for internal recordings or raw playback)
@@ -245,11 +252,14 @@ Handler createLiveStreamHandler(
     final file = File('${_hlsTempDir.path}/live_$streamId/$segment');
     if (!file.existsSync()) return Response.notFound('Segment not found');
 
-    return Response.ok(file.openRead(), headers: {
-      'Content-Type': 'video/mp2t',
-      'Access-Control-Allow-Origin': '*',
-      'Cache-Control': 'max-age=60',
-    });
+    return Response.ok(
+      file.openRead(),
+      headers: {
+        'Content-Type': 'video/mp2t',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'max-age=60',
+      },
+    );
   });
 
   return router;

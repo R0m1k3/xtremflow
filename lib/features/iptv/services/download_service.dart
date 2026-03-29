@@ -120,12 +120,15 @@ class DownloadService {
 
   /// Get download progress
   double getDownloadProgress(String id) {
-    final task = _downloads.firstWhere((t) => t.id == id, orElse: () => DownloadTask(
-      id: id,
-      title: '',
-      url: '',
-      filePath: '',
-    ));
+    final task = _downloads.firstWhere(
+      (t) => t.id == id,
+      orElse: () => DownloadTask(
+        id: id,
+        title: '',
+        url: '',
+        filePath: '',
+      ),
+    );
     return task.progress;
   }
 
@@ -151,13 +154,12 @@ class DownloadService {
     if (available < 1024 * 1024 * 1024) {
       // Less than 1GB free
       final dir = Directory(_downloadDir);
-      final files = dir.listSync()
-          .whereType<File>()
-          .toList();
+      final files = dir.listSync().whereType<File>().toList();
 
       // Sort by modification time, delete oldest first
-      files.sort((a, b) =>
-          a.statSync().modified.compareTo(b.statSync().modified));
+      files.sort(
+        (a, b) => a.statSync().modified.compareTo(b.statSync().modified),
+      );
 
       for (final file in files.take(files.length ~/ 3)) {
         try {
@@ -216,7 +218,8 @@ class DownloadService {
       }
 
       // Check if paused or cancelled
-      final currentTask = _downloads.firstWhere((t) => t.id == task.id, orElse: () => task);
+      final currentTask =
+          _downloads.firstWhere((t) => t.id == task.id, orElse: () => task);
       if (currentTask.status == DownloadStatus.paused ||
           !_activeDownloads.contains(task.id)) {
         break;
@@ -301,8 +304,6 @@ class DownloadsNotifier extends StateNotifier<List<DownloadTask>> {
   }
 
   void clearCompleted() {
-    state = state
-        .where((d) => d.status != DownloadStatus.completed)
-        .toList();
+    state = state.where((d) => d.status != DownloadStatus.completed).toList();
   }
 }

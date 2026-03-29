@@ -11,11 +11,8 @@ import '../providers/playback_positions_provider.dart';
 // ... (existing imports)
 // ... (existing imports)
 import '../../../core/models/playlist_config.dart';
-import '../../../core/models/iptv_models.dart';
-import '../../../core/widgets/tv_focusable_card.dart';
 import '../../../core/widgets/glass_container.dart';
 import '../../../core/theme/app_colors.dart';
-import '../widgets/epg_overlay.dart';
 
 enum StreamType { live, vod, series }
 
@@ -57,7 +54,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   StreamSubscription? _messageSubscription;
   final String _aspectRatio = 'contain';
   bool _isSeeking = false;
-  late final String _viewIdPrefix = DateTime.now().millisecondsSinceEpoch.toString();
+  late final String _viewIdPrefix =
+      DateTime.now().millisecondsSinceEpoch.toString();
   String _viewId = 'iptv-player';
   String? _currentStreamUrl;
   String _statusMessage = 'Loading...';
@@ -134,7 +132,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // Store URL for Lite Player
       final isMobile = MediaQuery.of(context).size.width < 600;
       final isLiveTV = widget.streamType == StreamType.live;
-      
+
       // TURBO-START: Use direct MPEG-TS for Live TV on Desktop/Android for instant zapping
       if (isLiveTV && !isMobile) {
         streamUrl = service.getLiveStreamUrlTs(currentStreamId);
@@ -152,15 +150,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // Force player choice based on stream type:
       // - Live TV: Player Lite (simple TS playback with mpegts.js)
       // - VOD/Series: Player Standard (fuller controls, HLS support)
-      
+
       // Cache buster to force reload of updated player.html
       final cacheBuster = DateTime.now().millisecondsSinceEpoch;
 
-      final streamTypeParam = widget.streamType == StreamType.live ? 'live' : 'vod';
-      final playerFile = isMobile ? 'player_mobile.html' : (isLiveTV ? 'player_lite.html' : 'player.html');
-      
+      final streamTypeParam =
+          widget.streamType == StreamType.live ? 'live' : 'vod';
+      final playerFile = isMobile
+          ? 'player_mobile.html'
+          : (isLiveTV ? 'player_lite.html' : 'player.html');
+
       // Inject Turbo-Start flag
-      var playerSrc = '$playerFile?url=$encodedUrl&type=$streamTypeParam&turbo=true&v=$cacheBuster';
+      var playerSrc =
+          '$playerFile?url=$encodedUrl&type=$streamTypeParam&turbo=true&v=$cacheBuster';
 
       if (startTimeOverride != null) {
         playerSrc += '&t=$startTimeOverride';
@@ -300,31 +302,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void _toggleFullscreen() {
     try {
       final doc = html.document;
-      final isFullscreen = doc.fullscreenElement != null || 
-                          (doc as dynamic).webkitFullscreenElement != null ||
-                          (doc as dynamic).mozFullScreenElement != null;
+      final isFullscreen = doc.fullscreenElement != null ||
+          (doc as dynamic).webkitFullscreenElement != null ||
+          (doc as dynamic).mozFullScreenElement != null;
 
       if (isFullscreen) {
-        if (doc.exitFullscreen != null) {
-          doc.exitFullscreen();
-        } else if ((doc as dynamic).webkitExitFullscreen != null) {
-          (doc as dynamic).webkitExitFullscreen();
-        } else if ((doc as dynamic).mozCancelFullScreen != null) {
-          (doc as dynamic).mozCancelFullScreen();
-        }
+        doc.exitFullscreen();
       } else {
         final element = doc.documentElement;
         if (element != null) {
-          if (element.requestFullscreen != null) {
-            element.requestFullscreen();
-          } else if ((element as dynamic).webkitRequestFullscreen != null) {
-            (element as dynamic).webkitRequestFullscreen();
-          } else if ((element as dynamic).mozRequestFullScreen != null) {
-            (element as dynamic).mozRequestFullScreen();
-          } else {
-            // Fallback: Message the player if browser API fails
-            _sendMessage({'type': 'request_fullscreen'});
-          }
+          element.requestFullscreen();
         }
       }
     } catch (e) {
@@ -442,9 +429,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                         children: [
                                           Text(
                                             widget.channels != null
-                                                ? (widget.channels![_currentIndex]
+                                                ? (widget
+                                                            .channels![
+                                                                _currentIndex]
                                                             .name ??
-                                                        widget.channels![
+                                                        widget
+                                                            .channels![
                                                                 _currentIndex]
                                                             .title ??
                                                         'Unknown')
@@ -478,12 +468,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           // Unified Bottom Bar - EPG + Controls in one bar
                           AnimatedPositioned(
                             duration: const Duration(milliseconds: 200),
-                            bottom: _showControls ? 24 : -150, // More offset for stacked layout
+                            bottom: _showControls
+                                ? 24
+                                : -150, // More offset for stacked layout
                             left: 16,
                             right: 16,
                             child: LayoutBuilder(
                               builder: (context, constraints) {
-                                final isSmallScreen = constraints.maxWidth < 600;
+                                final isSmallScreen =
+                                    constraints.maxWidth < 600;
                                 return Container(
                                   padding: EdgeInsets.symmetric(
                                     horizontal: isSmallScreen ? 16 : 20,
@@ -494,13 +487,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                     borderRadius: BorderRadius.circular(24),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: AppColors.background.withOpacity(0.3),
+                                        color: AppColors.background
+                                            .withOpacity(0.3),
                                         blurRadius: 10,
                                         spreadRadius: 2,
                                       ),
                                     ],
                                     border: Border.all(
-                                      color: AppColors.textPrimary.withOpacity(0.15),
+                                      color: AppColors.textPrimary
+                                          .withOpacity(0.15),
                                     ),
                                   ),
                                   child: isSmallScreen
@@ -510,14 +505,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                             // EPG Info (top in mobile)
                                             _buildInlineEpg(),
                                             const SizedBox(height: 12),
-                                            const Divider(color: Colors.white10),
+                                            const Divider(
+                                                color: Colors.white10),
                                             const SizedBox(height: 8),
                                             // Control Buttons
                                             Row(
                                               mainAxisAlignment:
                                                   MainAxisAlignment.spaceEvenly,
                                               children: _buildControlButtons(
-                                                  isSmallScreen),
+                                                isSmallScreen,
+                                              ),
                                             ),
                                           ],
                                         )
@@ -532,7 +529,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                             Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: _buildControlButtons(
-                                                  isSmallScreen),
+                                                isSmallScreen,
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -851,7 +849,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         onTap: _toggleMute,
         size: buttonSize,
       ),
-
     ];
   }
 
@@ -1059,5 +1056,4 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       },
     );
   }
-
 }

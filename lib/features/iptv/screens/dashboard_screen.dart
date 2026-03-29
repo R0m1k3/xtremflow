@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/playlist_config.dart';
@@ -25,7 +24,13 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   int _selectedIndex = 0;
-  final List<String> _tabs = ['Live TV', 'Movies', 'Series', 'Recordings', 'Settings'];
+  final List<String> _tabs = [
+    'Live TV',
+    'Movies',
+    'Series',
+    'Recordings',
+    'Settings'
+  ];
   final List<IconData> _icons = [
     Icons.live_tv_rounded,
     Icons.movie_rounded,
