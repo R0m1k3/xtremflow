@@ -165,6 +165,17 @@
 
         function log(m) { console.log('[MobilePlayer] ' + m); }
 
+        let safariRetryCount = 0;
+        const safariMaxRetries = 3;
+        let isSafariMode = false;
+
+        function showError(msg) {
+            loading.style.display = 'none';
+            playOverlay.style.display = 'none';
+            error.style.display = 'block';
+            document.getElementById('err-msg').textContent = msg;
+        }
+
         playOverlay.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -173,63 +184,73 @@
             playOverlay.style.display = 'none';
         });
 
-        // Double tap for fullscreen
         let lastTap = 0;
-        video.addEventListener('touchend', (e) => {
-            const now = Date.now();
-            lastTap = now;
-            // Report activity to parent
+        video.addEventListener('touchend', () => {
+            lastTap = Date.now();
             window.parent.postMessage({ type: 'user_activity' }, '*');
         });
 
         video.addEventListener('playing', () => {
             loading.style.display = 'none';
             playOverlay.style.display = 'none';
+            safariRetryCount = 0;
         });
 
         video.addEventListener('pause', () => {
-            // If we're paused and not playing, and it looks like it was blocked or stopped
             if (video.currentTime === 0 || video.paused) {
                 loading.style.display = 'none';
                 playOverlay.style.display = 'flex';
             }
         });
 
+        video.addEventListener('error', () => {
+            const code = video.error?.code || 'unknown';
+            const msg = video.error?.message || '';
+            log('Video error - code: ' + code + ', message: ' + msg);
 
-        video.addEventListener('error', (e) => {
-            loading.style.display = 'none';
-            playOverlay.style.display = 'none';
-            error.style.display = 'block';
-            const errorCode = video.error?.code || 'unknown';
-            const errorMsg = video.error?.message || 'Unknown error';
-            log('Video error - code: ' + errorCode + ', message: ' + errorMsg);
-            document.getElementById('err-msg').textContent = 'Erreur ' + errorCode + ': ' + errorMsg;
+            // Safari/iOS: auto-retry on transient errors
+            if (isSafariMode && safariRetryCount < safariMaxRetries) {
+                safariRetryCount++;
+                log('Safari retry ' + safariRetryCount + '/' + safariMaxRetries + ' in 2s');
+                loading.style.display = 'flex';
+                error.style.display = 'none';
+                document.getElementById('l-text').textContent = 'Reconnexion ' + safariRetryCount + '/' + safariMaxRetries + '...';
+                setTimeout(loadSafariStream, 2000);
+            } else {
+                showError('Erreur ' + code + ': ' + (msg || 'Format non supporté ou lien expiré'));
+            }
         });
+
+        function loadSafariStream() {
+            video.src = '';
+            video.load();
+            video.src = streamUrl;
+            video.load();
+            video.play().catch(() => {
+                log('Autoplay blocked by Safari, showing overlay');
+                loading.style.display = 'none';
+                playOverlay.style.display = 'flex';
+            });
+        }
 
         async function init() {
             if (!streamUrl) {
                 log('No stream URL provided');
-                error.style.display = 'block';
-                document.getElementById('err-msg').textContent = 'No stream URL provided';
+                showError('No stream URL provided');
                 return;
             }
             log('Initing mobile player for: ' + streamUrl);
             log('Stream type param: ' + streamType);
 
-            const isHLS = streamUrl.toLowerCase().includes('m3u8') || streamUrl.toLowerCase().includes('playlist.m3u8');
-            const isTS = streamUrl.toLowerCase().includes('/live/') || streamUrl.toLowerCase().endsWith('.ts');
+            const isHLS = streamUrl.toLowerCase().includes('m3u8');
+            const isTS = streamUrl.toLowerCase().endsWith('.ts');
             log('Format detection - isHLS: ' + isHLS + ', isTS: ' + isTS);
 
-            // Safari / iOS Native HLS - MUST call load() and play()
+            // Safari / iOS Native HLS
             if (isHLS && video.canPlayType('application/vnd.apple.mpegurl')) {
-                log('Using native HLS (Safari)');
-                video.src = streamUrl;
-                video.load();
-                video.play().catch(e => {
-                    log('Autoplay blocked by Safari, showing overlay');
-                    loading.style.display = 'none';
-                    playOverlay.style.display = 'flex';
-                });
+                log('Using native HLS (Safari/iOS)');
+                isSafariMode = true;
+                loadSafariStream();
                 return;
             }
 

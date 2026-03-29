@@ -154,24 +154,26 @@ Handler createLiveStreamHandler(
         // Video
         if (useNvidiaGpu) ...[
           '-c:v', 'h264_nvenc', '-preset', 'p4', '-tune',
-          'hq', // Better quality preset for NVENC
-          '-b:v', '8000k', '-maxrate', '12000k', '-bufsize',
-          '16000k', // Quality native / high bitrate
+          'hq',
+          '-b:v', '8000k', '-maxrate', '12000k', '-bufsize', '16000k',
+          '-profile:v', 'high', '-level', '4.0',
+          '-pix_fmt', 'yuv420p',
           '-g', '50',
         ] else ...[
-          '-c:v', 'libx264', '-preset', 'medium', '-tune',
-          'zerolatency', // Better detail than ultrafast
+          '-c:v', 'libx264', '-preset', 'medium', '-tune', 'zerolatency',
+          '-profile:v', 'high', '-level', '4.0',
           '-b:v', '6000k', '-maxrate', '8000k', '-bufsize', '12000k',
+          '-pix_fmt', 'yuv420p',
           '-g', '50',
         ],
         // Audio: High quality + Sync filter
         '-c:a', 'aac', '-b:a', '192k', '-ac', '2', '-ar', '48000',
         '-af', 'aresample=async=1',
-        // HLS Sliding Window
+        // HLS Sliding Window — larger window so iOS never requests a deleted segment
         '-f', 'hls',
         '-hls_time', '2',
-        '-hls_list_size', '10', // Increased for safety
-        '-hls_flags', 'delete_segments+independent_segments+discont_start',
+        '-hls_list_size', '20',
+        '-hls_flags', 'delete_segments+independent_segments',
         '-hls_segment_type', 'mpegts',
         '-hls_segment_filename', 'seg_%03d.ts',
         'playlist.m3u8',
