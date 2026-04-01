@@ -85,6 +85,7 @@ class _RecordingsTabState extends State<RecordingsTab>
         ),
         Expanded(
           child: TabBarView(
+            controller: _tabController,
             children: [
               _RecordingsListView(playlist: widget.playlist),
             ],
