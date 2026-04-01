@@ -128,7 +128,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           widget.containerExtension,
         );
       } else if (widget.streamType == StreamType.recording) {
-        streamUrl = '${service.backendBaseUrl}/api/recordings/stream/$currentStreamId.mkv';
+        streamUrl = '${service.backendBaseUrl}/api/recordings/stream/$currentStreamId/playlist.m3u8';
       }
 
       // Store URL for Lite Player
@@ -165,6 +165,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // Inject Turbo-Start flag
       var playerSrc =
           '$playerFile?url=$encodedUrl&type=$streamTypeParam&turbo=true&v=$cacheBuster';
+
+      if (widget.streamType == StreamType.recording) {
+        playerSrc += '&is_recording=true';
+      }
 
       if (startTimeOverride != null) {
         playerSrc += '&t=$startTimeOverride';

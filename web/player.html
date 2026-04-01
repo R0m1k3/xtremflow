@@ -251,21 +251,27 @@
             }
 
             const isTurbo = urlParams.get('turbo') === 'true';
+            const isRecording = urlParams.get('is_recording') === 'true';
 
-            const hls = new Hls({
+            const hlsOptions = {
                 maxBufferLength: 120,
                 enableWorker: true,
-                liveSyncDurationCount: 10, // Buffer-First: 10 segments safety margin
-                liveMaxLatencyDurationCount: 20,
                 nudgeOffset: 0.8, // More aggressive jump over corrupted frames
                 nudgeMaxRetries: 30,
                 maxLiveSyncPlaybackRate: 1.1, // Slower catch-up to avoid chaos
-                // Stabilization
                 initialLiveManifestSize: 3, // Wait for more segments before starting
                 abrEwmaDefaultEstimate: 1000000,
                 manifestLoadingRetryDelay: 1000,
                 levelLoadingRetryDelay: 1000
-            });
+            };
+
+            // Limit live sync only for actual LIVE IPTV, not recordings
+            if (!isRecording && streamType === 'live') {
+                hlsOptions.liveSyncDurationCount = 10;
+                hlsOptions.liveMaxLatencyDurationCount = 20;
+            }
+
+            const hls = new Hls(hlsOptions);
             window.hlsInstance = hls;
             hls.loadSource(url);
             hls.attachMedia(video);
