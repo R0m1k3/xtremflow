@@ -21,38 +21,23 @@ class RecordingsTab extends StatefulWidget {
   State<RecordingsTab> createState() => _RecordingsTabState();
 }
 
-class _RecordingsTabState extends State<RecordingsTab>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 1, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
+class _RecordingsTabState extends State<RecordingsTab> {
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         // Header
         Container(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.tv, color: Colors.white, size: 28),
+                  const Icon(Icons.videocam, color: Colors.white, size: 28),
                   const SizedBox(width: 12),
                   Text(
-                    'TV & Enregistrements',
+                    'Enregistrements',
                     style: GoogleFonts.outfit(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
@@ -61,35 +46,11 @@ class _RecordingsTabState extends State<RecordingsTab>
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              TabBar(
-                controller: _tabController,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.white54,
-                indicatorColor: Colors.redAccent,
-                indicatorWeight: 3,
-                labelStyle: GoogleFonts.outfit(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-                unselectedLabelStyle: GoogleFonts.outfit(fontSize: 14),
-                tabs: const [
-                  Tab(
-                    icon: Icon(Icons.fiber_manual_record, size: 18),
-                    text: 'Enregistrements',
-                  ),
-                ],
-              ),
             ],
           ),
         ),
         Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _RecordingsListView(playlist: widget.playlist),
-            ],
-          ),
+          child: _RecordingsListView(playlist: widget.playlist),
         ),
       ],
     );
