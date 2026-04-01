@@ -506,7 +506,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                             _buildInlineEpg(),
                                             const SizedBox(height: 12),
                                             const Divider(
-                                                color: Colors.white10),
+                                              color: Colors.white10,
+                                            ),
                                             const SizedBox(height: 8),
                                             // Control Buttons
                                             Row(

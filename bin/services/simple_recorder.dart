@@ -80,8 +80,11 @@ class SimpleRecorder {
         _active.remove(channelId);
         print('✅ Recording done: $title');
       }).catchError((e) {
-        db.updateRecordingStatus(recordingId, 'failed',
-            errorReason: 'FFmpeg error');
+        db.updateRecordingStatus(
+          recordingId,
+          'failed',
+          errorReason: 'FFmpeg error',
+        );
         _active.remove(channelId);
       });
 

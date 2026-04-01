@@ -42,50 +42,50 @@ class MobileScaffold extends ConsumerWidget {
         ],
       ),
       bottomNavigationBar: Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              border: const Border(
-                top: BorderSide(
-                  color: AppColors.border,
-                  width: 0.5,
-                ),
-              ),
-            ),
-            child: BottomNavigationBar(
-              currentIndex: currentIndex,
-              onTap: onIndexChanged,
-              backgroundColor: Colors.transparent,
-              type: BottomNavigationBarType.fixed,
-              elevation: 0,
-              selectedItemColor: AppColors.primary,
-              unselectedItemColor: AppColors.textSecondary,
-              selectedLabelStyle:
-                  GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 11),
-              unselectedLabelStyle:
-                  GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 11),
-              items: const [
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.live_tv_rounded),
-                  label: 'Live',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.movie_outlined),
-                  activeIcon: Icon(Icons.movie_rounded),
-                  label: 'Movies',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.video_library_outlined),
-                  activeIcon: Icon(Icons.video_library_rounded),
-                  label: 'Series',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.settings_outlined),
-                  activeIcon: Icon(Icons.settings_rounded),
-                  label: 'Settings',
-                ),
-              ],
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          border: Border(
+            top: BorderSide(
+              color: AppColors.border,
+              width: 0.5,
             ),
           ),
+        ),
+        child: BottomNavigationBar(
+          currentIndex: currentIndex,
+          onTap: onIndexChanged,
+          backgroundColor: Colors.transparent,
+          type: BottomNavigationBarType.fixed,
+          elevation: 0,
+          selectedItemColor: AppColors.primary,
+          unselectedItemColor: AppColors.textSecondary,
+          selectedLabelStyle:
+              GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 11),
+          unselectedLabelStyle:
+              GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 11),
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.live_tv_rounded),
+              label: 'Live',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.movie_outlined),
+              activeIcon: Icon(Icons.movie_rounded),
+              label: 'Movies',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.video_library_outlined),
+              activeIcon: Icon(Icons.video_library_rounded),
+              label: 'Series',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.settings_outlined),
+              activeIcon: Icon(Icons.settings_rounded),
+              label: 'Settings',
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

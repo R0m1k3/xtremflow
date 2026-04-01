@@ -285,8 +285,10 @@ class _HeroCarouselState extends State<HeroCarousel>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.play_arrow,
-                              color: AppColors.textPrimary),
+                          const Icon(
+                            Icons.play_arrow,
+                            color: AppColors.textPrimary,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'Play',

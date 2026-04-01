@@ -511,8 +511,12 @@ class AppDatabase {
   }
 
   /// Mettre à jour le statut et éventuellement le chemin d'un enregistrement
-  void updateRecordingStatus(String id, String status,
-      {String? filePath, String? errorReason}) {
+  void updateRecordingStatus(
+    String id,
+    String status, {
+    String? filePath,
+    String? errorReason,
+  }) {
     final now = DateTime.now().toIso8601String();
     _db.execute(
       '''
@@ -551,14 +555,15 @@ class AppDatabase {
       'channel_id': channelId,
       'stream_url': streamUrl,
       'enabled': 1,
-      'created_at': now
+      'created_at': now,
     };
   }
 
   /// Lister tous les Season Passes
   List<Map<String, dynamic>> getAllSeasonPasses() {
     final result = _db.select(
-        'SELECT * FROM season_passes WHERE enabled = 1 ORDER BY created_at DESC');
+      'SELECT * FROM season_passes WHERE enabled = 1 ORDER BY created_at DESC',
+    );
     return result.map((r) => Map<String, dynamic>.from(r)).toList();
   }
 

@@ -183,8 +183,9 @@ class XtreamService {
   /// Get all live TV channels grouped by category
   ///
   /// Returns a Map where key is category name and value is list of channels
-  Future<Map<String, List<Channel>>> getLiveChannels(
-      {bool refresh = false}) async {
+  Future<Map<String, List<Channel>>> getLiveChannels({
+    bool refresh = false,
+  }) async {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
 
     final options = refresh

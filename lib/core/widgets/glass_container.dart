@@ -58,7 +58,9 @@ class GlassContainer extends StatelessWidget {
     // BackdropFilter is extremely expensive in Flutter Web on mobile Safari.
     // On mobile web (width < 600), skip the blur entirely.
     final screenWidth = MediaQuery.of(context).size.width;
-    final useBlur = blur > 0 && !(Theme.of(context).platform == TargetPlatform.iOS && screenWidth < 600);
+    final useBlur = blur > 0 &&
+        !(Theme.of(context).platform == TargetPlatform.iOS &&
+            screenWidth < 600);
 
     final inner = Container(
       padding: padding,
@@ -157,10 +159,12 @@ class _GlassCardState extends State<GlassCard>
     );
 
     _scaleAnimation = Tween<double>(begin: 1.0, end: 1.04).animate(
-        CurvedAnimation(parent: _controller, curve: AppTheme.curveDefault));
+      CurvedAnimation(parent: _controller, curve: AppTheme.curveDefault),
+    );
 
     _opacityAnimation = Tween<double>(begin: 1.0, end: 0.8).animate(
-        CurvedAnimation(parent: _controller, curve: AppTheme.curveDefault));
+      CurvedAnimation(parent: _controller, curve: AppTheme.curveDefault),
+    );
   }
 
   @override

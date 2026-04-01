@@ -295,7 +295,8 @@ class RuntimeOptimizations {
     hasHighPerformanceDevice = totalMemoryMb > 4000 && storageFreeMb > 5000;
 
     print(
-        '[Device Calibration] Memory: ${freeMemoryMb}MB, Storage: ${storageFreeMb}MB');
+      '[Device Calibration] Memory: ${freeMemoryMb}MB, Storage: ${storageFreeMb}MB',
+    );
   }
 
   /// Get dynamic cache size based on available memory

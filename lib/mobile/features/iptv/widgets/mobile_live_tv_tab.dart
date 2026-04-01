@@ -48,8 +48,10 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
             children: [
               const CircularProgressIndicator(),
               const SizedBox(height: 16),
-              const Text('Loading channels...',
-                  style: TextStyle(color: Colors.white70)),
+              const Text(
+                'Loading channels...',
+                style: TextStyle(color: Colors.white70),
+              ),
               const SizedBox(height: 24),
               FutureBuilder(
                 future: Future.delayed(const Duration(seconds: 8)),
@@ -57,7 +59,8 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                   if (snapshot.connectionState == ConnectionState.done) {
                     return TextButton(
                       onPressed: () => ref.refresh(
-                          liveChannelsByPlaylistProvider(widget.playlist)),
+                        liveChannelsByPlaylistProvider(widget.playlist),
+                      ),
                       child: const Text('Taking too long? Tap to retry'),
                     );
                   }
@@ -75,15 +78,20 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
               children: [
                 const Icon(Icons.error_outline, color: Colors.red, size: 48),
                 const SizedBox(height: 16),
-                Text('Failed to load channels',
-                    style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold)),
+                Text(
+                  'Failed to load channels',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                Text('$e',
-                    style: const TextStyle(color: Colors.white54),
-                    textAlign: TextAlign.center),
+                Text(
+                  '$e',
+                  style: const TextStyle(color: Colors.white54),
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: () => ref

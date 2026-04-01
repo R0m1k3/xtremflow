@@ -196,9 +196,13 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(day, style: const TextStyle(fontSize: 11)),
-                  Text(dateNum,
-                      style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.bold)),
+                  Text(
+                    dateNum,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             );
@@ -257,7 +261,9 @@ class _EpgGridScreenState extends ConsumerState<EpgGridScreen>
                         child: Text(
                           '$hour:00',
                           style: const TextStyle(
-                              fontSize: 11, fontWeight: FontWeight.bold),
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     );

@@ -7,9 +7,10 @@ import '../../../core/models/iptv_models.dart';
 import '../../../core/models/playlist_config.dart';
 import '../providers/xtream_provider.dart';
 import '../providers/settings_provider.dart';
+import '../screens/player_screen.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  ENTRÉE — Onglet "TV & Enregistrements" avec 3 sous-onglets
+//  ENTRÉE — Onglet "Enregistrements"
 // ═══════════════════════════════════════════════════════════════════════════
 
 class RecordingsTab extends StatefulWidget {
@@ -27,7 +28,7 @@ class _RecordingsTabState extends State<RecordingsTab>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 1, vsync: this);
   }
 
   @override
@@ -73,14 +74,9 @@ class _RecordingsTabState extends State<RecordingsTab>
                 ),
                 unselectedLabelStyle: GoogleFonts.outfit(fontSize: 14),
                 tabs: const [
-                  Tab(icon: Icon(Icons.grid_view, size: 18), text: 'Guide TV'),
                   Tab(
                     icon: Icon(Icons.fiber_manual_record, size: 18),
                     text: 'Enregistrements',
-                  ),
-                  Tab(
-                    icon: Icon(Icons.repeat, size: 18),
-                    text: 'Season Passes',
                   ),
                 ],
               ),
@@ -89,11 +85,8 @@ class _RecordingsTabState extends State<RecordingsTab>
         ),
         Expanded(
           child: TabBarView(
-            controller: _tabController,
             children: [
-              _EpgGuideView(playlist: widget.playlist),
-              const _RecordingsListView(),
-              const _SeasonPassesView(),
+              _RecordingsListView(playlist: widget.playlist),
             ],
           ),
         ),
@@ -298,7 +291,9 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                       decoration: InputDecoration(
                         hintText: 'Rechercher...',
                         hintStyle: const TextStyle(
-                            color: Colors.white38, fontSize: 13),
+                          color: Colors.white38,
+                          fontSize: 13,
+                        ),
                         prefixIcon: const Icon(
                           Icons.search,
                           color: Colors.white38,
@@ -765,7 +760,8 @@ class _ProgrammeCard extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════
 
 class _RecordingsListView extends StatefulWidget {
-  const _RecordingsListView();
+  final PlaylistConfig playlist;
+  const _RecordingsListView({required this.playlist});
   @override
   State<_RecordingsListView> createState() => _RecordingsListViewState();
 }
@@ -819,6 +815,31 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
   Future<void> _deleteRecording(String id) async {
     await http.delete(Uri.parse('/api/recordings/$id'));
     _fetchRecordings();
+  }
+
+  Future<void> _playRecording(BuildContext context, Map<String, dynamic> rec) async {
+    final streamUrl = rec['stream_url'] as String? ?? '';
+    final title = rec['title'] as String? ?? 'Enregistrement';
+
+    if (streamUrl.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('URL du flux indisponible')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (ctx) => PlayerScreen(
+          streamId: streamUrl,
+          title: title,
+          playlist: widget.playlist,
+          streamType: StreamType.vod,
+          containerExtension: 'ts',
+        ),
+      ),
+    );
   }
 
   Future<void> _showLogs(String id, String title) async {
@@ -1032,6 +1053,16 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                                             rec['id'],
                                             rec['title'] ?? '',
                                           ),
+                                        ),
+                                      if (status == 'completed')
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.play_circle_outline,
+                                            color: Colors.greenAccent,
+                                            size: 20,
+                                          ),
+                                          tooltip: 'Lecture',
+                                          onPressed: () => _playRecording(context, rec),
                                         ),
                                       IconButton(
                                         icon: const Icon(

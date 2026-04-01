@@ -29,7 +29,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     'Movies',
     'Series',
     'Recordings',
-    'Settings'
+    'Settings',
   ];
   final List<IconData> _icons = [
     Icons.live_tv_rounded,
