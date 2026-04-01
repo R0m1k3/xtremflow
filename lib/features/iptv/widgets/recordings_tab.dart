@@ -789,6 +789,15 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
       return;
     }
 
+    Duration? recordingDuration;
+    try {
+      if (rec['start_time'] != null && rec['end_time'] != null) {
+        final start = DateTime.parse(rec['start_time'].toString());
+        final end = DateTime.parse(rec['end_time'].toString());
+        recordingDuration = end.difference(start);
+      }
+    } catch (_) {}
+
     if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -798,6 +807,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
           playlist: widget.playlist,
           streamType: StreamType.recording,
           containerExtension: 'ts',
+          duration: recordingDuration,
         ),
       ),
     );
