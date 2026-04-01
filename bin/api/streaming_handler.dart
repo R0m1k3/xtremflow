@@ -562,117 +562,51 @@ Handler createRecordingStreamHandler(
 }) {
   final router = Router();
 
-  // Route: /api/recordings/stream/{streamId}/playlist.m3u8
-  router.get('/<streamId>/playlist.m3u8', (Request request, String streamId) async {
+  router.get('/<streamId>.mkv', (Request request, String streamId) async {
     final recording = db.getRecordingById(streamId);
     if (recording == null || recording.filePath == null) {
       return Response.notFound('Recording or file not found');
     }
 
     final targetUrl = recording.filePath!;
-    if (!File(targetUrl).existsSync()) {
+    final file = File(targetUrl);
+    if (!file.existsSync()) {
       return Response.notFound('Physical recording file not found');
     }
 
-    final streamDir = Directory('${_hlsTempDir.path}/rec_$streamId');
+    final fileStat = file.statSync();
+    final fileSize = fileStat.size;
+    final rangeHeader = request.headers['range'];
 
-    // Check if existing session is healthy
-    if (_vodProcesses.containsKey('rec_$streamId')) {
-      final existingProcess = _vodProcesses['rec_$streamId']!;
-      final playlistFile = File('${streamDir.path}/playlist.m3u8');
-      
-      if (playlistFile.existsSync() && playlistFile.readAsStringSync().contains('.ts')) {
-        return Response.ok(
-          playlistFile.openRead(),
-          headers: {
-            'Content-Type': 'application/vnd.apple.mpegurl',
-            'Access-Control-Allow-Origin': '*',
-            'Cache-Control': 'no-cache',
-          },
-        );
-      }
-      
-      try { existingProcess.kill(); } catch (_) {}
-      _vodProcesses.remove('rec_$streamId');
-      if (streamDir.existsSync()) streamDir.deleteSync(recursive: true);
-    }
+    if (rangeHeader != null && rangeHeader.startsWith('bytes=')) {
+      final parts = rangeHeader.substring(6).split('-');
+      var start = int.tryParse(parts[0]) ?? 0;
+      var end = (parts.length > 1 && parts[1].isNotEmpty) ? int.tryParse(parts[1]) : null;
+      end ??= fileSize - 1;
 
-    if (!_vodProcesses.containsKey('rec_$streamId')) {
-      if (streamDir.existsSync()) streamDir.deleteSync(recursive: true);
-      streamDir.createSync(recursive: true);
-
-      final useNvidiaGpu = isGpuEnabled?.call() ?? _isNvidiaGpuEnabled();
-      
-      final ffmpegArgs = <String>[
-        '-hide_banner', '-loglevel', 'warning',
-        if (useNvidiaGpu) ...['-hwaccel', 'cuda'],
-        '-i', targetUrl,
-      ];
-
-      if (useNvidiaGpu) {
-        ffmpegArgs.addAll([
-          '-c:v', 'h264_nvenc', '-preset', 'p4', '-tune', 'hq',
-          '-rc', 'cbr', '-b:v', '4000k', '-maxrate', '4500k', '-bufsize', '8000k',
-          '-g', '48', '-bf', '2', '-pix_fmt', 'yuv420p',
-        ]);
-      } else {
-        ffmpegArgs.addAll([
-          '-c:v', 'libx264', '-preset', 'medium', '-crf', '18',
-          '-maxrate', '12000k', '-bufsize', '24000k', '-pix_fmt', 'yuv420p',
-          '-g', '48', '-threads', '0',
-        ]);
+      if (start >= fileSize || end >= fileSize || start > end) {
+        return Response(416, headers: {'Content-Range': 'bytes */$fileSize'});
       }
 
-      ffmpegArgs.addAll([
-        '-c:a', 'aac', '-b:a', '192k', '-ar', '48000',
-        '-af', 'pan=stereo|FL=1.0*FL+0.707*FC+0.5*BL+0.5*SL+0.5*LFE|FR=1.0*FR+0.707*FC+0.5*BR+0.5*SR+0.5*LFE,dynaudnorm=f=150:g=15',
-        '-f', 'hls', '-hls_time', '4', '-hls_list_size', '0',
-        '-hls_playlist_type', 'event', '-hls_allow_cache', '1',
-        '-hls_flags', 'independent_segments', '-hls_segment_type', 'mpegts',
-        '-hls_segment_filename', 'segment_%03d.ts', '-start_number', '0',
-        'playlist.m3u8',
-      ]);
+      final contentLength = end - start + 1;
+      final stream = file.openRead(start, end + 1);
 
-      final ffmpegPath = _getFFmpegPath();
-      Process.start(ffmpegPath, ffmpegArgs, workingDirectory: streamDir.path).then((process) {
-        _vodProcesses['rec_$streamId'] = process;
-        process.stderr.transform(utf8.decoder).listen((data) => print('[FFmpeg Rec $streamId] $data'));
-        process.exitCode.then((code) {
-          print('[Recording Stream] FFmpeg exited with code $code');
-          _vodProcesses.remove('rec_$streamId');
-        });
+      return Response(206, body: stream, headers: {
+        'Content-Type': 'video/x-matroska',
+        'Accept-Ranges': 'bytes',
+        'Content-Length': contentLength.toString(),
+        'Content-Range': 'bytes $start-$end/$fileSize',
+        'Access-Control-Allow-Origin': '*',
       });
     }
 
-    final playlistFile = File('${streamDir.path}/playlist.m3u8');
-    int retries = 0;
-    while (retries < 60) {
-      if (playlistFile.existsSync() && playlistFile.readAsStringSync().contains('.ts')) break;
-      await Future.delayed(const Duration(milliseconds: 500));
-      retries++;
-    }
-
-    if (!playlistFile.existsSync()) return Response.internalServerError(body: 'Timeout waiting for transcoder');
-
-    return Response.ok(
-      playlistFile.openRead(),
-      headers: {
-        'Content-Type': 'application/vnd.apple.mpegurl',
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'no-cache',
-      },
-    );
-  });
-
-  router.get('/<streamId>/<segment>', (Request request, String streamId, String segment) async {
-    final file = File('${_hlsTempDir.path}/rec_$streamId/$segment');
-    if (!file.existsSync()) return Response.notFound('Segment not found');
     return Response.ok(
       file.openRead(),
       headers: {
-        'Content-Type': 'video/mp2t',
+        'Content-Type': 'video/x-matroska',
+        'Accept-Ranges': 'bytes',
+        'Content-Length': fileSize.toString(),
         'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'max-age=3600',
       },
     );
   });

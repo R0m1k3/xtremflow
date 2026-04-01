@@ -128,7 +128,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           widget.containerExtension,
         );
       } else if (widget.streamType == StreamType.recording) {
-        streamUrl = '${service.backendBaseUrl}/api/recordings/stream/$currentStreamId/playlist.m3u8';
+        streamUrl = '${service.backendBaseUrl}/api/recordings/stream/$currentStreamId.mkv';
       }
 
       // Store URL for Lite Player
