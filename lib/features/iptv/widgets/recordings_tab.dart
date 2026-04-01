@@ -24,35 +24,33 @@ class RecordingsTab extends StatefulWidget {
 class _RecordingsTabState extends State<RecordingsTab> {
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Header
-        Container(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.videocam, color: Colors.white, size: 28),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Enregistrements',
-                    style: GoogleFonts.outfit(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+    return Container(
+      color: Colors.black,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+            color: Colors.grey[900],
+            child: const Row(
+              children: [
+                Icon(Icons.videocam, color: Colors.white, size: 28),
+                SizedBox(width: 12),
+                Text(
+                  'Enregistrements',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
-        ),
-        Expanded(
-          child: _RecordingsListView(playlist: widget.playlist),
-        ),
-      ],
+          Expanded(
+            child: _RecordingsListView(playlist: widget.playlist),
+          ),
+        ],
+      ),
     );
   }
 }

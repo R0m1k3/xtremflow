@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(dart analyze:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git commit -m 'fix: restore RecordingsTab to working version without tab complexity:*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m 'fix: simplify RecordingsTab to fix null check operator error:*)"
     ]
   }
 }
