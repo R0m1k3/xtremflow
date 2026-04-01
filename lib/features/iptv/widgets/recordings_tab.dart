@@ -746,7 +746,8 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
       final response = await http.get(Uri.parse('/api/recordings'));
       if (response.statusCode == 200) {
         setState(() {
-          _recordings = json.decode(response.body);
+          final decoded = json.decode(response.body);
+          _recordings = decoded is List ? decoded : [];
           _isLoading = false;
         });
       } else {
@@ -895,7 +896,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                 : _error != null
                     ? Center(
                         child: Text(
-                          _error!,
+                          _error ?? 'Erreur',
                           style: const TextStyle(color: Colors.redAccent),
                         ),
                       )
