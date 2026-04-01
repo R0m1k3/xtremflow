@@ -14,7 +14,7 @@ import '../../../core/models/playlist_config.dart';
 import '../../../core/widgets/glass_container.dart';
 import '../../../core/theme/app_colors.dart';
 
-enum StreamType { live, vod, series }
+enum StreamType { live, vod, series, recording }
 
 class PlayerScreen extends ConsumerStatefulWidget {
   final String streamId;
@@ -127,6 +127,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           currentStreamId,
           widget.containerExtension,
         );
+      } else if (widget.streamType == StreamType.recording) {
+        streamUrl = '${service.backendBaseUrl}/api/recordings/stream/$currentStreamId/playlist.m3u8';
       }
 
       // Store URL for Lite Player

@@ -243,6 +243,13 @@ void main(List<String> args) async {
         getPlaylist,
         isGpuEnabled: db.isNvidiaGpuEnabled,
       ),
+    )
+    ..mount(
+      '/api/recordings/stream',
+      createRecordingStreamHandler(
+        db,
+        isGpuEnabled: db.isNvidiaGpuEnabled,
+      ),
     );
 
   // Proxy Handler (auth is now handled INSIDE the handler, after path check)

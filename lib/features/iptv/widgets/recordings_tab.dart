@@ -779,12 +779,12 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
   }
 
   Future<void> _playRecording(BuildContext context, Map<String, dynamic> rec) async {
-    final streamUrl = rec['stream_url'] as String? ?? '';
+    final recordingId = rec['id'] as String?;
     final title = rec['title'] as String? ?? 'Enregistrement';
 
-    if (streamUrl.isEmpty) {
+    if (recordingId == null || recordingId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('URL du flux indisponible')),
+        const SnackBar(content: Text('ID de lecture indisponible')),
       );
       return;
     }
@@ -793,10 +793,10 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (ctx) => PlayerScreen(
-          streamId: streamUrl,
+          streamId: recordingId,
           title: title,
           playlist: widget.playlist,
-          streamType: StreamType.vod,
+          streamType: StreamType.recording,
           containerExtension: 'ts',
         ),
       ),
