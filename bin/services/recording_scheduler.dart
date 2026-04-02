@@ -264,7 +264,7 @@ class RecordingScheduler {
         '-c',
         'copy',
         '-t',
-        '${recording.endTime.difference(DateTime.now()).inSeconds}',
+        '${recording.endTime.difference(recording.startTime).inSeconds}',
         filePath,
       ];
 
