@@ -564,13 +564,29 @@ Handler createRecordingStreamHandler(
 
   router.get('/<streamId>/playlist.m3u8', (Request request, String streamId) async {
     final recording = db.getRecordingById(streamId);
-    if (recording == null || recording.filePath == null) {
-      return Response.internalServerError(body: 'DEBUG_ERROR: Recording $streamId or file not found in DB');
+    if (recording == null) {
+      return Response.notFound('Recording not found');
+    }
+
+    // Check recording status - only allow streaming if completed or recording
+    if (recording.status == 'scheduled') {
+      return Response(202, body: 'Recording not yet started');
+    }
+    if (recording.status == 'failed') {
+      return Response(422, body: 'Recording failed: ${recording.errorReason ?? 'unknown error'}');
+    }
+    if (recording.status != 'completed' && recording.status != 'recording') {
+      return Response.internalServerError(body: 'Invalid recording status: ${recording.status}');
+    }
+
+    // Check file path and existence
+    if (recording.filePath == null) {
+      return Response.internalServerError(body: 'Recording file path not set');
     }
 
     final targetUrl = recording.filePath!;
     if (!File(targetUrl).existsSync()) {
-      return Response.internalServerError(body: 'DEBUG_ERROR: Physical recording file $targetUrl DOES NOT EXIST on disk.');
+      return Response.internalServerError(body: 'Physical recording file not found: $targetUrl');
     }
 
     final streamDir = Directory('${_hlsTempDir.path}/rec_$streamId');
