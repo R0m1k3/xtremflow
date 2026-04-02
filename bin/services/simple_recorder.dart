@@ -55,6 +55,7 @@ class SimpleRecorder {
     try {
       final ffmpeg = await Process.start('ffmpeg', [
         '-y',
+        '-fflags', '+genpts+igndts', // FORCE generation of missing timestamps for MKV/MP4 compatibility
         '-i',
         streamUrl,
         '-c',
@@ -75,10 +76,18 @@ class SimpleRecorder {
       db.updateRecordingStatus(recordingId, 'recording', filePath: filepath);
 
       // Auto-stop when time is up or process ends
-      ffmpeg.exitCode.then((_) {
-        db.updateRecordingStatus(recordingId, 'completed');
+      ffmpeg.exitCode.then((code) {
+        if (code == 0 || code == 255) { // 255 is usually returned when gracefully stopped via q/SIGTERM
+          db.updateRecordingStatus(recordingId, 'completed');
+        } else {
+          db.updateRecordingStatus(
+            recordingId,
+            'failed',
+            errorReason: 'FFmpeg crashed with exit code $code',
+          );
+        }
         _active.remove(channelId);
-        print('✅ Recording done: $title');
+        print('✅ Recording finished: $title (Code: $code)');
       }).catchError((e) {
         db.updateRecordingStatus(
           recordingId,
@@ -203,7 +212,7 @@ class SimpleRecorder {
     final safe = title.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
     final timestamp =
         DateTime.now().toIso8601String().replaceAll(':', '').split('.')[0];
-    return '${safe}_$timestamp.mkv';
+    return '${safe}_$timestamp.mkv'; // The user explicitly mandated MKV or MP4.
   }
 
   void dispose() {
