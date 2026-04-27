@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/theme/app_colors.dart';
 import '../providers/settings_provider.dart';
 
 /// Streaming settings tab for Live TV configuration
@@ -18,18 +19,18 @@ class StreamingSettingsTab extends ConsumerWidget {
         // Header
         Text(
           'Paramètres Streaming Live TV',
-          style: GoogleFonts.roboto(
+          style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: AppColors.onSurface,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           'Ces paramètres s\'appliquent uniquement aux flux TV en direct.',
-          style: GoogleFonts.roboto(
+          style: GoogleFonts.inter(
             fontSize: 12,
-            color: Colors.white54,
+            color: AppColors.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 24),
@@ -104,11 +105,11 @@ class StreamingSettingsTab extends ConsumerWidget {
             SwitchListTile(
               title: Text(
                 'Reconnexion automatique',
-                style: GoogleFonts.roboto(fontSize: 14, color: Colors.white),
+                style: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurface),
               ),
               subtitle: Text(
                 'Se reconnecter en cas de coupure',
-                style: GoogleFonts.roboto(fontSize: 12, color: Colors.white54),
+                style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant),
               ),
               value: settings.autoReconnect,
               activeThumbColor: Colors.blueAccent,
@@ -140,11 +141,11 @@ class StreamingSettingsTab extends ConsumerWidget {
             SwitchListTile(
               title: Text(
                 'Préférer lecture directe',
-                style: GoogleFonts.roboto(fontSize: 14, color: Colors.white),
+                style: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurface),
               ),
               subtitle: Text(
                 'Utiliser le flux original si compatible',
-                style: GoogleFonts.roboto(fontSize: 12, color: Colors.white54),
+                style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant),
               ),
               value: settings.preferDirectPlay,
               activeThumbColor: Colors.blueAccent,
@@ -185,11 +186,11 @@ class StreamingSettingsTab extends ConsumerWidget {
             SwitchListTile(
               title: Text(
                 'Accélération NVIDIA GPU',
-                style: GoogleFonts.roboto(fontSize: 14, color: Colors.white),
+                style: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurface),
               ),
               subtitle: Text(
                 'Utiliser NVENC/NVDEC pour le transcodage (requiert GPU NVIDIA)',
-                style: GoogleFonts.roboto(fontSize: 12, color: Colors.white54),
+                style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant),
               ),
               value: settings.enableNvidiaGpu,
               activeThumbColor: Colors.green,
@@ -214,7 +215,7 @@ class StreamingSettingsTab extends ConsumerWidget {
               Expanded(
                 child: Text(
                   'Les changements prennent effet immédiatement pour les nouveaux flux.',
-                  style: GoogleFonts.roboto(
+                  style: GoogleFonts.inter(
                     fontSize: 12,
                     color: Colors.blue.shade700,
                   ),
@@ -250,10 +251,10 @@ class StreamingSettingsTab extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Text(
                   title,
-                  style: GoogleFonts.roboto(
+                  style: GoogleFonts.inter(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: AppColors.onSurface,
                   ),
                 ),
               ],
@@ -277,11 +278,11 @@ class StreamingSettingsTab extends ConsumerWidget {
     return ListTile(
       title: Text(
         title,
-        style: GoogleFonts.roboto(fontSize: 14, color: Colors.white),
+        style: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurface),
       ),
       subtitle: Text(
         subtitle,
-        style: GoogleFonts.roboto(fontSize: 12, color: Colors.white54),
+        style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant),
       ),
       trailing: DropdownButton<T>(
         value: value,
@@ -292,13 +293,13 @@ class StreamingSettingsTab extends ConsumerWidget {
             value: item,
             child: Text(
               labelBuilder(item),
-              style: GoogleFonts.roboto(fontSize: 13, color: Colors.white),
+              style: GoogleFonts.inter(fontSize: 13, color: AppColors.onSurface),
             ),
           );
         }).toList(),
         onChanged: onChanged,
-        style: GoogleFonts.roboto(color: Colors.white),
-        iconEnabledColor: Colors.white70,
+        style: GoogleFonts.inter(color: AppColors.onSurface),
+        iconEnabledColor: AppColors.onSurfaceVariant,
       ),
     );
   }

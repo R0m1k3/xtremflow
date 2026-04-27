@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 import 'glass_container.dart';
 import 'tv_focusable_card.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class HeroCarouselItem {
   final String id;
@@ -12,6 +12,7 @@ class HeroCarouselItem {
   final String? imageUrl;
   final VoidCallback? onTap;
   final VoidCallback? onPlay;
+  final List<String>? badges;
 
   HeroCarouselItem({
     required this.id,
@@ -20,6 +21,7 @@ class HeroCarouselItem {
     this.imageUrl,
     this.onTap,
     this.onPlay,
+    this.badges,
   });
 }
 
@@ -88,10 +90,9 @@ class _HeroCarouselState extends State<HeroCarousel> {
     if (widget.items.isEmpty) return const SizedBox.shrink();
 
     return SizedBox(
-      height: 500, // Cinematic height
+      height: 560,
       child: Stack(
         children: [
-          // Carousel
           PageView.builder(
             controller: _pageController,
             onPageChanged: (index) {
@@ -106,7 +107,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
 
           // Indicators
           Positioned(
-            bottom: 24,
+            bottom: 32,
             right: 48,
             child: Row(
               children: List.generate(
@@ -118,7 +119,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                   height: 8,
                   decoration: BoxDecoration(
                     color: _currentIndex == index
-                        ? AppColors.primary
+                        ? AppColors.primaryContainer
                         : Colors.white.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(4),
                   ),
@@ -135,15 +136,17 @@ class _HeroCarouselState extends State<HeroCarousel> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Background Image with Ken Burns Effect (Simulated via Scale in future, static for now)
+        // Background Image
         if (item.imageUrl != null && item.imageUrl!.isNotEmpty)
           Image.network(
             _getProxiedUrl(item.imageUrl)!,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(color: AppColors.surface),
-          ),
+            errorBuilder: (_, __, ___) => Container(color: AppColors.surfaceContainerLow),
+          )
+        else
+          Container(color: AppColors.surfaceContainerLow),
 
-        // Gradient Overlays
+        // Gradient Overlays — Stitch style
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -151,9 +154,9 @@ class _HeroCarouselState extends State<HeroCarousel> {
               end: Alignment.bottomCenter,
               colors: [
                 Colors.transparent,
-                AppColors.background.withOpacity(0.2),
-                AppColors.background.withOpacity(0.9),
-                AppColors.background,
+                AppColors.baseLevel0.withOpacity(0.4),
+                AppColors.baseLevel0.withOpacity(0.9),
+                AppColors.baseLevel0,
               ],
               stops: const [0.0, 0.5, 0.8, 1.0],
             ),
@@ -167,7 +170,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
               end: Alignment.centerLeft,
               colors: [
                 Colors.transparent,
-                AppColors.background.withOpacity(0.8),
+                AppColors.baseLevel0.withOpacity(0.8),
               ],
             ),
           ),
@@ -180,25 +183,60 @@ class _HeroCarouselState extends State<HeroCarousel> {
             mainAxisAlignment: MainAxisAlignment.end,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Category Tag
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.primary.withOpacity(0.5)),
-                ),
-                child: Text(
-                  'FEATURED',
-                  style: GoogleFonts.inter(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                    letterSpacing: 1.5,
+              // Badges row
+              if (item.badges != null && item.badges!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Wrap(
+                    spacing: 8,
+                    children: item.badges!.map((badge) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: AppColors.primary.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Text(
+                          badge.toUpperCase(),
+                          style: GoogleFonts.inter(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 11,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                )
+              else
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppColors.primary.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Text(
+                    'FEATURED',
+                    style: GoogleFonts.inter(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                      letterSpacing: 1.5,
+                    ),
                   ),
                 ),
-              ),
+
               const SizedBox(height: 16),
 
               // Title
@@ -206,11 +244,12 @@ class _HeroCarouselState extends State<HeroCarousel> {
                 width: 600,
                 child: Text(
                   item.title,
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.spaceGrotesk(
                     fontSize: 48,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.onSurface,
                     height: 1.1,
+                    letterSpacing: -0.02,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -221,8 +260,9 @@ class _HeroCarouselState extends State<HeroCarousel> {
                 Text(
                   item.subtitle!,
                   style: GoogleFonts.inter(
-                    color: AppColors.textSecondary,
+                    color: AppColors.onSurfaceVariant,
                     fontSize: 18,
+                    height: 1.5,
                   ),
                 ),
               ],
@@ -245,7 +285,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                         borderRadius: BorderRadius.circular(50),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withOpacity(0.4),
+                            color: AppColors.primaryContainer.withOpacity(0.4),
                             blurRadius: 20,
                             offset: const Offset(0, 5),
                           ),
@@ -256,13 +296,13 @@ class _HeroCarouselState extends State<HeroCarousel> {
                         children: [
                           const Icon(
                             Icons.play_arrow_rounded,
-                            color: Colors.white,
+                            color: AppColors.onSurface,
                           ),
                           const SizedBox(width: 8),
                           Text(
                             'WATCH NOW',
                             style: GoogleFonts.inter(
-                              color: Colors.white,
+                              color: AppColors.onSurface,
                               fontWeight: FontWeight.w600,
                               fontSize: 16,
                             ),
@@ -273,9 +313,9 @@ class _HeroCarouselState extends State<HeroCarousel> {
                   ),
                   const SizedBox(width: 20),
                   TvFocusableCard(
-                    onTap: item.onTap, // Add to favorites or details
+                    onTap: item.onTap,
                     borderRadius: 50,
-                    child: GlassContainer(
+                    child: GlassContainer.glass(
                       borderRadius: 50,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
@@ -284,12 +324,15 @@ class _HeroCarouselState extends State<HeroCarousel> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.info_outline, color: Colors.white),
+                          const Icon(
+                            Icons.info_outline,
+                            color: AppColors.onSurface,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'DETAILS',
                             style: GoogleFonts.inter(
-                              color: Colors.white,
+                              color: AppColors.onSurface,
                               fontWeight: FontWeight.w600,
                               fontSize: 16,
                             ),
@@ -300,7 +343,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                   ),
                 ],
               ),
-              const SizedBox(height: 48), // Bottom padding
+              const SizedBox(height: 48),
             ],
           ),
         ),

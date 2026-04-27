@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/models/iptv_models.dart';
 import '../providers/xtream_provider.dart';
+import '../../../core/theme/app_colors.dart';
 
 /// Minimal EPG overlay - shows program title and info
 class EpgOverlay extends ConsumerWidget {
@@ -60,13 +61,13 @@ class EpgOverlay extends ConsumerWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.red,
+                    color: AppColors.error,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Text(
                     'LIVE',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: AppColors.onSurface,
                       fontSize: 12, // Larger
                       fontWeight: FontWeight.bold,
                     ),
@@ -82,10 +83,10 @@ class EpgOverlay extends ConsumerWidget {
                       Text(
                         currentProgram.title,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: AppColors.onSurface,
                           fontSize: 18, // Much Larger
                           fontWeight: FontWeight.bold,
-                          shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+                          shadows: [Shadow(color: AppColors.background, blurRadius: 4)],
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -94,7 +95,7 @@ class EpgOverlay extends ConsumerWidget {
                         Text(
                           currentProgram.description,
                           style: const TextStyle(
-                            color: Colors.white70,
+                            color: AppColors.onSurfaceVariant,
                             fontSize: 13, // Larger desc
                           ),
                           maxLines: 1,

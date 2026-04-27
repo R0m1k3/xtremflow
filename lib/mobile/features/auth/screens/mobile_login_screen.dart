@@ -100,9 +100,8 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
             Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24.0),
-                child: GlassContainer(
+                child: GlassContainer.floating(
                   borderRadius: 24,
-                  opacity: 0.7,
                   padding: const EdgeInsets.all(32),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -112,23 +111,23 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                         width: 80,
                         height: 80,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: AppColors.surfaceContainer,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white24),
+                          border: Border.all(color: AppColors.outlineVariant),
                         ),
                         child: const Icon(
                           Icons.live_tv_rounded,
-                          color: Colors.white,
+                          color: AppColors.onSurface,
                           size: 40,
                         ),
                       ),
                       const SizedBox(height: 24),
                       Text(
                         'XtremFlow',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.spaceGrotesk(
                           fontSize: 32,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: AppColors.onSurface,
                           letterSpacing: -1.0,
                         ),
                       ),
@@ -136,7 +135,7 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                         'Mobile Edition',
                         style: GoogleFonts.inter(
                           fontSize: 14,
-                          color: Colors.white54,
+                          color: AppColors.onSurfaceVariant,
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -182,28 +181,39 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                             
                             const SizedBox(height: 32),
                             
-                            SizedBox(
+                            Container(
                               width: double.infinity,
                               height: 50,
+                              decoration: BoxDecoration(
+                                gradient: AppColors.primaryGradient,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.glowPrimary(0.4),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
                               child: FilledButton(
                                 onPressed: authState.isLoading ? null : _handleLogin,
                                 style: FilledButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: Colors.black,
+                                  backgroundColor: Colors.transparent,
+                                  foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   elevation: 0,
                                 ).copyWith(
-                                  overlayColor: WidgetStateProperty.all(Colors.black12),
+                                  overlayColor: WidgetStateProperty.all(AppColors.onSurface.withOpacity(0.1)),
                                 ),
                                 child: authState.isLoading
                                     ? const SizedBox(
                                         width: 24,
                                         height: 24,
-                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                       )
                                     : Text(
                                         'Sign In',
-                                        style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 16),
+                                        style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 16, color: Colors.white),
                                       ),
                               ),
                             ),
@@ -233,19 +243,19 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
-      style: GoogleFonts.inter(color: Colors.white),
+      style: GoogleFonts.inter(color: AppColors.onSurface),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.inter(color: Colors.white54),
-        prefixIcon: Icon(icon, color: Colors.white54),
-        suffixIcon: isPassword 
+        labelStyle: GoogleFonts.inter(color: AppColors.onSurfaceVariant),
+        prefixIcon: Icon(icon, color: AppColors.onSurfaceVariant),
+        suffixIcon: isPassword
           ? IconButton(
-              icon: Icon(obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: Colors.white38),
+              icon: Icon(obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: AppColors.outline),
               onPressed: onTogglePassword,
             )
           : null,
         filled: true,
-        fillColor: Colors.white.withOpacity(0.1),
+        fillColor: AppColors.surfaceContainerLow,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -256,7 +266,7 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.white, width: 2), // White Focus
+          borderSide: const BorderSide(color: AppColors.primaryContainer, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),

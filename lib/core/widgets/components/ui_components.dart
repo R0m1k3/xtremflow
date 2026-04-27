@@ -1,10 +1,12 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
+import '../glass_container.dart';
 
-/// Glassmorphism card widget with blur effect
+/// Stitch-style glass card using GlassContainer Level 1.
 class GlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -23,25 +25,18 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Material(
-          color: AppColors.glassBackground,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(borderRadius),
-            child: Container(
-              padding: padding,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(borderRadius),
-                border: showBorder
-                    ? Border.all(color: AppColors.glassBorder, width: 1)
-                    : null,
-              ),
-              child: child,
-            ),
+    return GlassContainer.glass(
+      borderRadius: borderRadius,
+      border: showBorder,
+      padding: EdgeInsets.zero,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(borderRadius),
+          child: Padding(
+            padding: padding,
+            child: child,
           ),
         ),
       ),
@@ -49,7 +44,7 @@ class GlassCard extends StatelessWidget {
   }
 }
 
-/// Animated gradient button
+/// Animated gradient primary button with Stitch glow.
 class GradientButton extends StatefulWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -106,12 +101,17 @@ class _GradientButtonState extends State<GradientButton>
       child: Container(
         decoration: BoxDecoration(
           gradient: AppColors.primaryGradient,
-          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: AppColors.glowPrimary(0.3),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+            BoxShadow(
+              color: AppColors.glowPrimary(0.1),
+              blurRadius: 30,
+              spreadRadius: 2,
             ),
           ],
         ),
@@ -122,7 +122,7 @@ class _GradientButtonState extends State<GradientButton>
             onTapDown: (_) => _controller.forward(),
             onTapUp: (_) => _controller.reverse(),
             onTapCancel: () => _controller.reverse(),
-            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 24,
@@ -134,24 +134,26 @@ class _GradientButtonState extends State<GradientButton>
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.black,
+                        color: AppColors.onSurface,
                       ),
                     )
                   : Row(
-                      mainAxisSize:
-                          widget.isExpanded ? MainAxisSize.max : MainAxisSize.min,
+                      mainAxisSize: widget.isExpanded
+                          ? MainAxisSize.max
+                          : MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         if (widget.icon != null) ...[
-                          Icon(widget.icon, color: Colors.black, size: 20),
+                          Icon(widget.icon, color: AppColors.onSurface, size: 20),
                           const SizedBox(width: 8),
                         ],
                         Text(
                           widget.label,
-                          style: const TextStyle(
-                            color: Colors.black,
+                          style: GoogleFonts.inter(
+                            color: AppColors.onSurface,
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
+                            letterSpacing: 0.05,
                           ),
                         ),
                       ],
@@ -168,7 +170,7 @@ class _GradientButtonState extends State<GradientButton>
   }
 }
 
-/// Shimmer loading effect widget
+/// Shimmer loading effect using surface container tones.
 class ShimmerLoading extends StatefulWidget {
   final double width;
   final double height;
@@ -220,9 +222,9 @@ class _ShimmerLoadingState extends State<ShimmerLoading>
               begin: Alignment(_animation.value - 1, 0),
               end: Alignment(_animation.value + 1, 0),
               colors: [
-                AppColors.surface.withOpacity(0.5),
-                AppColors.surface,
-                AppColors.surface.withOpacity(0.5),
+                AppColors.surfaceContainerLow.withOpacity(0.5),
+                AppColors.surfaceContainer,
+                AppColors.surfaceContainerLow.withOpacity(0.5),
               ],
             ),
           ),
@@ -232,29 +234,30 @@ class _ShimmerLoadingState extends State<ShimmerLoading>
   }
 }
 
-/// Live indicator badge
+/// Live indicator badge — Stitch style pill.
 class LiveBadge extends StatelessWidget {
   const LiveBadge({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: AppColors.live,
         borderRadius: BorderRadius.circular(4),
       ),
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.circle, size: 6, color: Colors.white),
-          SizedBox(width: 4),
+          const Icon(Icons.circle, size: 6, color: AppColors.onSurface),
+          const SizedBox(width: 4),
           Text(
             'LIVE',
-            style: TextStyle(
-              color: Colors.white,
+            style: GoogleFonts.inter(
+              color: AppColors.onSurface,
               fontSize: 10,
               fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
             ),
           ),
         ],
@@ -263,7 +266,7 @@ class LiveBadge extends StatelessWidget {
   }
 }
 
-/// Category chip with color
+/// Stitch-style category chip — pill shaped with primary accent.
 class CategoryChip extends StatelessWidget {
   final String label;
   final bool isSelected;
@@ -280,8 +283,8 @@ class CategoryChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: isSelected
-          ? AppColors.primary.withOpacity(0.2)
-          : AppColors.surface,
+          ? AppColors.primary.withOpacity(0.1)
+          : AppColors.surfaceContainerLow,
       borderRadius: BorderRadius.circular(AppTheme.radiusFull),
       child: InkWell(
         onTap: onTap,
@@ -291,15 +294,18 @@ class CategoryChip extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppTheme.radiusFull),
             border: Border.all(
-              color: isSelected ? AppColors.primary : AppColors.border,
+              color: isSelected
+                  ? AppColors.primary.withOpacity(0.3)
+                  : AppColors.outlineVariant,
+              width: 1,
             ),
           ),
           child: Text(
             label,
-            style: TextStyle(
+            style: GoogleFonts.inter(
               fontSize: 13,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              color: isSelected ? AppColors.primary : AppColors.textSecondary,
+              color: isSelected ? AppColors.primary : AppColors.onSurfaceVariant,
             ),
           ),
         ),
@@ -308,7 +314,7 @@ class CategoryChip extends StatelessWidget {
   }
 }
 
-/// Apple TV style Media Card (Vertical Poster)
+/// Media poster card with Stitch glass hover effect.
 class MediaCard extends StatefulWidget {
   final String title;
   final String? imageUrl;
@@ -341,6 +347,9 @@ class _MediaCardState extends State<MediaCard>
 
   @override
   Widget build(BuildContext context) {
+    final focusBorderColor =
+        _isHovered ? AppColors.primaryContainer.withOpacity(0.5) : Colors.transparent;
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -362,21 +371,32 @@ class _MediaCardState extends State<MediaCard>
                   duration: AppTheme.durationFast,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                    color: AppColors.surface,
+                    color: AppColors.surfaceContainerLow,
                     border: Border.all(
-                      color: _isHovered ? AppColors.focusColor : Colors.transparent,
-                      width: _isHovered ? 3 : 0,
+                      color: focusBorderColor,
+                      width: _isHovered ? 2 : 0,
                     ),
                     boxShadow: _isHovered
                         ? [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.5),
-                              blurRadius: 20,
+                              blurRadius: 25,
                               offset: const Offset(0, 10),
+                              spreadRadius: 2,
+                            ),
+                            BoxShadow(
+                              color: AppColors.glowPrimary(0.3),
+                              blurRadius: 20,
+                              spreadRadius: 1,
+                            ),
+                            BoxShadow(
+                              color: AppColors.glowPrimary(0.1),
+                              blurRadius: 40,
+                              spreadRadius: 4,
                             ),
                           ]
                         : [
-                             BoxShadow(
+                            BoxShadow(
                               color: Colors.black.withOpacity(0.2),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
@@ -384,7 +404,8 @@ class _MediaCardState extends State<MediaCard>
                           ],
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd - (_isHovered ? 2 : 0)),
+                    borderRadius: BorderRadius.circular(
+                        AppTheme.radiusMd - (_isHovered ? 2 : 0)),
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
@@ -393,33 +414,38 @@ class _MediaCardState extends State<MediaCard>
                             imageUrl: widget.imageUrl!,
                             fit: BoxFit.cover,
                             placeholder: (context, url) => Container(
-                              color: AppColors.surface,
+                              color: AppColors.surfaceContainerLow,
                               child: Center(
-                                child: Icon(widget.placeholderIcon, color: AppColors.textTertiary),
+                                child: Icon(widget.placeholderIcon,
+                                    color: AppColors.outline),
                               ),
                             ),
                             errorWidget: (context, url, error) => Container(
-                              color: AppColors.surface,
+                              color: AppColors.surfaceContainerLow,
                               child: Center(
-                                child: Icon(widget.placeholderIcon, color: AppColors.textTertiary),
+                                child: Icon(widget.placeholderIcon,
+                                    color: AppColors.outline),
                               ),
                             ),
                           )
                         else
                           Container(
-                            color: AppColors.surface,
+                            color: AppColors.surfaceContainerLow,
                             child: Center(
-                              child: Icon(widget.placeholderIcon, color: AppColors.textTertiary),
+                              child: Icon(widget.placeholderIcon,
+                                  color: AppColors.outline),
                             ),
                           ),
-                        
+
                         // Rating Badge (Top Left)
-                        if (widget.rating != null && widget.rating!.isNotEmpty)
+                        if (widget.rating != null &&
+                            widget.rating!.isNotEmpty)
                           Positioned(
                             top: 8,
                             left: 8,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: Colors.black.withOpacity(0.7),
                                 borderRadius: BorderRadius.circular(4),
@@ -427,11 +453,16 @@ class _MediaCardState extends State<MediaCard>
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.star, size: 10, color: Color(0xFFFFD700)),
+                                  const Icon(Icons.star,
+                                      size: 10, color: AppColors.primaryContainer),
                                   const SizedBox(width: 4),
                                   Text(
                                     widget.rating!,
-                                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                    style: GoogleFonts.inter(
+                                      color: AppColors.onSurface,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -449,7 +480,8 @@ class _MediaCardState extends State<MediaCard>
                                 color: AppColors.success,
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.check, size: 12, color: Colors.white),
+                              child: const Icon(Icons.check,
+                                  size: 12, color: AppColors.onSurface),
                             ),
                           ),
                       ],
@@ -458,7 +490,7 @@ class _MediaCardState extends State<MediaCard>
                 ),
               ),
             ),
-            
+
             // Title & Subtitle (Below)
             const SizedBox(height: 12),
             SizedBox(
@@ -470,9 +502,12 @@ class _MediaCardState extends State<MediaCard>
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: _isHovered ? AppColors.focusColor : AppColors.textSecondary,
-                      fontWeight: _isHovered ? FontWeight.w600 : FontWeight.w500,
+                    style: GoogleFonts.inter(
+                      color: _isHovered
+                          ? AppColors.primary
+                          : AppColors.onSurface,
+                      fontWeight:
+                          _isHovered ? FontWeight.w600 : FontWeight.w500,
                       fontSize: 13,
                     ),
                   ),
@@ -483,8 +518,8 @@ class _MediaCardState extends State<MediaCard>
                       textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.textTertiary,
+                      style: GoogleFonts.inter(
+                        color: AppColors.onSurfaceVariant,
                         fontSize: 11,
                       ),
                     ),

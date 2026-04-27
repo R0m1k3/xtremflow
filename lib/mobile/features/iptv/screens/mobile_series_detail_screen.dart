@@ -80,7 +80,7 @@ class _MobileSeriesDetailScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.background,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -90,13 +90,13 @@ class _MobileSeriesDetailScreenState
               gradient: RadialGradient(
                 center: Alignment.center,
                 radius: 1.5,
-                colors: [Color(0xFF1C1C1E), Color(0xFF000000)],
+                colors: [AppColors.surfaceContainerLow, AppColors.background],
               ),
             ),
           ),
 
           if (_isLoading)
-            const Center(child: CircularProgressIndicator(color: Colors.white))
+            const Center(child: CircularProgressIndicator(color: AppColors.onSurface))
           else if (_error != null)
             Center(
               child: Column(
@@ -110,7 +110,7 @@ class _MobileSeriesDetailScreenState
                   const SizedBox(height: 16),
                   Text(
                     'Error: $_error',
-                    style: GoogleFonts.inter(color: Colors.white70),
+                    style: GoogleFonts.inter(color: AppColors.onSurfaceVariant),
                   ),
                   TextButton(
                     onPressed: _loadSeriesInfo,
@@ -141,11 +141,11 @@ class _MobileSeriesDetailScreenState
           leading: Container(
             margin: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.5),
+              color: AppColors.background.withOpacity(0.5),
               shape: BoxShape.circle,
             ),
             child: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              icon: const Icon(Icons.arrow_back, color: AppColors.onSurface),
               onPressed: () => Navigator.pop(context),
             ),
           ),
@@ -158,7 +158,7 @@ class _MobileSeriesDetailScreenState
                     imageUrl: _seriesInfo!.cover!,
                     fit: BoxFit.cover,
                     errorWidget: (_, __, ___) =>
-                        Container(color: Colors.grey.shade900),
+                        Container(color: AppColors.surfaceContainerLow),
                   ),
                 // Gradient Overlay
                 Container(
@@ -168,8 +168,8 @@ class _MobileSeriesDetailScreenState
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        Colors.black.withOpacity(0.8),
-                        Colors.black, // Merge into body background
+                        AppColors.background.withOpacity(0.8),
+                        AppColors.background, // Merge into body background
                       ],
                       stops: const [0.5, 0.8, 1.0],
                     ),
@@ -189,7 +189,7 @@ class _MobileSeriesDetailScreenState
                         style: GoogleFonts.inter(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: AppColors.onSurface,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -205,7 +205,7 @@ class _MobileSeriesDetailScreenState
                             Text(
                               _formatRating(_seriesInfo!.rating!)!,
                               style: GoogleFonts.inter(
-                                color: Colors.white70,
+                                color: AppColors.onSurfaceVariant,
                                 fontSize: 13,
                               ),
                             ),
@@ -214,7 +214,7 @@ class _MobileSeriesDetailScreenState
                           Text(
                             '${_seriesInfo!.episodes.keys.length} Seasons',
                             style: GoogleFonts.inter(
-                              color: Colors.white70,
+                              color: AppColors.onSurfaceVariant,
                               fontSize: 13,
                             ),
                           ),
@@ -235,7 +235,7 @@ class _MobileSeriesDetailScreenState
               padding: const EdgeInsets.all(16.0),
               child: Text(
                 _seriesInfo!.plot!,
-                style: GoogleFonts.inter(color: Colors.white70, height: 1.4),
+                style: GoogleFonts.inter(color: AppColors.onSurfaceVariant, height: 1.4),
                 maxLines: 4,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -260,10 +260,10 @@ class _MobileSeriesDetailScreenState
                   onSelected: (selected) {
                     if (selected) setState(() => _selectedSeason = seasonNum);
                   },
-                  backgroundColor: Colors.white.withOpacity(0.1),
+                  backgroundColor: AppColors.surfaceContainer,
                   selectedColor: AppColors.primary,
                   labelStyle: GoogleFonts.inter(
-                    color: isSelected ? Colors.white : Colors.white70,
+                    color: isSelected ? AppColors.onPrimary : AppColors.onSurfaceVariant,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                   ),
                   shape: RoundedRectangleBorder(
@@ -308,9 +308,8 @@ class _MobileSeriesDetailScreenState
     );
     final isWatched = watchHistory.isEpisodeWatched(episodeKey);
 
-    return GlassContainer(
+    return GlassContainer.glass(
       borderRadius: 12,
-      opacity: 0.1,
       padding: EdgeInsets.zero,
       child: InkWell(
         onTap: () {
@@ -342,12 +341,12 @@ class _MobileSeriesDetailScreenState
                 decoration: BoxDecoration(
                   color: isWatched
                       ? AppColors.primary
-                      : Colors.white.withOpacity(0.1),
+                      : AppColors.surfaceContainer,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   isWatched ? Icons.check : Icons.play_arrow_rounded,
-                  color: isWatched ? Colors.white : AppColors.primary,
+                  color: isWatched ? AppColors.onPrimary : AppColors.primary,
                   size: 24,
                 ),
               ),
@@ -359,7 +358,7 @@ class _MobileSeriesDetailScreenState
                     Text(
                       'E${episode.episodeNum} - ${episode.title}',
                       style: GoogleFonts.inter(
-                        color: Colors.white,
+                        color: AppColors.onSurface,
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
                       ),
@@ -371,7 +370,7 @@ class _MobileSeriesDetailScreenState
                       Text(
                         _formatDuration(episode.durationSecs!),
                         style: GoogleFonts.inter(
-                          color: Colors.white54,
+                          color: AppColors.onSurfaceVariant,
                           fontSize: 12,
                         ),
                       ),

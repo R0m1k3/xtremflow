@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/models/playlist_config.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/components/hero_carousel.dart';
 import '../../../../core/widgets/glass_container.dart';
 import '../../../../features/iptv/models/xtream_models.dart';
@@ -185,25 +186,24 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: GlassContainer(
+              child: GlassContainer.glass(
                 borderRadius: 100,
-                opacity: 0.1,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Row(
                   children: [
-                    const Icon(Icons.search, size: 20, color: Colors.white54),
+                    const Icon(Icons.search, size: 20, color: AppColors.onSurfaceVariant),
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
                         controller: _searchController,
                         style: GoogleFonts.inter(
                           fontSize: 14,
-                          color: Colors.white,
+                          color: AppColors.onSurface,
                         ),
                         decoration: InputDecoration(
                           hintText: 'Search Series...',
-                          hintStyle: GoogleFonts.inter(color: Colors.white54),
+                          hintStyle: GoogleFonts.inter(color: AppColors.onSurfaceVariant),
                           border: InputBorder.none,
                           isDense: true,
                           contentPadding: const EdgeInsets.only(bottom: 11),
@@ -217,7 +217,7 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                         height: 12,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: AppColors.onSurface,
                         ),
                       ),
                     if (_searchQuery.isNotEmpty)
@@ -229,7 +229,7 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                         child: const Icon(
                           Icons.close,
                           size: 16,
-                          color: Colors.white,
+                          color: AppColors.onSurface,
                         ),
                       ),
                   ],
@@ -291,13 +291,13 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                                       _getProxiedImageUrl(series.cover, ref),
                                       fit: BoxFit.cover,
                                       errorBuilder: (_, __, ___) =>
-                                          Container(color: Colors.white10),
+                                          Container(color: AppColors.surfaceContainerLow),
                                     )
                                   : Container(
-                                      color: Colors.white10,
+                                      color: AppColors.surfaceContainerLow,
                                       child: const Icon(
                                         Icons.tv,
-                                        color: Colors.white24,
+                                        color: AppColors.outlineVariant,
                                       ),
                                     ),
                         ),
@@ -315,7 +315,7 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                                 end: Alignment.bottomCenter,
                                 colors: [
                                   Colors.transparent,
-                                  Colors.black.withOpacity(0.9),
+                                  AppColors.background.withOpacity(0.9),
                                 ],
                               ),
                               borderRadius: const BorderRadius.vertical(
@@ -333,7 +333,7 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                           child: Text(
                             series.name,
                             style: GoogleFonts.inter(
-                              color: Colors.white,
+                              color: AppColors.onSurface,
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                             ),
@@ -347,9 +347,8 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                           Positioned(
                             top: 8,
                             right: 8,
-                            child: GlassContainer(
+                            child: GlassContainer.glass(
                               borderRadius: 4,
-                              opacity: 0.6,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 6,
                                 vertical: 2,
@@ -368,7 +367,7 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                                     style: GoogleFonts.inter(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.white,
+                                      color: AppColors.onSurface,
                                     ),
                                   ),
                                 ],
@@ -389,7 +388,7 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Center(
-                  child: CircularProgressIndicator(color: Colors.white),
+                  child: CircularProgressIndicator(color: AppColors.onSurface),
                 ),
               ),
             ),

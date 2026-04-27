@@ -51,22 +51,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // 1. Cinematic Background (Abstract Gradient)
+          // 1. Cinematic Background
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFF0D0D0D), // Almost Black
-                  Color(0xFF1A1A1A), // Dark Grey
-                  Color(0xFF0F0F0F), // Deep Dark
+                  Color(0xFF0F1014),
+                  Color(0xFF121317),
+                  Color(0xFF0D0E12),
                 ],
               ),
             ),
           ),
 
-          // 2. Ambient Glows (Apple TV Style)
+          // 2. Ambient Glows (Stitch style — blue diffuse)
           Positioned(
             top: -size.height * 0.2,
             right: -size.width * 0.1,
@@ -77,7 +77,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Colors.white.withOpacity(0.05),
+                    AppColors.primary.withOpacity(0.06),
                     Colors.transparent,
                   ],
                   radius: 0.5,
@@ -95,7 +95,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Colors.blue.withOpacity(0.03), // Subtle blue hint
+                    AppColors.primaryContainer.withOpacity(0.04),
                     Colors.transparent,
                   ],
                   radius: 0.5,
@@ -118,15 +118,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       width: 120,
                       height: 120,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFF2C2C2E), Color(0xFF000000)],
-                        ),
+                        gradient: AppColors.primaryGradient,
                         borderRadius: BorderRadius.circular(32),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.5),
+                            color: AppColors.glowPrimary(0.3),
                             blurRadius: 30,
                             offset: const Offset(0, 15),
                           ),
@@ -134,7 +130,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       child: const Icon(
                         Icons.play_arrow_rounded,
-                        color: Colors.white,
+                        color: AppColors.onSurface,
                         size: 64,
                       ),
                     ),
@@ -144,10 +140,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   // Title
                   Text(
                     'XtremFlow',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.spaceGrotesk(
                       fontSize: 42,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      color: AppColors.onSurface,
                       letterSpacing: -1.0,
                     ),
                   ),
@@ -156,18 +152,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     'Sign in to sync your playlists',
                     style: GoogleFonts.inter(
                       fontSize: 18,
-                      color: AppColors.textSecondary,
+                      color: AppColors.onSurfaceVariant,
                       fontWeight: FontWeight.w400,
                     ),
                   ),
                   const SizedBox(height: 48),
 
                   // Login Form Container
-                  GlassContainer(
+                  GlassContainer.floating(
                     width: 500,
-                    padding: const EdgeInsets.all(48), // Spacious padding
+                    padding: const EdgeInsets.all(48),
                     borderRadius: 24,
-                    opacity: 0.7,
                     child: Form(
                       key: _formKey,
                       child: Column(
@@ -196,7 +191,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 _obscurePassword
                                     ? Icons.visibility_outlined
                                     : Icons.visibility_off_outlined,
-                                color: AppColors.textSecondary,
+                                color: AppColors.onSurfaceVariant,
                               ),
                               onPressed: () {
                                 setState(() {
@@ -229,7 +224,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   Expanded(
                                     child: Text(
                                       authState.errorMessage!,
-                                      style: const TextStyle(
+                                      style: GoogleFonts.inter(
                                         color: AppColors.error,
                                         fontSize: 14,
                                         fontWeight: FontWeight.w500,
@@ -247,14 +242,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           TvFocusableCard(
                             onTap: _handleLogin,
                             scaleFactor: 1.03,
-                            focusColor: Colors.white,
                             borderRadius: 16,
                             child: Container(
                               height: 60,
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                gradient: AppColors.primaryGradient,
                                 borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.glowPrimary(0.3),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
                               ),
                               child: authState.isLoading
                                   ? const SizedBox(
@@ -262,13 +263,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       height: 24,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2.5,
-                                        color: Colors.black,
+                                        color: AppColors.onSurface,
                                       ),
                                     )
                                   : Text(
                                       'Sign In',
                                       style: GoogleFonts.inter(
-                                        color: Colors.black,
+                                        color: AppColors.onSurface,
                                         fontSize: 18,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -285,7 +286,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     'Default: admin / admin',
                     style: GoogleFonts.inter(
                       fontSize: 14,
-                      color: AppColors.textTertiary,
+                      color: AppColors.outline,
                     ),
                   ),
                 ],
@@ -311,28 +312,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
-      style: GoogleFonts.inter(fontSize: 18, color: AppColors.textPrimary),
+      style: GoogleFonts.inter(fontSize: 18, color: AppColors.onSurface),
       autofocus: autofocus,
       textInputAction: nextFocus ? TextInputAction.next : TextInputAction.done,
       onFieldSubmitted: isLast ? (_) => onSubmitted?.call() : null,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.inter(color: AppColors.textSecondary),
-        prefixIcon: Icon(icon, color: AppColors.textSecondary),
+        labelStyle: GoogleFonts.inter(color: AppColors.onSurfaceVariant),
+        prefixIcon: Icon(icon, color: AppColors.onSurfaceVariant),
         suffixIcon: suffix,
         filled: true,
-        fillColor: AppColors.surfaceVariant.withOpacity(0.5),
+        fillColor: AppColors.surfaceContainerLow,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderSide: const BorderSide(
+            color: AppColors.outlineVariant,
+            width: 1,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.focusColor, width: 2),
+          borderSide: const BorderSide(
+            color: AppColors.primaryContainer,
+            width: 2,
+          ),
         ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 20, vertical: 20),

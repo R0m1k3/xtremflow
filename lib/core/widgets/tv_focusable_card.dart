@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
+/// TV focusable card with Stitch glow effect.
+///
+/// On focus/hover: blue glow border, subtle scale, diffused shadow.
 class TvFocusableCard extends StatefulWidget {
   final Widget child;
   final VoidCallback? onTap;
@@ -16,7 +19,7 @@ class TvFocusableCard extends StatefulWidget {
     required this.child,
     this.onTap,
     this.onFocus,
-    this.scaleFactor = 1.05,
+    this.scaleFactor = 1.03,
     this.animationDuration = const Duration(milliseconds: 200),
     this.focusColor,
     this.autofocus = false,
@@ -32,6 +35,7 @@ class _TvFocusableCardState extends State<TvFocusableCard>
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   bool _isFocused = false;
+  bool _isHovered = false;
 
   @override
   void initState() {
@@ -64,8 +68,6 @@ class _TvFocusableCardState extends State<TvFocusableCard>
     }
   }
 
-  bool _isHovered = false;
-
   void _handleHover(bool isHovered) {
     setState(() {
       _isHovered = isHovered;
@@ -80,6 +82,7 @@ class _TvFocusableCardState extends State<TvFocusableCard>
   @override
   Widget build(BuildContext context) {
     final isActive = _isFocused || _isHovered;
+    final focusColor = widget.focusColor ?? AppColors.primaryContainer;
 
     return MouseRegion(
       onEnter: (_) => _handleHover(true),
@@ -109,10 +112,13 @@ class _TvFocusableCardState extends State<TvFocusableCard>
                 borderRadius: BorderRadius.circular(widget.borderRadius),
                 border: isActive
                     ? Border.all(
-                        color: widget.focusColor ?? AppColors.focusBorder,
-                        width: 2, // Slightly thinner for cleaner look
+                        color: focusColor.withOpacity(0.5),
+                        width: 2,
                       )
-                    : Border.all(color: Colors.transparent, width: 2),
+                    : Border.all(
+                        color: AppColors.glassLevel1Border,
+                        width: 1,
+                      ),
                 boxShadow: isActive
                     ? [
                         BoxShadow(
@@ -122,15 +128,22 @@ class _TvFocusableCardState extends State<TvFocusableCard>
                           spreadRadius: 2,
                         ),
                         BoxShadow(
-                          color: (widget.focusColor ?? AppColors.focusBorder)
-                              .withOpacity(0.3),
-                          blurRadius: 15,
+                          color: focusColor.withOpacity(0.3),
+                          blurRadius: 20,
                           spreadRadius: 1,
+                        ),
+                        BoxShadow(
+                          color: focusColor.withOpacity(0.1),
+                          blurRadius: 40,
+                          spreadRadius: 4,
                         ),
                       ]
                     : [],
               ),
-              child: widget.child,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(widget.borderRadius),
+                child: widget.child,
+              ),
             ),
           ),
         ),

@@ -92,7 +92,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                     boxShadow: [
                       if (isActive)
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.5),
+                          color: AppColors.onPrimaryContainer.withOpacity(0.5),
                           blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
@@ -107,10 +107,10 @@ class _HeroCarouselState extends State<HeroCarousel> {
                         CachedNetworkImage(
                           imageUrl: item.imageUrl,
                           fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(color: AppColors.surfaceVariant),
+                          placeholder: (context, url) => Container(color: AppColors.surfaceContainerLow),
                           errorWidget: (context, url, error) => Container(
-                            color: AppColors.surfaceVariant,
-                            child: const Icon(Icons.movie, size: 64, color: AppColors.textTertiary),
+                            color: AppColors.surfaceContainerLow,
+                            child: const Icon(Icons.movie, size: 64, color: AppColors.outline),
                           ),
                         ),
                         
@@ -122,8 +122,8 @@ class _HeroCarouselState extends State<HeroCarousel> {
                               end: Alignment.bottomCenter,
                               colors: [
                                 Colors.transparent,
-                                Colors.black.withOpacity(0.2),
-                                Colors.black.withOpacity(0.9),
+                                AppColors.onPrimaryContainer.withOpacity(0.2),
+                                AppColors.onPrimaryContainer.withOpacity(0.9),
                               ],
                               stops: const [0.0, 0.5, 1.0],
                             ),
@@ -140,10 +140,10 @@ class _HeroCarouselState extends State<HeroCarousel> {
                             children: [
                               Text(
                                 item.title,
-                                style: GoogleFonts.outfit(
+                                style: GoogleFonts.spaceGrotesk(
                                   fontSize: 32,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: AppColors.onSurface,
                                 ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -154,7 +154,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                                   item.subtitle!,
                                   style: GoogleFonts.inter(
                                     fontSize: 16,
-                                    color: Colors.white.withOpacity(0.8),
+                                    color: AppColors.onSurface,
                                   ),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
@@ -219,24 +219,34 @@ class _HeroButtonState extends State<_HeroButton> {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           decoration: BoxDecoration(
+            gradient: widget.isPrimary ? AppColors.primaryGradient : null,
             color: widget.isPrimary
-                ? (_isHovered ? Colors.white : Colors.white.withOpacity(0.9))
-                : (_isHovered ? Colors.white.withOpacity(0.2) : Colors.white.withOpacity(0.1)),
+                ? null
+                : (_isHovered ? AppColors.surfaceContainerHigh : AppColors.surfaceContainer),
             borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+            boxShadow: widget.isPrimary
+                ? [
+                    BoxShadow(
+                      color: AppColors.glowPrimary(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 widget.icon,
-                color: widget.isPrimary ? Colors.black : Colors.white,
+                color: AppColors.onSurface,
                 size: 20,
               ),
               const SizedBox(width: 8),
               Text(
                 widget.label,
                 style: GoogleFonts.inter(
-                  color: widget.isPrimary ? Colors.black : Colors.white,
+                  color: AppColors.onSurface,
                   fontWeight: FontWeight.w600,
                 ),
               ),

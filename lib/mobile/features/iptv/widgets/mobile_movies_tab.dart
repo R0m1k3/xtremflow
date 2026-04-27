@@ -195,25 +195,24 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: GlassContainer(
+              child: GlassContainer.glass(
                 borderRadius: 100,
-                opacity: 0.1, // Glass
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Row(
                   children: [
-                    const Icon(Icons.search, size: 20, color: Colors.white54),
+                    const Icon(Icons.search, size: 20, color: AppColors.onSurfaceVariant),
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
                         controller: _searchController,
                         style: GoogleFonts.inter(
                           fontSize: 14,
-                          color: Colors.white,
+                          color: AppColors.onSurface,
                         ),
                         decoration: InputDecoration(
                           hintText: 'Search Movies...',
-                          hintStyle: GoogleFonts.inter(color: Colors.white54),
+                          hintStyle: GoogleFonts.inter(color: AppColors.onSurfaceVariant),
                           border: InputBorder.none,
                           isDense: true,
                           contentPadding: const EdgeInsets.only(bottom: 11),
@@ -227,7 +226,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                         height: 12,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: AppColors.onSurface,
                         ),
                       ),
                     if (_searchQuery.isNotEmpty)
@@ -239,7 +238,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                         child: const Icon(
                           Icons.close,
                           size: 16,
-                          color: Colors.white,
+                          color: AppColors.onSurface,
                         ),
                       ),
                   ],
@@ -302,13 +301,13 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                                   _getProxiedImageUrl(movie.streamIcon, ref),
                                   fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) =>
-                                      Container(color: Colors.white10),
+                                      Container(color: AppColors.surfaceContainerLow),
                                 )
                               : Container(
-                                  color: Colors.white10,
+                                  color: AppColors.surfaceContainerLow,
                                   child: const Icon(
                                     Icons.movie,
-                                    color: Colors.white24,
+                                    color: AppColors.outlineVariant,
                                   ),
                                 ),
                         ),
@@ -326,7 +325,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                                 end: Alignment.bottomCenter,
                                 colors: [
                                   Colors.transparent,
-                                  Colors.black.withOpacity(0.9),
+                                  AppColors.background.withOpacity(0.9),
                                 ],
                               ),
                               borderRadius: const BorderRadius.vertical(
@@ -348,7 +347,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                               Text(
                                 movie.name,
                                 style: GoogleFonts.inter(
-                                  color: Colors.white,
+                                  color: AppColors.onSurface,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -373,9 +372,8 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                           Positioned(
                             top: 8,
                             right: 8,
-                            child: GlassContainer(
+                            child: GlassContainer.glass(
                               borderRadius: 4,
-                              opacity: 0.6,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 6,
                                 vertical: 2,
@@ -394,7 +392,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                                     style: GoogleFonts.inter(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.white,
+                                      color: AppColors.onSurface,
                                     ),
                                   ),
                                 ],
@@ -415,7 +413,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Center(
-                  child: CircularProgressIndicator(color: Colors.white),
+                  child: CircularProgressIndicator(color: AppColors.onSurface),
                 ),
               ),
             ),

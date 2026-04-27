@@ -6,6 +6,7 @@ import '../../../core/models/playlist_config.dart';
 import '../models/xtream_models.dart';
 import '../providers/xtream_provider.dart';
 import '../providers/watch_history_provider.dart';
+import '../../../core/theme/app_colors.dart';
 import 'player_screen.dart';
 
 /// Series detail screen showing seasons and episodes
@@ -75,13 +76,13 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.series.name),
-        backgroundColor: Colors.black87,
+        backgroundColor: AppColors.background,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: AppColors.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      backgroundColor: Colors.grey.shade900,
+      backgroundColor: AppColors.surfaceContainerLow,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -89,9 +90,9 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const Icon(Icons.error_outline, size: 48, color: AppColors.error),
                       const SizedBox(height: 16),
-                      Text('Error: $_error', style: const TextStyle(color: Colors.white70)),
+                      Text('Error: $_error', style: const TextStyle(color: AppColors.onSurfaceVariant)),
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: _loadSeriesInfo,
@@ -132,8 +133,8 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                       errorWidget: (_, __, ___) => Container(
                         width: 248,
                         height: 350,
-                        color: Colors.grey.shade800,
-                        child: const Icon(Icons.tv, size: 64, color: Colors.white54),
+                        color: AppColors.surfaceContainer,
+                        child: const Icon(Icons.tv, size: 64, color: AppColors.onSurfaceVariant),
                       ),
                     ),
                   ),
@@ -142,10 +143,10 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 // Title
                 Text(
                   _seriesInfo!.name,
-                  style: GoogleFonts.roboto(
+                  style: GoogleFonts.inter(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: AppColors.onSurface,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -158,7 +159,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                       const SizedBox(width: 4),
                       Text(
                         _formatRating(_seriesInfo!.rating!)!,
-                        style: GoogleFonts.roboto(fontSize: 13, color: Colors.white70),
+                        style: GoogleFonts.roboto(fontSize: 13, color: AppColors.onSurfaceVariant),
                       ),
                     ],
                   ),
@@ -168,7 +169,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 if (_seriesInfo!.plot != null && _seriesInfo!.plot!.isNotEmpty)
                   Text(
                     _seriesInfo!.plot!,
-                    style: GoogleFonts.roboto(fontSize: 12, color: Colors.white60),
+                    style: GoogleFonts.roboto(fontSize: 12, color: AppColors.onSurfaceVariant),
                     maxLines: 5,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -177,10 +178,10 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 // Season selector
                 Text(
                   'Seasons',
-                  style: GoogleFonts.roboto(
+                  style: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: AppColors.onSurface,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -197,10 +198,10 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                           setState(() => _selectedSeason = seasonNum);
                         }
                       },
-                      selectedColor: Colors.blue.shade700,
-                      backgroundColor: Colors.grey.shade800,
-                      labelStyle: GoogleFonts.roboto(
-                        color: isSelected ? Colors.white : Colors.white70,
+                      selectedColor: AppColors.primaryContainer,
+                      backgroundColor: AppColors.surfaceContainer,
+                      labelStyle: GoogleFonts.inter(
+                        color: isSelected ? AppColors.onPrimary : AppColors.onSurfaceVariant,
                         fontSize: 12,
                       ),
                     );
@@ -212,7 +213,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
         ),
         
         // Divider
-        Container(width: 1, color: Colors.grey.shade700),
+        Container(width: 1, color: AppColors.surfaceContainerHigh),
         
         // Right panel: Episodes list
         Expanded(
@@ -223,10 +224,10 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Text(
                   'Season $_selectedSeason - ${currentEpisodes.length} Episodes',
-                  style: GoogleFonts.roboto(
+                  style: GoogleFonts.inter(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: AppColors.onSurface,
                   ),
                 ),
               ),
@@ -235,7 +236,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                     ? Center(
                         child: Text(
                           'No episodes found',
-                          style: GoogleFonts.roboto(color: Colors.white54),
+                          style: GoogleFonts.roboto(color: AppColors.onSurfaceVariant),
                         ),
                       )
                     : ListView.builder(
@@ -264,7 +265,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
     final isWatched = watchHistory.isEpisodeWatched(episodeKey);
 
     return Card(
-      color: Colors.grey.shade800,
+      color: AppColors.surfaceContainer,
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         onTap: () async {
@@ -314,18 +315,18 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: isWatched ? Colors.green : Colors.blue.shade700,
+                  color: isWatched ? AppColors.success : AppColors.primaryContainer,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Center(
                   child: isWatched
-                      ? const Icon(Icons.check, color: Colors.white, size: 20)
+                      ? const Icon(Icons.check, color: AppColors.onSurface, size: 20)
                       : Text(
                           '${episode.episodeNum}',
-                          style: GoogleFonts.roboto(
+                          style: GoogleFonts.inter(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: AppColors.onSurface,
                           ),
                         ),
                 ),
@@ -342,7 +343,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                       style: GoogleFonts.roboto(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: isWatched ? Colors.white54 : Colors.white,
+                        color: isWatched ? AppColors.onSurfaceVariant : AppColors.onSurface,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -352,7 +353,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                         _formatDuration(episode.durationSecs!),
                         style: GoogleFonts.roboto(
                           fontSize: 12,
-                          color: Colors.white54,
+                          color: AppColors.onSurfaceVariant,
                         ),
                       ),
                   ],
@@ -362,7 +363,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
               // Play icon
               Icon(
                 isWatched ? Icons.replay : Icons.play_circle_outline,
-                color: Colors.white70,
+                color: AppColors.onSurfaceVariant,
                 size: 28,
               ),
             ],

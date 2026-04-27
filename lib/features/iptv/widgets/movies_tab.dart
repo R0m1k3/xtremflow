@@ -150,12 +150,10 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
   Future<void> _playMovie(Movie movie) async {
     ref.read(watchHistoryProvider.notifier).markMovieWatched(movie.streamId);
 
-    // Fetch actual duration from API if not available in movie data
     Duration? movieDuration;
     if (movie.durationSecs != null && movie.durationSecs! > 0) {
       movieDuration = Duration(seconds: movie.durationSecs!);
     } else {
-      // Try to fetch from API
       final service = ref.read(xtreamServiceProvider(widget.playlist));
       final durationSecs = await service.getVodDuration(movie.streamId);
       if (durationSecs != null && durationSecs > 0) {
@@ -213,19 +211,18 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-              child: GlassContainer(
+              child: GlassContainer.glass(
                 borderRadius: 100,
-                opacity: 0.6,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 child: Row(
                   children: [
                     Text(
                       'Movies',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.spaceGrotesk(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                        color: AppColors.onSurface,
                       ),
                     ),
                     const Spacer(),
@@ -235,16 +232,20 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                       width: 300,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: AppColors.surfaceContainerLow,
                         borderRadius: BorderRadius.circular(100),
+                        border: Border.all(
+                          color: AppColors.outlineVariant,
+                          width: 1,
+                        ),
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.search,
                             size: 20,
-                            color: Colors.white54,
+                            color: AppColors.outline,
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -252,12 +253,12 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                               controller: _searchController,
                               style: GoogleFonts.inter(
                                 fontSize: 14,
-                                color: Colors.white,
+                                color: AppColors.onSurface,
                               ),
                               decoration: InputDecoration(
                                 hintText: 'Search movies...',
                                 hintStyle:
-                                    GoogleFonts.inter(color: Colors.white54),
+                                    GoogleFonts.inter(color: AppColors.outline),
                                 border: InputBorder.none,
                                 isDense: true,
                                 contentPadding:
@@ -272,7 +273,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                               height: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: AppColors.onSurface,
                               ),
                             ),
                           if (_searchQuery.isNotEmpty)
@@ -281,10 +282,10 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                                 _searchController.clear();
                                 _onSearchChanged('');
                               },
-                              child: const Icon(
+                              child: Icon(
                                 Icons.close,
                                 size: 16,
-                                color: Colors.white,
+                                color: AppColors.onSurface,
                               ),
                             ),
                         ],
@@ -352,23 +353,23 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                                   _getProxiedImageUrl(movie.streamIcon),
                                   fit: BoxFit.cover,
                                   errorBuilder: (ctx, err, stack) => Container(
-                                    color: AppColors.surfaceVariant,
-                                    child: const Center(
+                                    color: AppColors.surfaceContainerLow,
+                                    child: Center(
                                       child: Icon(
                                         Icons.movie,
                                         size: 48,
-                                        color: Colors.white24,
+                                        color: AppColors.outline,
                                       ),
                                     ),
                                   ),
                                 )
                               : Container(
-                                  color: AppColors.surfaceVariant,
-                                  child: const Center(
+                                  color: AppColors.surfaceContainerLow,
+                                  child: Center(
                                     child: Icon(
                                       Icons.movie,
                                       size: 48,
-                                      color: Colors.white24,
+                                      color: AppColors.outline,
                                     ),
                                   ),
                                 ),
@@ -387,7 +388,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                                 end: Alignment.bottomCenter,
                                 colors: [
                                   Colors.transparent,
-                                  Colors.black.withOpacity(0.9),
+                                  AppColors.baseLevel0.withOpacity(0.9),
                                 ],
                               ),
                               borderRadius: const BorderRadius.vertical(
@@ -408,9 +409,10 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.7),
+                                color: AppColors.background.withOpacity(0.7),
                                 borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: Colors.white24),
+                                border: Border.all(
+                                    color: AppColors.outlineVariant),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -418,7 +420,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                                   const Icon(
                                     Icons.star,
                                     size: 10,
-                                    color: Colors.amber,
+                                    color: Color(0xFFFFD700),
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
@@ -426,7 +428,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                                     style: GoogleFonts.inter(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.white,
+                                      color: AppColors.onSurface,
                                     ),
                                   ),
                                 ],
@@ -446,12 +448,12 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                               Text(
                                 movie.name,
                                 style: GoogleFonts.inter(
-                                  color: Colors.white,
+                                  color: AppColors.onSurface,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   shadows: [
                                     const Shadow(
-                                      color: Colors.black,
+                                      color: AppColors.background,
                                       blurRadius: 4,
                                     ),
                                   ],
@@ -489,7 +491,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
               child: Padding(
                 padding: EdgeInsets.all(32),
                 child: Center(
-                  child: CircularProgressIndicator(color: Colors.white),
+                  child: CircularProgressIndicator(color: AppColors.onSurface),
                 ),
               ),
             ),

@@ -134,14 +134,14 @@ class _ChannelCardState extends ConsumerState<ChannelCard>
                   color: AppColors.surface, // Fallback color
                   // Thick white border on focus (tvOS style)
                   border: Border.all(
-                    color: _isHovered ? AppColors.focusColor : Colors.transparent,
+                    color: _isHovered ? AppColors.primaryContainer : Colors.transparent,
                     width: _isHovered ? 3 : 0,
                   ),
                   // Deep shadow on focus
                   boxShadow: _isHovered
                       ? [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.5),
+                            color: AppColors.background.withOpacity(0.5),
                             blurRadius: 30,
                             offset: const Offset(0, 15),
                             spreadRadius: 2,
@@ -149,7 +149,7 @@ class _ChannelCardState extends ConsumerState<ChannelCard>
                         ]
                       : [
                            BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
+                            color: AppColors.background.withOpacity(0.2),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -169,7 +169,7 @@ class _ChannelCardState extends ConsumerState<ChannelCard>
                           child: Container(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
-                                colors: [Colors.transparent, Colors.black.withOpacity(0.4)],
+                                colors: [Colors.transparent, AppColors.background.withOpacity(0.4)],
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
                               ),
@@ -188,7 +188,7 @@ class _ChannelCardState extends ConsumerState<ChannelCard>
                               color: AppColors.live,
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: const Text('LIVE', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                            child: const Text('LIVE', style: TextStyle(color: AppColors.onSurface, fontSize: 9, fontWeight: FontWeight.bold)),
                           ),
                         ),
 
@@ -201,7 +201,7 @@ class _ChannelCardState extends ConsumerState<ChannelCard>
                             onTap: () => ref.read(favoritesProvider.notifier).toggleFavorite(widget.streamId),
                             child: Icon(
                               isFavorite ? Icons.favorite : Icons.favorite_border,
-                              color: isFavorite ? AppColors.live : Colors.white.withOpacity(0.7), 
+                              color: isFavorite ? AppColors.live : AppColors.onSurface.withOpacity(0.7), 
                               size: 20,
                             ),
                           ),
@@ -227,7 +227,7 @@ class _ChannelCardState extends ConsumerState<ChannelCard>
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: _isHovered ? AppColors.focusColor : AppColors.textSecondary,
+                      color: _isHovered ? AppColors.primaryContainer : AppColors.onSurfaceVariant,
                       fontWeight: _isHovered ? FontWeight.bold : FontWeight.w500,
                       fontSize: 13,
                     ),

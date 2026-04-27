@@ -112,7 +112,7 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                          color: AppColors.onSurface,
                         ),
                       ),
                       if (currentUser?.isAdmin ?? false)
@@ -155,7 +155,7 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                 SwitchListTile(
                   title: const Text(
                     'Dark Mode',
-                    style: TextStyle(color: AppColors.textPrimary),
+                    style: TextStyle(color: AppColors.onSurface),
                   ),
                   secondary: Icon(
                     isDark ? Icons.dark_mode : Icons.light_mode,
@@ -169,7 +169,7 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                 SwitchListTile(
                   title: const Text(
                     'Show Clock',
-                    style: TextStyle(color: AppColors.textPrimary),
+                    style: TextStyle(color: AppColors.onSurface),
                   ),
                   secondary:
                       const Icon(Icons.access_time, color: AppColors.primary),
@@ -264,7 +264,7 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                 SwitchListTile(
                   title: const Text(
                     'Auto Reconnect',
-                    style: TextStyle(color: AppColors.textPrimary),
+                    style: TextStyle(color: AppColors.onSurface),
                   ),
                   secondary:
                       const Icon(Icons.refresh, color: AppColors.primary),
@@ -303,7 +303,7 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                       'Currently using: ${Uri.base.origin}',
                       style: const TextStyle(
                         fontSize: 10,
-                        color: AppColors.textSecondary,
+                        color: AppColors.onSurfaceVariant,
                         fontStyle: FontStyle.italic,
                       ),
                     ),
@@ -402,7 +402,7 @@ class _SectionHeader extends StatelessWidget {
         style: GoogleFonts.inter(
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: AppColors.textSecondary,
+          color: AppColors.onSurfaceVariant,
         ),
       ),
     );
@@ -426,7 +426,7 @@ class _FilterInput extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: AppColors.textSecondary),
+        Icon(icon, size: 20, color: AppColors.onSurfaceVariant),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -436,13 +436,13 @@ class _FilterInput extends StatelessWidget {
                 label,
                 style: const TextStyle(
                   fontSize: 12,
-                  color: AppColors.textSecondary,
+                  color: AppColors.onSurfaceVariant,
                 ),
               ),
               TextField(
                 controller: controller,
                 style:
-                    const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                    const TextStyle(fontSize: 14, color: AppColors.onSurface),
                 decoration: const InputDecoration(
                   isDense: true,
                   contentPadding: EdgeInsets.symmetric(vertical: 4),
@@ -483,17 +483,17 @@ class _SettingsButton extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon, color: AppColors.textPrimary),
+            Icon(icon, color: AppColors.onSurface),
             const SizedBox(width: 16),
             Text(
               label,
               style: const TextStyle(
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: AppColors.onSurface,
               ),
             ),
             const Spacer(),
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+            const Icon(Icons.chevron_right, color: AppColors.onSurfaceVariant),
           ],
         ),
       ),
@@ -530,7 +530,7 @@ class _DropdownSetting<T> extends StatelessWidget {
             child: Text(
               label,
               style: const TextStyle(
-                color: AppColors.textPrimary,
+                color: AppColors.onSurface,
                 fontSize: 16,
               ),
             ),
@@ -541,9 +541,9 @@ class _DropdownSetting<T> extends StatelessWidget {
             dropdownColor: AppColors.surfaceVariant,
             icon: const Icon(
               Icons.arrow_drop_down,
-              color: AppColors.textSecondary,
+              color: AppColors.onSurfaceVariant,
             ),
-            style: const TextStyle(color: AppColors.textPrimary),
+            style: const TextStyle(color: AppColors.onSurface),
             items: items.map((item) {
               return DropdownMenuItem<T>(
                 value: item,

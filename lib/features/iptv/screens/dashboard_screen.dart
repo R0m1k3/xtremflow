@@ -49,15 +49,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Color(0xFF0F1014), // Deep Space Blue-Grey
-                    Color(0xFF181920), // Darker shade
+                    Color(0xFF0F1014),
+                    Color(0xFF121317),
                   ],
                 ),
               ),
             ),
           ),
 
-          // Ambient Glow (Subtle accent)
+          // Ambient Glow — primary accent diffuse
           Positioned(
             top: -100,
             left: -100,
@@ -68,7 +68,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.primary.withOpacity(0.2),
+                    AppColors.primary.withOpacity(0.06),
                     Colors.transparent,
                   ],
                 ),
@@ -91,19 +91,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
           ),
 
-          // 3. Vertical Glass Sidebar
+          // 3. Vertical Glass Sidebar (Stitch Level 2)
           Positioned(
             left: 24,
             top: 24,
             bottom: 24,
             width: 80,
-            child: GlassContainer(
+            child: GlassContainer.floating(
               borderRadius: 24,
-              opacity: 0.1,
-              // blur is hardcoded in GlassContainer (15), so we don't pass it
-              // border is bool, borderColor allows customization
-              border: true,
-              borderColor: Colors.white.withOpacity(0.1),
+              padding: EdgeInsets.zero,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -118,7 +114,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withOpacity(0.4),
+                            color: AppColors.glowPrimary(0.4),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -126,7 +122,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ),
                       child: const Icon(
                         Icons.play_arrow_rounded,
-                        color: Colors.white,
+                        color: AppColors.onSurface,
                         size: 28,
                       ),
                     ),
@@ -143,27 +139,37 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         onTap: () => setState(() => _selectedIndex = index),
                         scaleFactor: 1.2,
                         borderRadius: 16,
-                        focusColor: AppColors.primary,
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           width: 48,
                           height: 48,
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? AppColors.primary.withOpacity(0.2)
+                                ? AppColors.primary.withOpacity(0.15)
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(16),
                             border: isSelected
                                 ? Border.all(
-                                    color: AppColors.primary.withOpacity(0.5),
+                                    color: AppColors.primaryContainer
+                                        .withOpacity(0.5),
+                                    width: 2,
                                   )
+                                : null,
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: AppColors.glowPrimary(0.2),
+                                      blurRadius: 12,
+                                      spreadRadius: 1,
+                                    ),
+                                  ]
                                 : null,
                           ),
                           child: Icon(
                             _icons[index],
                             color: isSelected
-                                ? Colors.white
-                                : AppColors.textSecondary,
+                                ? AppColors.onSurface
+                                : AppColors.onSurfaceVariant,
                             size: 24,
                           ),
                         ),
@@ -173,7 +179,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
                   const Spacer(),
 
-                  // Settings / Profile
+                  // Profile
                   Padding(
                     padding: const EdgeInsets.only(bottom: 24),
                     child: TvFocusableCard(
@@ -182,10 +188,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       scaleFactor: 1.1,
                       child: CircleAvatar(
                         radius: 20,
-                        backgroundColor: Colors.white.withOpacity(0.1),
-                        child: const Icon(
+                        backgroundColor: AppColors.surfaceContainerHigh
+                            .withOpacity(0.5),
+                        child: Icon(
                           Icons.person,
-                          color: Colors.white70,
+                          color: AppColors.onSurfaceVariant,
                           size: 20,
                         ),
                       ),

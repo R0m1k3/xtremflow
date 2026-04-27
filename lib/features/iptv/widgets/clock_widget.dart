@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
 import 'package:intl/intl.dart';
 
 class ClockWidget extends StatefulWidget {
@@ -45,10 +46,10 @@ class _ClockWidgetState extends State<ClockWidget> {
     return Text(
       timeString,
       style: widget.style ?? const TextStyle(
-        color: Colors.white, 
+        color: AppColors.onSurface, 
         fontSize: 16, 
         fontWeight: FontWeight.bold,
-        shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+        shadows: [Shadow(color: AppColors.background, blurRadius: 4)],
       ),
     );
   }

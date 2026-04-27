@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/playlist_config.dart';
 import '../providers/xtream_provider.dart';
 import '../models/xtream_models.dart';
+import '../../../core/theme/app_colors.dart';
 
 class EPGWidget extends ConsumerStatefulWidget {
   final String channelId;
@@ -76,7 +77,7 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.6),
+        color: AppColors.background.withOpacity(0.6),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
@@ -93,15 +94,15 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.red,
+                    color: AppColors.error,
                     borderRadius: BorderRadius.circular(3),
                   ),
                   child: Text(
                     'LIVE',
-                    style: GoogleFonts.roboto(
+                    style: GoogleFonts.inter(
                       fontSize: 9,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: AppColors.onSurface,
                     ),
                   ),
                 ),
@@ -112,7 +113,7 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
                     style: GoogleFonts.roboto(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      color: AppColors.onSurface,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -128,8 +129,8 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
                 borderRadius: BorderRadius.circular(2),
                 child: LinearProgressIndicator(
                   value: _epg!.progress!.clamp(0.0, 1.0),
-                  backgroundColor: Colors.white24,
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
+                  backgroundColor: AppColors.outlineVariant,
+                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.error),
                   minHeight: 3,
                 ),
               ),
@@ -144,7 +145,7 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
                 Icon(
                   Icons.upcoming,
                   size: 12,
-                  color: Colors.grey.shade400,
+                  color: AppColors.outline,
                 ),
                 const SizedBox(width: 6),
                 Expanded(
@@ -152,7 +153,7 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
                     'Next: ${_epg!.nextPlaying}',
                     style: GoogleFonts.roboto(
                       fontSize: 10,
-                      color: Colors.grey.shade400,
+                      color: AppColors.outline,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

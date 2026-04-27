@@ -379,7 +379,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // LITE PLAYER MODE for Live TV - Simplified UI (no BackdropFilter)
     if (isLiveTV) {
       return Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: AppColors.background,
         body: Stack(
           fit: StackFit.expand,
           children: [
@@ -420,7 +420,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
                                   colors: [
-                                    Colors.black.withOpacity(0.8),
+                                    AppColors.background.withOpacity(0.8),
                                     Colors.transparent,
                                   ],
                                 ),
@@ -450,8 +450,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                                         'Unknown')
                                                     .toString()
                                                 : widget.title,
-                                            style: GoogleFonts.outfit(
-                                              color: Colors.white,
+                                            style: GoogleFonts.inter(
+                                              color: AppColors.onSurface,
                                               fontSize: 18,
                                               fontWeight: FontWeight.w600,
                                             ),
@@ -494,7 +494,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                     borderRadius: BorderRadius.circular(24),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.3),
+                                        color: AppColors.background.withOpacity(0.3),
                                         blurRadius: 10,
                                         spreadRadius: 2,
                                       ),
@@ -510,7 +510,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                             // EPG Info (top in mobile)
                                             _buildInlineEpg(),
                                             const SizedBox(height: 12),
-                                            const Divider(color: Colors.white10),
+                                            const Divider(color: AppColors.outlineVariant),
                                             const SizedBox(height: 8),
                                             // Control Buttons
                                             Row(
@@ -554,7 +554,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
     // STANDARD PLAYER MODE (VOD/Series)
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.background,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -585,7 +585,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             Positioned.fill(
               child: PointerInterceptor(
                 child: Container(
-                  color: Colors.black.withOpacity(0.4),
+                  color: AppColors.background.withOpacity(0.4),
                   child: Stack(
                     children: [
                       // Top Bar
@@ -593,10 +593,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         top: 24,
                         left: 24,
                         right: 24,
-                        child: GlassContainer(
+                        child: GlassContainer.glass(
                           height: 72,
                           borderRadius: 24,
-                          opacity: 0.1,
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Row(
                             children: [
@@ -608,10 +607,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               Expanded(
                                 child: Text(
                                   widget.title,
-                                  style: GoogleFonts.outfit(
+                                  style: GoogleFonts.inter(
                                     fontSize: 20,
                                     fontWeight: FontWeight.w600,
-                                    color: Colors.white,
+                                    color: AppColors.onSurface,
                                   ),
                                 ),
                               ),
@@ -633,11 +632,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         bottom: 40,
                         left: 40,
                         right: 40,
-                        child: GlassContainer(
+                        child: GlassContainer.glass(
                           borderRadius: 24,
-                          opacity: 0.2, // Slightly more opaque for controls
-                          border: true,
-                          borderColor: Colors.white.withOpacity(0.1),
                           padding: const EdgeInsets.all(24),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -652,7 +648,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                       ),
                                     ),
                                     style: GoogleFonts.inter(
-                                      color: Colors.white70,
+                                      color: AppColors.onSurfaceVariant,
                                     ),
                                   ),
                                   const SizedBox(width: 16),
@@ -663,7 +659,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                         activeTrackColor: AppColors.primary,
                                         inactiveTrackColor:
                                             Colors.white.withOpacity(0.2),
-                                        thumbColor: Colors.white,
+                                        thumbColor: AppColors.onSurface,
                                         thumbShape: const RoundSliderThumbShape(
                                           enabledThumbRadius: 8,
                                         ),
@@ -704,7 +700,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                       ),
                                     ),
                                     style: GoogleFonts.inter(
-                                      color: Colors.white70,
+                                      color: AppColors.onSurfaceVariant,
                                     ),
                                   ),
                                 ],
@@ -800,7 +796,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 ? null
                 : Border.all(color: Colors.white.withOpacity(0.1)),
           ),
-          child: Icon(icon, color: Colors.white, size: iconSize),
+          child: Icon(icon, color: AppColors.onSurface, size: iconSize),
         ),
       ),
     );
@@ -891,7 +887,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           ),
           child: Icon(
             icon,
-            color: highlighted ? AppColors.primary : Colors.white,
+            color: highlighted ? AppColors.primary : AppColors.onSurface,
             size: iconSize,
           ),
         ),
@@ -923,13 +919,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.red,
+                      color: AppColors.error,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: const Text(
                       'LIVE',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: AppColors.onSurface,
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
@@ -941,8 +937,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       widget.channels != null
                           ? widget.channels![_currentIndex].name
                           : widget.title,
-                      style: GoogleFonts.outfit(
-                        color: Colors.white,
+                      style: GoogleFonts.inter(
+                        color: AppColors.onSurface,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -971,13 +967,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.red,
+                    color: AppColors.error,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Text(
                     'LIVE',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: AppColors.onSurface,
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                     ),
@@ -991,8 +987,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                     children: [
                       Text(
                         currentProgram.title,
-                        style: GoogleFonts.outfit(
-                          color: Colors.white,
+                        style: GoogleFonts.inter(
+                          color: AppColors.onSurface,
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1003,7 +999,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         Text(
                           currentProgram.description,
                           style: GoogleFonts.inter(
-                            color: Colors.white60,
+                            color: AppColors.onSurfaceVariant,
                             fontSize: 12,
                           ),
                           maxLines: 1,
@@ -1020,13 +1016,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.red,
+                  color: AppColors.error,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Text(
                   'LIVE',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: AppColors.onSurface,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
@@ -1037,8 +1033,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 widget.channels != null
                     ? widget.channels![_currentIndex].name
                     : widget.title,
-                style: GoogleFonts.outfit(
-                  color: Colors.white,
+                style: GoogleFonts.inter(
+                  color: AppColors.onSurface,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1049,8 +1045,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             widget.channels != null
                 ? widget.channels![_currentIndex].name
                 : widget.title,
-            style: GoogleFonts.outfit(
-              color: Colors.white,
+            style: GoogleFonts.inter(
+              color: AppColors.onSurface,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),

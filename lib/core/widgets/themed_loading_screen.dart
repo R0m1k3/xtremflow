@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../theme/app_colors.dart';
 
+/// Stitch-themed loading screen with dark gradient and blue accent.
 class ThemedLoading extends StatelessWidget {
   const ThemedLoading({super.key});
 
@@ -12,7 +15,7 @@ class ThemedLoading extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [
             Color(0xFF0F1014), // Deep Space Dark
-            Color(0xFF181920), // Soft Eerie Black
+            Color(0xFF121317), // Stitch background
           ],
         ),
       ),
@@ -21,16 +24,16 @@ class ThemedLoading extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const CircularProgressIndicator(
-              color: Color(0xFF007AFF), // Electric Blue (AppColors.primary)
+              color: Color(0xFF4b8eff), // AppColors.primaryContainer
               strokeWidth: 3,
             ),
             const SizedBox(height: 16),
             Text(
               'Loading...',
-              style: TextStyle(
-                fontFamily: 'Outfit', // Match AppTheme
-                color: Colors.white.withOpacity(0.7),
+              style: GoogleFonts.inter(
+                color: AppColors.onSurfaceVariant,
                 fontSize: 14,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],

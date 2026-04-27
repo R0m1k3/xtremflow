@@ -77,17 +77,17 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: AppColors.surfaceContainerLow,
             borderRadius: BorderRadius.circular(50),
           ),
           child: TabBar(
             controller: _tabController,
             indicator: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: AppColors.outlineVariant,
               borderRadius: BorderRadius.circular(50),
             ),
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white54,
+            labelColor: AppColors.onSurface,
+            unselectedLabelColor: AppColors.onSurfaceVariant,
             dividerColor: Colors.transparent,
             overlayColor: WidgetStateProperty.all(Colors.transparent),
             tabs: [
@@ -138,9 +138,9 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
         // Theme selection card
         Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: AppColors.surfaceContainerLow,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: AppColors.outlineVariant),
           ),
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -150,7 +150,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
                 children: [
                   const Icon(
                     Icons.dark_mode,
-                    color: Colors.white,
+                    color: AppColors.onSurface,
                   ),
                   const SizedBox(width: 12),
                   Text(
@@ -158,7 +158,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
                     style: GoogleFonts.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      color: AppColors.onSurface,
                     ),
                   ),
                 ],
@@ -201,25 +201,25 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
         // Quick toggle card
         Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: AppColors.surfaceContainerLow,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: AppColors.outlineVariant),
           ),
           child: ListTile(
             leading: Icon(
               isDark ? Icons.dark_mode : Icons.light_mode,
-              color: Colors.white,
+              color: AppColors.onSurface,
             ),
             title: Text(
               'Mode actuel',
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.w500,
-                color: Colors.white,
+                color: AppColors.onSurface,
               ),
             ),
             subtitle: Text(
               isDark ? 'Thème sombre actif' : 'Thème clair actif',
-              style: const TextStyle(color: Colors.white70),
+              style: const TextStyle(color: AppColors.onSurfaceVariant),
             ),
             trailing: Switch(
               value: isDark,
@@ -228,7 +228,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
               trackColor: WidgetStateProperty.resolveWith(
                 (states) => states.contains(WidgetState.selected)
                     ? AppColors.primary.withOpacity(0.5)
-                    : Colors.grey.shade800,
+                    : AppColors.surfaceContainerHigh,
               ),
             ),
           ),
@@ -318,34 +318,34 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
         // User info card
         Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: AppColors.surfaceContainerLow,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: AppColors.outlineVariant),
           ),
           padding: const EdgeInsets.all(4),
           child: ListTile(
-            leading: const Icon(Icons.person, color: Colors.white),
+            leading: const Icon(Icons.person, color: AppColors.onSurface),
             title: Text(
               'Connecté en tant que',
-              style: GoogleFonts.roboto(fontSize: 12, color: Colors.white70),
+              style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant),
             ),
             subtitle: Text(
               currentUser?.username ?? 'Unknown',
-              style: GoogleFonts.roboto(
+              style: GoogleFonts.inter(
                 fontWeight: FontWeight.w600,
-                color: Colors.white,
+                color: AppColors.onSurface,
               ),
             ),
             trailing: currentUser?.isAdmin ?? false
                 ? Chip(
                     label: Text(
                       'Admin',
-                      style: GoogleFonts.roboto(
+                      style: GoogleFonts.inter(
                         fontSize: 11,
-                        color: Colors.black,
+                        color: AppColors.onPrimaryContainer,
                       ),
                     ),
-                    backgroundColor: Colors.white,
+                    backgroundColor: AppColors.onSurface,
                   )
                 : null,
           ),
@@ -355,18 +355,18 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
         // Category filters section
         Text(
           'Filtres de Catégories',
-          style: GoogleFonts.roboto(
+          style: GoogleFonts.inter(
             fontWeight: FontWeight.bold,
             fontSize: 16,
-            color: Colors.white,
+            color: AppColors.onSurface,
           ),
         ),
         const SizedBox(height: 4),
         Text(
           'Seules les catégories contenant un de ces mots-clés seront affichées. Séparez par des virgules.',
-          style: GoogleFonts.roboto(
+          style: GoogleFonts.inter(
             fontSize: 12,
-            color: Colors.white54,
+            color: AppColors.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 12),
@@ -422,17 +422,17 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
         // Change playlist
         Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: AppColors.surfaceContainerLow,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: AppColors.outlineVariant),
           ),
           child: ListTile(
-            leading: const Icon(Icons.playlist_play, color: Colors.white),
+            leading: const Icon(Icons.playlist_play, color: AppColors.onSurface),
             title: Text(
               'Changer de Playlist',
-              style: GoogleFonts.roboto(color: Colors.white),
+              style: GoogleFonts.inter(color: AppColors.onSurface),
             ),
-            trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+            trailing: const Icon(Icons.chevron_right, color: AppColors.onSurfaceVariant),
             onTap: () => context.go('/playlists'),
           ),
         ),
@@ -441,19 +441,19 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
         // About
         Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: AppColors.surfaceContainerLow,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: AppColors.outlineVariant),
           ),
           child: ListTile(
-            leading: const Icon(Icons.info_outline, color: Colors.white),
+            leading: const Icon(Icons.info_outline, color: AppColors.onSurface),
             title: Text(
               'À propos',
-              style: GoogleFonts.roboto(color: Colors.white),
+              style: GoogleFonts.inter(color: AppColors.onSurface),
             ),
             subtitle: Text(
               'XtremFlow IPTV v1.0.0',
-              style: GoogleFonts.roboto(fontSize: 12, color: Colors.white54),
+              style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant),
             ),
           ),
         ),
@@ -462,19 +462,19 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
         // Maintenance Section
         Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: AppColors.surfaceContainerLow,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.orange.withOpacity(0.3)),
+            border: Border.all(color: AppColors.warning.withOpacity(0.3)),
           ),
           child: ListTile(
-            leading: const Icon(Icons.cleaning_services, color: Colors.orange),
+            leading: const Icon(Icons.cleaning_services, color: AppColors.warning),
             title: Text(
               'Maintenance',
-              style: GoogleFonts.roboto(color: Colors.white),
+              style: GoogleFonts.inter(color: AppColors.onSurface),
             ),
             subtitle: Text(
               'En cas de problèmes d\'affichage ou de mise à jour',
-              style: GoogleFonts.roboto(fontSize: 12, color: Colors.white54),
+              style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant),
             ),
             trailing: FilledButton.icon(
               onPressed: () {
@@ -485,12 +485,12 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
                     backgroundColor: const Color(0xFF1E1E1E),
                     title: const Text(
                       'Vider le cache ?',
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: AppColors.onSurface),
                     ),
                     content: const Text(
                       'Cette action va recharger l\'application et effacer les données temporaires.\n'
                       'Vos réglages et favoris sont sauvegardés sur le serveur.',
-                      style: TextStyle(color: Colors.white70),
+                      style: TextStyle(color: AppColors.onSurfaceVariant),
                     ),
                     actions: [
                       TextButton(
@@ -499,7 +499,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
                       ),
                       FilledButton(
                         style: FilledButton.styleFrom(
-                          backgroundColor: Colors.orange,
+                          backgroundColor: AppColors.warning,
                         ),
                         onPressed: () {
                           Navigator.pop(context);
@@ -524,8 +524,8 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
               icon: const Icon(Icons.refresh, size: 16),
               label: const Text('Vider le Cache'),
               style: FilledButton.styleFrom(
-                backgroundColor: Colors.orange.withOpacity(0.2),
-                foregroundColor: Colors.orange,
+                backgroundColor: AppColors.warning.withOpacity(0.2),
+                foregroundColor: AppColors.warning,
               ),
             ),
           ),
@@ -541,7 +541,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
           icon: const Icon(Icons.logout),
           label: const Text('Déconnexion'),
           style: FilledButton.styleFrom(
-            backgroundColor: Colors.red.shade700,
+            backgroundColor: AppColors.error,
             padding: const EdgeInsets.symmetric(vertical: 16),
           ),
         ),
@@ -559,9 +559,9 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: AppColors.surfaceContainerLow,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: AppColors.outlineVariant),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -569,14 +569,14 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
         children: [
           Row(
             children: [
-              Icon(icon, size: 18, color: Colors.blueAccent),
+              Icon(icon, size: 18, color: AppColors.primaryContainer),
               const SizedBox(width: 8),
               Text(
                 title,
-                style: GoogleFonts.roboto(
+                style: GoogleFonts.inter(
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
-                  color: Colors.white,
+                  color: AppColors.onSurface,
                 ),
               ),
             ],
@@ -587,9 +587,9 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             decoration: InputDecoration(
               hintText: 'Ex: FR,FRANCE,HD,SPORT',
               hintStyle:
-                  GoogleFonts.roboto(fontSize: 12, color: Colors.white30),
+                  GoogleFonts.inter(fontSize: 12, color: AppColors.outline),
               filled: true,
-              fillColor: Colors.black26,
+              fillColor: AppColors.surfaceContainerHigh,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide.none,
@@ -604,7 +604,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
                       icon: const Icon(
                         Icons.clear,
                         size: 16,
-                        color: Colors.white54,
+                        color: AppColors.onSurfaceVariant,
                       ),
                       onPressed: onClear,
                       padding: EdgeInsets.zero,
@@ -612,7 +612,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
                     )
                   : null,
             ),
-            style: GoogleFonts.roboto(fontSize: 12, color: Colors.white),
+            style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurface),
             onChanged: onChanged,
           ),
           if (keywords.isNotEmpty) ...[
@@ -625,15 +625,15 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.blueAccent.withOpacity(0.2),
+                    color: AppColors.primaryContainer.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(50),
                     border:
-                        Border.all(color: Colors.blueAccent.withOpacity(0.5)),
+                        Border.all(color: AppColors.primaryContainer.withOpacity(0.5)),
                   ),
                   child: Text(
                     keyword,
                     style:
-                        GoogleFonts.roboto(fontSize: 11, color: Colors.white),
+                        GoogleFonts.inter(fontSize: 11, color: AppColors.onSurface),
                   ),
                 );
               }).toList(),

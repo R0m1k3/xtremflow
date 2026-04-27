@@ -27,9 +27,9 @@ class PlaylistSelectionScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(
           'Select Playlist',
-          style: GoogleFonts.roboto(
+          style: GoogleFonts.inter(
             fontWeight: FontWeight.w600,
-            color: Colors.white,
+            color: AppColors.onSurface,
           ),
         ),
         backgroundColor: Colors.transparent,
@@ -38,12 +38,12 @@ class PlaylistSelectionScreen extends ConsumerWidget {
           if (currentUser?.isAdmin ?? false)
             IconButton(
               icon:
-                  const Icon(Icons.admin_panel_settings, color: Colors.white70),
+                  const Icon(Icons.admin_panel_settings, color: AppColors.onSurfaceVariant),
               onPressed: () => context.go('/admin'),
               tooltip: 'Admin Panel',
             ),
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white70),
+            icon: const Icon(Icons.logout, color: AppColors.onSurfaceVariant),
             onPressed: () async {
               await ref.read(authProvider.notifier).logout();
               if (context.mounted) {
@@ -78,9 +78,9 @@ class PlaylistSelectionScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
                 Text(
                   'Error loading playlists',
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     fontSize: 18,
-                    color: Colors.white70,
+                    color: AppColors.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -88,7 +88,7 @@ class PlaylistSelectionScreen extends ConsumerWidget {
                   onPressed: () => ref.refresh(playlistsProvider),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.onSurface,
                   ),
                   child: Text('Retry', style: GoogleFonts.inter()),
                 ),
@@ -104,14 +104,14 @@ class PlaylistSelectionScreen extends ConsumerWidget {
                     const Icon(
                       Icons.playlist_remove,
                       size: 64,
-                      color: Colors.white24,
+                      color: AppColors.outlineVariant,
                     ),
                     const SizedBox(height: 16),
                     Text(
                       'No playlists available',
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.inter(
                         fontSize: 18,
-                        color: Colors.white60,
+                        color: AppColors.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -121,7 +121,7 @@ class PlaylistSelectionScreen extends ConsumerWidget {
                           : 'Contact administrator',
                       style: GoogleFonts.inter(
                         fontSize: 14,
-                        color: Colors.white38,
+                        color: AppColors.outline,
                       ),
                     ),
                   ],
@@ -246,16 +246,16 @@ class _PlaylistCardState extends State<_PlaylistCard> {
                 child: Icon(
                   Icons.playlist_play_rounded,
                   size: 32,
-                  color: _isHovered ? Colors.white : Colors.white70,
+                  color: _isHovered ? AppColors.onSurface : AppColors.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 20),
               Text(
                 widget.playlist.name,
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.inter(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: AppColors.onSurface,
                   height: 1.2,
                 ),
                 maxLines: 2,
@@ -266,7 +266,7 @@ class _PlaylistCardState extends State<_PlaylistCard> {
                 Uri.tryParse(widget.playlist.dns)?.host ?? widget.playlist.dns,
                 style: GoogleFonts.inter(
                   fontSize: 13,
-                  color: Colors.white38,
+                  color: AppColors.outline,
                   letterSpacing: 0.5,
                 ),
                 maxLines: 1,

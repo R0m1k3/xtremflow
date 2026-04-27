@@ -83,11 +83,11 @@ class MobilePlaylistSelectionScreen extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Icon(Icons.playlist_remove,
-                        size: 48, color: AppColors.textSecondary),
+                        size: 48, color: AppColors.onSurfaceVariant),
                     const SizedBox(height: 16),
                     Text('No playlists available',
                         style:
-                            GoogleFonts.inter(color: AppColors.textSecondary)),
+                            GoogleFonts.inter(color: AppColors.onSurfaceVariant)),
                   ],
                 ),
               );
@@ -133,10 +133,10 @@ class _MobilePlaylistCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border.withOpacity(0.5)),
+        border: Border.all(color: AppColors.outlineVariant.withOpacity(0.5)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: AppColors.background.withOpacity(0.2),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -171,7 +171,7 @@ class _MobilePlaylistCard extends StatelessWidget {
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: AppColors.onSurface,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -181,7 +181,7 @@ class _MobilePlaylistCard extends StatelessWidget {
                         Uri.tryParse(playlist.dns)?.host ?? playlist.dns,
                         style: GoogleFonts.inter(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: AppColors.onSurfaceVariant,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

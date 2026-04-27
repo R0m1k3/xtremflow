@@ -48,7 +48,7 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
             children: [
               const CircularProgressIndicator(),
               const SizedBox(height: 16),
-              const Text('Loading channels...', style: TextStyle(color: Colors.white70)),
+              const Text('Loading channels...', style: TextStyle(color: AppColors.onSurfaceVariant)),
               const SizedBox(height: 24),
               FutureBuilder(
                 future: Future.delayed(const Duration(seconds: 8)),
@@ -71,11 +71,11 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                const Icon(Icons.error_outline, color: AppColors.error, size: 48),
                 const SizedBox(height: 16),
-                Text('Failed to load channels', style: GoogleFonts.inter(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                Text('Failed to load channels', style: GoogleFonts.inter(color: AppColors.onSurface, fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                Text('$e', style: const TextStyle(color: Colors.white54), textAlign: TextAlign.center),
+                Text('$e', style: const TextStyle(color: AppColors.onSurfaceVariant), textAlign: TextAlign.center),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: () => ref.refresh(liveChannelsByPlaylistProvider(widget.playlist)),
@@ -127,9 +127,8 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                 // Header & Search
                 Padding(
                   padding: const EdgeInsets.all(16),
-                  child: GlassContainer(
+                  child: GlassContainer.glass(
                     borderRadius: 16,
-                    opacity: 0.1,
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Row(
@@ -137,15 +136,15 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                         Expanded(
                           child: TextField(
                             controller: _searchController,
-                            style: GoogleFonts.inter(color: Colors.white),
+                            style: GoogleFonts.inter(color: AppColors.onSurface),
                             decoration: InputDecoration(
                               hintText: 'Search channels...',
                               hintStyle:
-                                  GoogleFonts.inter(color: Colors.white54),
+                                  GoogleFonts.inter(color: AppColors.onSurfaceVariant),
                               border: InputBorder.none,
                               prefixIcon: const Icon(
                                 Icons.search,
-                                color: Colors.white54,
+                                color: AppColors.onSurfaceVariant,
                               ),
                               isDense: true,
                             ),
@@ -155,7 +154,7 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                           GestureDetector(
                             onTap: () => _searchController.clear(),
                             child:
-                                const Icon(Icons.close, color: Colors.white54),
+                                const Icon(Icons.close, color: AppColors.onSurfaceVariant),
                           ),
                       ],
                     ),
@@ -185,15 +184,15 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                             ),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? Colors.white
-                                  : Colors.black.withOpacity(0.4),
+                                  ? AppColors.primary
+                                  : AppColors.surfaceContainer,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
                               category,
                               style: GoogleFonts.inter(
                                 color:
-                                    isSelected ? Colors.black : Colors.white70,
+                                    isSelected ? AppColors.onPrimary : AppColors.onSurfaceVariant,
                                 fontWeight: isSelected
                                     ? FontWeight.w600
                                     : FontWeight.w500,
@@ -218,7 +217,7 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                                 ? 'Favorites'
                                 : _selectedCategory ?? 'Channels',
                         style: GoogleFonts.inter(
-                          color: Colors.white,
+                          color: AppColors.onSurface,
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
                         ),
@@ -233,7 +232,7 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                           decoration: BoxDecoration(
                             color: _showFavoritesOnly
                                 ? AppColors.live.withOpacity(0.2)
-                                : Colors.white.withOpacity(0.1),
+                                : AppColors.surfaceContainer,
                             borderRadius: BorderRadius.circular(8),
                             border: _showFavoritesOnly
                                 ? Border.all(color: AppColors.live)
@@ -245,7 +244,7 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                                 : Icons.favorite_border,
                             color: _showFavoritesOnly
                                 ? AppColors.live
-                                : Colors.white,
+                                : AppColors.onSurface,
                             size: 20,
                           ),
                         ),
@@ -263,13 +262,13 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                             children: [
                               const Icon(
                                 Icons.tv_off,
-                                color: Colors.white24,
+                                color: AppColors.outlineVariant,
                                 size: 48,
                               ),
                               const SizedBox(height: 16),
                               Text(
                                 'No channels found',
-                                style: GoogleFonts.inter(color: Colors.white38),
+                                style: GoogleFonts.inter(color: AppColors.outline),
                               ),
                             ],
                           ),
@@ -339,9 +338,8 @@ class _MobileChannelTile extends ConsumerWidget {
       ),
     );
 
-    return GlassContainer(
+    return GlassContainer.glass(
       borderRadius: 12,
-      opacity: 0.15,
       padding: EdgeInsets.zero,
       child: InkWell(
         onTap: onTap,
@@ -354,7 +352,7 @@ class _MobileChannelTile extends ConsumerWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
+                  color: AppColors.surfaceContainer,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 padding: const EdgeInsets.all(4),
@@ -363,9 +361,9 @@ class _MobileChannelTile extends ConsumerWidget {
                         iconUrl,
                         fit: BoxFit.contain,
                         errorBuilder: (_, __, ___) =>
-                            const Icon(Icons.tv, color: Colors.white24),
+                            const Icon(Icons.tv, color: AppColors.outlineVariant),
                       )
-                    : const Icon(Icons.tv, color: Colors.white24),
+                    : const Icon(Icons.tv, color: AppColors.outlineVariant),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -375,7 +373,7 @@ class _MobileChannelTile extends ConsumerWidget {
                     Text(
                       channel.name,
                       style: GoogleFonts.inter(
-                        color: Colors.white,
+                        color: AppColors.onSurface,
                         fontWeight: FontWeight.w500,
                         fontSize: 14,
                       ),
@@ -390,7 +388,7 @@ class _MobileChannelTile extends ConsumerWidget {
                           return Text(
                             'No Info',
                             style: GoogleFonts.inter(
-                              color: Colors.white38,
+                              color: AppColors.outline,
                               fontSize: 12,
                             ),
                           );
@@ -411,11 +409,11 @@ class _MobileChannelTile extends ConsumerWidget {
                       },
                       loading: () => const Text(
                         '...',
-                        style: TextStyle(color: Colors.white38, fontSize: 12),
+                        style: TextStyle(color: AppColors.outline, fontSize: 12),
                       ),
                       error: (err, stack) => const Text(
                         'Err',
-                        style: TextStyle(color: Colors.red, fontSize: 10),
+                        style: TextStyle(color: AppColors.error, fontSize: 10),
                       ),
                     ),
                   ],
@@ -424,12 +422,12 @@ class _MobileChannelTile extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
+                  color: AppColors.surfaceContainer,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.play_arrow_rounded,
-                  color: Colors.white,
+                  color: AppColors.onSurface,
                   size: 16,
                 ),
               ),

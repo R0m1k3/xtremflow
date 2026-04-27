@@ -191,19 +191,18 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-              child: GlassContainer(
+              child: GlassContainer.glass(
                 borderRadius: 100,
-                opacity: 0.6,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 child: Row(
                   children: [
                     Text(
                       'TV Series',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.spaceGrotesk(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                        color: AppColors.onSurface,
                       ),
                     ),
                     const Spacer(),
@@ -211,16 +210,20 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                       width: 300,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: AppColors.surfaceContainerLow,
                         borderRadius: BorderRadius.circular(100),
+                        border: Border.all(
+                          color: AppColors.outlineVariant,
+                          width: 1,
+                        ),
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.search,
                             size: 20,
-                            color: Colors.white54,
+                            color: AppColors.outline,
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -228,12 +231,12 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                               controller: _searchController,
                               style: GoogleFonts.inter(
                                 fontSize: 14,
-                                color: Colors.white,
+                                color: AppColors.onSurface,
                               ),
                               decoration: InputDecoration(
                                 hintText: 'Search series...',
                                 hintStyle:
-                                    GoogleFonts.inter(color: Colors.white54),
+                                    GoogleFonts.inter(color: AppColors.outline),
                                 border: InputBorder.none,
                                 isDense: true,
                                 contentPadding:
@@ -248,7 +251,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                               height: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: AppColors.onSurface,
                               ),
                             ),
                           if (_searchQuery.isNotEmpty)
@@ -257,10 +260,10 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                                 _searchController.clear();
                                 _onSearchChanged('');
                               },
-                              child: const Icon(
+                              child: Icon(
                                 Icons.close,
                                 size: 16,
-                                color: Colors.white,
+                                color: AppColors.onSurface,
                               ),
                             ),
                         ],
@@ -341,23 +344,23 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                                   _getProxiedImageUrl(serie.cover),
                                   fit: BoxFit.cover,
                                   errorBuilder: (ctx, err, stack) => Container(
-                                    color: AppColors.surfaceVariant,
-                                    child: const Center(
+                                    color: AppColors.surfaceContainerLow,
+                                    child: Center(
                                       child: Icon(
                                         Icons.tv,
                                         size: 48,
-                                        color: Colors.white24,
+                                        color: AppColors.outline,
                                       ),
                                     ),
                                   ),
                                 )
                               : Container(
-                                  color: AppColors.surfaceVariant,
-                                  child: const Center(
+                                  color: AppColors.surfaceContainerLow,
+                                  child: Center(
                                     child: Icon(
                                       Icons.tv,
                                       size: 48,
-                                      color: Colors.white24,
+                                      color: AppColors.outline,
                                     ),
                                   ),
                                 ),
@@ -376,7 +379,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                                 end: Alignment.bottomCenter,
                                 colors: [
                                   Colors.transparent,
-                                  Colors.black.withOpacity(0.9),
+                                  AppColors.baseLevel0.withOpacity(0.9),
                                 ],
                               ),
                               borderRadius: const BorderRadius.vertical(
@@ -394,12 +397,12 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                           child: Text(
                             serie.name,
                             style: GoogleFonts.inter(
-                              color: Colors.white,
+                              color: AppColors.onSurface,
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                               shadows: [
                                 const Shadow(
-                                  color: Colors.black,
+                                  color: AppColors.background,
                                   blurRadius: 4,
                                 ),
                               ],
@@ -420,9 +423,10 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.7),
+                                color: AppColors.background.withOpacity(0.7),
                                 borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: Colors.white24),
+                                border: Border.all(
+                                    color: AppColors.outlineVariant),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -430,7 +434,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                                   const Icon(
                                     Icons.star,
                                     size: 10,
-                                    color: Colors.amber,
+                                    color: Color(0xFFFFD700),
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
@@ -438,7 +442,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                                     style: GoogleFonts.inter(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.white,
+                                      color: AppColors.onSurface,
                                     ),
                                   ),
                                 ],
@@ -460,7 +464,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
               child: Padding(
                 padding: EdgeInsets.all(32),
                 child: Center(
-                  child: CircularProgressIndicator(color: Colors.white),
+                  child: CircularProgressIndicator(color: AppColors.onSurface),
                 ),
               ),
             ),

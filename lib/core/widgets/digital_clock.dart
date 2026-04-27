@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../../core/theme/app_colors.dart';
 
 class DigitalClock extends StatefulWidget {
   const DigitalClock({super.key});
@@ -40,7 +41,7 @@ class _DigitalClockState extends State<DigitalClock> {
             style: GoogleFonts.inter(
               fontWeight: FontWeight.w600,
               fontSize: 16,
-              color: Colors.white,
+              color: AppColors.onSurface,
             ),
           ),
         );
