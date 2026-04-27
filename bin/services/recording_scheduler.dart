@@ -25,11 +25,17 @@ class RecordingScheduler {
   RecordingScheduler(this._db);
 
   void start() {
-    print('[RecordingScheduler] Démarrage du planificateur d\'enregistrements TV');
+    print(
+      '[RecordingScheduler] Démarrage du planificateur d\'enregistrements TV',
+    );
     // Vérifier toutes les 10 secondes (pour un démarrage quasi-immédiat)
-    _timer = Timer.periodic(const Duration(seconds: 10), (_) => _checkAndRunRecordings());
+    _timer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _checkAndRunRecordings(),
+    );
     // Season Passes : vérifier toutes les 4 heures
-    _seasonPassTimer = Timer.periodic(const Duration(hours: 4), (_) => _checkSeasonPasses());
+    _seasonPassTimer =
+        Timer.periodic(const Duration(hours: 4), (_) => _checkSeasonPasses());
     // Lancer une première vérification immédiatement
     _checkAndRunRecordings();
     // Vérification initiale des season passes après 30s (laisser le serveur démarrer)
@@ -50,47 +56,74 @@ class RecordingScheduler {
     try {
       // Toujours comparer en UTC pour éviter les problèmes de fuseau horaire
       final now = DateTime.now().toUtc();
-      
+
       final recordings = _db.getAllRecordings();
-      print('[RecordingScheduler] VÉRIFICATION: now=$now recordings=${recordings.length}');
+      print(
+        '[RecordingScheduler] VÉRIFICATION: now=$now recordings=${recordings.length}',
+      );
 
       // Si un enregistrement est en cours, vérifier s'il doit s'arrêter
       if (_currentRecording != null) {
         if (now.isAfter(_currentRecording!.endTime.toUtc())) {
-          print('[RecordingScheduler] Fin de l\'enregistrement : ${_currentRecording!.title}');
+          print(
+            '[RecordingScheduler] Fin de l\'enregistrement : ${_currentRecording!.title}',
+          );
           await _stopCurrentRecording();
         }
       }
 
       // Rechercher les enregistrements planifiés
       for (final recording in recordings) {
-         // Nettoyer les enregistrements bloqués "recording" suite à un crash serveur
-        if (recording.status == 'recording' && _currentRecording?.id != recording.id) {
-            print('[RecordingScheduler] Enregistrement orphelin détecté: ${recording.id}');
-            _db.updateRecordingStatus(recording.id, 'failed', errorReason: 'Interruption inattendue du serveur');
-            continue;
+        // Nettoyer les enregistrements bloqués "recording" suite à un crash serveur
+        if (recording.status == 'recording' &&
+            _currentRecording?.id != recording.id) {
+          print(
+            '[RecordingScheduler] Enregistrement orphelin détecté: ${recording.id}',
+          );
+          _db.updateRecordingStatus(
+            recording.id,
+            'failed',
+            errorReason: 'Interruption inattendue du serveur',
+          );
+          continue;
         }
 
         if (recording.status == 'scheduled') {
           final startUtc = recording.startTime.toUtc();
           final endUtc = recording.endTime.toUtc();
-          print('[RecordingScheduler] "${recording.title}" start=$startUtc end=$endUtc now=$now isAfterStart=${now.isAfter(startUtc)} isBeforeEnd=${now.isBefore(endUtc)}');
+          print(
+            '[RecordingScheduler] "${recording.title}" start=$startUtc end=$endUtc now=$now isAfterStart=${now.isAfter(startUtc)} isBeforeEnd=${now.isBefore(endUtc)}',
+          );
 
           // Si l'enregistrement est planifié, qu'il est temps de démarrer et qu'il n'est pas déjà fini
           if (now.isAfter(startUtc) && now.isBefore(endUtc)) {
             if (_currentRecording != null) {
-              print('[RecordingScheduler] Conflit: "${recording.title}" ne peut pas démarrer, "${_currentRecording!.title}" est en cours.');
-              _db.updateRecordingStatus(recording.id, 'failed', errorReason: 'Un autre enregistrement était déjà en cours.');
+              print(
+                '[RecordingScheduler] Conflit: "${recording.title}" ne peut pas démarrer, "${_currentRecording!.title}" est en cours.',
+              );
+              _db.updateRecordingStatus(
+                recording.id,
+                'failed',
+                errorReason: 'Un autre enregistrement était déjà en cours.',
+              );
               continue;
             }
-            print('[RecordingScheduler] *** DÉMARRAGE DE L\'ENREGISTREMENT : ${recording.title} ***');
+            print(
+              '[RecordingScheduler] *** DÉMARRAGE DE L\'ENREGISTREMENT : ${recording.title} ***',
+            );
             await _startRecording(recording);
           }
-          
+
           // Si l'enregistrement est planifié mais que la date de fin est dépassée (loupé)
           if (now.isAfter(endUtc)) {
-            print('[RecordingScheduler] Enregistrement "${recording.title}" manqué (fin dépassée).');
-            _db.updateRecordingStatus(recording.id, 'failed', errorReason: 'Heure de fin dépassée avant le démarrage');
+            print(
+              '[RecordingScheduler] Enregistrement "${recording.title}" manqué (fin dépassée).',
+            );
+            _db.updateRecordingStatus(
+              recording.id,
+              'failed',
+              errorReason: 'Heure de fin dépassée avant le démarrage',
+            );
           }
         }
       }
@@ -111,7 +144,9 @@ class RecordingScheduler {
     final password = playlistPassword;
 
     if (dns == null || username == null || password == null) {
-      print('[SeasonPass] Config playlist non disponible, vérification annulée');
+      print(
+        '[SeasonPass] Config playlist non disponible, vérification annulée',
+      );
       return;
     }
 
@@ -128,29 +163,36 @@ class RecordingScheduler {
         final url = '$dns/player_api.php?username=$username&password=$password'
             '&action=get_simple_data_table&stream_id=$channelId&type=epg&limit=48';
 
-        final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 60));
+        final response =
+            await http.get(Uri.parse(url)).timeout(const Duration(seconds: 60));
         if (response.statusCode != 200) continue;
 
         final raw = json.decode(response.body);
-        final listings = (raw is Map ? raw['epg_listings'] : raw) as List<dynamic>? ?? [];
+        final listings =
+            (raw is Map ? raw['epg_listings'] : raw) as List<dynamic>? ?? [];
 
         for (final item in listings) {
           String title = item['title'] as String? ?? '';
-          try { title = utf8.decode(base64Decode(title)); } catch (_) {}
+          try {
+            title = utf8.decode(base64Decode(title));
+          } catch (_) {}
 
           // Vérifier si le titre correspond au Season Pass (insensible casse, recherche partielle)
           if (!title.toLowerCase().contains(showTitle.toLowerCase())) continue;
 
           // Parser les heures de début/fin
           final startStr = item['start'] as String? ?? '';
-          final endStr = item['stop'] as String? ?? item['end'] as String? ?? '';
+          final endStr =
+              item['stop'] as String? ?? item['end'] as String? ?? '';
           if (startStr.isEmpty || endStr.isEmpty) continue;
 
           DateTime startTime, endTime;
           try {
             startTime = DateTime.parse(startStr).toUtc();
             endTime = DateTime.parse(endStr).toUtc();
-          } catch (_) { continue; }
+          } catch (_) {
+            continue;
+          }
 
           // Ne pas créer pour les programmes déjà terminés
           if (endTime.isBefore(DateTime.now().toUtc())) continue;
@@ -170,7 +212,9 @@ class RecordingScheduler {
             startTime: startTime,
             endTime: endTime,
           );
-          print('[SeasonPass] ✓ Planifié automatiquement: "$title" le ${startTime.toLocal()}');
+          print(
+            '[SeasonPass] ✓ Planifié automatiquement: "$title" le ${startTime.toLocal()}',
+          );
         }
       } catch (e) {
         print('[SeasonPass] Erreur pour le pass "${pass['show_title']}": $e');
@@ -195,8 +239,13 @@ class RecordingScheduler {
       await _checkDiskSpaceAndRotate(recordingsDir);
 
       // Génération d'un nom de fichier unique et sûr
-      final safeTitle = recording.title.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
-      final dateStr = recording.startTime.toUtc().toIso8601String().replaceAll(':', '').split('.')[0];
+      final safeTitle =
+          recording.title.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
+      final dateStr = recording.startTime
+          .toUtc()
+          .toIso8601String()
+          .replaceAll(':', '')
+          .split('.')[0];
       final fileName = '${safeTitle}_$dateStr.mkv';
       final filePath = p.join(recordingsDir.path, fileName);
       final logFilePath = filePath.replaceAll('.mkv', '.log');
@@ -210,10 +259,13 @@ class RecordingScheduler {
 
       final args = [
         '-y',
-        '-i', streamUrl,
-        '-c', 'copy',
-        '-t', '${recording.endTime.difference(DateTime.now()).inSeconds}',
-        filePath
+        '-i',
+        streamUrl,
+        '-c',
+        'copy',
+        '-t',
+        '${recording.endTime.difference(recording.startTime).inSeconds}',
+        filePath,
       ];
 
       // Créer le fichier de log de façon sécurisée (openWrite peut lancer une exception)
@@ -225,9 +277,15 @@ class RecordingScheduler {
         logSink.writeln('Destination: $filePath');
       } catch (logError) {
         // Si on ne peut pas créer le log, on continue quand même (l'enregistrement reste prioritaire)
-        print('[RecordingScheduler] AVERTISSEMENT: Impossible de créer le fichier log ($logFilePath): $logError');
+        print(
+          '[RecordingScheduler] AVERTISSEMENT: Impossible de créer le fichier log ($logFilePath): $logError',
+        );
         // On note la filePath dans la DB quand même pour pouvoir retourner le statut
-        _db.updateRecordingStatus(recording.id, 'recording', filePath: filePath);
+        _db.updateRecordingStatus(
+          recording.id,
+          'recording',
+          filePath: filePath,
+        );
       }
 
       // Trouver ffmpeg
@@ -251,15 +309,25 @@ class RecordingScheduler {
       // Écouter la fin du processus FFmpeg de manière asynchrone
       _ffmpegProcess!.exitCode.then((exitCode) async {
         if (_currentRecording?.id == recording.id) {
-          logSink?.writeln('\n[${DateTime.now()}] FFmpeg terminé avec le code $exitCode');
+          logSink?.writeln(
+            '\n[${DateTime.now()}] FFmpeg terminé avec le code $exitCode',
+          );
           await logSink?.close();
 
           if (exitCode == 0 || exitCode == 255) {
-            print('[RecordingScheduler] Enregistrement terminé: ${recording.title}');
+            print(
+              '[RecordingScheduler] Enregistrement terminé: ${recording.title}',
+            );
             _db.updateRecordingStatus(recording.id, 'completed');
           } else {
-            print('[RecordingScheduler] Erreur FFmpeg (code: $exitCode) pour ${recording.title}');
-            _db.updateRecordingStatus(recording.id, 'failed', errorReason: 'Erreur FFmpeg code $exitCode. Voir logs.');
+            print(
+              '[RecordingScheduler] Erreur FFmpeg (code: $exitCode) pour ${recording.title}',
+            );
+            _db.updateRecordingStatus(
+              recording.id,
+              'failed',
+              errorReason: 'Erreur FFmpeg code $exitCode. Voir logs.',
+            );
           }
           _currentRecording = null;
           _ffmpegProcess = null;
@@ -267,11 +335,14 @@ class RecordingScheduler {
           await logSink?.close();
         }
       });
-
     } catch (e, st) {
       // Attraper TOUTES les exceptions pour éviter de crasher le serveur
       print('[RecordingScheduler] ERREUR dans _startRecording: $e\n$st');
-      _db.updateRecordingStatus(recording.id, 'failed', errorReason: 'Erreur au lancement: $e');
+      _db.updateRecordingStatus(
+        recording.id,
+        'failed',
+        errorReason: 'Erreur au lancement: $e',
+      );
       _currentRecording = null;
       _ffmpegProcess = null;
     }
@@ -280,7 +351,9 @@ class RecordingScheduler {
   /// Arrêter un enregistrement en cours (appelé depuis l'API)
   Future<bool> stopRecording(String id) async {
     if (_ffmpegProcess != null && _currentRecording?.id == id) {
-      print('[RecordingScheduler] Arrêt demandé pour: ${_currentRecording!.title}');
+      print(
+        '[RecordingScheduler] Arrêt demandé pour: ${_currentRecording!.title}',
+      );
       _ffmpegProcess!.kill(ProcessSignal.sigterm);
       _db.updateRecordingStatus(id, 'completed');
       _ffmpegProcess = null;
@@ -301,25 +374,31 @@ class RecordingScheduler {
   }
 
   Future<void> _checkDiskSpaceAndRotate(Directory dir) async {
-    // Cette fonction pourrait invoquer une commande système `df` ou simplement lister les fichiers 
+    // Cette fonction pourrait invoquer une commande système `df` ou simplement lister les fichiers
     // et supprimer les plus anciens si un quota (ex: max 20 Go) est atteint.
     // Pour l'implémentation initiale, nous pouvons lister et supprimer si plus de X fichiers
     try {
-      final maxFiles = 50; // Nombre max d'enregistrements (exemple simpliste)
+      const maxFiles = 50; // Nombre max d'enregistrements (exemple simpliste)
       final files = dir.listSync().whereType<File>().toList();
-      
+
       if (files.length > maxFiles) {
-        print('[RecordingScheduler] Rotation de l\'espace disque : suppression des anciens enregistrements');
-        files.sort((a, b) => a.statSync().modified.compareTo(b.statSync().modified)); // Du plus vieux au plus récent
-        
+        print(
+          '[RecordingScheduler] Rotation de l\'espace disque : suppression des anciens enregistrements',
+        );
+        files.sort(
+          (a, b) => a.statSync().modified.compareTo(b.statSync().modified),
+        ); // Du plus vieux au plus récent
+
         // Supprimer les plus anciens pour revenir sous la limite
         final filesToDelete = files.take(files.length - maxFiles);
         for (var file in filesToDelete) {
-           file.deleteSync();
+          file.deleteSync();
         }
       }
     } catch (e) {
-       print('[RecordingScheduler] Erreur lors de la rotation de l\'espace disque : $e');
+      print(
+        '[RecordingScheduler] Erreur lors de la rotation de l\'espace disque : $e',
+      );
     }
   }
 }

@@ -65,8 +65,11 @@ class MobilePlaylistSelectionScreen extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline,
-                    size: 48, color: AppColors.error),
+                const Icon(
+                  Icons.error_outline,
+                  size: 48,
+                  color: AppColors.error,
+                ),
                 const SizedBox(height: 16),
                 Text('Error loading playlists', style: GoogleFonts.inter()),
                 TextButton(
@@ -82,12 +85,16 @@ class MobilePlaylistSelectionScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.playlist_remove,
-                        size: 48, color: AppColors.onSurfaceVariant),
+                    const Icon(
+                      Icons.playlist_remove,
+                      size: 48,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(height: 16),
-                    Text('No playlists available',
-                        style:
-                            GoogleFonts.inter(color: AppColors.onSurfaceVariant)),
+                    Text(
+                      'No playlists available',
+                      style: GoogleFonts.inter(color: AppColors.textSecondary),
+                    ),
                   ],
                 ),
               );
@@ -133,10 +140,10 @@ class _MobilePlaylistCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.outlineVariant.withOpacity(0.5)),
+        border: Border.all(color: AppColors.border.withOpacity(0.5)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.background.withOpacity(0.2),
+            color: Colors.black.withOpacity(0.2),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -158,8 +165,11 @@ class _MobilePlaylistCard extends StatelessWidget {
                     color: AppColors.primary.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.playlist_play,
-                      color: AppColors.primary, size: 28),
+                  child: const Icon(
+                    Icons.playlist_play,
+                    color: AppColors.primary,
+                    size: 28,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -171,7 +181,7 @@ class _MobilePlaylistCard extends StatelessWidget {
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.onSurface,
+                          color: AppColors.textPrimary,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -181,7 +191,7 @@ class _MobilePlaylistCard extends StatelessWidget {
                         Uri.tryParse(playlist.dns)?.host ?? playlist.dns,
                         style: GoogleFonts.inter(
                           fontSize: 13,
-                          color: AppColors.onSurfaceVariant,
+                          color: AppColors.textSecondary,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

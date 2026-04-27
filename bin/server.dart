@@ -46,7 +46,7 @@ void main(List<String> args) async {
 
   // Injecter la config playlist dans le scheduler pour les Season Passes
   // (on prend la playlist du premier utilisateur disponible)
-  Future<void> _injectPlaylistToScheduler() async {
+  Future<void> injectPlaylistToScheduler() async {
     final users = db.getAllUsers();
     if (users.isNotEmpty) {
       final playlists = db.getPlaylists(users[0].id);
@@ -61,7 +61,7 @@ void main(List<String> args) async {
   }
 
   // Injecter après 5s pour attendre l'initialisation complète
-  Future.delayed(const Duration(seconds: 5), _injectPlaylistToScheduler);
+  Future.delayed(const Duration(seconds: 5), injectPlaylistToScheduler);
 
   // Initialize Streaming Subsystem
   await initStreaming();
@@ -84,14 +84,16 @@ void main(List<String> args) async {
       if (users.isNotEmpty) {
         final playlists = db.getPlaylists(users[0].id);
         print(
-            '[getPlaylist] User ${users[0].username} has ${playlists.length} playlists');
+          '[getPlaylist] User ${users[0].username} has ${playlists.length} playlists',
+        );
         if (playlists.isNotEmpty) playlist = playlists.first;
       }
     }
 
     if (playlist != null) {
       print(
-          '[getPlaylist] Returning playlist: ${playlist.name} (DNS: ${playlist.serverUrl})');
+        '[getPlaylist] Returning playlist: ${playlist.name} (DNS: ${playlist.serverUrl})',
+      );
       return PlaylistConfig(
         id: playlist.id,
         name: playlist.name,
@@ -239,6 +241,13 @@ void main(List<String> args) async {
       '/api/vod',
       createVodStreamHandler(
         getPlaylist,
+        isGpuEnabled: db.isNvidiaGpuEnabled,
+      ),
+    )
+    ..mount(
+      '/api/recordings/stream',
+      createRecordingStreamHandler(
+        db,
         isGpuEnabled: db.isNvidiaGpuEnabled,
       ),
     );

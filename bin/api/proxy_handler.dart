@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:http/http.dart' as http;
-import '../models/playlist.dart';
 import '../models/playlist_config.dart';
 import '../database/database.dart';
 
@@ -34,8 +33,9 @@ class ProxyHandler {
   Future<PlaylistConfig?> _getCachedPlaylist(Request request) async {
     // Basic caching to avoid DB overhead on every video segment
     final now = DateTime.now();
-    final cacheKey = 'global_playlist'; // Currently app has one primary playlist per user/global
-    
+    const cacheKey =
+        'global_playlist'; // Currently app has one primary playlist per user/global
+
     if (_playlistCache.containsKey(cacheKey)) {
       final (cached, expiry) = _playlistCache[cacheKey]!;
       if (now.isBefore(expiry)) return cached;
@@ -134,7 +134,8 @@ class ProxyHandler {
           final playlist = await _getCachedPlaylist(request);
           if (playlist == null) {
             return Response.forbidden(
-                'No active playlist configuration found to validate request');
+              'No active playlist configuration found to validate request',
+            );
           }
 
           final targetHost = targetUrl.host.toLowerCase();
@@ -142,9 +143,11 @@ class ProxyHandler {
 
           if (targetHost != allowedHost) {
             print(
-                '[Proxy] Blocked SSRF attempt to $targetHost (Allowed: $allowedHost)');
+              '[Proxy] Blocked SSRF attempt to $targetHost (Allowed: $allowedHost)',
+            );
             return Response.forbidden(
-                'Access to this domain is forbidden by policy');
+              'Access to this domain is forbidden by policy',
+            );
           }
         }
 
@@ -163,14 +166,14 @@ class ProxyHandler {
         try {
           print('[Proxy] Forwarding to: $targetUrl');
           final proxyRequest = http.Request(request.method, targetUrl);
-          
+
           // Forward safe request headers
           for (final header in _allowedRequestHeaders) {
             if (request.headers.containsKey(header)) {
               proxyHeaders[header] = request.headers[header]!;
             }
           }
-          
+
           proxyRequest.headers.addAll(proxyHeaders);
           proxyRequest.followRedirects = true;
 
@@ -215,7 +218,8 @@ class ProxyHandler {
             targetUrl?.path.endsWith('.jpg') == true) {
           return Response.ok(
             base64Decode(
-                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='),
+              'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+            ),
             headers: {'content-type': 'image/png'},
           );
         }

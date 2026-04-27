@@ -5,14 +5,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import '../../../core/models/iptv_models.dart';
 import '../../../core/models/playlist_config.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/glass_container.dart';
 import '../providers/xtream_provider.dart';
 import '../providers/settings_provider.dart';
-import '../services/xtream_service.dart';
+import '../screens/player_screen.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  ENTRÉE — Onglet "TV & Enregistrements" avec 3 sous-onglets
+//  ENTRÉE — Onglet "Enregistrements"
 // ═══════════════════════════════════════════════════════════════════════════
 
 class RecordingsTab extends StatefulWidget {
@@ -23,75 +21,36 @@ class RecordingsTab extends StatefulWidget {
   State<RecordingsTab> createState() => _RecordingsTabState();
 }
 
-class _RecordingsTabState extends State<RecordingsTab>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
+class _RecordingsTabState extends State<RecordingsTab> {
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Header
-        Container(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                const Icon(Icons.tv, color: AppColors.onSurface, size: 28),
-                const SizedBox(width: 12),
-                Text('TV & Enregistrements',
-                    style: GoogleFonts.inter(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.onSurface)),
-              ]),
-              const SizedBox(height: 16),
-              TabBar(
-                controller: _tabController,
-                labelColor: AppColors.onSurface,
-                unselectedLabelColor: AppColors.onSurfaceVariant,
-                indicatorColor: AppColors.live,
-                indicatorWeight: 3,
-                labelStyle: GoogleFonts.inter(
-                    fontWeight: FontWeight.w600, fontSize: 14),
-                unselectedLabelStyle: GoogleFonts.inter(fontSize: 14),
-                tabs: const [
-                  Tab(icon: Icon(Icons.grid_view, size: 18), text: 'Guide TV'),
-                  Tab(
-                      icon: Icon(Icons.fiber_manual_record, size: 18),
-                      text: 'Enregistrements'),
-                  Tab(
-                      icon: Icon(Icons.repeat, size: 18),
-                      text: 'Season Passes'),
-                ],
-              ),
-            ],
+    return Container(
+      color: Colors.black,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+            color: Colors.grey[900],
+            child: const Row(
+              children: [
+                Icon(Icons.videocam, color: Colors.white, size: 28),
+                SizedBox(width: 12),
+                Text(
+                  'Enregistrements',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _EpgGuideView(playlist: widget.playlist),
-              const _RecordingsListView(),
-              const _SeasonPassesView(),
-            ],
+          Expanded(
+            child: _RecordingsListView(playlist: widget.playlist),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -131,7 +90,8 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
   void initState() {
     super.initState();
     _searchCtrl.addListener(
-        () => setState(() => _searchQuery = _searchCtrl.text.toLowerCase()));
+      () => setState(() => _searchQuery = _searchCtrl.text.toLowerCase()),
+    );
   }
 
   @override
@@ -192,9 +152,11 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
         error: (e, _) => Center(child: Text('Erreur: $e')),
         data: (groupedChannels) {
           final categories = groupedChannels.keys
-              .where((cat) =>
-                  settings.liveTvKeywords.isEmpty ||
-                  settings.matchesLiveTvFilter(cat))
+              .where(
+                (cat) =>
+                    settings.liveTvKeywords.isEmpty ||
+                    settings.matchesLiveTvFilter(cat),
+              )
               .toList();
 
           // Initial category selection
@@ -218,12 +180,15 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                 width: 180,
                 child: Column(
                   children: [
-                    Text('GROUPES',
-                        style: GoogleFonts.inter(
-                            color: AppColors.outline,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2)),
+                    Text(
+                      'GROUPES',
+                      style: GoogleFonts.outfit(
+                        color: Colors.white38,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Expanded(
                       child: ListView.builder(
@@ -239,24 +204,27 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                             }),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 10),
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
                               margin: const EdgeInsets.only(bottom: 4),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? AppColors.outlineVariant
+                                    ? Colors.white.withOpacity(0.1)
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
                                 cat,
-                                style: GoogleFonts.inter(
-                                    color: isSelected
-                                        ? AppColors.onSurface
-                                        : AppColors.onSurfaceVariant,
-                                    fontSize: 12,
-                                    fontWeight: isSelected
-                                        ? FontWeight.bold
-                                        : FontWeight.normal),
+                                style: GoogleFonts.outfit(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.white60,
+                                  fontSize: 12,
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -269,98 +237,121 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                 ),
               ),
 
-              const VerticalDivider(width: 32, color: AppColors.outlineVariant),
+              const VerticalDivider(width: 32, color: Colors.white10),
 
               // ── Colonne 2 : CHAÎNES ──
               SizedBox(
                 width: 250,
-                child: Column(children: [
-                  // Barre de recherche
-                  TextField(
-                    controller: _searchCtrl,
-                    style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: 'Rechercher...',
-                      hintStyle:
-                          const TextStyle(color: AppColors.outline, fontSize: 13),
-                      prefixIcon: const Icon(Icons.search,
-                          color: AppColors.outline, size: 18),
-                      filled: true,
-                      fillColor: AppColors.surfaceContainer,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
+                child: Column(
+                  children: [
+                    // Barre de recherche
+                    TextField(
+                      controller: _searchCtrl,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      decoration: InputDecoration(
+                        hintText: 'Rechercher...',
+                        hintStyle: const TextStyle(
+                          color: Colors.white38,
+                          fontSize: 13,
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: Colors.white38,
+                          size: 18,
+                        ),
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.07),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: visibleChannels.isEmpty
-                        ? Center(
-                            child: Text('Aucune chaîne',
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: visibleChannels.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'Aucune chaîne',
                                 style: TextStyle(
-                                    color: AppColors.outline, fontSize: 12)))
-                        : ListView.builder(
-                            itemCount: visibleChannels.length,
-                            itemBuilder: (ctx, i) {
-                              final ch = visibleChannels[i];
-                              final isSelected =
-                                  _selectedChannel?.streamId == ch.streamId;
-                              return InkWell(
-                                onTap: () => _loadEpg(ch),
-                                borderRadius: BorderRadius.circular(8),
-                                child: Container(
-                                  margin: const EdgeInsets.only(bottom: 3),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? AppColors.live.withOpacity(0.2)
-                                        : AppColors.surfaceContainerLow,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? AppColors.live.withOpacity(0.5)
-                                          : Colors.transparent,
+                                  color: Colors.white24,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: visibleChannels.length,
+                              itemBuilder: (ctx, i) {
+                                final ch = visibleChannels[i];
+                                final isSelected =
+                                    _selectedChannel?.streamId == ch.streamId;
+                                return InkWell(
+                                  onTap: () => _loadEpg(ch),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    margin: const EdgeInsets.only(bottom: 3),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 8,
                                     ),
-                                  ),
-                                  child: Row(children: [
-                                    ch.streamIcon.isNotEmpty
-                                        ? Image.network(ch.streamIcon,
-                                            width: 24,
-                                            height: 16,
-                                            fit: BoxFit.contain,
-                                            errorBuilder: (_, __, ___) =>
-                                                const Icon(Icons.tv,
-                                                    color: AppColors.outline,
-                                                    size: 16))
-                                        : const Icon(Icons.tv,
-                                            color: AppColors.outline, size: 16),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        ch.name,
-                                        style: GoogleFonts.inter(
-                                          color: isSelected
-                                              ? AppColors.onSurface
-                                              : AppColors.onSurfaceVariant,
-                                          fontSize: 12,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? Colors.redAccent.withOpacity(0.2)
+                                          : Colors.white.withOpacity(0.05),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? Colors.redAccent.withOpacity(0.5)
+                                            : Colors.transparent,
                                       ),
                                     ),
-                                  ]),
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                ]),
+                                    child: Row(
+                                      children: [
+                                        ch.streamIcon.isNotEmpty
+                                            ? Image.network(
+                                                ch.streamIcon,
+                                                width: 24,
+                                                height: 16,
+                                                fit: BoxFit.contain,
+                                                errorBuilder: (_, __, ___) =>
+                                                    const Icon(
+                                                  Icons.tv,
+                                                  color: Colors.white24,
+                                                  size: 16,
+                                                ),
+                                              )
+                                            : const Icon(
+                                                Icons.tv,
+                                                color: Colors.white24,
+                                                size: 16,
+                                              ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            ch.name,
+                                            style: GoogleFonts.outfit(
+                                              color: isSelected
+                                                  ? Colors.white
+                                                  : Colors.white70,
+                                              fontSize: 12,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
               ),
 
-              const VerticalDivider(width: 32, color: AppColors.outlineVariant),
+              const VerticalDivider(width: 32, color: Colors.white10),
 
               // ── Colonne droite : programmes EPG ──
               Expanded(
@@ -369,14 +360,19 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.tv_off,
-                                size: 64, color: AppColors.outline.withOpacity(0.1)),
+                            const Icon(
+                              Icons.tv_off,
+                              size: 64,
+                              color: Color(0x1FFFFFFF),
+                            ),
                             const SizedBox(height: 16),
                             Text(
                               'Sélectionnez une chaîne\npour voir son guide des programmes',
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.inter(
-                                  color: AppColors.outline, fontSize: 15),
+                              style: GoogleFonts.outfit(
+                                color: Colors.white38,
+                                fontSize: 15,
+                              ),
                             ),
                           ],
                         ),
@@ -384,35 +380,42 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(children: [
-                            Text(
-                              _selectedChannel!.name,
-                              style: GoogleFonts.inter(
-                                color: AppColors.onSurface,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                          Row(
+                            children: [
+                              Text(
+                                _selectedChannel!.name,
+                                style: GoogleFonts.outfit(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
-                            ),
-                            const Spacer(),
-                            IconButton(
-                              icon: const Icon(Icons.refresh,
-                                  color: AppColors.onSurfaceVariant, size: 18),
-                              tooltip: 'Recharger l\'EPG',
-                              onPressed: () => _loadEpg(_selectedChannel!),
-                            ),
-                          ]),
-                          const Divider(color: AppColors.outlineVariant),
+                              const Spacer(),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.refresh,
+                                  color: Colors.white54,
+                                  size: 18,
+                                ),
+                                tooltip: 'Recharger l\'EPG',
+                                onPressed: () => _loadEpg(_selectedChannel!),
+                              ),
+                            ],
+                          ),
+                          const Divider(color: Colors.white12),
                           Expanded(
                             child: _loadingEpg
                                 ? const Center(
-                                    child: CircularProgressIndicator())
+                                    child: CircularProgressIndicator(),
+                                  )
                                 : _epgError.isNotEmpty
                                     ? Center(
                                         child: Text(
                                           'Erreur EPG: $_epgError',
                                           style: const TextStyle(
-                                              color: AppColors.live,
-                                              fontSize: 12),
+                                            color: Colors.redAccent,
+                                            fontSize: 12,
+                                          ),
                                           textAlign: TextAlign.center,
                                         ),
                                       )
@@ -421,8 +424,9 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                                             child: Text(
                                               'Aucun programme EPG disponible\npour cette chaîne',
                                               textAlign: TextAlign.center,
-                                              style: GoogleFonts.inter(
-                                                  color: AppColors.outline),
+                                              style: GoogleFonts.outfit(
+                                                color: Colors.white38,
+                                              ),
                                             ),
                                           )
                                         : ListView.builder(
@@ -500,32 +504,47 @@ class _ProgrammeCard extends StatelessWidget {
   }
 
   void _showConfirm(
-      BuildContext context, String title, DateTime start, DateTime end) {
+    BuildContext context,
+    String title,
+    DateTime start,
+    DateTime end,
+  ) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surfaceContainerHigh,
-        title: Row(children: [
-          const Icon(Icons.fiber_manual_record,
-              color: AppColors.live, size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-              child: Text('Enregistrer',
-                  style: GoogleFonts.inter(color: AppColors.onSurface))),
-        ]),
+        backgroundColor: const Color(0xFF1E1E2E),
+        title: Row(
+          children: [
+            const Icon(
+              Icons.fiber_manual_record,
+              color: Colors.redAccent,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Enregistrer',
+                style: GoogleFonts.outfit(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title.isEmpty ? channel.name : title,
-                style: GoogleFonts.inter(
-                    color: AppColors.onSurface,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16)),
+            Text(
+              title.isEmpty ? channel.name : title,
+              style: GoogleFonts.outfit(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
             const SizedBox(height: 8),
             Text(
               '${_fmt(_start)} → ${_fmt(_end)}',
-              style: const TextStyle(color: AppColors.onSurfaceVariant),
+              style: const TextStyle(color: Colors.white70),
             ),
             if (_description.isNotEmpty) ...[
               const SizedBox(height: 8),
@@ -533,21 +552,26 @@ class _ProgrammeCard extends StatelessWidget {
                 _description,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: AppColors.outline, fontSize: 12),
+                style: const TextStyle(color: Colors.white38, fontSize: 12),
               ),
             ],
           ],
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Annuler')),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler'),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.live),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () async {
               Navigator.pop(ctx);
               await _saveRecording(
-                  context, title.isEmpty ? channel.name : title, start, end);
+                context,
+                title.isEmpty ? channel.name : title,
+                start,
+                end,
+              );
             },
             child: const Text('🔴 Enregistrer'),
           ),
@@ -557,7 +581,11 @@ class _ProgrammeCard extends StatelessWidget {
   }
 
   Future<void> _saveRecording(
-      BuildContext context, String title, DateTime start, DateTime end) async {
+    BuildContext context,
+    String title,
+    DateTime start,
+    DateTime end,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('/api/recordings'),
@@ -571,14 +599,18 @@ class _ProgrammeCard extends StatelessWidget {
         }),
       );
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(response.statusCode == 200
-              ? '✅ "$title" planifié !'
-              : '❌ Erreur: ${response.body}'),
-          backgroundColor: response.statusCode == 200
-              ? AppColors.success
-              : AppColors.error,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              response.statusCode == 200
+                  ? '✅ "$title" planifié !'
+                  : '❌ Erreur: ${response.body}',
+            ),
+            backgroundColor: response.statusCode == 200
+                ? Colors.green.shade800
+                : Colors.red.shade800,
+          ),
+        );
       }
     } catch (e) {
       if (context.mounted) {
@@ -597,15 +629,15 @@ class _ProgrammeCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
         color: isNow
-            ? AppColors.live.withOpacity(0.15)
+            ? Colors.red.withOpacity(0.15)
             : isPast
-                ? AppColors.surfaceContainerLowest
-                : AppColors.surfaceContainerLow,
+                ? Colors.white.withOpacity(0.03)
+                : Colors.white.withOpacity(0.06),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isNow
-              ? AppColors.live.withOpacity(0.4)
-              : AppColors.surfaceContainer,
+              ? Colors.redAccent.withOpacity(0.4)
+              : Colors.white.withOpacity(0.07),
         ),
       ),
       child: ListTile(
@@ -620,19 +652,23 @@ class _ProgrammeCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                   decoration: BoxDecoration(
-                      color: AppColors.live,
-                      borderRadius: BorderRadius.circular(4)),
-                  child: Text('LIVE',
-                      style: GoogleFonts.inter(
-                          color: AppColors.onSurface,
-                          fontSize: 8,
-                          fontWeight: FontWeight.bold)),
+                    color: Colors.redAccent,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'LIVE',
+                    style: GoogleFonts.outfit(
+                      color: Colors.white,
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 )
               else
                 Text(
                   _fmt(_start),
-                  style: GoogleFonts.inter(
-                    color: isPast ? AppColors.outline : AppColors.onSurfaceVariant,
+                  style: GoogleFonts.outfit(
+                    color: isPast ? Colors.white24 : Colors.white70,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -641,15 +677,15 @@ class _ProgrammeCard extends StatelessWidget {
                 Text(
                   _fmt(_end),
                   style:
-                      GoogleFonts.inter(color: AppColors.outline, fontSize: 10),
+                      GoogleFonts.outfit(color: Colors.white24, fontSize: 10),
                 ),
             ],
           ),
         ),
         title: Text(
           _title.isEmpty ? '—' : _title,
-          style: GoogleFonts.inter(
-            color: isPast ? AppColors.outline : AppColors.onSurface,
+          style: GoogleFonts.outfit(
+            color: isPast ? Colors.white38 : Colors.white,
             fontWeight: isNow ? FontWeight.bold : FontWeight.normal,
           ),
           maxLines: 2,
@@ -660,13 +696,16 @@ class _ProgrammeCard extends StatelessWidget {
                 _description,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: AppColors.outline, fontSize: 11),
+                style: const TextStyle(color: Colors.white38, fontSize: 11),
               )
             : null,
         trailing: !isPast
             ? IconButton(
-                icon: const Icon(Icons.fiber_manual_record,
-                    color: AppColors.live, size: 20),
+                icon: const Icon(
+                  Icons.fiber_manual_record,
+                  color: Colors.redAccent,
+                  size: 20,
+                ),
                 tooltip: 'Enregistrer ce programme',
                 onPressed: () => _record(context),
               )
@@ -681,7 +720,8 @@ class _ProgrammeCard extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════
 
 class _RecordingsListView extends StatefulWidget {
-  const _RecordingsListView();
+  final PlaylistConfig playlist;
+  const _RecordingsListView({required this.playlist});
   @override
   State<_RecordingsListView> createState() => _RecordingsListViewState();
 }
@@ -706,7 +746,8 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
       final response = await http.get(Uri.parse('/api/recordings'));
       if (response.statusCode == 200) {
         setState(() {
-          _recordings = json.decode(response.body);
+          final decoded = json.decode(response.body);
+          _recordings = decoded is List ? decoded : [];
           _isLoading = false;
         });
       } else {
@@ -737,6 +778,41 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
     _fetchRecordings();
   }
 
+  Future<void> _playRecording(BuildContext context, Map<String, dynamic> rec) async {
+    final recordingId = rec['id'] as String?;
+    final title = rec['title'] as String? ?? 'Enregistrement';
+
+    if (recordingId == null || recordingId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ID de lecture indisponible')),
+      );
+      return;
+    }
+
+    Duration? recordingDuration;
+    try {
+      if (rec['start_time'] != null && rec['end_time'] != null) {
+        final start = DateTime.parse(rec['start_time'].toString());
+        final end = DateTime.parse(rec['end_time'].toString());
+        recordingDuration = end.difference(start);
+      }
+    } catch (_) {}
+
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (ctx) => PlayerScreen(
+          streamId: recordingId,
+          title: title,
+          playlist: widget.playlist,
+          streamType: StreamType.recording,
+          containerExtension: 'ts',
+          duration: recordingDuration,
+        ),
+      ),
+    );
+  }
+
   Future<void> _showLogs(String id, String title) async {
     try {
       final response = await http.get(Uri.parse('/api/recordings/logs/$id'));
@@ -747,24 +823,30 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          backgroundColor: AppColors.surfaceContainerHigh,
-          title: Text(title,
-              style: GoogleFonts.inter(color: AppColors.onSurface, fontSize: 14)),
+          backgroundColor: const Color(0xFF1E1E2E),
+          title: Text(
+            title,
+            style: GoogleFonts.outfit(color: Colors.white, fontSize: 14),
+          ),
           content: SizedBox(
             width: 500,
             height: 300,
             child: SingleChildScrollView(
-              child: Text(content,
-                  style: const TextStyle(
-                      color: AppColors.onSurfaceVariant,
-                      fontSize: 11,
-                      fontFamily: 'monospace')),
+              child: Text(
+                content,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 11,
+                  fontFamily: 'monospace',
+                ),
+              ),
             ),
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Fermer'))
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Fermer'),
+            ),
           ],
         ),
       );
@@ -777,10 +859,10 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
   }
 
   Color _statusColor(String status) => switch (status) {
-        'recording' => AppColors.live,
-        'completed' => AppColors.success,
-        'failed' => AppColors.warning,
-        _ => AppColors.primaryContainer,
+        'recording' => Colors.redAccent,
+        'completed' => Colors.green,
+        'failed' => Colors.orangeAccent,
+        _ => Colors.blueAccent,
       };
 
   String _statusLabel(String status) => switch (status) {
@@ -808,31 +890,44 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-            IconButton(
-              icon: const Icon(Icons.refresh, color: AppColors.onSurfaceVariant),
-              onPressed: _fetchRecordings,
-              tooltip: 'Rafraîchir',
-            ),
-          ]),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.refresh, color: Colors.white70),
+                onPressed: _fetchRecordings,
+                tooltip: 'Rafraîchir',
+              ),
+            ],
+          ),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
                     ? Center(
-                        child: Text(_error!,
-                            style: const TextStyle(color: AppColors.live)))
+                        child: Text(
+                          _error ?? 'Erreur',
+                          style: const TextStyle(color: Colors.redAccent),
+                        ),
+                      )
                     : _recordings.isEmpty
                         ? Center(
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.videocam_off,
-                                    size: 64, color: AppColors.outline.withOpacity(0.1)),
+                                const Icon(
+                                  Icons.videocam_off,
+                                  size: 64,
+                                  color: Color(0x1FFFFFFF),
+                                ),
                                 const SizedBox(height: 16),
-                                Text('Aucun enregistrement',
-                                    style: GoogleFonts.inter(
-                                        color: AppColors.outline, fontSize: 16)),
+                                Text(
+                                  'Aucun enregistrement',
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white38,
+                                    fontSize: 16,
+                                  ),
+                                ),
                               ],
                             ),
                           )
@@ -846,14 +941,17 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 8),
                                 decoration: BoxDecoration(
-                                  color: AppColors.surfaceContainerLow,
+                                  color: Colors.white.withOpacity(0.05),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                      color: AppColors.outlineVariant),
+                                    color: Colors.white.withOpacity(0.1),
+                                  ),
                                 ),
                                 child: ListTile(
                                   contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 8),
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
                                   leading: Icon(
                                     status == 'recording'
                                         ? Icons.fiber_manual_record
@@ -861,10 +959,13 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                                     color: color,
                                     size: 28,
                                   ),
-                                  title: Text(rec['title'] ?? '—',
-                                      style: GoogleFonts.inter(
-                                          color: AppColors.onSurface,
-                                          fontWeight: FontWeight.w600)),
+                                  title: Text(
+                                    rec['title'] ?? '—',
+                                    style: GoogleFonts.outfit(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                   subtitle: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
@@ -872,14 +973,18 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                                       Text(
                                         '${_fmtDate(rec['start_time'])} → ${_fmtDate(rec['end_time'])}',
                                         style: const TextStyle(
-                                            color: AppColors.onSurfaceVariant,
-                                            fontSize: 12),
+                                          color: Colors.white54,
+                                          fontSize: 12,
+                                        ),
                                       ),
                                       if (rec['error_reason'] != null)
-                                        Text('⚠ ${rec['error_reason']}',
-                                            style: const TextStyle(
-                                                color: AppColors.warning,
-                                                fontSize: 11)),
+                                        Text(
+                                          '⚠ ${rec['error_reason']}',
+                                          style: const TextStyle(
+                                            color: Colors.orangeAccent,
+                                            fontSize: 11,
+                                          ),
+                                        ),
                                     ],
                                   ),
                                   trailing: Row(
@@ -887,41 +992,67 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                                     children: [
                                       Container(
                                         padding: const EdgeInsets.symmetric(
-                                            horizontal: 10, vertical: 4),
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: color.withOpacity(0.15),
                                           borderRadius:
                                               BorderRadius.circular(20),
                                           border: Border.all(
-                                              color: color.withOpacity(0.4)),
+                                            color: color.withOpacity(0.4),
+                                          ),
                                         ),
-                                        child: Text(_statusLabel(status),
-                                            style: TextStyle(
-                                                color: color,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 11)),
+                                        child: Text(
+                                          _statusLabel(status),
+                                          style: TextStyle(
+                                            color: color,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 11,
+                                          ),
+                                        ),
                                       ),
                                       const SizedBox(width: 4),
                                       if (status == 'recording')
                                         IconButton(
-                                          icon: const Icon(Icons.stop_circle,
-                                              color: AppColors.live),
+                                          icon: const Icon(
+                                            Icons.stop_circle,
+                                            color: Colors.redAccent,
+                                          ),
                                           tooltip: 'Arrêter',
                                           onPressed: () => _stopRecording(
-                                              rec['id'], rec['title'] ?? ''),
+                                            rec['id'],
+                                            rec['title'] ?? '',
+                                          ),
+                                        ),
+                                      if (status == 'completed')
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.play_circle_outline,
+                                            color: Colors.greenAccent,
+                                            size: 20,
+                                          ),
+                                          tooltip: 'Lecture',
+                                          onPressed: () => _playRecording(context, rec),
                                         ),
                                       IconButton(
                                         icon: const Icon(
-                                            Icons.description_outlined,
-                                            color: AppColors.primaryContainer,
-                                            size: 20),
+                                          Icons.description_outlined,
+                                          color: Colors.blueAccent,
+                                          size: 20,
+                                        ),
                                         tooltip: 'Logs',
                                         onPressed: () => _showLogs(
-                                            rec['id'], rec['title'] ?? ''),
+                                          rec['id'],
+                                          rec['title'] ?? '',
+                                        ),
                                       ),
                                       IconButton(
-                                        icon: const Icon(Icons.delete_outline,
-                                            color: AppColors.outline, size: 20),
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          color: Colors.white38,
+                                          size: 20,
+                                        ),
                                         tooltip: 'Supprimer',
                                         onPressed: () =>
                                             _deleteRecording(rec['id']),
@@ -981,7 +1112,8 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
     _loadPasses();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Season Pass "$title" supprimé')));
+        SnackBar(content: Text('Season Pass "$title" supprimé')),
+      );
     }
   }
 
@@ -992,37 +1124,49 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surfaceContainerHigh,
-        title: Row(children: [
-          const Icon(Icons.repeat, color: AppColors.primary),
-          const SizedBox(width: 8),
-          Text('Nouveau Season Pass',
-              style: GoogleFonts.inter(color: AppColors.onSurface)),
-        ]),
+        backgroundColor: const Color(0xFF1E1E2E),
+        title: Row(
+          children: [
+            const Icon(Icons.repeat, color: Colors.purpleAccent),
+            const SizedBox(width: 8),
+            Text(
+              'Nouveau Season Pass',
+              style: GoogleFonts.outfit(color: Colors.white),
+            ),
+          ],
+        ),
         content: SizedBox(
           width: 400,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text(
-              'Enregistre automatiquement toutes les nouvelles diffusions d\'une émission.',
-              style: GoogleFonts.inter(color: AppColors.onSurfaceVariant, fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            _buildField(
-                titleCtrl, 'Titre de l\'émission (ex: Champions League)'),
-            const SizedBox(height: 8),
-            _buildField(channelCtrl, 'Channel ID (ex: 554021)'),
-            const SizedBox(height: 8),
-            _buildField(
-                urlCtrl, 'stream_url (optionnel, ex: /api/live/554021.ts)'),
-          ]),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Enregistre automatiquement toutes les nouvelles diffusions d\'une émission.',
+                style: GoogleFonts.outfit(color: Colors.white54, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              _buildField(
+                titleCtrl,
+                'Titre de l\'émission (ex: Champions League)',
+              ),
+              const SizedBox(height: 8),
+              _buildField(channelCtrl, 'Channel ID (ex: 554021)'),
+              const SizedBox(height: 8),
+              _buildField(
+                urlCtrl,
+                'stream_url (optionnel, ex: /api/live/554021.ts)',
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Annuler')),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler'),
+          ),
           ElevatedButton(
             style:
-                ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                ElevatedButton.styleFrom(backgroundColor: Colors.purpleAccent),
             onPressed: () async {
               final t = titleCtrl.text.trim();
               final c = channelCtrl.text.trim();
@@ -1035,15 +1179,20 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
                 Uri.parse('/api/season-passes'),
                 headers: {'Content-Type': 'application/json'},
                 body: json.encode(
-                    {'show_title': t, 'channel_id': c, 'stream_url': u}),
+                  {'show_title': t, 'channel_id': c, 'stream_url': u},
+                ),
               );
               _loadPasses();
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(r.statusCode == 201
-                      ? '✅ Season Pass créé !'
-                      : '❌ ${r.body}'),
-                ));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      r.statusCode == 201
+                          ? '✅ Season Pass créé !'
+                          : '❌ ${r.body}',
+                    ),
+                  ),
+                );
               }
             },
             child: const Text('Créer'),
@@ -1056,14 +1205,16 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
   Widget _buildField(TextEditingController c, String label) {
     return TextField(
       controller: c,
-      style: const TextStyle(color: AppColors.onSurface),
+      style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: AppColors.onSurfaceVariant, fontSize: 12),
+        labelStyle: const TextStyle(color: Colors.white54, fontSize: 12),
         enabledBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: AppColors.outline)),
+          borderSide: BorderSide(color: Colors.white24),
+        ),
         focusedBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: AppColors.primary)),
+          borderSide: BorderSide(color: Colors.purpleAccent),
+        ),
       ),
     );
   }
@@ -1072,109 +1223,147 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Column(children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Enregistrements automatiques',
-                style: GoogleFonts.inter(color: AppColors.onSurfaceVariant, fontSize: 13)),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Nouveau'),
-              onPressed: _showCreate,
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.primary.withOpacity(0.2)),
-          ),
-          child: Row(children: [
-            const Icon(Icons.info_outline,
-                color: AppColors.primary, size: 18),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Scanne l\'EPG toutes les 4h et programme automatiquement les nouvelles diffusions. Seuls les nouveaux épisodes sont enregistrés.',
-                style: GoogleFonts.inter(
-                    color: AppColors.primaryFixedDim, fontSize: 12),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Enregistrements automatiques',
+                style: GoogleFonts.outfit(color: Colors.white54, fontSize: 13),
               ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purpleAccent,
+                ),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Nouveau'),
+                onPressed: _showCreate,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.purpleAccent.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.purpleAccent.withOpacity(0.2)),
             ),
-          ]),
-        ),
-        const SizedBox(height: 16),
-        Expanded(
-          child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _passes.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.repeat,
-                              size: 64, color: AppColors.outline.withOpacity(0.1)),
-                          const SizedBox(height: 16),
-                          Text('Aucun Season Pass actif',
-                              style: GoogleFonts.inter(
-                                  color: AppColors.outline, fontSize: 16)),
-                          const SizedBox(height: 8),
-                          Text(
-                              'Créez-en un pour enregistrer automatiquement vos émissions préférées',
-                              style: GoogleFonts.inter(
-                                  color: AppColors.outline, fontSize: 12),
-                              textAlign: TextAlign.center),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: _passes.length,
-                      itemBuilder: (ctx, i) {
-                        final p = _passes[i];
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: AppColors.primary.withOpacity(0.2)),
-                          ),
-                          child: ListTile(
-                            leading: const Icon(Icons.repeat,
-                                color: AppColors.primary),
-                            title: Text(p['show_title'] ?? '—',
-                                style: GoogleFonts.inter(
-                                    color: AppColors.onSurface,
-                                    fontWeight: FontWeight.w600)),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Chaîne : ${p['channel_id']}',
-                                    style: const TextStyle(
-                                        color: AppColors.onSurfaceVariant, fontSize: 11)),
-                                Text('Flux : ${p['stream_url']}',
-                                    style: const TextStyle(
-                                        color: AppColors.outline, fontSize: 10)),
-                              ],
-                            ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline,
-                                  color: AppColors.outline),
-                              tooltip: 'Supprimer',
-                              onPressed: () =>
-                                  _deletePass(p['id'], p['show_title'] ?? ''),
-                            ),
-                          ),
-                        );
-                      },
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.info_outline,
+                  color: Colors.purpleAccent,
+                  size: 18,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Scanne l\'EPG toutes les 4h et programme automatiquement les nouvelles diffusions. Seuls les nouveaux épisodes sont enregistrés.',
+                    style: GoogleFonts.outfit(
+                      color: Colors.purpleAccent.shade100,
+                      fontSize: 12,
                     ),
-        ),
-      ]),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _passes.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.repeat,
+                              size: 64,
+                              color: Color(0x1FFFFFFF),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Aucun Season Pass actif',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white38,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Créez-en un pour enregistrer automatiquement vos émissions préférées',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white24,
+                                fontSize: 12,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: _passes.length,
+                        itemBuilder: (ctx, i) {
+                          final p = _passes[i];
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.purpleAccent.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.purpleAccent.withOpacity(0.2),
+                              ),
+                            ),
+                            child: ListTile(
+                              leading: const Icon(
+                                Icons.repeat,
+                                color: Colors.purpleAccent,
+                              ),
+                              title: Text(
+                                p['show_title'] ?? '—',
+                                style: GoogleFonts.outfit(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Chaîne : ${p['channel_id']}',
+                                    style: const TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Flux : ${p['stream_url']}',
+                                    style: const TextStyle(
+                                      color: Colors.white38,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.white38,
+                                ),
+                                tooltip: 'Supprimer',
+                                onPressed: () =>
+                                    _deletePass(p['id'], p['show_title'] ?? ''),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+          ),
+        ],
+      ),
     );
   }
 }

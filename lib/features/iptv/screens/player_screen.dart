@@ -11,13 +11,10 @@ import '../providers/playback_positions_provider.dart';
 // ... (existing imports)
 // ... (existing imports)
 import '../../../core/models/playlist_config.dart';
-import '../../../core/models/iptv_models.dart';
-import '../../../core/widgets/tv_focusable_card.dart';
 import '../../../core/widgets/glass_container.dart';
 import '../../../core/theme/app_colors.dart';
-import '../widgets/epg_overlay.dart';
 
-enum StreamType { live, vod, series }
+enum StreamType { live, vod, series, recording }
 
 class PlayerScreen extends ConsumerStatefulWidget {
   final String streamId;
@@ -57,7 +54,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   StreamSubscription? _messageSubscription;
   final String _aspectRatio = 'contain';
   bool _isSeeking = false;
-  late final String _viewIdPrefix = DateTime.now().millisecondsSinceEpoch.toString();
+  late final String _viewIdPrefix =
+      DateTime.now().millisecondsSinceEpoch.toString();
   String _viewId = 'iptv-player';
   String? _currentStreamUrl;
   String _statusMessage = 'Loading...';
@@ -129,12 +127,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           currentStreamId,
           widget.containerExtension,
         );
+      } else if (widget.streamType == StreamType.recording) {
+        streamUrl = '${service.backendBaseUrl}/api/recordings/stream/$currentStreamId/playlist.m3u8';
       }
 
       // Store URL for Lite Player
       final isMobile = MediaQuery.of(context).size.width < 600;
       final isLiveTV = widget.streamType == StreamType.live;
-      
+
       // TURBO-START: Use direct MPEG-TS for Live TV on Desktop/Android for instant zapping
       if (isLiveTV && !isMobile) {
         streamUrl = service.getLiveStreamUrlTs(currentStreamId);
@@ -152,15 +152,23 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // Force player choice based on stream type:
       // - Live TV: Player Lite (simple TS playback with mpegts.js)
       // - VOD/Series: Player Standard (fuller controls, HLS support)
-      
+
       // Cache buster to force reload of updated player.html
       final cacheBuster = DateTime.now().millisecondsSinceEpoch;
 
-      final streamTypeParam = widget.streamType == StreamType.live ? 'live' : 'vod';
-      final playerFile = isMobile ? 'player_mobile.html' : (isLiveTV ? 'player_lite.html' : 'player.html');
-      
+      final streamTypeParam =
+          widget.streamType == StreamType.live ? 'live' : 'vod';
+      final playerFile = isMobile
+          ? 'player_mobile.html'
+          : (isLiveTV ? 'player_lite.html' : 'player.html');
+
       // Inject Turbo-Start flag
-      var playerSrc = '$playerFile?url=$encodedUrl&type=$streamTypeParam&turbo=true&v=$cacheBuster';
+      var playerSrc =
+          '$playerFile?url=$encodedUrl&type=$streamTypeParam&turbo=true&v=$cacheBuster';
+
+      if (widget.streamType == StreamType.recording) {
+        playerSrc += '&is_recording=true';
+      }
 
       if (startTimeOverride != null) {
         playerSrc += '&t=$startTimeOverride';
@@ -300,31 +308,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void _toggleFullscreen() {
     try {
       final doc = html.document;
-      final isFullscreen = doc.fullscreenElement != null || 
-                          (doc as dynamic).webkitFullscreenElement != null ||
-                          (doc as dynamic).mozFullScreenElement != null;
+      final isFullscreen = doc.fullscreenElement != null ||
+          (doc as dynamic).webkitFullscreenElement != null ||
+          (doc as dynamic).mozFullScreenElement != null;
 
       if (isFullscreen) {
-        if (doc.exitFullscreen != null) {
-          doc.exitFullscreen();
-        } else if ((doc as dynamic).webkitExitFullscreen != null) {
-          (doc as dynamic).webkitExitFullscreen();
-        } else if ((doc as dynamic).mozCancelFullScreen != null) {
-          (doc as dynamic).mozCancelFullScreen();
-        }
+        doc.exitFullscreen();
       } else {
         final element = doc.documentElement;
         if (element != null) {
-          if (element.requestFullscreen != null) {
-            element.requestFullscreen();
-          } else if ((element as dynamic).webkitRequestFullscreen != null) {
-            (element as dynamic).webkitRequestFullscreen();
-          } else if ((element as dynamic).mozRequestFullScreen != null) {
-            (element as dynamic).mozRequestFullScreen();
-          } else {
-            // Fallback: Message the player if browser API fails
-            _sendMessage({'type': 'request_fullscreen'});
-          }
+          element.requestFullscreen();
         }
       }
     } catch (e) {
@@ -442,16 +435,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                         children: [
                                           Text(
                                             widget.channels != null
-                                                ? (widget.channels![_currentIndex]
+                                                ? (widget
+                                                            .channels![
+                                                                _currentIndex]
                                                             .name ??
-                                                        widget.channels![
+                                                        widget
+                                                            .channels![
                                                                 _currentIndex]
                                                             .title ??
                                                         'Unknown')
                                                     .toString()
                                                 : widget.title,
-                                            style: GoogleFonts.inter(
-                                              color: AppColors.onSurface,
+                                            style: GoogleFonts.outfit(
+                                              color: AppColors.textPrimary,
                                               fontSize: 18,
                                               fontWeight: FontWeight.w600,
                                             ),
@@ -478,29 +474,34 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           // Unified Bottom Bar - EPG + Controls in one bar
                           AnimatedPositioned(
                             duration: const Duration(milliseconds: 200),
-                            bottom: _showControls ? 24 : -150, // More offset for stacked layout
+                            bottom: _showControls
+                                ? 24
+                                : -150, // More offset for stacked layout
                             left: 16,
                             right: 16,
                             child: LayoutBuilder(
                               builder: (context, constraints) {
-                                final isSmallScreen = constraints.maxWidth < 600;
+                                final isSmallScreen =
+                                    constraints.maxWidth < 600;
                                 return Container(
                                   padding: EdgeInsets.symmetric(
                                     horizontal: isSmallScreen ? 16 : 20,
                                     vertical: isSmallScreen ? 12 : 16,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF1A1A2E).withOpacity(0.95),
+                                    color: AppColors.surface.withOpacity(0.95),
                                     borderRadius: BorderRadius.circular(24),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: AppColors.background.withOpacity(0.3),
+                                        color: AppColors.background
+                                            .withOpacity(0.3),
                                         blurRadius: 10,
                                         spreadRadius: 2,
                                       ),
                                     ],
                                     border: Border.all(
-                                      color: Colors.white.withOpacity(0.15),
+                                      color: AppColors.textPrimary
+                                          .withOpacity(0.15),
                                     ),
                                   ),
                                   child: isSmallScreen
@@ -510,14 +511,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                             // EPG Info (top in mobile)
                                             _buildInlineEpg(),
                                             const SizedBox(height: 12),
-                                            const Divider(color: AppColors.outlineVariant),
+                                            const Divider(
+                                              color: Colors.white10,
+                                            ),
                                             const SizedBox(height: 8),
                                             // Control Buttons
                                             Row(
                                               mainAxisAlignment:
                                                   MainAxisAlignment.spaceEvenly,
                                               children: _buildControlButtons(
-                                                  isSmallScreen),
+                                                isSmallScreen,
+                                              ),
                                             ),
                                           ],
                                         )
@@ -532,7 +536,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                             Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: _buildControlButtons(
-                                                  isSmallScreen),
+                                                isSmallScreen,
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -554,7 +559,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
     // STANDARD PLAYER MODE (VOD/Series)
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.black,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -585,7 +590,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             Positioned.fill(
               child: PointerInterceptor(
                 child: Container(
-                  color: AppColors.background.withOpacity(0.4),
+                  color: Colors.black.withOpacity(0.4),
                   child: Stack(
                     children: [
                       // Top Bar
@@ -593,9 +598,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         top: 24,
                         left: 24,
                         right: 24,
-                        child: GlassContainer.glass(
+                        child: GlassContainer(
                           height: 72,
                           borderRadius: 24,
+                          opacity: 0.1,
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Row(
                             children: [
@@ -607,10 +613,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               Expanded(
                                 child: Text(
                                   widget.title,
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.outfit(
                                     fontSize: 20,
                                     fontWeight: FontWeight.w600,
-                                    color: AppColors.onSurface,
+                                    color: Colors.white,
                                   ),
                                 ),
                               ),
@@ -632,8 +638,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         bottom: 40,
                         left: 40,
                         right: 40,
-                        child: GlassContainer.glass(
+                        child: GlassContainer(
                           borderRadius: 24,
+                          opacity: 0.2, // Slightly more opaque for controls
+                          hasBorder: true,
+                          borderColor: Colors.white.withOpacity(0.1),
                           padding: const EdgeInsets.all(24),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -648,7 +657,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                       ),
                                     ),
                                     style: GoogleFonts.inter(
-                                      color: AppColors.onSurfaceVariant,
+                                      color: Colors.white70,
                                     ),
                                   ),
                                   const SizedBox(width: 16),
@@ -659,7 +668,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                         activeTrackColor: AppColors.primary,
                                         inactiveTrackColor:
                                             Colors.white.withOpacity(0.2),
-                                        thumbColor: AppColors.onSurface,
+                                        thumbColor: Colors.white,
                                         thumbShape: const RoundSliderThumbShape(
                                           enabledThumbRadius: 8,
                                         ),
@@ -700,7 +709,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                       ),
                                     ),
                                     style: GoogleFonts.inter(
-                                      color: AppColors.onSurfaceVariant,
+                                      color: Colors.white70,
                                     ),
                                   ),
                                 ],
@@ -796,7 +805,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 ? null
                 : Border.all(color: Colors.white.withOpacity(0.1)),
           ),
-          child: Icon(icon, color: AppColors.onSurface, size: iconSize),
+          child: Icon(icon, color: Colors.white, size: iconSize),
         ),
       ),
     );
@@ -847,7 +856,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         onTap: _toggleMute,
         size: buttonSize,
       ),
-
     ];
   }
 
@@ -887,7 +895,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           ),
           child: Icon(
             icon,
-            color: highlighted ? AppColors.primary : AppColors.onSurface,
+            color: highlighted ? AppColors.primary : Colors.white,
             size: iconSize,
           ),
         ),
@@ -919,13 +927,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.error,
+                      color: Colors.red,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: const Text(
                       'LIVE',
                       style: TextStyle(
-                        color: AppColors.onSurface,
+                        color: Colors.white,
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
@@ -937,8 +945,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       widget.channels != null
                           ? widget.channels![_currentIndex].name
                           : widget.title,
-                      style: GoogleFonts.inter(
-                        color: AppColors.onSurface,
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -967,13 +975,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.error,
+                    color: Colors.red,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Text(
                     'LIVE',
                     style: TextStyle(
-                      color: AppColors.onSurface,
+                      color: Colors.white,
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                     ),
@@ -987,8 +995,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                     children: [
                       Text(
                         currentProgram.title,
-                        style: GoogleFonts.inter(
-                          color: AppColors.onSurface,
+                        style: GoogleFonts.outfit(
+                          color: Colors.white,
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                         ),
@@ -999,7 +1007,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         Text(
                           currentProgram.description,
                           style: GoogleFonts.inter(
-                            color: AppColors.onSurfaceVariant,
+                            color: Colors.white60,
                             fontSize: 12,
                           ),
                           maxLines: 1,
@@ -1016,13 +1024,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.error,
+                  color: Colors.red,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Text(
                   'LIVE',
                   style: TextStyle(
-                    color: AppColors.onSurface,
+                    color: Colors.white,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
@@ -1033,8 +1041,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 widget.channels != null
                     ? widget.channels![_currentIndex].name
                     : widget.title,
-                style: GoogleFonts.inter(
-                  color: AppColors.onSurface,
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1045,8 +1053,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             widget.channels != null
                 ? widget.channels![_currentIndex].name
                 : widget.title,
-            style: GoogleFonts.inter(
-              color: AppColors.onSurface,
+            style: GoogleFonts.outfit(
+              color: Colors.white,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -1055,5 +1063,4 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       },
     );
   }
-
 }

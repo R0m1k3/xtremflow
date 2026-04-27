@@ -27,11 +27,11 @@ class AdminPanel extends StatelessWidget {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF0F1014),
-              Color(0xFF121317),
+              AppColors.surfaceVariant,
+              AppColors.background,
             ],
           ),
         ),
@@ -80,13 +80,13 @@ class _AdminContentState extends ConsumerState<AdminContent>
                   padding: const EdgeInsets.all(8),
                   showBorder: false,
                   onTap: () => context.go('/playlists'),
-                  child: const Icon(Icons.arrow_back, color: AppColors.onSurfaceVariant),
+                  child: const Icon(Icons.arrow_back, color: AppColors.textSecondary),
                 ),
                 const SizedBox(width: 16),
                 Text(
                   'Administration',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: AppColors.onSurface,
+                        color: AppColors.textPrimary,
                         fontWeight: FontWeight.bold,
                       ),
                 ),
@@ -136,10 +136,10 @@ class _AdminContentState extends ConsumerState<AdminContent>
         return GestureDetector(
           onTap: () => _tabController.animateTo(index),
           child: AnimatedContainer(
-            duration: AppTheme.durationFast,
+            duration: AppTheme.durationSm,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.primaryContainer : Colors.transparent,
+              color: isSelected ? AppColors.focusColor : Colors.transparent,
               borderRadius: BorderRadius.circular(50),
             ),
             child: Row(
@@ -147,7 +147,7 @@ class _AdminContentState extends ConsumerState<AdminContent>
                 Icon(
                   icon,
                   size: 18,
-                  color: isSelected ? AppColors.onPrimaryContainer : AppColors.onSurfaceVariant,
+                  color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -155,7 +155,7 @@ class _AdminContentState extends ConsumerState<AdminContent>
                   style: GoogleFonts.inter(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
-                    color: isSelected ? AppColors.onPrimaryContainer : AppColors.onSurfaceVariant,
+                    color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
                   ),
                 ),
               ],
@@ -187,7 +187,7 @@ class _PlaylistsTab extends ConsumerWidget {
                 style: Theme.of(context)
                     .textTheme
                     .bodyLarge
-                    ?.copyWith(color: AppColors.onSurfaceVariant),
+                    ?.copyWith(color: AppColors.textSecondary),
               ),
               GradientButton(
                 label: 'Add Playlist',
@@ -215,7 +215,7 @@ class _PlaylistsTab extends ConsumerWidget {
                       Icon(
                         Icons.playlist_remove,
                         size: 64,
-                        color: AppColors.onSurfaceVariant.withOpacity(0.5),
+                        color: AppColors.textSecondary.withOpacity(0.5),
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -252,7 +252,7 @@ class _PlaylistsTab extends ConsumerWidget {
                           ),
                           child: const Icon(
                             Icons.playlist_play,
-                            color: AppColors.onSurface,
+                            color: AppColors.textPrimary,
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -265,7 +265,7 @@ class _PlaylistsTab extends ConsumerWidget {
                                 style: Theme.of(context)
                                     .textTheme
                                     .titleMedium
-                                    ?.copyWith(color: AppColors.onSurface),
+                                    ?.copyWith(color: Colors.white),
                               ),
                               const SizedBox(height: 4),
                               Text(
@@ -273,7 +273,7 @@ class _PlaylistsTab extends ConsumerWidget {
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodyMedium
-                                    ?.copyWith(color: AppColors.onSurfaceVariant),
+                                    ?.copyWith(color: Colors.white60),
                               ),
                             ],
                           ),
@@ -282,7 +282,7 @@ class _PlaylistsTab extends ConsumerWidget {
                           children: [
                             IconButton(
                               icon: const Icon(Icons.edit_outlined, size: 20),
-                              color: AppColors.onSurfaceVariant,
+                              color: Colors.white70,
                               onPressed: () =>
                                   _showPlaylistDialog(context, ref, playlist),
                               tooltip: 'Edit',
@@ -462,7 +462,7 @@ class _UsersTab extends ConsumerWidget {
                 style: Theme.of(context)
                     .textTheme
                     .bodyLarge
-                    ?.copyWith(color: AppColors.onSurfaceVariant),
+                    ?.copyWith(color: AppColors.textSecondary),
               ),
               GradientButton(
                 label: 'Create User',
@@ -490,7 +490,7 @@ class _UsersTab extends ConsumerWidget {
                       Icon(
                         Icons.people_outline,
                         size: 64,
-                        color: AppColors.onSurfaceVariant.withOpacity(0.5),
+                        color: AppColors.textSecondary.withOpacity(0.5),
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -518,7 +518,7 @@ class _UsersTab extends ConsumerWidget {
                           height: 48,
                           decoration: BoxDecoration(
                             color: user.isAdmin
-                                ? AppColors.primaryContainer
+                                ? AppColors.focusColor
                                 : AppColors.surface,
                             shape: BoxShape.circle,
                           ),
@@ -527,8 +527,8 @@ class _UsersTab extends ConsumerWidget {
                                 ? Icons.admin_panel_settings
                                 : Icons.person,
                             color: user.isAdmin
-                                ? AppColors.onPrimaryContainer
-                                : AppColors.onSurface,
+                                ? Colors.black
+                                : AppColors.textPrimary,
                             size: 24,
                           ),
                         ),
@@ -544,7 +544,7 @@ class _UsersTab extends ConsumerWidget {
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium
-                                        ?.copyWith(color: AppColors.onSurface),
+                                        ?.copyWith(color: Colors.white),
                                   ),
                                   if (user.isAdmin) ...[
                                     const SizedBox(width: 8),
@@ -554,16 +554,16 @@ class _UsersTab extends ConsumerWidget {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppColors.primaryContainer
+                                        color: AppColors.focusColor
                                             .withOpacity(0.2),
                                         borderRadius: BorderRadius.circular(50),
                                       ),
-                                      child: Text(
+                                      child: const Text(
                                         'ADMIN',
                                         style: TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.bold,
-                                          color: AppColors.primaryContainer,
+                                          color: AppColors.focusColor,
                                         ),
                                       ),
                                     ),
@@ -576,7 +576,7 @@ class _UsersTab extends ConsumerWidget {
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodyMedium
-                                    ?.copyWith(color: AppColors.onSurfaceVariant),
+                                    ?.copyWith(color: Colors.white60),
                               ),
                             ],
                           ),
@@ -584,7 +584,7 @@ class _UsersTab extends ConsumerWidget {
                         PopupMenuButton<String>(
                           icon: const Icon(
                             Icons.more_vert,
-                            color: AppColors.onSurfaceVariant,
+                            color: Colors.white70,
                           ),
                           color: AppColors.surface,
                           shape: RoundedRectangleBorder(

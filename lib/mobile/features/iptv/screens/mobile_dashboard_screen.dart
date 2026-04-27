@@ -34,16 +34,23 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
             _currentIndex = index;
           });
         },
-        child: IndexedStack(
-          index: _currentIndex,
-          children: [
-            MobileLiveTVTab(playlist: widget.playlist),
-            MobileMoviesTab(playlist: widget.playlist),
-            MobileSeriesTab(playlist: widget.playlist),
-            const MobileSettingsTab(),
-          ],
-        ),
+        child: _buildActiveTab(),
       ),
     );
+  }
+
+  Widget _buildActiveTab() {
+    switch (_currentIndex) {
+      case 0:
+        return MobileLiveTVTab(playlist: widget.playlist);
+      case 1:
+        return MobileMoviesTab(playlist: widget.playlist);
+      case 2:
+        return MobileSeriesTab(playlist: widget.playlist);
+      case 3:
+        return const MobileSettingsTab();
+      default:
+        return MobileLiveTVTab(playlist: widget.playlist);
+    }
   }
 }

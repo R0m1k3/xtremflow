@@ -64,10 +64,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
       body: channelsAsync.when(
         loading: () => const ThemedLoading(),
         error: (e, s) => Center(
-          child: Text(
-            'Error: $e',
-            style: GoogleFonts.inter(color: AppColors.onSurface),
-          ),
+          child: Text('Error: $e', style: const TextStyle(color: Colors.white)),
         ),
         data: (groupedChannels) {
           var categories = groupedChannels.keys.toList();
@@ -76,6 +73,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                 .where((cat) => settings.matchesLiveTvFilter(cat))
                 .toList();
           }
+          // REMOVED: categories.sort(); - Respect API/Settings order
 
           List<Channel> displayedChannels = [];
           bool showingCategoryGrid = false;
@@ -98,11 +96,12 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
 
           return Column(
             children: [
-              // HEADER (Glass Level 1)
+              // HEADER (Glass)
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-                child: GlassContainer.glass(
+                child: GlassContainer(
                   borderRadius: 16,
+                  opacity: 0.6,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   child: Row(
@@ -121,13 +120,12 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                           child: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: AppColors.surfaceContainerHigh
-                                  .withOpacity(0.5),
+                              color: Colors.white.withOpacity(0.1),
                               shape: BoxShape.circle,
                             ),
-                            child: Icon(
+                            child: const Icon(
                               Icons.arrow_back,
-                              color: AppColors.onSurface,
+                              color: Colors.white,
                             ),
                           ),
                         ),
@@ -141,10 +139,10 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                               : _showFavoritesOnly
                                   ? 'Favorites'
                                   : _selectedCategory ?? 'Live TV',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: GoogleFonts.inter(
                             fontSize: 24,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.onSurface,
+                            color: Colors.white,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -156,22 +154,17 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                         width: 250,
                         height: 44,
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceContainerLow,
+                          color: Colors.white.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppColors.outlineVariant,
-                            width: 1,
-                          ),
                         ),
                         child: TextField(
                           controller: _searchController,
-                          style: GoogleFonts.inter(color: AppColors.onSurface),
+                          style: GoogleFonts.inter(color: Colors.white),
                           decoration: InputDecoration(
                             hintText: 'Search channels...',
-                            hintStyle:
-                                GoogleFonts.inter(color: AppColors.outline),
+                            hintStyle: GoogleFonts.inter(color: Colors.white54),
                             prefixIcon:
-                                Icon(Icons.search, color: AppColors.outline),
+                                const Icon(Icons.search, color: Colors.white54),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 16,
@@ -179,9 +172,9 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                             ),
                             suffixIcon: _searchQuery.isNotEmpty
                                 ? IconButton(
-                                    icon: Icon(
+                                    icon: const Icon(
                                       Icons.clear,
-                                      color: AppColors.onSurface,
+                                      color: Colors.white,
                                     ),
                                     onPressed: _searchController.clear,
                                   )
@@ -206,8 +199,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                           decoration: BoxDecoration(
                             color: _showFavoritesOnly
                                 ? AppColors.live.withOpacity(0.2)
-                                : AppColors.surfaceContainerHigh
-                                    .withOpacity(0.5),
+                                : Colors.white.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
                             border: _showFavoritesOnly
                                 ? Border.all(color: AppColors.live)
@@ -219,7 +211,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                                 : Icons.favorite_border,
                             color: _showFavoritesOnly
                                 ? AppColors.live
-                                : AppColors.onSurfaceVariant,
+                                : Colors.white,
                           ),
                         ),
                       ),
@@ -240,19 +232,20 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                                 Icon(
                                   Icons.tv_off,
                                   size: 64,
-                                  color: AppColors.outline,
+                                  color: Colors.white.withOpacity(0.3),
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
                                   'No channels found',
                                   style: GoogleFonts.inter(
-                                    color: AppColors.onSurfaceVariant,
+                                    color: Colors.white54,
                                     fontSize: 18,
                                   ),
                                 ),
                               ],
                             ),
                           )
+                        // Use raw grid for now, but wrapped in focusable cards
                         : _buildChannelGrid(displayedChannels),
               ),
             ],
@@ -295,20 +288,21 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
             });
           },
           borderRadius: 16,
-          child: GlassContainer.glass(
+          child: GlassContainer(
             borderRadius: 16,
-            padding: EdgeInsets.zero,
+            opacity: 0.2, // Darker glass
+            padding: const EdgeInsets.all(0),
             child: Stack(
               children: [
-                // Background Gradient
+                // Background Gradient - Apple TV Style
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        AppColors.surfaceContainerLow.withOpacity(0.5),
-                        AppColors.primary.withOpacity(0.03),
+                        AppColors.primary.withOpacity(0.15),
+                        AppColors.primary.withOpacity(0.05),
                       ],
                     ),
                   ),
@@ -319,7 +313,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                     children: [
                       Icon(
                         Icons.folder_copy_outlined,
-                        color: AppColors.onSurfaceVariant,
+                        color: Colors.white.withOpacity(0.9),
                         size: 32,
                       ),
                       const SizedBox(height: 12),
@@ -331,7 +325,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                           style: GoogleFonts.inter(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.onSurface,
+                            color: Colors.white,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -342,7 +336,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                         '$count Channels',
                         style: GoogleFonts.inter(
                           fontSize: 13,
-                          color: AppColors.outline,
+                          color: Colors.white54,
                         ),
                       ),
                     ],
@@ -371,7 +365,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
         crossAxisCount: columns,
         mainAxisSpacing: 16,
         crossAxisSpacing: 16,
-        childAspectRatio: 1.0,
+        childAspectRatio: 1.0, // Square-ish cards
       ),
       itemCount: channels.length,
       itemBuilder: (context, index) {
@@ -381,7 +375,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
           borderRadius: 12,
           child: Container(
             decoration: BoxDecoration(
-              color: AppColors.surfaceContainerLow,
+              color: AppColors.surfaceVariant,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Stack(
@@ -394,10 +388,12 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceContainer
-                              .withOpacity(0.5),
+                          color: Colors.white.withOpacity(
+                            0.05,
+                          ), // Subtle transparent background
                           borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(12)),
+                            top: Radius.circular(12),
+                          ),
                         ),
                         padding: const EdgeInsets.all(16),
                         child: Center(
@@ -406,16 +402,16 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                                   _getProxiedIconUrl(channel.streamIcon)!,
                                   errorBuilder: (_, __, ___) => Icon(
                                     Icons.tv,
-                                    color: AppColors.outline,
+                                    color: Colors.white.withOpacity(0.3),
                                     size: 40,
                                   ),
                                 )
                               : Text(
                                   channel.name.characters.first.toUpperCase(),
-                                  style: GoogleFonts.spaceGrotesk(
+                                  style: GoogleFonts.outfit(
                                     fontSize: 40,
                                     fontWeight: FontWeight.bold,
-                                    color: AppColors.outlineVariant,
+                                    color: Colors.white24,
                                   ),
                                 ),
                         ),
@@ -424,19 +420,17 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                     // Footer
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceContainerHigh.withOpacity(0.9),
-                        borderRadius: const BorderRadius.vertical(
-                            bottom: Radius.circular(12)),
+                        horizontal: 12,
+                        vertical: 8,
                       ),
+                      color: Colors.black54,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             channel.name,
                             style: GoogleFonts.inter(
-                              color: AppColors.onSurface,
+                              color: Colors.white,
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                             ),
@@ -461,7 +455,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                                     return Text(
                                       'No Info',
                                       style: GoogleFonts.inter(
-                                        color: AppColors.outline,
+                                        color: Colors.white54,
                                         fontSize: 10,
                                       ),
                                     );
@@ -474,8 +468,9 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                                             EpgEntry.parseDateTime(entry.start);
                                         final end =
                                             EpgEntry.parseDateTime(entry.end);
-                                        if (start == null || end == null)
+                                        if (start == null || end == null) {
                                           return false;
+                                        }
                                         return now.isAfter(start) &&
                                             now.isBefore(end);
                                       } catch (e) {
@@ -488,7 +483,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                                   return Text(
                                     currentProgram.title,
                                     style: GoogleFonts.inter(
-                                      color: AppColors.ratingGold,
+                                      color: const Color(0xFFFFD700),
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -499,14 +494,14 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                                 loading: () => Text(
                                   '...',
                                   style: GoogleFonts.inter(
-                                    color: AppColors.outlineVariant,
+                                    color: Colors.white24,
                                     fontSize: 10,
                                   ),
                                 ),
                                 error: (_, __) => Text(
                                   'Err',
                                   style: GoogleFonts.inter(
-                                    color: AppColors.error,
+                                    color: Colors.red,
                                     fontSize: 10,
                                   ),
                                 ),
@@ -518,7 +513,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                     ),
                   ],
                 ),
-                // Record Button Icon Overlay
+                // Record Button Icon Overlay (Positioned top right)
                 Positioned(
                   top: 8,
                   right: 8,
@@ -531,12 +526,12 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: AppColors.background.withOpacity(0.5),
+                        color: Colors.black.withOpacity(0.5),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
                         Icons.fiber_manual_record,
-                        color: AppColors.error,
+                        color: Colors.redAccent,
                         size: 16,
                       ),
                     ),

@@ -469,7 +469,7 @@ class AppDatabase {
         startTime.toIso8601String(),
         endTime.toIso8601String(),
         now,
-        now
+        now,
       ],
     );
 
@@ -489,7 +489,8 @@ class AppDatabase {
 
   /// Lister tous les enregistrements (pour le Scheduler et l'admin)
   List<Recording> getAllRecordings() {
-    final result = _db.select('SELECT * FROM tv_recordings ORDER BY start_time ASC');
+    final result =
+        _db.select('SELECT * FROM tv_recordings ORDER BY start_time ASC');
     return result.map((row) => Recording.fromMap(row)).toList();
   }
 
@@ -510,7 +511,12 @@ class AppDatabase {
   }
 
   /// Mettre à jour le statut et éventuellement le chemin d'un enregistrement
-  void updateRecordingStatus(String id, String status, {String? filePath, String? errorReason}) {
+  void updateRecordingStatus(
+    String id,
+    String status, {
+    String? filePath,
+    String? errorReason,
+  }) {
     final now = DateTime.now().toIso8601String();
     _db.execute(
       '''
@@ -542,12 +548,22 @@ class AppDatabase {
       'INSERT INTO season_passes (id, user_id, show_title, channel_id, stream_url, created_at) VALUES (?, ?, ?, ?, ?, ?)',
       [id, userId, showTitle, channelId, streamUrl, now],
     );
-    return {'id': id, 'user_id': userId, 'show_title': showTitle, 'channel_id': channelId, 'stream_url': streamUrl, 'enabled': 1, 'created_at': now};
+    return {
+      'id': id,
+      'user_id': userId,
+      'show_title': showTitle,
+      'channel_id': channelId,
+      'stream_url': streamUrl,
+      'enabled': 1,
+      'created_at': now,
+    };
   }
 
   /// Lister tous les Season Passes
   List<Map<String, dynamic>> getAllSeasonPasses() {
-    final result = _db.select('SELECT * FROM season_passes WHERE enabled = 1 ORDER BY created_at DESC');
+    final result = _db.select(
+      'SELECT * FROM season_passes WHERE enabled = 1 ORDER BY created_at DESC',
+    );
     return result.map((r) => Map<String, dynamic>.from(r)).toList();
   }
 
