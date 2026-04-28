@@ -598,10 +598,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         top: 24,
                         left: 24,
                         right: 24,
-                        child: GlassContainer(
+                        child: GlassContainer.glass(
                           height: 72,
                           borderRadius: 24,
-                          opacity: 0.1,
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Row(
                             children: [
@@ -638,10 +637,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         bottom: 40,
                         left: 40,
                         right: 40,
-                        child: GlassContainer(
+                        child: GlassContainer.glass(
                           borderRadius: 24,
-                          opacity: 0.2, // Slightly more opaque for controls
-                          hasBorder: true,
                           borderColor: Colors.white.withOpacity(0.1),
                           padding: const EdgeInsets.all(24),
                           child: Column(
