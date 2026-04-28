@@ -144,9 +144,8 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                 // Header & Search
                 Padding(
                   padding: const EdgeInsets.all(16),
-                  child: GlassContainer(
+                  child: GlassContainer.glass(
                     borderRadius: 16,
-                    opacity: 0.1,
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Row(
@@ -352,9 +351,8 @@ class _MobileChannelTile extends StatelessWidget {
             ? '/api/xtream/${channel.streamIcon}'
             : null;
 
-    return GlassContainer(
+    return GlassContainer.glass(
       borderRadius: 12,
-      opacity: 0.15,
       padding: EdgeInsets.zero,
       child: InkWell(
         onTap: onTap,

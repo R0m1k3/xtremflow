@@ -31,7 +31,12 @@ class AppTheme {
   // ============ ANIMATION ============
   static const Duration durationFast = Duration(milliseconds: 200);
   static const Duration durationNormal = Duration(milliseconds: 300);
+  static const Duration durationSm = Duration(milliseconds: 200);
+  static const Duration durationMd = Duration(milliseconds: 300);
+  static const Duration durationLg = Duration(milliseconds: 400);
+  static const Duration durationXl = Duration(milliseconds: 500);
   static const Curve curveDefault = Curves.fastOutSlowIn;
+  static const Curve curveSmooth = Curves.fastOutSlowIn;
 
   // ============ TYPOGRAPHY HELPERS ============
   static TextStyle _spaceGrotesk({

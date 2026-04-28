@@ -163,11 +163,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 48),
 
                   // Login Form Container
-                  GlassContainer(
+                  GlassContainer.floating(
                     width: 500,
                     padding: const EdgeInsets.all(48), // Spacious padding
                     borderRadius: 24,
-                    opacity: 0.7,
                     child: Form(
                       key: _formKey,
                       child: Column(
@@ -332,7 +331,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.focusColor, width: 2),
+          borderSide: BorderSide(color: AppColors.focusColor, width: 2),
         ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 20, vertical: 20),

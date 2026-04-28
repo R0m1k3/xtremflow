@@ -558,7 +558,7 @@ class _UsersTab extends ConsumerWidget {
                                             .withOpacity(0.2),
                                         borderRadius: BorderRadius.circular(50),
                                       ),
-                                      child: const Text(
+                                      child: Text(
                                         'ADMIN',
                                         style: TextStyle(
                                           fontSize: 10,

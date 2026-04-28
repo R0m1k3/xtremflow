@@ -99,9 +99,8 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
               // HEADER (Glass)
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-                child: GlassContainer(
+                child: GlassContainer.glass(
                   borderRadius: 16,
-                  opacity: 0.6,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   child: Row(
@@ -288,9 +287,8 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
             });
           },
           borderRadius: 16,
-          child: GlassContainer(
+          child: GlassContainer.base(
             borderRadius: 16,
-            opacity: 0.2, // Darker glass
             padding: const EdgeInsets.all(0),
             child: Stack(
               children: [

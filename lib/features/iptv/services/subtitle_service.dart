@@ -170,7 +170,7 @@ class SubtitleService {
     final minutes = int.parse(parts[1]);
     final secondsParts = parts[2].split('.');
     final seconds = int.parse(secondsParts[0]);
-    final milliseconds = int.parse(secondsParts[1].padEnd(3, '0'));
+    final milliseconds = int.parse(secondsParts[1].padRight(3, '0'));
 
     return Duration(
       hours: hours,
