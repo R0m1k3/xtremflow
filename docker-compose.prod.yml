@@ -1,0 +1,17 @@
+services:
+  xtremflow:
+    image: ghcr.io/r0m1k3/xtremflow:latest
+    container_name: xtremflow
+    ports:
+      - "8089:8089"
+    environment:
+      - ALLOWED_ORIGIN=https://xtrem.vonrodbox.eu
+      - MAX_CONCURRENT_RECORDINGS=2
+      - NVIDIA_GPU=true
+    volumes:
+      - xtremflow-data:/app/data
+      - /mnt/user/Data/Sport:/app/recordings
+    restart: unless-stopped
+
+volumes:
+  xtremflow-data:
