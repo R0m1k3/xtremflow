@@ -535,7 +535,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                                         'Unknown')
                                                     .toString()
                                                 : widget.title,
-                                            style: GoogleFonts.outfit(
+                                            style: GoogleFonts.syne(
                                               color: AppColors.textPrimary,
                                               fontSize: 18,
                                               fontWeight: FontWeight.w600,
@@ -544,7 +544,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                           ),
                                           Text(
                                             'Live TV',
-                                            style: GoogleFonts.inter(
+                                            style: GoogleFonts.instrumentSans(
                                               color: AppColors.primary,
                                               fontSize: 12,
                                               fontWeight: FontWeight.bold,
@@ -706,7 +706,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               Expanded(
                                 child: Text(
                                   widget.title,
-                                  style: GoogleFonts.outfit(
+                                  style: GoogleFonts.syne(
                                     fontSize: 20,
                                     fontWeight: FontWeight.w600,
                                     color: Colors.white,
@@ -747,7 +747,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                         seconds: _currentPosition.toInt(),
                                       ),
                                     ),
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.instrumentSans(
                                       color: Colors.white70,
                                     ),
                                   ),
@@ -799,7 +799,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                         seconds: _totalDuration.toInt(),
                                       ),
                                     ),
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.instrumentSans(
                                       color: Colors.white70,
                                     ),
                                   ),
@@ -1060,7 +1060,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       widget.channels != null
                           ? widget.channels![_currentIndex].name
                           : widget.title,
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.syne(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -1110,7 +1110,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                     children: [
                       Text(
                         currentProgram.title,
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.syne(
                           color: Colors.white,
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
@@ -1121,7 +1121,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       if (currentProgram.description.isNotEmpty)
                         Text(
                           currentProgram.description,
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.instrumentSans(
                             color: Colors.white60,
                             fontSize: 12,
                           ),
@@ -1156,7 +1156,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 widget.channels != null
                     ? widget.channels![_currentIndex].name
                     : widget.title,
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.syne(
                   color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -1168,7 +1168,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             widget.channels != null
                 ? widget.channels![_currentIndex].name
                 : widget.title,
-            style: GoogleFonts.outfit(
+            style: GoogleFonts.syne(
               color: Colors.white,
               fontSize: 16,
               fontWeight: FontWeight.w600,

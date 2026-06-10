@@ -137,7 +137,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                               : _showFavoritesOnly
                                   ? 'Favorites'
                                   : _selectedCategory ?? 'Live TV',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.instrumentSans(
                             fontSize: 24,
                             fontWeight: FontWeight.w700,
                             color: Colors.white,
@@ -157,10 +157,10 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                         ),
                         child: TextField(
                           controller: _searchController,
-                          style: GoogleFonts.inter(color: Colors.white),
+                          style: GoogleFonts.instrumentSans(color: Colors.white),
                           decoration: InputDecoration(
                             hintText: 'Search channels...',
-                            hintStyle: GoogleFonts.inter(color: Colors.white54),
+                            hintStyle: GoogleFonts.instrumentSans(color: Colors.white54),
                             prefixIcon:
                                 const Icon(Icons.search, color: Colors.white54),
                             border: InputBorder.none,
@@ -235,7 +235,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                                 const SizedBox(height: 16),
                                 Text(
                                   'No channels found',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.instrumentSans(
                                     color: Colors.white54,
                                     fontSize: 18,
                                   ),
@@ -319,7 +319,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                         child: Text(
                           category,
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.instrumentSans(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
@@ -331,7 +331,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                       const SizedBox(height: 4),
                       Text(
                         '$count Channels',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.instrumentSans(
                           fontSize: 13,
                           color: Colors.white54,
                         ),
@@ -406,7 +406,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                                 )
                               : Text(
                                   channel.name.characters.first.toUpperCase(),
-                                  style: GoogleFonts.outfit(
+                                  style: GoogleFonts.syne(
                                     fontSize: 40,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white24,
@@ -427,7 +427,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                         children: [
                           Text(
                             channel.name,
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.instrumentSans(
                               color: Colors.white,
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
@@ -452,7 +452,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                                   if (epgList.isEmpty) {
                                     return Text(
                                       'No Info',
-                                      style: GoogleFonts.inter(
+                                      style: GoogleFonts.instrumentSans(
                                         color: Colors.white54,
                                         fontSize: 10,
                                       ),
@@ -480,7 +480,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
 
                                   return Text(
                                     currentProgram.title,
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.instrumentSans(
                                       color: AppColors.ratingGold,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
@@ -491,14 +491,14 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                                 },
                                 loading: () => Text(
                                   '...',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.instrumentSans(
                                     color: Colors.white24,
                                     fontSize: 10,
                                   ),
                                 ),
                                 error: (_, __) => Text(
                                   'Err',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.instrumentSans(
                                     color: Colors.red,
                                     fontSize: 10,
                                   ),

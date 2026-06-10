@@ -1,4 +1,4 @@
-
+﻿
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -140,7 +140,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                             children: [
                               Text(
                                 item.title,
-                                style: GoogleFonts.spaceGrotesk(
+                                style: GoogleFonts.syne(
                                   fontSize: 32,
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.onSurface,
@@ -152,7 +152,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                                 const SizedBox(height: 8),
                                 Text(
                                   item.subtitle!,
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.instrumentSans(
                                     fontSize: 16,
                                     color: AppColors.onSurface,
                                   ),
@@ -245,7 +245,7 @@ class _HeroButtonState extends State<_HeroButton> {
               const SizedBox(width: 8),
               Text(
                 widget.label,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.instrumentSans(
                   color: AppColors.onSurface,
                   fontWeight: FontWeight.w600,
                 ),

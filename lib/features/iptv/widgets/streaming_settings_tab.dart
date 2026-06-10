@@ -19,7 +19,7 @@ class StreamingSettingsTab extends ConsumerWidget {
         // Header
         Text(
           'Paramètres Streaming Live TV',
-          style: GoogleFonts.inter(
+          style: GoogleFonts.instrumentSans(
             fontSize: 18,
             fontWeight: FontWeight.bold,
             color: AppColors.onSurface,
@@ -28,7 +28,7 @@ class StreamingSettingsTab extends ConsumerWidget {
         const SizedBox(height: 8),
         Text(
           'Ces paramètres s\'appliquent uniquement aux flux TV en direct.',
-          style: GoogleFonts.inter(
+          style: GoogleFonts.instrumentSans(
             fontSize: 12,
             color: AppColors.onSurfaceVariant,
           ),
@@ -105,14 +105,14 @@ class StreamingSettingsTab extends ConsumerWidget {
             SwitchListTile(
               title: Text(
                 'Reconnexion automatique',
-                style: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurface),
+                style: GoogleFonts.instrumentSans(fontSize: 14, color: AppColors.onSurface),
               ),
               subtitle: Text(
                 'Se reconnecter en cas de coupure',
-                style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant),
+                style: GoogleFonts.instrumentSans(fontSize: 12, color: AppColors.onSurfaceVariant),
               ),
               value: settings.autoReconnect,
-              activeThumbColor: Colors.blueAccent,
+              activeThumbColor: AppColors.primaryContainer,
               onChanged: (v) => notifier.setAutoReconnect(v),
             ),
           ],
@@ -141,14 +141,14 @@ class StreamingSettingsTab extends ConsumerWidget {
             SwitchListTile(
               title: Text(
                 'Préférer lecture directe',
-                style: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurface),
+                style: GoogleFonts.instrumentSans(fontSize: 14, color: AppColors.onSurface),
               ),
               subtitle: Text(
                 'Utiliser le flux original si compatible',
-                style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant),
+                style: GoogleFonts.instrumentSans(fontSize: 12, color: AppColors.onSurfaceVariant),
               ),
               value: settings.preferDirectPlay,
-              activeThumbColor: Colors.blueAccent,
+              activeThumbColor: AppColors.primaryContainer,
               onChanged: (v) => notifier.setPreferDirectPlay(v),
             ),
           ],
@@ -186,11 +186,11 @@ class StreamingSettingsTab extends ConsumerWidget {
             SwitchListTile(
               title: Text(
                 'Accélération NVIDIA GPU',
-                style: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurface),
+                style: GoogleFonts.instrumentSans(fontSize: 14, color: AppColors.onSurface),
               ),
               subtitle: Text(
                 'Utiliser NVENC/NVDEC pour le transcodage (requiert GPU NVIDIA)',
-                style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant),
+                style: GoogleFonts.instrumentSans(fontSize: 12, color: AppColors.onSurfaceVariant),
               ),
               value: settings.enableNvidiaGpu,
               activeThumbColor: Colors.green,
@@ -204,20 +204,20 @@ class StreamingSettingsTab extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.blue.withOpacity(0.1),
+            color: AppColors.primary.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.blue.withOpacity(0.3)),
+            border: Border.all(color: AppColors.primary.withOpacity(0.3)),
           ),
           child: Row(
             children: [
-              const Icon(Icons.info_outline, color: Colors.blue),
+              const Icon(Icons.info_outline, color: AppColors.primary),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Les changements prennent effet immédiatement pour les nouveaux flux.',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.instrumentSans(
                     fontSize: 12,
-                    color: Colors.blue.shade700,
+                    color: AppColors.primary,
                   ),
                 ),
               ),
@@ -247,11 +247,11 @@ class StreamingSettingsTab extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Icon(icon, size: 20, color: Colors.blueAccent),
+                Icon(icon, size: 20, color: AppColors.primaryContainer),
                 const SizedBox(width: 8),
                 Text(
                   title,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.instrumentSans(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: AppColors.onSurface,
@@ -278,11 +278,11 @@ class StreamingSettingsTab extends ConsumerWidget {
     return ListTile(
       title: Text(
         title,
-        style: GoogleFonts.inter(fontSize: 14, color: AppColors.onSurface),
+        style: GoogleFonts.instrumentSans(fontSize: 14, color: AppColors.onSurface),
       ),
       subtitle: Text(
         subtitle,
-        style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant),
+        style: GoogleFonts.instrumentSans(fontSize: 12, color: AppColors.onSurfaceVariant),
       ),
       trailing: DropdownButton<T>(
         value: value,
@@ -293,12 +293,12 @@ class StreamingSettingsTab extends ConsumerWidget {
             value: item,
             child: Text(
               labelBuilder(item),
-              style: GoogleFonts.inter(fontSize: 13, color: AppColors.onSurface),
+              style: GoogleFonts.instrumentSans(fontSize: 13, color: AppColors.onSurface),
             ),
           );
         }).toList(),
         onChanged: onChanged,
-        style: GoogleFonts.inter(color: AppColors.onSurface),
+        style: GoogleFonts.instrumentSans(color: AppColors.onSurface),
         iconEnabledColor: AppColors.onSurfaceVariant,
       ),
     );

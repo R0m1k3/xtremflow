@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
@@ -60,9 +60,9 @@ class MobileScaffold extends ConsumerWidget {
           selectedItemColor: AppColors.primary,
           unselectedItemColor: AppColors.textSecondary,
           selectedLabelStyle:
-              GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 11),
+              GoogleFonts.instrumentSans(fontWeight: FontWeight.w600, fontSize: 11),
           unselectedLabelStyle:
-              GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 11),
+              GoogleFonts.instrumentSans(fontWeight: FontWeight.w500, fontSize: 11),
           items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.live_tv_rounded),

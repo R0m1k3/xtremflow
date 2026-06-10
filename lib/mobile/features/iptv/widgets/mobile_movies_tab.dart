@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -180,7 +180,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
             id: m.streamId,
             title: m.name,
             imageUrl: _getProxiedImageUrl(m.streamIcon, ref),
-            subtitle: m.rating != null ? '${_formatRating(m.rating)} ★' : null,
+            subtitle: m.rating != null ? '${_formatRating(m.rating)} â˜…' : null,
             onMoreInfo: () => _playMovie(m, displayMovies),
           ),
         )
@@ -206,13 +206,13 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                     Expanded(
                       child: TextField(
                         controller: _searchController,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.instrumentSans(
                           fontSize: 14,
                           color: AppColors.onSurface,
                         ),
                         decoration: InputDecoration(
                           hintText: 'Search Movies...',
-                          hintStyle: GoogleFonts.inter(color: AppColors.onSurfaceVariant),
+                          hintStyle: GoogleFonts.instrumentSans(color: AppColors.onSurfaceVariant),
                           border: InputBorder.none,
                           isDense: true,
                           contentPadding: const EdgeInsets.only(bottom: 11),
@@ -346,7 +346,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                             children: [
                               Text(
                                 movie.name,
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.instrumentSans(
                                   color: AppColors.onSurface,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
@@ -357,7 +357,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                               if (isWatched)
                                 Text(
                                   'WATCHED',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.instrumentSans(
                                     color: AppColors.primary,
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
@@ -389,7 +389,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                                   const SizedBox(width: 4),
                                   Text(
                                     _formatRating(movie.rating)!,
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.instrumentSans(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                       color: AppColors.onSurface,

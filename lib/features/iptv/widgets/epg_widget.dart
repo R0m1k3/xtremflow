@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/playlist_config.dart';
@@ -99,7 +99,7 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
                   ),
                   child: Text(
                     'LIVE',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.instrumentSans(
                       fontSize: 9,
                       fontWeight: FontWeight.bold,
                       color: AppColors.onSurface,

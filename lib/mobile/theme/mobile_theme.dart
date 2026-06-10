@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 
@@ -32,69 +32,69 @@ class MobileTheme {
 
       // Typography: Scaled down for mobile
       textTheme: TextTheme(
-        displayLarge: GoogleFonts.spaceGrotesk(
+        displayLarge: GoogleFonts.syne(
           fontSize: 32,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.02,
           height: 1.1,
           color: AppColors.onSurface,
         ),
-        displayMedium: GoogleFonts.spaceGrotesk(
+        displayMedium: GoogleFonts.syne(
           fontSize: 28,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.01,
           height: 1.2,
           color: AppColors.onSurface,
         ),
-        displaySmall: GoogleFonts.spaceGrotesk(
+        displaySmall: GoogleFonts.syne(
           fontSize: 22,
           fontWeight: FontWeight.w500,
           height: 1.3,
           color: AppColors.onSurface,
         ),
-        headlineMedium: GoogleFonts.spaceGrotesk(
+        headlineMedium: GoogleFonts.syne(
           fontSize: 20,
           fontWeight: FontWeight.w500,
           height: 1.3,
           color: AppColors.onSurface,
         ),
-        titleLarge: GoogleFonts.spaceGrotesk(
+        titleLarge: GoogleFonts.syne(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: AppColors.onSurface,
         ),
-        titleMedium: GoogleFonts.inter(
+        titleMedium: GoogleFonts.instrumentSans(
           fontSize: 16,
           fontWeight: FontWeight.w600,
           color: AppColors.onSurface,
         ),
-        bodyLarge: GoogleFonts.inter(
+        bodyLarge: GoogleFonts.instrumentSans(
           fontSize: 16,
           fontWeight: FontWeight.w400,
           height: 1.5,
           color: AppColors.onSurfaceVariant,
         ),
-        bodyMedium: GoogleFonts.inter(
+        bodyMedium: GoogleFonts.instrumentSans(
           fontSize: 14,
           fontWeight: FontWeight.w400,
           height: 1.5,
           color: AppColors.onSurfaceVariant,
         ),
-        labelLarge: GoogleFonts.inter(
+        labelLarge: GoogleFonts.instrumentSans(
           fontSize: 14,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.05,
           height: 1.2,
           color: AppColors.onSurface,
         ),
-        labelMedium: GoogleFonts.inter(
+        labelMedium: GoogleFonts.instrumentSans(
           fontSize: 12,
           fontWeight: FontWeight.w500,
           letterSpacing: 0.02,
           height: 1.2,
           color: AppColors.onSurface,
         ),
-        labelSmall: GoogleFonts.inter(
+        labelSmall: GoogleFonts.instrumentSans(
           fontSize: 11,
           fontWeight: FontWeight.w500,
           letterSpacing: 0.02,
@@ -110,7 +110,7 @@ class MobileTheme {
         elevation: 0,
         centerTitle: true,
         scrolledUnderElevation: 0,
-        titleTextStyle: GoogleFonts.spaceGrotesk(
+        titleTextStyle: GoogleFonts.syne(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: AppColors.onSurface,
@@ -122,11 +122,11 @@ class MobileTheme {
         backgroundColor: AppColors.surfaceContainerLow.withOpacity(0.9),
         selectedItemColor: AppColors.onSurface,
         unselectedItemColor: AppColors.outline,
-        selectedLabelStyle: GoogleFonts.inter(
+        selectedLabelStyle: GoogleFonts.instrumentSans(
           fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
-        unselectedLabelStyle: GoogleFonts.inter(
+        unselectedLabelStyle: GoogleFonts.instrumentSans(
           fontSize: 11,
           fontWeight: FontWeight.w500,
         ),
@@ -157,7 +157,7 @@ class MobileTheme {
             width: 2,
           ),
         ),
-        hintStyle: GoogleFonts.inter(
+        hintStyle: GoogleFonts.instrumentSans(
           color: AppColors.outline,
           fontSize: 14,
         ),
@@ -173,7 +173,7 @@ class MobileTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusMd),
           ),
-          textStyle: GoogleFonts.inter(
+          textStyle: GoogleFonts.instrumentSans(
             fontWeight: FontWeight.w600,
             fontSize: 14,
           ),

@@ -64,7 +64,7 @@ class QualitySelectorButton extends StatelessWidget {
                           Text(
                             q.label,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.instrumentSans(
                               color: AppColors.textPrimary,
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
@@ -73,7 +73,7 @@ class QualitySelectorButton extends StatelessWidget {
                           Text(
                             q.description,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.instrumentSans(
                               color: AppColors.textTertiary,
                               fontSize: 11,
                             ),

@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
@@ -220,7 +220,7 @@ class _HeroCarouselState extends State<HeroCarousel>
             ),
             child: Text(
               item.badge!,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.instrumentSans(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: AppColors.primary,
@@ -233,7 +233,7 @@ class _HeroCarouselState extends State<HeroCarousel>
           item.title,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.outfit(
+          style: GoogleFonts.syne(
             fontSize: 48,
             fontWeight: FontWeight.w800,
             color: AppColors.textPrimary,
@@ -247,7 +247,7 @@ class _HeroCarouselState extends State<HeroCarousel>
             item.subtitle!,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.instrumentSans(
               fontSize: 16,
               fontWeight: FontWeight.w400,
               color: AppColors.textSecondary,
@@ -292,7 +292,7 @@ class _HeroCarouselState extends State<HeroCarousel>
                           const SizedBox(width: 8),
                           Text(
                             'Play',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.instrumentSans(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: AppColors.primary,
@@ -330,7 +330,7 @@ class _HeroCarouselState extends State<HeroCarousel>
                         const SizedBox(width: 8),
                         Text(
                           'More Info',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.instrumentSans(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,

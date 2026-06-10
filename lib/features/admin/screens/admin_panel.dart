@@ -152,7 +152,7 @@ class _AdminContentState extends ConsumerState<AdminContent>
                 const SizedBox(width: 8),
                 Text(
                   label,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.instrumentSans(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
                     color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,

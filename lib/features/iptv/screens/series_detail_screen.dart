@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -143,7 +143,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 // Title
                 Text(
                   _seriesInfo!.name,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.instrumentSans(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: AppColors.onSurface,
@@ -178,7 +178,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 // Season selector
                 Text(
                   'Seasons',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.instrumentSans(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppColors.onSurface,
@@ -200,7 +200,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                       },
                       selectedColor: AppColors.primaryContainer,
                       backgroundColor: AppColors.surfaceContainer,
-                      labelStyle: GoogleFonts.inter(
+                      labelStyle: GoogleFonts.instrumentSans(
                         color: isSelected ? AppColors.onPrimary : AppColors.onSurfaceVariant,
                         fontSize: 12,
                       ),
@@ -224,7 +224,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Text(
                   'Season $_selectedSeason - ${currentEpisodes.length} Episodes',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.instrumentSans(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: AppColors.onSurface,
@@ -323,7 +323,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                       ? const Icon(Icons.check, color: AppColors.onSurface, size: 20)
                       : Text(
                           '${episode.episodeNum}',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.instrumentSans(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: AppColors.onSurface,

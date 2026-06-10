@@ -155,7 +155,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
                   const SizedBox(width: 12),
                   Text(
                     'Thème',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.instrumentSans(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: AppColors.onSurface,
@@ -212,7 +212,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             ),
             title: Text(
               'Mode actuel',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.instrumentSans(
                 fontWeight: FontWeight.w500,
                 color: AppColors.onSurface,
               ),
@@ -279,7 +279,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
                 children: [
                   Text(
                     title,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.instrumentSans(
                       fontWeight: FontWeight.w600,
                       color: isSelected
                           ? colorScheme.primary
@@ -288,7 +288,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
                   ),
                   Text(
                     subtitle,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.instrumentSans(
                       fontSize: 12,
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -327,11 +327,11 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             leading: const Icon(Icons.person, color: AppColors.onSurface),
             title: Text(
               'Connecté en tant que',
-              style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant),
+              style: GoogleFonts.instrumentSans(fontSize: 12, color: AppColors.onSurfaceVariant),
             ),
             subtitle: Text(
               currentUser?.username ?? 'Unknown',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.instrumentSans(
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurface,
               ),
@@ -340,7 +340,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
                 ? Chip(
                     label: Text(
                       'Admin',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.instrumentSans(
                         fontSize: 11,
                         color: AppColors.onPrimaryContainer,
                       ),
@@ -355,7 +355,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
         // Category filters section
         Text(
           'Filtres de Catégories',
-          style: GoogleFonts.inter(
+          style: GoogleFonts.instrumentSans(
             fontWeight: FontWeight.bold,
             fontSize: 16,
             color: AppColors.onSurface,
@@ -364,7 +364,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
         const SizedBox(height: 4),
         Text(
           'Seules les catégories contenant un de ces mots-clés seront affichées. Séparez par des virgules.',
-          style: GoogleFonts.inter(
+          style: GoogleFonts.instrumentSans(
             fontSize: 12,
             color: AppColors.onSurfaceVariant,
           ),
@@ -430,7 +430,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             leading: const Icon(Icons.playlist_play, color: AppColors.onSurface),
             title: Text(
               'Changer de Playlist',
-              style: GoogleFonts.inter(color: AppColors.onSurface),
+              style: GoogleFonts.instrumentSans(color: AppColors.onSurface),
             ),
             trailing: const Icon(Icons.chevron_right, color: AppColors.onSurfaceVariant),
             onTap: () => context.go('/playlists'),
@@ -449,11 +449,11 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             leading: const Icon(Icons.info_outline, color: AppColors.onSurface),
             title: Text(
               'À propos',
-              style: GoogleFonts.inter(color: AppColors.onSurface),
+              style: GoogleFonts.instrumentSans(color: AppColors.onSurface),
             ),
             subtitle: Text(
               'XtremFlow IPTV v1.0.0',
-              style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant),
+              style: GoogleFonts.instrumentSans(fontSize: 12, color: AppColors.onSurfaceVariant),
             ),
           ),
         ),
@@ -470,11 +470,11 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             leading: const Icon(Icons.cleaning_services, color: AppColors.warning),
             title: Text(
               'Maintenance',
-              style: GoogleFonts.inter(color: AppColors.onSurface),
+              style: GoogleFonts.instrumentSans(color: AppColors.onSurface),
             ),
             subtitle: Text(
               'En cas de problèmes d\'affichage ou de mise à jour',
-              style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurfaceVariant),
+              style: GoogleFonts.instrumentSans(fontSize: 12, color: AppColors.onSurfaceVariant),
             ),
             trailing: FilledButton.icon(
               onPressed: () {
@@ -573,7 +573,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
               const SizedBox(width: 8),
               Text(
                 title,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.instrumentSans(
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
                   color: AppColors.onSurface,
@@ -587,7 +587,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             decoration: InputDecoration(
               hintText: 'Ex: FR,FRANCE,HD,SPORT',
               hintStyle:
-                  GoogleFonts.inter(fontSize: 12, color: AppColors.outline),
+                  GoogleFonts.instrumentSans(fontSize: 12, color: AppColors.outline),
               filled: true,
               fillColor: AppColors.surfaceContainerHigh,
               border: OutlineInputBorder(
@@ -612,7 +612,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
                     )
                   : null,
             ),
-            style: GoogleFonts.inter(fontSize: 12, color: AppColors.onSurface),
+            style: GoogleFonts.instrumentSans(fontSize: 12, color: AppColors.onSurface),
             onChanged: onChanged,
           ),
           if (keywords.isNotEmpty) ...[
@@ -633,7 +633,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
                   child: Text(
                     keyword,
                     style:
-                        GoogleFonts.inter(fontSize: 11, color: AppColors.onSurface),
+                        GoogleFonts.instrumentSans(fontSize: 11, color: AppColors.onSurface),
                   ),
                 );
               }).toList(),

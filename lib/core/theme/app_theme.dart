@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
-/// XtremFlow Cyber-Cinematic Glass Theme
+/// XtremFlow Projector Noir Theme
 ///
-/// Design system extracted from Google Stitch.
-/// Fonts: Space Grotesk (headlines) + Inter (body/labels)
-/// Style: Dark-only glassmorphism with neon blue accents.
+/// Warm tungsten light on deep film-black.
+/// Fonts: Syne (headlines, art-house geometric) + Instrument Sans (body/labels)
+/// Style: Dark-first glassmorphism with tungsten amber accents.
 class AppTheme {
   AppTheme._();
 
@@ -39,14 +39,14 @@ class AppTheme {
   static const Curve curveSmooth = Curves.fastOutSlowIn;
 
   // ============ TYPOGRAPHY HELPERS ============
-  static TextStyle _spaceGrotesk({
+  static TextStyle _syne({
     required double fontSize,
     required FontWeight fontWeight,
     double? letterSpacing,
     double? height,
     Color color = AppColors.onSurface,
   }) {
-    return GoogleFonts.spaceGrotesk(
+    return GoogleFonts.syne(
       fontSize: fontSize,
       fontWeight: fontWeight,
       letterSpacing: letterSpacing,
@@ -55,14 +55,14 @@ class AppTheme {
     );
   }
 
-  static TextStyle _inter({
+  static TextStyle _instrumentSans({
     required double fontSize,
     required FontWeight fontWeight,
     double? letterSpacing,
     double? height,
     Color color = AppColors.onSurface,
   }) {
-    return GoogleFonts.inter(
+    return GoogleFonts.instrumentSans(
       fontSize: fontSize,
       fontWeight: fontWeight,
       letterSpacing: letterSpacing,
@@ -81,85 +81,85 @@ class AppTheme {
 
       // Typography
       textTheme: TextTheme(
-        // Display / Headline (Space Grotesk)
-        displayLarge: _spaceGrotesk(
+        // Display / Headline (Syne)
+        displayLarge: _syne(
           fontSize: 48,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.02,
           height: 1.1,
         ),
-        displayMedium: _spaceGrotesk(
+        displayMedium: _syne(
           fontSize: 32,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.01,
           height: 1.2,
         ),
-        displaySmall: _spaceGrotesk(
+        displaySmall: _syne(
           fontSize: 24,
           fontWeight: FontWeight.w500,
           height: 1.3,
         ),
-        headlineLarge: _spaceGrotesk(
+        headlineLarge: _syne(
           fontSize: 32,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.01,
           height: 1.2,
         ),
-        headlineMedium: _spaceGrotesk(
+        headlineMedium: _syne(
           fontSize: 24,
           fontWeight: FontWeight.w500,
           height: 1.3,
         ),
-        headlineSmall: _spaceGrotesk(
+        headlineSmall: _syne(
           fontSize: 20,
           fontWeight: FontWeight.w500,
           height: 1.3,
         ),
-        titleLarge: _spaceGrotesk(
+        titleLarge: _syne(
           fontSize: 20,
           fontWeight: FontWeight.w600,
         ),
-        titleMedium: _inter(
+        titleMedium: _instrumentSans(
           fontSize: 16,
           fontWeight: FontWeight.w600,
         ),
-        titleSmall: _inter(
+        titleSmall: _instrumentSans(
           fontSize: 14,
           fontWeight: FontWeight.w600,
         ),
-        // Body (Inter)
-        bodyLarge: _inter(
+        // Body (Instrument Sans)
+        bodyLarge: _instrumentSans(
           fontSize: 18,
           fontWeight: FontWeight.w400,
           height: 1.6,
           color: AppColors.onSurfaceVariant,
         ),
-        bodyMedium: _inter(
+        bodyMedium: _instrumentSans(
           fontSize: 16,
           fontWeight: FontWeight.w400,
           height: 1.5,
           color: AppColors.onSurfaceVariant,
         ),
-        bodySmall: _inter(
+        bodySmall: _instrumentSans(
           fontSize: 14,
           fontWeight: FontWeight.w400,
           height: 1.4,
           color: AppColors.onSurfaceVariant,
         ),
-        // Labels (Inter with tracking)
-        labelLarge: _inter(
+        // Labels (Instrument Sans with tracking)
+        labelLarge: _instrumentSans(
           fontSize: 14,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.05,
           height: 1.2,
         ),
-        labelMedium: _inter(
+        labelMedium: _instrumentSans(
           fontSize: 12,
           fontWeight: FontWeight.w500,
           letterSpacing: 0.02,
           height: 1.2,
         ),
-        labelSmall: _inter(
+        labelSmall: _instrumentSans(
           fontSize: 11,
           fontWeight: FontWeight.w500,
           letterSpacing: 0.02,
@@ -174,13 +174,13 @@ class AppTheme {
         elevation: 0,
         centerTitle: true,
         scrolledUnderElevation: 0,
-        titleTextStyle: _spaceGrotesk(
+        titleTextStyle: _syne(
           fontSize: 20,
           fontWeight: FontWeight.w600,
         ),
       ),
 
-      // Inputs: Dark filled with blue glow on focus
+      // Inputs: Dark filled with amber glow on focus
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surfaceContainerLow,
@@ -204,12 +204,12 @@ class AppTheme {
           borderRadius: BorderRadius.circular(radiusMd),
           borderSide: const BorderSide(color: AppColors.error, width: 1),
         ),
-        hintStyle: _inter(
+        hintStyle: _instrumentSans(
           fontSize: 16,
           fontWeight: FontWeight.w400,
           color: AppColors.outline,
         ),
-        labelStyle: _inter(
+        labelStyle: _instrumentSans(
           fontSize: 14,
           fontWeight: FontWeight.w500,
           color: AppColors.onSurfaceVariant,
@@ -226,7 +226,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusMd),
           ),
-          textStyle: _inter(
+          textStyle: _instrumentSans(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.05,
@@ -253,7 +253,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusMd),
           ),
-          textStyle: _inter(
+          textStyle: _instrumentSans(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.05,
@@ -266,7 +266,7 @@ class AppTheme {
         style: TextButton.styleFrom(
           foregroundColor: AppColors.primary,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          textStyle: _inter(
+          textStyle: _instrumentSans(
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
@@ -292,11 +292,11 @@ class AppTheme {
           borderRadius: BorderRadius.circular(radiusXl),
           side: const BorderSide(color: AppColors.glassLevel2Border, width: 1),
         ),
-        titleTextStyle: _spaceGrotesk(
+        titleTextStyle: _syne(
           fontSize: 20,
           fontWeight: FontWeight.w600,
         ),
-        contentTextStyle: _inter(
+        contentTextStyle: _instrumentSans(
           fontSize: 16,
           fontWeight: FontWeight.w400,
           color: AppColors.onSurfaceVariant,
@@ -314,7 +314,7 @@ class AppTheme {
       // Snackbars
       snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColors.surfaceContainerHigh,
-        contentTextStyle: _inter(
+        contentTextStyle: _instrumentSans(
           fontSize: 14,
           fontWeight: FontWeight.w500,
           color: AppColors.onSurface,
@@ -336,12 +336,12 @@ class AppTheme {
         shape: StadiumBorder(
           side: BorderSide(color: AppColors.primary.withOpacity(0.3)),
         ),
-        labelStyle: _inter(
+        labelStyle: _instrumentSans(
           fontSize: 12,
           fontWeight: FontWeight.w500,
           color: AppColors.onSurface,
         ),
-        secondaryLabelStyle: _inter(
+        secondaryLabelStyle: _instrumentSans(
           fontSize: 12,
           fontWeight: FontWeight.w600,
           color: AppColors.onPrimaryContainer,
@@ -353,8 +353,8 @@ class AppTheme {
         labelColor: AppColors.onSurface,
         unselectedLabelColor: AppColors.outline,
         indicatorColor: AppColors.primaryContainer,
-        labelStyle: _inter(fontSize: 14, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: _inter(fontSize: 14, fontWeight: FontWeight.w500),
+        labelStyle: _instrumentSans(fontSize: 14, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: _instrumentSans(fontSize: 14, fontWeight: FontWeight.w500),
       ),
 
       // Divider
@@ -389,10 +389,10 @@ class AppTheme {
     );
   }
 
-  // Light theme is minimal — Stitch is dark-only
+  // Light theme is minimal — Projector Noir is dark-first
   static ThemeData get lightTheme => ThemeData.light(useMaterial3: true).copyWith(
         colorScheme: AppColors.lightColorScheme,
         scaffoldBackgroundColor: AppColors.lightColorScheme.surface,
-        textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
+        textTheme: GoogleFonts.instrumentSansTextTheme(ThemeData.light().textTheme),
       );
 }

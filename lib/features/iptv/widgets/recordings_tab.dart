@@ -183,7 +183,7 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                   children: [
                     Text(
                       'GROUPES',
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.syne(
                         color: Colors.white38,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
@@ -217,7 +217,7 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                               ),
                               child: Text(
                                 cat,
-                                style: GoogleFonts.outfit(
+                                style: GoogleFonts.syne(
                                   color: isSelected
                                       ? Colors.white
                                       : Colors.white60,
@@ -331,7 +331,7 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                                         Expanded(
                                           child: Text(
                                             ch.name,
-                                            style: GoogleFonts.outfit(
+                                            style: GoogleFonts.syne(
                                               color: isSelected
                                                   ? Colors.white
                                                   : Colors.white70,
@@ -370,7 +370,7 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                             Text(
                               'Sélectionnez une chaîne\npour voir son guide des programmes',
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.outfit(
+                              style: GoogleFonts.syne(
                                 color: Colors.white38,
                                 fontSize: 15,
                               ),
@@ -385,7 +385,7 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                             children: [
                               Text(
                                 _selectedChannel!.name,
-                                style: GoogleFonts.outfit(
+                                style: GoogleFonts.syne(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
@@ -425,7 +425,7 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                                             child: Text(
                                               'Aucun programme EPG disponible\npour cette chaîne',
                                               textAlign: TextAlign.center,
-                                              style: GoogleFonts.outfit(
+                                              style: GoogleFonts.syne(
                                                 color: Colors.white38,
                                               ),
                                             ),
@@ -525,7 +525,7 @@ class _ProgrammeCard extends StatelessWidget {
             Expanded(
               child: Text(
                 'Enregistrer',
-                style: GoogleFonts.outfit(color: Colors.white),
+                style: GoogleFonts.syne(color: Colors.white),
               ),
             ),
           ],
@@ -536,7 +536,7 @@ class _ProgrammeCard extends StatelessWidget {
           children: [
             Text(
               title.isEmpty ? channel.name : title,
-              style: GoogleFonts.outfit(
+              style: GoogleFonts.syne(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
@@ -658,7 +658,7 @@ class _ProgrammeCard extends StatelessWidget {
                   ),
                   child: Text(
                     'LIVE',
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.syne(
                       color: Colors.white,
                       fontSize: 8,
                       fontWeight: FontWeight.bold,
@@ -668,7 +668,7 @@ class _ProgrammeCard extends StatelessWidget {
               else
                 Text(
                   _fmt(_start),
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.syne(
                     color: isPast ? Colors.white24 : Colors.white70,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -678,14 +678,14 @@ class _ProgrammeCard extends StatelessWidget {
                 Text(
                   _fmt(_end),
                   style:
-                      GoogleFonts.outfit(color: Colors.white24, fontSize: 10),
+                      GoogleFonts.syne(color: Colors.white24, fontSize: 10),
                 ),
             ],
           ),
         ),
         title: Text(
           _title.isEmpty ? '—' : _title,
-          style: GoogleFonts.outfit(
+          style: GoogleFonts.syne(
             color: isPast ? Colors.white38 : Colors.white,
             fontWeight: isNow ? FontWeight.bold : FontWeight.normal,
           ),
@@ -827,7 +827,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
           backgroundColor: AppColors.surfaceContainer,
           title: Text(
             title,
-            style: GoogleFonts.outfit(color: Colors.white, fontSize: 14),
+            style: GoogleFonts.syne(color: Colors.white, fontSize: 14),
           ),
           content: SizedBox(
             width: 500,
@@ -863,7 +863,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
         'recording' => Colors.redAccent,
         'completed' => Colors.green,
         'failed' => Colors.orangeAccent,
-        _ => Colors.blueAccent,
+        _ => AppColors.primaryContainer,
       };
 
   String _statusLabel(String status) => switch (status) {
@@ -924,7 +924,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                                 const SizedBox(height: 16),
                                 Text(
                                   'Aucun enregistrement',
-                                  style: GoogleFonts.outfit(
+                                  style: GoogleFonts.syne(
                                     color: Colors.white38,
                                     fontSize: 16,
                                   ),
@@ -962,7 +962,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                                   ),
                                   title: Text(
                                     rec['title'] ?? '—',
-                                    style: GoogleFonts.outfit(
+                                    style: GoogleFonts.syne(
                                       color: Colors.white,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -1039,7 +1039,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                                       IconButton(
                                         icon: const Icon(
                                           Icons.description_outlined,
-                                          color: Colors.blueAccent,
+                                          color: AppColors.primaryContainer,
                                           size: 20,
                                         ),
                                         tooltip: 'Logs',
@@ -1132,7 +1132,7 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
             const SizedBox(width: 8),
             Text(
               'Nouveau Season Pass',
-              style: GoogleFonts.outfit(color: Colors.white),
+              style: GoogleFonts.syne(color: Colors.white),
             ),
           ],
         ),
@@ -1143,7 +1143,7 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
             children: [
               Text(
                 'Enregistre automatiquement toutes les nouvelles diffusions d\'une émission.',
-                style: GoogleFonts.outfit(color: Colors.white54, fontSize: 13),
+                style: GoogleFonts.syne(color: Colors.white54, fontSize: 13),
               ),
               const SizedBox(height: 16),
               _buildField(
@@ -1231,7 +1231,7 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
             children: [
               Text(
                 'Enregistrements automatiques',
-                style: GoogleFonts.outfit(color: Colors.white54, fontSize: 13),
+                style: GoogleFonts.syne(color: Colors.white54, fontSize: 13),
               ),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
@@ -1262,7 +1262,7 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
                 Expanded(
                   child: Text(
                     'Scanne l\'EPG toutes les 4h et programme automatiquement les nouvelles diffusions. Seuls les nouveaux épisodes sont enregistrés.',
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.syne(
                       color: Colors.purpleAccent.shade100,
                       fontSize: 12,
                     ),
@@ -1288,7 +1288,7 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
                             const SizedBox(height: 16),
                             Text(
                               'Aucun Season Pass actif',
-                              style: GoogleFonts.outfit(
+                              style: GoogleFonts.syne(
                                 color: Colors.white38,
                                 fontSize: 16,
                               ),
@@ -1296,7 +1296,7 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
                             const SizedBox(height: 8),
                             Text(
                               'Créez-en un pour enregistrer automatiquement vos émissions préférées',
-                              style: GoogleFonts.outfit(
+                              style: GoogleFonts.syne(
                                 color: Colors.white24,
                                 fontSize: 12,
                               ),
@@ -1325,7 +1325,7 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
                               ),
                               title: Text(
                                 p['show_title'] ?? '—',
-                                style: GoogleFonts.outfit(
+                                style: GoogleFonts.syne(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w600,
                                 ),

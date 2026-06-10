@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 
@@ -30,7 +30,7 @@ class ThemedLoading extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'Loading...',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.instrumentSans(
                 color: AppColors.onSurfaceVariant,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,

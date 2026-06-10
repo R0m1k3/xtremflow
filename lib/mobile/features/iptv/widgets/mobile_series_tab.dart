@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -171,7 +171,7 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
             id: s.seriesId.toString(),
             title: s.name,
             imageUrl: _getProxiedImageUrl(s.cover, ref),
-            subtitle: s.rating != null ? '${_formatRating(s.rating)} ★' : null,
+            subtitle: s.rating != null ? '${_formatRating(s.rating)} â˜…' : null,
             onMoreInfo: () => _openSeries(s),
           ),
         )
@@ -197,13 +197,13 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                     Expanded(
                       child: TextField(
                         controller: _searchController,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.instrumentSans(
                           fontSize: 14,
                           color: AppColors.onSurface,
                         ),
                         decoration: InputDecoration(
                           hintText: 'Search Series...',
-                          hintStyle: GoogleFonts.inter(color: AppColors.onSurfaceVariant),
+                          hintStyle: GoogleFonts.instrumentSans(color: AppColors.onSurfaceVariant),
                           border: InputBorder.none,
                           isDense: true,
                           contentPadding: const EdgeInsets.only(bottom: 11),
@@ -332,7 +332,7 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                           right: 12,
                           child: Text(
                             series.name,
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.instrumentSans(
                               color: AppColors.onSurface,
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -364,7 +364,7 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                                   const SizedBox(width: 4),
                                   Text(
                                     _formatRating(series.rating)!,
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.instrumentSans(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                       color: AppColors.onSurface,

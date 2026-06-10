@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -144,7 +144,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   // Title
                   Text(
                     'XtremFlow',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.instrumentSans(
                       fontSize: 42,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
@@ -154,7 +154,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'Sign in to sync your playlists',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.instrumentSans(
                       fontSize: 18,
                       color: AppColors.textSecondary,
                       fontWeight: FontWeight.w400,
@@ -266,7 +266,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     )
                                   : Text(
                                       'Sign In',
-                                      style: GoogleFonts.inter(
+                                      style: GoogleFonts.instrumentSans(
                                         color: AppColors.primary,
                                         fontSize: 18,
                                         fontWeight: FontWeight.w600,
@@ -282,7 +282,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 32),
                   Text(
                     'Default: admin / admin',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.instrumentSans(
                       fontSize: 14,
                       color: AppColors.textTertiary,
                     ),
@@ -310,13 +310,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
-      style: GoogleFonts.inter(fontSize: 18, color: AppColors.textPrimary),
+      style: GoogleFonts.instrumentSans(fontSize: 18, color: AppColors.textPrimary),
       autofocus: autofocus,
       textInputAction: nextFocus ? TextInputAction.next : TextInputAction.done,
       onFieldSubmitted: isLast ? (_) => onSubmitted?.call() : null,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.inter(color: AppColors.textSecondary),
+        labelStyle: GoogleFonts.instrumentSans(color: AppColors.textSecondary),
         prefixIcon: Icon(icon, color: AppColors.textSecondary),
         suffixIcon: suffix,
         filled: true,

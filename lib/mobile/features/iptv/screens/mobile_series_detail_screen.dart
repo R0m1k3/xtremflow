@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -110,7 +110,7 @@ class _MobileSeriesDetailScreenState
                   const SizedBox(height: 16),
                   Text(
                     'Error: $_error',
-                    style: GoogleFonts.inter(color: AppColors.onSurfaceVariant),
+                    style: GoogleFonts.instrumentSans(color: AppColors.onSurfaceVariant),
                   ),
                   TextButton(
                     onPressed: _loadSeriesInfo,
@@ -186,7 +186,7 @@ class _MobileSeriesDetailScreenState
                     children: [
                       Text(
                         _seriesInfo!.name,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.instrumentSans(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: AppColors.onSurface,
@@ -204,7 +204,7 @@ class _MobileSeriesDetailScreenState
                             const SizedBox(width: 4),
                             Text(
                               _formatRating(_seriesInfo!.rating!)!,
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.instrumentSans(
                                 color: AppColors.onSurfaceVariant,
                                 fontSize: 13,
                               ),
@@ -213,7 +213,7 @@ class _MobileSeriesDetailScreenState
                           ],
                           Text(
                             '${_seriesInfo!.episodes.keys.length} Seasons',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.instrumentSans(
                               color: AppColors.onSurfaceVariant,
                               fontSize: 13,
                             ),
@@ -235,7 +235,7 @@ class _MobileSeriesDetailScreenState
               padding: const EdgeInsets.all(16.0),
               child: Text(
                 _seriesInfo!.plot!,
-                style: GoogleFonts.inter(color: AppColors.onSurfaceVariant, height: 1.4),
+                style: GoogleFonts.instrumentSans(color: AppColors.onSurfaceVariant, height: 1.4),
                 maxLines: 4,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -262,7 +262,7 @@ class _MobileSeriesDetailScreenState
                   },
                   backgroundColor: AppColors.surfaceContainer,
                   selectedColor: AppColors.primary,
-                  labelStyle: GoogleFonts.inter(
+                  labelStyle: GoogleFonts.instrumentSans(
                     color: isSelected ? AppColors.onPrimary : AppColors.onSurfaceVariant,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                   ),
@@ -357,7 +357,7 @@ class _MobileSeriesDetailScreenState
                   children: [
                     Text(
                       'E${episode.episodeNum} - ${episode.title}',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.instrumentSans(
                         color: AppColors.onSurface,
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
@@ -369,7 +369,7 @@ class _MobileSeriesDetailScreenState
                         episode.durationSecs! > 0)
                       Text(
                         _formatDuration(episode.durationSecs!),
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.instrumentSans(
                           color: AppColors.onSurfaceVariant,
                           fontSize: 12,
                         ),

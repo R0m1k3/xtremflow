@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -398,7 +398,7 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.only(left: 8, bottom: 8),
       child: Text(
         title,
-        style: GoogleFonts.inter(
+        style: GoogleFonts.instrumentSans(
           fontSize: 14,
           fontWeight: FontWeight.w600,
           color: AppColors.onSurfaceVariant,

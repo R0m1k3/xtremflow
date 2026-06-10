@@ -1,14 +1,14 @@
 /* XtremFlow web player theme tokens.
-   Mirrors lib/core/theme/app_colors.dart (Cyber-Cinematic Glass).
+   Mirrors lib/core/theme/app_colors.dart (Projector Noir).
    Keep both files in sync when the palette changes. */
 :root {
-    --color-bg: #0F1014;            /* AppColors.baseLevel0 */
-    --color-surface: #121317;       /* AppColors.surface */
-    --color-text: #e3e2e7;          /* AppColors.textPrimary */
-    --color-text-secondary: #c1c6d7;/* AppColors.textSecondary */
-    --color-accent: #adc6ff;        /* AppColors.primary */
-    --color-accent-strong: #4b8eff; /* AppColors.primaryContainer */
+    --color-bg: #0B0A08;            /* AppColors.baseLevel0 */
+    --color-surface: #14110C;       /* AppColors.surface */
+    --color-text: #ECE6DA;          /* AppColors.textPrimary */
+    --color-text-secondary: #CDC4B4;/* AppColors.textSecondary */
+    --color-accent: #FFB35C;        /* AppColors.primary */
+    --color-accent-strong: #F39A1F; /* AppColors.primaryContainer */
     --color-error: #ffb4ab;         /* AppColors.error */
-    --color-overlay: rgba(15, 16, 20, 0.6);
-    --color-border: rgba(255, 255, 255, 0.1); /* glassLevel1Border */
+    --color-overlay: rgba(11, 10, 8, 0.6);
+    --color-border: rgba(255, 233, 201, 0.1); /* glassLevel1Border */
 }

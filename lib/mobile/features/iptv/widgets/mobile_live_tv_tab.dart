@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../features/iptv/providers/xtream_provider.dart';
@@ -80,7 +80,7 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                 const SizedBox(height: 16),
                 Text(
                   'Failed to load channels',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.instrumentSans(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -153,11 +153,11 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                         Expanded(
                           child: TextField(
                             controller: _searchController,
-                            style: GoogleFonts.inter(color: Colors.white),
+                            style: GoogleFonts.instrumentSans(color: Colors.white),
                             decoration: InputDecoration(
                               hintText: 'Search channels...',
                               hintStyle:
-                                  GoogleFonts.inter(color: Colors.white54),
+                                  GoogleFonts.instrumentSans(color: Colors.white54),
                               border: InputBorder.none,
                               prefixIcon: const Icon(
                                 Icons.search,
@@ -207,7 +207,7 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                             ),
                             child: Text(
                               category,
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.instrumentSans(
                                 color:
                                     isSelected ? Colors.black : Colors.white70,
                                 fontWeight: isSelected
@@ -233,7 +233,7 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                             : _showFavoritesOnly
                                 ? 'Favorites'
                                 : _selectedCategory ?? 'Channels',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.instrumentSans(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
@@ -285,7 +285,7 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                               const SizedBox(height: 16),
                               Text(
                                 'No channels found',
-                                style: GoogleFonts.inter(color: Colors.white38),
+                                style: GoogleFonts.instrumentSans(color: Colors.white38),
                               ),
                             ],
                           ),
@@ -382,7 +382,7 @@ class _MobileChannelTile extends StatelessWidget {
               Expanded(
                 child: Text(
                   channel.name,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.instrumentSans(
                     color: Colors.white,
                     fontWeight: FontWeight.w500,
                     fontSize: 14,

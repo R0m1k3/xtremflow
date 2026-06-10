@@ -106,7 +106,7 @@ class _RecordingModalState extends State<RecordingModal> {
                   Expanded(
                     child: Text(
                       'Programmer un enregistrement',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.instrumentSans(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: AppColors.onSurface,
@@ -120,12 +120,12 @@ class _RecordingModalState extends State<RecordingModal> {
               // Informations Chaine
               Text(
                 'Chaîne ciblée :',
-                style: GoogleFonts.inter(color: AppColors.onSurfaceVariant, fontSize: 14),
+                style: GoogleFonts.instrumentSans(color: AppColors.onSurfaceVariant, fontSize: 14),
               ),
               const SizedBox(height: 8),
               Text(
                 widget.channel.name,
-                style: GoogleFonts.inter(color: AppColors.onSurface, fontSize: 18),
+                style: GoogleFonts.instrumentSans(color: AppColors.onSurface, fontSize: 18),
               ),
               const SizedBox(height: 24),
 
@@ -139,7 +139,7 @@ class _RecordingModalState extends State<RecordingModal> {
                       children: [
                         Text(
                           'Date :',
-                          style: GoogleFonts.inter(color: AppColors.onSurfaceVariant, fontSize: 14),
+                          style: GoogleFonts.instrumentSans(color: AppColors.onSurfaceVariant, fontSize: 14),
                         ),
                         const SizedBox(height: 8),
                         TvFocusableCard(
@@ -173,7 +173,7 @@ class _RecordingModalState extends State<RecordingModal> {
                                 Expanded(
                                   child: Text(
                                     '${_startTime.day.toString().padLeft(2, '0')}/${_startTime.month.toString().padLeft(2, '0')}/${_startTime.year}',
-                                    style: GoogleFonts.inter(color: AppColors.onSurface),
+                                    style: GoogleFonts.instrumentSans(color: AppColors.onSurface),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -193,7 +193,7 @@ class _RecordingModalState extends State<RecordingModal> {
                       children: [
                         Text(
                           'Heure :',
-                          style: GoogleFonts.inter(color: AppColors.onSurfaceVariant, fontSize: 14),
+                          style: GoogleFonts.instrumentSans(color: AppColors.onSurfaceVariant, fontSize: 14),
                         ),
                         const SizedBox(height: 8),
                         TvFocusableCard(
@@ -236,7 +236,7 @@ class _RecordingModalState extends State<RecordingModal> {
                                 Expanded(
                                   child: Text(
                                     '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}',
-                                    style: GoogleFonts.inter(color: AppColors.onSurface),
+                                    style: GoogleFonts.instrumentSans(color: AppColors.onSurface),
                                   ),
                                 ),
                               ],
@@ -255,7 +255,7 @@ class _RecordingModalState extends State<RecordingModal> {
                       children: [
                         Text(
                           'Durée (min) :',
-                          style: GoogleFonts.inter(color: AppColors.onSurfaceVariant, fontSize: 14),
+                          style: GoogleFonts.instrumentSans(color: AppColors.onSurfaceVariant, fontSize: 14),
                         ),
                         const SizedBox(height: 8),
                         GlassContainer.glass(
@@ -277,7 +277,7 @@ class _RecordingModalState extends State<RecordingModal> {
                                 child: Text(
                                   '$_durationMinutes',
                                   textAlign: TextAlign.center,
-                                  style: GoogleFonts.inter(color: AppColors.onSurface),
+                                  style: GoogleFonts.instrumentSans(color: AppColors.onSurface),
                                 ),
                               ),
                               IconButton(
@@ -308,7 +308,7 @@ class _RecordingModalState extends State<RecordingModal> {
                     onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
                     child: Text(
                       'Annuler',
-                      style: GoogleFonts.inter(color: AppColors.onSurfaceVariant),
+                      style: GoogleFonts.instrumentSans(color: AppColors.onSurfaceVariant),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -328,7 +328,7 @@ class _RecordingModalState extends State<RecordingModal> {
                           )
                         : Text(
                             'Enregistrer de suite',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.instrumentSans(
                               color: AppColors.onSurface,
                               fontWeight: FontWeight.bold,
                             ),
@@ -352,7 +352,7 @@ class _RecordingModalState extends State<RecordingModal> {
                           )
                         : Text(
                             'Programmer',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.instrumentSans(
                               color: AppColors.onSurface,
                               fontWeight: FontWeight.bold,
                             ),

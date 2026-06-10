@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -219,7 +219,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                   children: [
                     Text(
                       'Movies',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: GoogleFonts.syne(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
                         color: AppColors.onSurface,
@@ -251,14 +251,14 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                           Expanded(
                             child: TextField(
                               controller: _searchController,
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.instrumentSans(
                                 fontSize: 14,
                                 color: AppColors.onSurface,
                               ),
                               decoration: InputDecoration(
                                 hintText: 'Search movies...',
                                 hintStyle:
-                                    GoogleFonts.inter(color: AppColors.outline),
+                                    GoogleFonts.instrumentSans(color: AppColors.outline),
                                 border: InputBorder.none,
                                 isDense: true,
                                 contentPadding:
@@ -311,7 +311,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                           title: m.name,
                           imageUrl: _getProxiedImageUrl(m.streamIcon),
                           subtitle: m.rating != null
-                              ? '${_formatRating(m.rating)} ★'
+                              ? '${_formatRating(m.rating)} â˜…'
                               : null,
                           onPlay: () => _playMovie(m),
                           onTap: () => _playMovie(m),
@@ -426,7 +426,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                                   const SizedBox(width: 4),
                                   Text(
                                     _formatRating(movie.rating)!,
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.instrumentSans(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                       color: AppColors.onSurface,
@@ -448,7 +448,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                             children: [
                               Text(
                                 movie.name,
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.instrumentSans(
                                   color: AppColors.onSurface,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
@@ -467,7 +467,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                                   padding: const EdgeInsets.only(top: 4),
                                   child: Text(
                                     'WATCHED',
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.instrumentSans(
                                       color: AppColors.primary,
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,

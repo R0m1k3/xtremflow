@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -38,7 +38,7 @@ class _DigitalClockState extends State<DigitalClock> {
           ),
           child: Text(
             timeString,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.instrumentSans(
               fontWeight: FontWeight.w600,
               fontSize: 16,
               color: AppColors.onSurface,

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -124,7 +124,7 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                       const SizedBox(height: 24),
                       Text(
                         'XtremFlow',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: GoogleFonts.syne(
                           fontSize: 32,
                           fontWeight: FontWeight.w700,
                           color: AppColors.onSurface,
@@ -133,7 +133,7 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                       ),
                        Text(
                         'Mobile Edition',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.instrumentSans(
                           fontSize: 14,
                           color: AppColors.onSurfaceVariant,
                           letterSpacing: 0.5,
@@ -173,7 +173,7 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                                 ),
                                 child: Text(
                                   authState.errorMessage!,
-                                  style: GoogleFonts.inter(color: AppColors.error, fontSize: 13),
+                                  style: GoogleFonts.instrumentSans(color: AppColors.error, fontSize: 13),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
@@ -213,7 +213,7 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                                       )
                                     : Text(
                                         'Sign In',
-                                        style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 16, color: Colors.white),
+                                        style: GoogleFonts.instrumentSans(fontWeight: FontWeight.w600, fontSize: 16, color: Colors.white),
                                       ),
                               ),
                             ),
@@ -243,10 +243,10 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
-      style: GoogleFonts.inter(color: AppColors.onSurface),
+      style: GoogleFonts.instrumentSans(color: AppColors.onSurface),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.inter(color: AppColors.onSurfaceVariant),
+        labelStyle: GoogleFonts.instrumentSans(color: AppColors.onSurfaceVariant),
         prefixIcon: Icon(icon, color: AppColors.onSurfaceVariant),
         suffixIcon: isPassword
           ? IconButton(

@@ -1,12 +1,12 @@
-# XtremFlow Apple TV Modern Design System
+# XtremFlow Projector Noir Design System
 
 ## Overview
 
-XtremFlow has been completely redesigned with a **premium Apple TV modern aesthetic** inspired by tvOS 18+. The new design system prioritizes:
+XtremFlow uses a **Projector Noir aesthetic**: warm tungsten light cutting through a dark screening room. The design system prioritizes:
 
-- **Sophisticated Glassmorphism** - Elegant blur effects with subtle gradients
-- **Premium Color Palette** - Vibrant accents (Cyan, Mint, Red) on pure black
-- **Cinematic Typography** - Bold headlines (Outfit) + refined UI text (Inter)
+- **Sophisticated Glassmorphism** - Elegant blur effects with warm-tinted borders
+- **Tungsten Palette** - Amber projector-beam accents on deep film-black
+- **Art-House Typography** - Geometric headlines (Syne) + refined UI text (Instrument Sans)
 - **Focus-Driven Interactions** - TV-friendly hover states and animations
 - **Responsive Layouts** - Seamless adaptation from web to mobile
 
@@ -14,46 +14,40 @@ XtremFlow has been completely redesigned with a **premium Apple TV modern aesthe
 
 ## Color Palette
 
-### Backgrounds
-- **`background`** (#000000) - Pure black, OLED optimized
-- **`surface`** (#1C1C1E) - Primary dark surface
-- **`surfaceVariant`** (#2A2A2E) - Secondary surface for hierarchy
-- **`surfaceTertiary`** (#383838) - Tertiary depth layer
+### Backgrounds (warm film-black ladder)
+- **`baseLevel0`** (#0B0A08) - Deepest black, OLED optimized
+- **`background` / `surface`** (#14110C) - Primary dark surface
+- **`surfaceContainerLow`** (#1B1812) to **`surfaceContainerHighest`** (#363027) - Warm charcoal hierarchy
 
 ### Primary Accents
-- **`primary`** (#00D4FF) - Main brand color (Cyan/Sky Blue)
-- **`secondary`** (#FF6B6B) - Secondary accent (Soft Red)
-- **`tertiary`** (#00E5BB) - Highlight accent (Mint)
-- **`accent`** - Alias for primary (for consistency)
+- **`primary`** (#FFB35C) - Tungsten amber (main brand color)
+- **`primaryContainer`** (#F39A1F) - Vivid amber (buttons, focus rings)
+- **`secondary`** (#D3C6B2) - Warm taupe
+- **`tertiary`** (#A4CCBE) - Verdigris teal (counterpoint accent)
 
 ### Semantic Colors
-- **`success`** (#34C759) - Success/completed state
-- **`warning`** (#FF9500) - Warning/caution state
-- **`error`** (#FF3B30) - Error/danger state
-- **`info`** (#30B0C0) - Information state
-- **`disabled`** (#8E8E93) - Disabled/inactive state
+- **`success`** (#6BD89B) - Success/completed state
+- **`warning`** (#FFAB00) - Warning/caution state
+- **`error`** (#FFB4AB) - Error/danger state (Material 3 dark)
+- **`info`** (#64B6AC) - Information state (soft teal)
 
-### Text Hierarchy
-- **`textPrimary`** (#FFFFFF) - Main text (white)
-- **`textSecondary`** (#999999) - Secondary text (60% grey)
-- **`textTertiary`** (#666666) - Tertiary text (40% grey)
-- **`textQuaternary`** (#404040) - Subtle text (25% grey)
+### Text Hierarchy (warm ivory)
+- **`textPrimary`** (#ECE6DA) - Main text
+- **`textSecondary`** (#CDC4B4) - Secondary text
+- **`textTertiary`** (#998F7C) - Tertiary text
 
 ### Category Colors
-- **`live`** (#FF3B30) - Live streams (red)
-- **`movies`** (#00B4E8) - Movie content (blue)
-- **`series`** (#00E5BB) - Series content (mint)
-- **`sports`** (#BF5AF0) - Sports content (purple)
-- **`news`** (#FFC300) - News content (yellow)
-- **`music`** (#FF2D55) - Music content (pink)
+- **`live`** (#FF6E5E) - Live streams (signal coral)
+- **`movies`** (#E8B64C) - Movie content (warm gold)
+- **`series`** (#5FC9AE) - Series content (teal)
 
 ---
 
 ## Typography
 
 ### Font Stack
-1. **Outfit** (headings/display) - Bold, geometric, premium feel
-2. **Inter** (UI/body) - Clean, readable, high contrast
+1. **Syne** (headings/display) - Geometric, art-house, distinctive
+2. **Instrument Sans** (UI/body) - Clean, readable, characterful
 3. Fallback to system fonts
 
 ### Sizes & Weights
@@ -287,14 +281,14 @@ TvSideNav(
 ## Usage Guidelines
 
 ### Color Usage
-- **Primary (Cyan):** Call-to-action buttons, focus states, active indicators
-- **Secondary (Red):** Alerts, favorite toggles, urgent actions
-- **Tertiary (Mint):** Accent highlights, success states, featured badges
+- **Primary (Tungsten Amber):** Call-to-action buttons, focus states, active indicators
+- **Secondary (Warm Taupe):** Alerts, favorite toggles, urgent actions
+- **Tertiary (Verdigris Teal):** Accent highlights, success states, featured badges
 - **White/Grey text:** Maintain WCAG AA contrast ratio (4.5:1 minimum)
 
 ### Typography
-- **Outfit:** Only for headings/hero text (sizes 20px and above)
-- **Inter:** All UI, buttons, body text
+- **Syne:** Only for headings/hero text (sizes 20px and above)
+- **Instrument Sans:** All UI, buttons, body text
 - **Letter spacing:** Increase for larger sizes (hero titles: -1.0 to -1.5), decrease for body text
 
 ### Spacing
@@ -319,8 +313,8 @@ TvSideNav(
 ## Mobile Adaptations
 
 ### Touch Targets
-- **Minimum button size:** 48×48px
-- **Minimum tap area:** 44×44px
+- **Minimum button size:** 48x48px
+- **Minimum tap area:** 44x44px
 - **Between buttons:** 16px spacing minimum
 
 ### Typography Scaling
@@ -349,7 +343,7 @@ TvSideNav(
 2. Extend with custom styling if needed
 3. Follow spacing/animation guidelines
 4. Test hover states on desktop, tap on mobile
-5. Ensure text contrast ≥ 4.5:1
+5. Ensure text contrast >= 4.5:1
 
 ### Color Customization
 - Never override `AppColors` constants directly
@@ -378,7 +372,7 @@ TvSideNav(
 ## Accessibility
 
 - **Text Contrast:** All text must meet WCAG AA (4.5:1)
-- **Touch Targets:** 48×48px minimum on mobile
+- **Touch Targets:** 48x48px minimum on mobile
 - **Focus States:** Always visible with 2px border or scale change
 - **Semantic HTML:** Use proper widget hierarchy
 - **Tooltips:** Always add for icon-only buttons
@@ -435,6 +429,6 @@ Curve animCurve = AppTheme.curveDefault;
 
 ---
 
-**Design System Version:** 2.0 Apple TV Modern
-**Last Updated:** 2026-03-26
-**Status:** Production Ready ✅
+**Design System Version:** 3.0 Projector Noir
+**Last Updated:** 2026-06-10
+**Status:** Production Ready OK
