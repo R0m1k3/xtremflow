@@ -42,9 +42,6 @@ class SubtitleEntry {
 
 /// Service for handling subtitles
 class SubtitleService {
-  static const _srtPattern =
-      r'(\d+)\n(\d{2}):(\d{2}):(\d{2}),(\d{3}) --> (\d{2}):(\d{2}):(\d{2}),(\d{3})\n([\s\S]*?)(?=\n\n|\Z)';
-
   /// Parse SRT subtitle content
   static List<SubtitleEntry> parseSrt(String content) {
     final entries = <SubtitleEntry>[];

@@ -54,14 +54,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _isInitialized = false;
   bool _isLoading = true;
   StreamSubscription? _messageSubscription;
-  final String _aspectRatio = 'contain';
   bool _isSeeking = false;
   late final String _viewIdPrefix =
       DateTime.now().millisecondsSinceEpoch.toString();
   String _viewId = 'iptv-player';
-  String? _currentStreamUrl;
-  String _statusMessage = 'Loading...';
-  String? _errorMessage;
   bool _isMuted = false;
   bool _ignoreStatusUpdates = false;
 
@@ -104,7 +100,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }) async {
     setState(() {
       _isLoading = true;
-      _statusMessage = 'Loading...';
     });
 
     try {
@@ -164,8 +159,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         service.isPlaybackLoading = false;
       });
 
-      _currentStreamUrl = streamUrl;
-
       final encodedUrl = Uri.encodeComponent(streamUrl);
       // Force player choice based on stream type:
       // - Live TV: Player Lite (simple TS playback with mpegts.js)
@@ -222,9 +215,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         });
       }
     } catch (e) {
+      print('[PlayerScreen] Failed to load stream: $e');
       if (mounted) {
         setState(() {
-          _errorMessage = 'Failed to load stream: $e';
           _isLoading = false;
         });
       }

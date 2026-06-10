@@ -8,7 +8,6 @@ class ApiClient {
   factory ApiClient() => _instance;
   
   late final Dio _dio;
-  String? _token;
 
   ApiClient._internal() {
     _dio = Dio(BaseOptions(
@@ -35,7 +34,7 @@ class ApiClient {
   void _restoreTokenFromStorage() {
     final storedToken = getStoredToken();
     if (storedToken != null) {
-      _token = storedToken;
+
       _dio.options.headers['Authorization'] = 'Bearer $storedToken';
     }
   }
@@ -48,7 +47,7 @@ class ApiClient {
 
   /// Set authentication token
   void setToken(String? token) {
-    _token = token;
+
     if (token != null) {
       _dio.options.headers['Authorization'] = 'Bearer $token';
       // Store in localStorage for persistence

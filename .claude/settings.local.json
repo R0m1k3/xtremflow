@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:stitch.withgoogle.com)",
+      "Bash(curl -s -L \"https://stitch.withgoogle.com/preview/1188087097403086912?node-id=a711e3bd0ffd4ff5b8e403ecdb54f247\")",
+      "WebSearch",
+      "Bash(flutter analyze *)",
+      "Bash(flutter *)",
+      "PowerShell(Get-Content *)",
+      "Bash(git push *)",
+      "Bash(git pull *)",
+      "Bash(git checkout *)",
+      "Bash(git reset *)",
+      "Bash(git rm *)",
+      "Bash(rtk git *)"
+    ]
+  }
+}

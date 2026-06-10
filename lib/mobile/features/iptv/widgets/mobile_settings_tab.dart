@@ -62,7 +62,6 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
   Widget build(BuildContext context) {
     final currentUser = ref.watch(authProvider).currentUser;
     final settings = ref.watch(iptvSettingsProvider);
-    final themeState = ref.watch(themeProvider);
     final themeNotifier = ref.read(themeProvider.notifier);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 

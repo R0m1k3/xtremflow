@@ -19,7 +19,6 @@ class MobilePlaylistSelectionScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentUser = ref.watch(authProvider).currentUser;
     final playlistsAsync = ref.watch(playlistsProvider);
 
     return Theme(

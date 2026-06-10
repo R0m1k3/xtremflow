@@ -26,7 +26,6 @@ class LiveTVTab extends ConsumerStatefulWidget {
 class _LiveTVTabState extends ConsumerState<LiveTVTab>
     with AutomaticKeepAliveClientMixin {
   String? _selectedCategory;
-  final bool _isGridView = true;
   final TextEditingController _searchController = TextEditingController();
   bool _showFavoritesOnly = false;
   String _searchQuery = '';

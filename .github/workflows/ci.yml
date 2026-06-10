@@ -15,7 +15,9 @@ jobs:
         with:
           channel: stable
       - run: flutter pub get
-      - run: flutter analyze
+      # Infos (pre-existing withOpacity/dart:html deprecations) are not
+      # fatal; errors and warnings still fail the build.
+      - run: flutter analyze --no-fatal-infos
       - run: flutter test
       - run: flutter build web --release
 

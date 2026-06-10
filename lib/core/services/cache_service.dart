@@ -28,7 +28,6 @@ class CacheEntry<T> {
 /// Optimized cache service for memory management
 class CacheService {
   static const _maxMemoryCacheSizeMb = 200;
-  static const _maxImageCacheItems = 500;
 
   final Map<String, CacheEntry> _cache = {};
   int _totalSizeBytes = 0;
@@ -83,7 +82,6 @@ class CacheService {
 
   /// Clear expired entries
   void clearExpired() {
-    final now = DateTime.now();
     final toRemove = _cache.entries
         .where((e) => e.value.isExpired())
         .map((e) => e.key)
