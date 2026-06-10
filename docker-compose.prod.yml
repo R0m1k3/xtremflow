@@ -1,6 +1,10 @@
 services:
   xtremflow:
-    image: ghcr.io/r0m1k3/xtremflow:latest
+    # Build direct depuis GitHub (l'image GHCR sera utilisée quand le
+    # workflow Docker Publish sera réparé : image: ghcr.io/r0m1k3/xtremflow:latest)
+    build:
+      context: https://github.com/R0m1k3/xtremflow.git
+      dockerfile: Dockerfile
     container_name: xtremflow
     ports:
       - "8089:8089"
