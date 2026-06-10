@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:html' as html;
 import 'dart:ui_web' as ui_web;
@@ -7,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 import '../providers/xtream_provider.dart';
 import '../providers/playback_positions_provider.dart';
+import '../widgets/quality_selector_widget.dart';
 
 // ... (existing imports)
 // ... (existing imports)
@@ -63,6 +65,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _isMuted = false;
   bool _ignoreStatusUpdates = false;
 
+  /// Server-side transcoding quality. Live TV defaults to `source`
+  /// (direct MPEG-TS proxy, zero transcoding); VOD defaults to `high`.
+  late StreamQuality _quality = widget.streamType == StreamType.live
+      ? StreamQuality.source
+      : StreamQuality.high;
+
   @override
   void initState() {
     super.initState();
@@ -109,8 +117,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         } catch (_) {}
       }
 
-      // Stable view ID for the instance to prevent iframe reload on rebuild (orientation change)
-      _viewId = 'iptv-player-$currentStreamId-$_viewIdPrefix';
+      // Stable view ID for the instance to prevent iframe reload on rebuild
+      // (orientation change). Includes quality so a quality switch forces a
+      // fresh iframe.
+      _viewId = 'iptv-player-$currentStreamId-${_quality.value}-$_viewIdPrefix';
 
       final service = ref.read(xtreamServiceProvider(widget.playlist));
       String streamUrl = '';
@@ -118,14 +128,21 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // Generate Stream URL based on type
       // NOTE: Logic is now handled by the backend routes /api/live/ and /api/vod/
       if (widget.streamType == StreamType.live) {
-        streamUrl = service.getLiveStreamUrl(currentStreamId);
+        streamUrl = service.getLiveStreamUrl(
+          currentStreamId,
+          quality: _quality.value,
+        );
       } else if (widget.streamType == StreamType.vod) {
-        streamUrl =
-            service.getVodStreamUrl(currentStreamId, widget.containerExtension);
+        streamUrl = service.getVodStreamUrl(
+          currentStreamId,
+          widget.containerExtension,
+          quality: _quality.value,
+        );
       } else if (widget.streamType == StreamType.series) {
         streamUrl = service.getSeriesStreamUrl(
           currentStreamId,
           widget.containerExtension,
+          quality: _quality.value,
         );
       } else if (widget.streamType == StreamType.recording) {
         streamUrl = '${service.backendBaseUrl}/api/recordings/stream/$currentStreamId/playlist.m3u8';
@@ -135,8 +152,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       final isMobile = MediaQuery.of(context).size.width < 600;
       final isLiveTV = widget.streamType == StreamType.live;
 
-      // TURBO-START: Use direct MPEG-TS for Live TV on Desktop/Android for instant zapping
-      if (isLiveTV && !isMobile) {
+      // TURBO-START: in `source` quality, Live TV on desktop uses the direct
+      // MPEG-TS proxy (mpegts.js) for instant zapping with zero transcoding.
+      if (isLiveTV && !isMobile && _quality == StreamQuality.source) {
         streamUrl = service.getLiveStreamUrlTs(currentStreamId);
       }
 
@@ -215,6 +233,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   void _setupMessageListener() {
     _messageSubscription = html.window.onMessage.listen((event) {
+      // The player iframes are same-origin; drop messages from anywhere else.
+      if (event.origin != html.window.location.origin) return;
       final data = event.data;
       if (data == null) return;
 
@@ -271,8 +291,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
 
     if (iframe != null) {
-      print('[PlayerScreen] Sending message to iframe: $message');
-      iframe.contentWindow?.postMessage(message, '*');
+      iframe.contentWindow
+          ?.postMessage(message, html.window.location.origin);
     } else {
       print(
         '[PlayerScreen] Error: Could not find iframe to send message: $message',
@@ -331,6 +351,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _sendMessage({'type': 'set_volume', 'value': _isMuted ? 0.0 : 1.0});
   }
 
+  void _changeQuality(StreamQuality quality) {
+    if (quality == _quality) return;
+    setState(() => _quality = quality);
+    // Rebuild the iframe with the new quality; VOD resumes at the
+    // current position, live restarts at the live edge.
+    final resumeAt =
+        widget.streamType == StreamType.live ? null : _currentPosition;
+    _initializePlayer(startTimeOverride: resumeAt, isChannelSwitch: true);
+  }
+
   void _previousChannel() {
     if (widget.channels != null && widget.channels!.isNotEmpty) {
       setState(() {
@@ -357,6 +387,68 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
+  /// Keyboard / TV remote controls:
+  /// space-enter = play/pause, ←/→ = seek ±10s (VOD) or zap (live),
+  /// ↑/↓ = zap (live), M = mute, Esc = exit player.
+  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final isLive = widget.streamType == StreamType.live;
+    final key = event.logicalKey;
+
+    if (key == LogicalKeyboardKey.space ||
+        key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.select ||
+        key == LogicalKeyboardKey.mediaPlayPause) {
+      _togglePlayPause();
+      _onHover();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.escape) {
+      Navigator.pop(context);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.keyM) {
+      _toggleMute();
+      _onHover();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowLeft) {
+      if (isLive) {
+        _previousChannel();
+      } else {
+        _sendMessage({
+          'type': 'seek',
+          'value': (_currentPosition - 10).clamp(0, _totalDuration),
+        });
+      }
+      _onHover();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowRight) {
+      if (isLive) {
+        _nextChannel();
+      } else {
+        _sendMessage({
+          'type': 'seek',
+          'value': (_currentPosition + 10).clamp(0, _totalDuration),
+        });
+      }
+      _onHover();
+      return KeyEventResult.handled;
+    }
+    if (isLive && key == LogicalKeyboardKey.arrowUp) {
+      _nextChannel();
+      _onHover();
+      return KeyEventResult.handled;
+    }
+    if (isLive && key == LogicalKeyboardKey.arrowDown) {
+      _previousChannel();
+      _onHover();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
   String _formatDuration(Duration d) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     final hours = twoDigits(d.inHours);
@@ -371,7 +463,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
     // LITE PLAYER MODE for Live TV - Simplified UI (no BackdropFilter)
     if (isLiveTV) {
-      return Scaffold(
+      return Focus(
+        autofocus: true,
+        onKeyEvent: _onKeyEvent,
+        child: Scaffold(
         backgroundColor: AppColors.background,
         body: Stack(
           fit: StackFit.expand,
@@ -425,6 +520,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                     _buildSimpleIconButton(
                                       icon: Icons.arrow_back_rounded,
                                       onTap: () => Navigator.pop(context),
+                                      tooltip: 'Retour',
                                     ),
                                     const SizedBox(width: 16),
                                     Expanded(
@@ -554,11 +650,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             ),
           ],
         ),
+        ),
       );
     }
 
     // STANDARD PLAYER MODE (VOD/Series)
-    return Scaffold(
+    return Focus(
+      autofocus: true,
+      onKeyEvent: _onKeyEvent,
+      child: Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         fit: StackFit.expand,
@@ -607,6 +707,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               _buildGlassIconButton(
                                 icon: Icons.arrow_back_rounded,
                                 onTap: () => Navigator.pop(context),
+                                tooltip: 'Retour',
                               ),
                               const SizedBox(width: 16),
                               Expanded(
@@ -725,6 +826,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                           .clamp(0, _totalDuration),
                                     }),
                                     transparent: true,
+                                    tooltip: 'Reculer de 10 s',
                                   ),
                                   const SizedBox(width: 24),
                                   _buildGlassIconButton(
@@ -734,6 +836,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                     onTap: _togglePlayPause,
                                     size: 56,
                                     iconSize: 32,
+                                    tooltip: _isPlaying ? 'Pause' : 'Lecture',
                                   ),
                                   const SizedBox(width: 24),
                                   _buildGlassIconButton(
@@ -744,20 +847,30 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                           .clamp(0, _totalDuration),
                                     }),
                                     transparent: true,
+                                    tooltip: 'Avancer de 10 s',
                                   ),
                                   const Spacer(),
+                                  QualitySelectorButton(
+                                    current: _quality,
+                                    onSelected: _changeQuality,
+                                  ),
+                                  const SizedBox(width: 16),
                                   _buildGlassIconButton(
                                     icon: _isMuted
                                         ? Icons.volume_off_rounded
                                         : Icons.volume_up_rounded,
                                     onTap: _toggleMute,
                                     transparent: true,
+                                    tooltip: _isMuted
+                                        ? 'Activer le son'
+                                        : 'Couper le son',
                                   ),
                                   const SizedBox(width: 16),
                                   _buildGlassIconButton(
                                     icon: Icons.aspect_ratio_rounded,
                                     onTap: _toggleFullscreen,
                                     transparent: true,
+                                    tooltip: 'Plein écran',
                                   ),
                                 ],
                               ),
@@ -772,6 +885,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             ),
         ],
       ),
+      ),
     );
   }
 
@@ -781,16 +895,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     bool transparent = false,
     double size = 48,
     double iconSize = 24,
+    String? tooltip,
   }) {
     // Button with direct Material/InkWell - PointerInterceptor is on outer container
-    return Material(
+    final button = Material(
       color: transparent ? Colors.transparent : Colors.white.withOpacity(0.1),
       shape: const CircleBorder(),
       child: InkWell(
-        onTap: () {
-          print('[PlayerScreen] Button tapped: $icon');
-          onTap();
-        },
+        onTap: onTap,
         customBorder: const CircleBorder(),
         child: Container(
           width: size,
@@ -806,6 +918,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         ),
       ),
     );
+    return tooltip != null ? Tooltip(message: tooltip, child: button) : button;
   }
 
   List<Widget> _buildControlButtons(bool isSmallScreen) {
@@ -820,6 +933,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           icon: Icons.skip_previous_rounded,
           onTap: _previousChannel,
           size: buttonSize,
+          tooltip: 'Chaîne précédente',
         ),
 
       if (widget.channels != null && widget.channels!.length > 1)
@@ -832,6 +946,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         size: playButtonSize,
         iconSize: isSmallScreen ? 24 : 28,
         highlighted: true,
+        tooltip: _isPlaying ? 'Pause' : 'Lecture',
       ),
 
       if (widget.channels != null && widget.channels!.length > 1)
@@ -843,6 +958,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           icon: Icons.skip_next_rounded,
           onTap: _nextChannel,
           size: buttonSize,
+          tooltip: 'Chaîne suivante',
         ),
 
       SizedBox(width: spacing),
@@ -851,6 +967,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       _buildSimpleIconButton(
         icon: _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
         onTap: _toggleMute,
+        size: buttonSize,
+        tooltip: _isMuted ? 'Activer le son' : 'Couper le son',
+      ),
+
+      SizedBox(width: spacing),
+
+      // Quality selector
+      QualitySelectorButton(
+        current: _quality,
+        onSelected: _changeQuality,
         size: buttonSize,
       ),
     ];
@@ -863,17 +989,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     double size = 48,
     double iconSize = 24,
     bool highlighted = false,
+    String? tooltip,
   }) {
-    return Material(
+    final button = Material(
       color: highlighted
           ? AppColors.primary.withOpacity(0.2)
           : Colors.white.withOpacity(0.1),
       shape: const CircleBorder(),
       child: InkWell(
-        onTap: () {
-          print('[PlayerScreen] Simple button tapped: $icon');
-          onTap();
-        },
+        onTap: onTap,
         customBorder: const CircleBorder(),
         splashColor: AppColors.primary.withOpacity(0.3),
         highlightColor: AppColors.primary.withOpacity(0.1),
@@ -898,6 +1022,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         ),
       ),
     );
+    return tooltip != null ? Tooltip(message: tooltip, child: button) : button;
   }
 
   /// Build inline EPG info for the unified control bar

@@ -30,9 +30,6 @@ class LiveChannel {
     );
   }
 
-  String getStreamUrl(String dns, String username, String password) {
-    return '$dns/live/$username/$password/$streamId.ts';
-  }
 }
 
 class Movie {
@@ -75,9 +72,6 @@ class Movie {
     );
   }
 
-  String getStreamUrl(String dns, String username, String password) {
-    return '$dns/movie/$username/$password/$streamId.$containerExtension';
-  }
 }
 
 class Series {
@@ -165,9 +159,6 @@ class Episode {
     );
   }
 
-  String getStreamUrl(String dns, String username, String password) {
-    return '$dns/series/$username/$password/$id.${containerExtension ?? 'mkv'}';
-  }
 }
 
 /// Series info with seasons and episodes

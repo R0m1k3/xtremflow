@@ -1,14 +1,36 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:shelf/shelf.dart';
 import 'package:http/http.dart' as http;
 import '../models/playlist_config.dart';
-import '../database/database.dart';
+import '../utils/log_redactor.dart';
+
+/// Returns true when [host] must never be proxied (loopback, private LAN,
+/// link-local/cloud-metadata ranges) — SSRF protection for asset URLs that
+/// bypass the playlist-domain allowlist.
+bool isForbiddenProxyHost(String host) {
+  final lower = host.toLowerCase();
+  if (lower == 'localhost' || lower == '::1') return true;
+
+  final ip = InternetAddress.tryParse(lower);
+  if (ip == null) return false; // Hostname: validated by domain allowlist path
+
+  if (ip.isLoopback || ip.isLinkLocal) return true;
+  if (ip.type == InternetAddressType.IPv4) {
+    final parts = ip.address.split('.').map(int.parse).toList();
+    if (parts[0] == 10) return true; // 10.0.0.0/8
+    if (parts[0] == 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+    if (parts[0] == 192 && parts[1] == 168) return true; // 192.168.0.0/16
+    if (parts[0] == 169 && parts[1] == 254) return true; // metadata/link-local
+    if (parts[0] == 0) return true;
+  }
+  return false;
+}
 
 /// Handler for the Xtream Proxy
 class ProxyHandler {
   final Future<PlaylistConfig?> Function(Request) _getPlaylist;
-  final AppDatabase _db;
   final http.Client _client = http.Client();
 
   final Map<String, (PlaylistConfig, DateTime)> _playlistCache = {};
@@ -48,30 +70,7 @@ class ProxyHandler {
     return playlist;
   }
 
-  ProxyHandler(this._getPlaylist, this._db);
-
-  /// Extract token from Authorization header or cookie
-  String? _extractToken(Request request) {
-    // Try Authorization header first
-    final authHeader = request.headers['authorization'];
-    if (authHeader != null && authHeader.startsWith('Bearer ')) {
-      return authHeader.substring(7);
-    }
-
-    // Try cookie
-    final cookie = request.headers['cookie'];
-    if (cookie != null) {
-      final parts = cookie.split(';');
-      for (final part in parts) {
-        final trimmed = part.trim();
-        if (trimmed.startsWith('session=')) {
-          return trimmed.substring(8);
-        }
-      }
-    }
-
-    return null;
-  }
+  ProxyHandler(this._getPlaylist);
 
   /// Create Xtream proxy handler with M3U8 URL rewriting support
   Handler get handler {
@@ -117,6 +116,17 @@ class ProxyHandler {
         }
 
         targetUrl = Uri.parse(fullUrl);
+
+        // Only plain http(s) may be proxied
+        if (targetUrl.scheme != 'http' && targetUrl.scheme != 'https') {
+          return Response.forbidden('Unsupported URL scheme');
+        }
+
+        // Never proxy to loopback/private/link-local targets (SSRF)
+        if (isForbiddenProxyHost(targetUrl.host)) {
+          print('[Proxy] Blocked SSRF attempt to private host: ${targetUrl.host}');
+          return Response.forbidden('Access to this host is forbidden');
+        }
 
         // SSRF Protection - but allow images/static assets from any host
         // Xtream providers often use separate CDN servers for picons/images
@@ -164,7 +174,7 @@ class ProxyHandler {
         }
 
         try {
-          print('[Proxy] Forwarding to: $targetUrl');
+          print('[Proxy] Forwarding to: ${LogRedactor.redactUrl(targetUrl.toString())}');
           final proxyRequest = http.Request(request.method, targetUrl);
 
           // Forward safe request headers

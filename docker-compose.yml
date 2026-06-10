@@ -14,6 +14,14 @@ services:
       # Exemple Windows : - D:\MesVideos\TV:/app/recordings
       # Exemple Linux   : - /mnt/nas/videos:/app/recordings
       - ${RECORDINGS_PATH:-/mnt/user/Data/Sport}:/app/recordings
+    environment:
+      # Origine externe autorisée pour CORS (optionnel — l'app est servie
+      # same-origin, ne définir que si un autre domaine doit appeler l'API)
+      - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-}
+      # Nombre max d'enregistrements TV simultanés (FFmpeg -c copy, peu de CPU)
+      - MAX_CONCURRENT_RECORDINGS=${MAX_CONCURRENT_RECORDINGS:-2}
+      # Accélération GPU NVIDIA pour le transcodage (NVENC) : true/false
+      - NVIDIA_GPU=${NVIDIA_GPU:-false}
     restart: unless-stopped
 
 volumes:

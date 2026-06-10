@@ -341,6 +341,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                   return TvFocusableCard(
                     onTap: () => _playMovie(movie),
                     borderRadius: 12,
+                    semanticLabel: 'Film ${movie.name}',
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
@@ -420,7 +421,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                                   const Icon(
                                     Icons.star,
                                     size: 10,
-                                    color: Color(0xFFFFD700),
+                                    color: AppColors.ratingGold,
                                   ),
                                   const SizedBox(width: 4),
                                   Text(

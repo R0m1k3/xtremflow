@@ -49,7 +49,7 @@ class EpgOverlay extends ConsumerWidget {
             margin: const EdgeInsets.fromLTRB(0, 0, 24, 0),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E)
+              color: AppColors.surfaceContainerLow
                   .withOpacity(0.85), // Match Native player controls
               borderRadius: BorderRadius.circular(24),
               border: Border.all(color: Colors.white.withOpacity(0.1)),

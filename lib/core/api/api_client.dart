@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:html' as html;
 
 /// API Client for communicating with the backend
@@ -17,11 +18,14 @@ class ApiClient {
       receiveTimeout: const Duration(seconds: 60),
     ),);
 
-    // Add interceptor for logging
-    _dio.interceptors.add(LogInterceptor(
-      requestBody: true,
-      responseBody: true,
-    ),);
+    // Debug-only logging; request bodies are never logged (login payloads
+    // contain passwords).
+    if (kDebugMode) {
+      _dio.interceptors.add(LogInterceptor(
+        requestBody: false,
+        responseBody: false,
+      ),);
+    }
 
     // Restore token from localStorage on initialization
     _restoreTokenFromStorage();

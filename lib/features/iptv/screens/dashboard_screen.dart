@@ -54,9 +54,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Color(0xFF050505), // Very dark top
+                    AppColors.surfaceContainerLowest, // Very dark top
                     AppColors.background, // Black bottom
-                    Color(0xFF0A0A0A), // Slightly darker for depth
+                    AppColors.baseLevel0, // Slightly darker for depth
                   ],
                 ),
               ),

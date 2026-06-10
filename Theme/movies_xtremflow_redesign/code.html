@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AuraStream - Movies</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#e2e2e2",
+                        "inverse-surface": "#e3e2e7",
+                        "on-secondary-fixed-variant": "#46464e",
+                        "on-secondary": "#2f3037",
+                        "inverse-on-surface": "#2f3035",
+                        "primary": "#adc6ff",
+                        "on-primary": "#002e69",
+                        "primary-fixed-dim": "#adc6ff",
+                        "on-primary-fixed-variant": "#004493",
+                        "on-error-container": "#ffdad6",
+                        "tertiary": "#c6c6c7",
+                        "on-background": "#e3e2e7",
+                        "on-surface": "#e3e2e7",
+                        "surface": "#121317",
+                        "outline-variant": "#414755",
+                        "on-primary-container": "#00285c",
+                        "error": "#ffb4ab",
+                        "surface-container-low": "#1a1b20",
+                        "outline": "#8b90a0",
+                        "on-tertiary-container": "#282a2a",
+                        "surface-tint": "#adc6ff",
+                        "on-primary-fixed": "#001a41",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "inverse-primary": "#005bc1",
+                        "background": "#121317",
+                        "surface-bright": "#38393d",
+                        "error-container": "#93000a",
+                        "surface-dim": "#121317",
+                        "surface-container-highest": "#343439",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "secondary-container": "#4a4b53",
+                        "primary-fixed": "#d8e2ff",
+                        "on-surface-variant": "#c1c6d7",
+                        "surface-container": "#1f1f24",
+                        "secondary-fixed": "#e3e1eb",
+                        "tertiary-container": "#909191",
+                        "secondary-fixed-dim": "#c6c5cf",
+                        "secondary": "#c6c5cf",
+                        "surface-variant": "#343439",
+                        "on-secondary-container": "#bcbbc4",
+                        "on-tertiary": "#2f3131",
+                        "on-error": "#690005",
+                        "primary-container": "#4b8eff",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "surface-container-lowest": "#0d0e12",
+                        "on-secondary-fixed": "#1a1b22",
+                        "surface-container-high": "#292a2e"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "24px",
+                        "sm": "12px",
+                        "margin": "32px",
+                        "gutter": "24px",
+                        "base": "8px",
+                        "xs": "4px",
+                        "lg": "48px",
+                        "xl": "80px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "label-lg": ["Inter"],
+                        "headline-xl": ["Space Grotesk"],
+                        "headline-md": ["Space Grotesk"],
+                        "headline-lg": ["Space Grotesk"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "label-sm": ["12px", {"lineHeight": "1.2", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "label-lg": ["14px", {"lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-xl": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "500"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: #0F1014; color: #e3e2e7; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        .glass-panel { background: rgba(18, 19, 23, 0.4); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .glass-floating { background: rgba(18, 19, 23, 0.6); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border-top: 1px solid rgba(0, 122, 255, 0.2); border-left: 1px solid rgba(0, 122, 255, 0.2); }
+        .neon-glow:hover { box-shadow: 0 0 15px rgba(0, 122, 255, 0.6); }
+        .text-glow { text-shadow: 0 0 10px rgba(0, 122, 255, 0.5); }
+        /* Hide scrollbar for clean horizontal scroll */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden bg-background">
+<!-- TopNavBar (Mobile Only) -->
+<nav class="md:hidden flex justify-between items-center px-8 py-4 w-full bg-slate-950/50 backdrop-blur-xl border-b border-white/10 shadow-2xl shadow-blue-500/10 sticky top-0 z-50">
+<div class="text-2xl font-bold bg-gradient-to-r from-blue-500 to-cyan-400 bg-clip-text text-transparent font-headline-md text-headline-md">AuraStream</div>
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-slate-400">search</span>
+<span class="material-symbols-outlined text-slate-400">account_circle</span>
+<span class="material-symbols-outlined text-slate-400">settings</span>
+</div>
+</nav>
+<!-- SideNavBar (Desktop Only) -->
+<nav class="hidden md:flex flex-col h-full py-8 bg-[#0F1014]/80 backdrop-blur-2xl border-r border-white/10 shadow-[10px_0_30px_-15px_rgba(0,122,255,0.2)] w-64 flex-shrink-0 z-40 relative">
+<div class="px-6 mb-8">
+<h1 class="text-blue-500 font-bold uppercase tracking-widest font-headline-md text-headline-md mb-2">AuraStream</h1>
+<div class="flex items-center gap-3 mt-6">
+<img alt="User Profile" class="w-10 h-10 rounded-full border border-white/20" data-alt="Close up portrait of a futuristic user profile with neon rim lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1yLlcEt1CS5GdGEazVU-JfOAnUdK4OAP8qJ0dLcHuwvyfwAnF1ThzhD-nlIVaQWnA1fvCGrQVRm3nQe5bf0p-zuuYpk9NZ87wQF4qwhD847eO-CizIxL981JVzdec77qzgh0hnsNA9xTv-EO3LTjIyGWD-kK_Zva4tdZ07mSrfrPic0ZoY77Z4UBcqO5KRIlfHWoLCZ30XAPhs-dJ_4X5Xtk19Wlqb8AgIiGxPgpJPA85wPC5QL8dJXVts4AovPKbDrPyrGK7ZRo"/>
+<div>
+<div class="text-on-surface font-label-lg text-label-lg">Command Center</div>
+<div class="text-on-surface-variant font-label-sm text-label-sm">Premium Tier</div>
+</div>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto space-y-2 mt-4 font-['Space_Grotesk'] text-sm font-medium">
+<a class="text-slate-500 flex items-center gap-4 px-6 py-4 hover:bg-white/5 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform duration-200">live_tv</span>
+<span>Live TV</span>
+</a>
+<a class="bg-blue-500/10 text-blue-400 border-l-4 border-blue-500 flex items-center gap-4 px-6 py-4 group" href="#">
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform duration-200" style="font-variation-settings: 'FILL' 1;">movie</span>
+<span>Movies</span>
+</a>
+<a class="text-slate-500 flex items-center gap-4 px-6 py-4 hover:bg-white/5 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform duration-200">theaters</span>
+<span>Series</span>
+</a>
+<a class="text-slate-500 flex items-center gap-4 px-6 py-4 hover:bg-white/5 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform duration-200">fiber_manual_record</span>
+<span>Recordings</span>
+</a>
+<a class="text-slate-500 flex items-center gap-4 px-6 py-4 hover:bg-white/5 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform duration-200">settings</span>
+<span>Settings</span>
+</a>
+</div>
+<div class="mt-auto pt-4 border-t border-white/10 font-['Space_Grotesk'] text-sm font-medium">
+<a class="text-slate-500 flex items-center gap-4 px-6 py-3 hover:bg-white/5 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform duration-200">help</span>
+<span>Support</span>
+</a>
+<a class="text-slate-500 flex items-center gap-4 px-6 py-3 hover:bg-white/5 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform duration-200">logout</span>
+<span>Logout</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 h-full overflow-y-auto relative bg-background">
+<!-- Hero Section -->
+<div class="relative w-full h-[716px] min-h-[500px] flex items-end pb-xl px-lg md:px-xl" data-alt="Cinematic wide shot of a futuristic dystopian city with neon signs and a dramatic dark sky, high contrast, cinematic lighting" style="background-image: linear-gradient(to top, #0F1014 0%, rgba(15,16,20,0.4) 50%, transparent 100%), url('https://lh3.googleusercontent.com/aida-public/AB6AXuA5bf0eT94X4qeX5cXUw-H1cJerOLGgdL0tGa4xT2std6sithlBbKo117GZJwVr37YCP_LykZOSAxmXvaELEfK7eyvNZzP6wkw7SrUaJExXoUfQu9wLisZNNC4bpAuo7TzXyvhIpYNZUW_uN2gEXaus-u-9jZ5yDlUS_2A3xPBV-6jkYfo9yTrP06eWQg8AxLd_AY6JT9RtYCs9HVNTx9PQIdgPRDoDRVZVYWH3UlJHqCIWNyA888zdhIHfjFUOqMJzlxM_zyfuyA8'); background-size: cover; background-position: center;">
+<div class="relative z-10 max-w-4xl glass-floating p-8 rounded-xl shadow-2xl">
+<div class="flex items-center gap-4 mb-4">
+<span class="bg-primary/20 text-on-surface font-label-sm text-label-sm px-3 py-1 rounded-full border border-primary/30">Sci-Fi Thriller</span>
+<span class="text-tertiary font-label-sm text-label-sm flex items-center gap-1"><span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">star</span> 4.9</span>
+<span class="text-tertiary font-label-sm text-label-sm border border-outline-variant px-2 rounded">PG-13</span>
+<span class="text-tertiary font-label-sm text-label-sm">2h 15m</span>
+</div>
+<h2 class="font-headline-xl text-headline-xl text-on-surface mb-2 text-glow">The Mother and the Bear (2026)</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant mb-8 max-w-2xl">In a neon-drenched future where memories are currency, a rogue detective must unravel a conspiracy that threatens to erase humanity's past before her own mind is wiped clean.</p>
+<div class="flex gap-4">
+<button class="bg-gradient-to-r from-[#007AFF] to-cyan-500 text-white font-label-lg text-label-lg px-8 py-3 rounded-lg flex items-center gap-2 neon-glow transition-all duration-300">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+                        Play Now
+                    </button>
+<button class="glass-panel text-on-surface font-label-lg text-label-lg px-8 py-3 rounded-lg flex items-center gap-2 hover:bg-white/10 transition-all duration-300">
+<span class="material-symbols-outlined">info</span>
+                        More Info
+                    </button>
+</div>
+</div>
+</div>
+<!-- Featured Section (Bento Grid Style) -->
+<div class="px-lg md:px-xl py-lg">
+<div class="flex justify-between items-end mb-6">
+<h3 class="font-headline-md text-headline-md text-on-surface">Trending Now</h3>
+<div class="flex gap-2">
+<button class="glass-panel p-2 rounded-full hover:bg-white/10 transition-colors"><span class="material-symbols-outlined">chevron_left</span></button>
+<button class="glass-panel p-2 rounded-full hover:bg-white/10 transition-colors"><span class="material-symbols-outlined">chevron_right</span></button>
+</div>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+<!-- Card 1 (Large) -->
+<div class="col-span-2 row-span-2 relative rounded-xl overflow-hidden group cursor-pointer border border-white/10 hover:border-primary/40 transition-all duration-500">
+<img alt="Movie Poster" class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" data-alt="Abstract cinematic explosion of color and light in deep space, high fidelity rendering" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCsqlExaOiee-H9lUU2oabuN0rln0QbBDmDBV0TTZNFz45WnVVVfV6oYSCNRo5R4REIiQfACd36D6OpkYsVXL_C9pDSxaxGwhW19mx7BJo2-3LDON2s8PDhO7pqEf_E5Ha-Wg0bCqH7UPXHcf5GJkjAo-S0dcYOOIskCTgOPTKrXo_8ijsyHb5QVBtvU5BgQuvkY4lpBNWWX4zxlkCoq4eUYUboVryMUkIBfFSnjMIqKk_5vR9DecVKUumuqhqb00qceBHP7W7SRsg"/>
+<div class="absolute inset-0 bg-gradient-to-t from-[#0F1014] via-[#0F1014]/50 to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-300"></div>
+<div class="absolute bottom-0 left-0 w-full p-6 glass-panel translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+<h4 class="font-headline-md text-headline-md text-on-surface mb-1 text-glow">Quantum Paradox</h4>
+<div class="flex items-center gap-3 text-tertiary font-label-sm text-label-sm">
+<span class="text-primary flex items-center gap-1"><span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">star</span> 4.8</span>
+<span>Sci-Fi</span>
+<span>2025</span>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="relative rounded-xl overflow-hidden group cursor-pointer border border-white/10 hover:border-primary/40 transition-all duration-500 h-64 md:h-auto">
+<img alt="Movie Poster" class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" data-alt="Dark moody portrait of a mysterious figure in a rainy cyberpunk alleyway, blue and pink neon reflections" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDU_tshT9jmch027T8j9cESQtIlQonKSBsa9foyaOpCkqd4Mt_MSmfpo7_WeMfMCvkfz3vSdbBueqHuxWK8WozdDtx5GsdZ8MMifux_KO4RiK1t_vAoXdQQsRjXVKpsG28A38Cpi_1GDLkCYFPNAlPnnbmR0nGwIuQuZuaiZaEL45vFTS6MoAV8pQ7p_fNZbcu8mDflb-QEf32MGWrn-NCpZ12e9QOsQmrDe19eJQ4GxCn6DSqgydsb3kUShLgJbGR4GKSHSbwlqeg"/>
+<div class="absolute bottom-0 left-0 w-full p-4 glass-panel bg-surface-container/80 backdrop-blur-md">
+<h4 class="font-label-lg text-label-lg text-on-surface truncate">Neon Rain</h4>
+<div class="text-tertiary font-label-sm text-label-sm mt-1">Action • 4.5</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="relative rounded-xl overflow-hidden group cursor-pointer border border-white/10 hover:border-primary/40 transition-all duration-500 h-64 md:h-auto">
+<img alt="Movie Poster" class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" data-alt="Epic landscape of an alien planet with multiple moons in the sky, highly detailed matte painting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuATh2INviHPBKNvU83N2AXadQqMJ2GK0z24kY1bRoKIbB1W_61k4zNxSZ6CioBWtSq7UFz9WFQnb6FtEi_slvhCpAYAZroHKvrI5LSHaIFvk8Eak20rJVoJHgSQlqQXk3CDY4txACeWBpTt7QRBqu2_HvA6ojnFvlFWecfhvZ66EQXp5X7P5KGhfyTLQvt527YxtRtaLyQrXafyNQ8SgTgqx1eO_y-lUnwJE6XNTMCKUecm6GMgVkohWrpdXmPa3Y3Rb7mXvIZ8MO0"/>
+<div class="absolute bottom-0 left-0 w-full p-4 glass-panel bg-surface-container/80 backdrop-blur-md">
+<h4 class="font-label-lg text-label-lg text-on-surface truncate">Beyond Horizon</h4>
+<div class="text-tertiary font-label-sm text-label-sm mt-1">Adventure • 4.7</div>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="relative rounded-xl overflow-hidden group cursor-pointer border border-white/10 hover:border-primary/40 transition-all duration-500 h-64 md:h-auto">
+<img alt="Movie Poster" class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" data-alt="Close up of a futuristic glowing artifact floating above a pedestal in a dark room, glowing blue accents" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDmxuG0jdK5b-WeYSNXL2FdnqPbeFPeEy2TLvYGGV-vQvRQbk5FRtsmqbWU26DY7dGFo8EjAymHdj0xTvH6voSOaMpnMfjJToLNTsugJhNL9YLq_o6cz-Wo5BGm_qPV5XpDN_WYitMkG7krZ9NlS_EPEcepCKWtQcazoRdadqq1G4wLrSw7vn-ZyyQXZm6lTkSTNbeXNFXLZzRkc88e2qB97j2Wmt0MDS7o51DahlGwjW2bnwglbh8oIQKVzcsDgrv80wpzoO9mTFo"/>
+<div class="absolute bottom-0 left-0 w-full p-4 glass-panel bg-surface-container/80 backdrop-blur-md">
+<h4 class="font-label-lg text-label-lg text-on-surface truncate">The Artifact</h4>
+<div class="text-tertiary font-label-sm text-label-sm mt-1">Mystery • 4.3</div>
+</div>
+</div>
+<!-- Card 5 -->
+<div class="relative rounded-xl overflow-hidden group cursor-pointer border border-white/10 hover:border-primary/40 transition-all duration-500 h-64 md:h-auto">
+<img alt="Movie Poster" class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" data-alt="Abstract smooth gradient flowing from deep navy to soft lavender with subtle grain texture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBt9ABx9UMABF66XfrbKo0yaW1SZ9NAi2yfHBtwtd61ohhasYpN9Ua18A6bF1j88oXCZ3HziOn386C-CfCXmZcBZiK5KBfiXjI9ds7szgXZIjxaOyBohqZKN2X_qtYYyMdMfYlcf1lKMjsgjx5M3NIPQjdkVfdOPGcd6GPPkgFSVTjMAbIRO71EnKIejfUumxiYTvpH5i_Pa2ZCQNc0_ZkKnX5r7d5tynss9Hm4chGAupgKDTDJeqKEhq32MTREm5on3y2Z-W0t3N4"/>
+<div class="absolute bottom-0 left-0 w-full p-4 glass-panel bg-surface-container/80 backdrop-blur-md">
+<h4 class="font-label-lg text-label-lg text-on-surface truncate">Echoes of Void</h4>
+<div class="text-tertiary font-label-sm text-label-sm mt-1">Thriller • 4.6</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Horizontal Scroll Section -->
+<div class="px-lg md:px-xl py-lg mb-xl">
+<h3 class="font-headline-md text-headline-md text-on-surface mb-6">Continue Watching</h3>
+<div class="flex overflow-x-auto gap-4 md:gap-6 no-scrollbar pb-4">
+<!-- Scroll Item 1 -->
+<div class="flex-none w-72 relative rounded-xl overflow-hidden border border-white/10 hover:border-primary/30 transition-all duration-300">
+<div class="relative h-40 w-full">
+<img alt="Scene" class="w-full h-full object-cover" data-alt="Cinematic shot of an old vintage movie camera on a set with dramatic lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBHeS-ADRVCbXPzfi9NVwbUF8-QmD7kIwlpN49wNz6nM97Veb61zOYvTWbmtiDKRkBU69pFaJy4o18LmcW2J0XVWFqn8GgK1Js3fJHT3Fmv7ulVwXXEnUjgJchbJCC4uJiZJXUqZQAGN354FDf0AAt_U0duCq9kcElpI6q4_vfCyCKd97_gqdIMufoignAn2cw5qHMByNah5qfDS2C8zX8EkdTZNMVUh2ZFa1EvJYSCjDwJpBxYExVY8VocpuUaMAmnKLcwuaMupio"/>
+<div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300 cursor-pointer">
+<span class="material-symbols-outlined text-white text-4xl" style="font-variation-settings: 'FILL' 1;">play_circle</span>
+</div>
+<!-- Progress Bar -->
+<div class="absolute bottom-0 left-0 w-full h-1 bg-surface-highest">
+<div class="h-full bg-primary shadow-[0_0_8px_rgba(173,198,255,0.8)]" style="width: 65%;"></div>
+</div>
+</div>
+<div class="p-4 glass-panel">
+<h4 class="font-label-lg text-label-lg text-on-surface truncate mb-1">Director's Cut</h4>
+<div class="text-tertiary font-label-sm text-label-sm">1h 12m remaining</div>
+</div>
+</div>
+<!-- Scroll Item 2 -->
+<div class="flex-none w-72 relative rounded-xl overflow-hidden border border-white/10 hover:border-primary/30 transition-all duration-300">
+<div class="relative h-40 w-full">
+<img alt="Scene" class="w-full h-full object-cover" data-alt="A vintage movie clapperboard sitting on a wooden surface with a shallow depth of field" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA5uTzakxjr5j0E70zJKh7p5aELPN_pq93luMuygnshg4qvzbqfRI8NnYV2mk_5lM_S4pRcvVV79lQP2pZQlZ3Rz7kzbfOVUhgMJWrOrgkF8_xxkxNKy7rCOPA2yRGj0Hh2sDEgtmaSQXntyxcN7q-ZcNoUUJe9zrAIC_QGiSDvKL_rh8JVW4jahav62LrazlvWK8Uni_LHEhGS1sij_vh-qwP89qw6YmRJjlvfwjsyFRMUV6XCHMNqDXpNmOw6n9ZmvhIkSVpqRM4"/>
+<div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300 cursor-pointer">
+<span class="material-symbols-outlined text-white text-4xl" style="font-variation-settings: 'FILL' 1;">play_circle</span>
+</div>
+<!-- Progress Bar -->
+<div class="absolute bottom-0 left-0 w-full h-1 bg-surface-highest">
+<div class="h-full bg-primary shadow-[0_0_8px_rgba(173,198,255,0.8)]" style="width: 25%;"></div>
+</div>
+</div>
+<div class="p-4 glass-panel">
+<h4 class="font-label-lg text-label-lg text-on-surface truncate mb-1">The Final Act</h4>
+<div class="text-tertiary font-label-sm text-label-sm">2h 05m remaining</div>
+</div>
+</div>
+<!-- Scroll Item 3 -->
+<div class="flex-none w-72 relative rounded-xl overflow-hidden border border-white/10 hover:border-primary/30 transition-all duration-300">
+<div class="relative h-40 w-full">
+<img alt="Scene" class="w-full h-full object-cover" data-alt="Empty cinema seats lit by the glowing light of a projector screen in a dark room" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAkrCeck81LSgXP4eslCwBeRpjUOUfTqeP3kdg1dkqCsfbfwbgCzTP5K8b8daFM2qXzdEXIfMGqE5tRnmv0hSA-FoCSYnfuDOjAqTxoRy7OhR3gEj8vmk4AbSPuzRhecfWU0wjJLxyINLWDSN8i7CnAFFZHySF9DtD0yRd1-ovpSK7G7iNIN7fFfNYW2YUngF545-dfIUGVC61NEvEiD1CHIuczUHe6aYuNyIIpHz0QOn82h-0GODsL261CdivS_sXsJg86ZaryZA8"/>
+<div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300 cursor-pointer">
+<span class="material-symbols-outlined text-white text-4xl" style="font-variation-settings: 'FILL' 1;">play_circle</span>
+</div>
+<!-- Progress Bar -->
+<div class="absolute bottom-0 left-0 w-full h-1 bg-surface-highest">
+<div class="h-full bg-primary shadow-[0_0_8px_rgba(173,198,255,0.8)]" style="width: 85%;"></div>
+</div>
+</div>
+<div class="p-4 glass-panel">
+<h4 class="font-label-lg text-label-lg text-on-surface truncate mb-1">Silent Shadows</h4>
+<div class="text-tertiary font-label-sm text-label-sm">15m remaining</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

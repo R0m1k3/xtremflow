@@ -42,7 +42,9 @@ class Playlist {
       'name': name,
       'serverUrl': serverUrl,
       'username': username,
-      'password': password,
+      // Never expose the Xtream password to clients; the backend injects
+      // credentials server-side (see xtream_api_handler.dart).
+      'password': '',
       'dns': dns,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),

@@ -14,6 +14,9 @@ class TvFocusableCard extends StatefulWidget {
   final bool autofocus;
   final double borderRadius;
 
+  /// Accessibility label announced by screen readers (e.g. channel title).
+  final String? semanticLabel;
+
   const TvFocusableCard({
     super.key,
     required this.child,
@@ -24,6 +27,7 @@ class TvFocusableCard extends StatefulWidget {
     this.focusColor,
     this.autofocus = false,
     this.borderRadius = 12.0,
+    this.semanticLabel,
   });
 
   @override
@@ -84,7 +88,10 @@ class _TvFocusableCardState extends State<TvFocusableCard>
     final isActive = _isFocused || _isHovered;
     final focusColor = widget.focusColor ?? AppColors.primaryContainer;
 
-    return MouseRegion(
+    return Semantics(
+      button: widget.onTap != null,
+      label: widget.semanticLabel,
+      child: MouseRegion(
       onEnter: (_) => _handleHover(true),
       onExit: (_) => _handleHover(false),
       cursor: SystemMouseCursors.click,
@@ -147,6 +154,7 @@ class _TvFocusableCardState extends State<TvFocusableCard>
             ),
           ),
         ),
+      ),
       ),
     );
   }

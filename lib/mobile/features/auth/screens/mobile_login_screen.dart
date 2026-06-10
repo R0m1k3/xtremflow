@@ -68,9 +68,9 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Color(0xFF000000), // Deep Black
-                    Color(0xFF0F0F12), // Subtle Gray
-                    Color(0xFF000000), // Back to Black
+                    AppColors.baseLevel0,
+                    AppColors.surfaceContainerLowest,
+                    AppColors.baseLevel0,
                   ],
                 ),
               ),

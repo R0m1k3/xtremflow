@@ -1,19 +1,17 @@
 import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:http/http.dart' as http;
-import '../database/database.dart';
 import '../models/playlist_config.dart';
 
 /// API EPG — proxy vers Xtream avec cache 30 minutes
 /// GET /api/epg/<channel_id>?days=1
 class EpgApi {
-  final AppDatabase _db;
   final Future<PlaylistConfig?> Function(Request) _getPlaylist;
 
   // Cache simple en mémoire : channelId → {data, expiresAt}
   final Map<String, _CacheEntry> _cache = {};
 
-  EpgApi(this._db, this._getPlaylist);
+  EpgApi(this._getPlaylist);
 
   Future<Response> handleGetEpg(Request request, String channelId) async {
     // Vérifier le cache

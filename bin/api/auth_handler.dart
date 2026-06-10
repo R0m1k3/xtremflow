@@ -23,8 +23,7 @@ class AuthHandler {
     try {
       print('[Auth] Login attempt received');
       final bodyStr = await request.readAsString();
-      print('[Auth] Request body: $bodyStr');
-      
+
       final payload = jsonDecode(bodyStr) as Map<String, dynamic>;
       final username = payload['username'] as String?;
       final password = payload['password'] as String?;
@@ -51,13 +50,19 @@ class AuthHandler {
       print('[Auth] User verified, creating session for userId: ${user.id}');
       // Create session
       final session = db.createSession(user.id);
-      print('[Auth] Session created with token: ${session.token.substring(0, 8)}...');
 
+      // HttpOnly session cookie so same-origin media requests (hls.js inside
+      // the player iframe cannot send Authorization headers) are authenticated.
+      final maxAge = session.expiresAt.difference(DateTime.now()).inSeconds;
       return Response.ok(jsonEncode({
         'success': true,
         'user': user.toJson(),
         'token': session.token,
-      }), headers: {'Content-Type': 'application/json'},);
+      }), headers: {
+        'Content-Type': 'application/json',
+        'Set-Cookie':
+            'session=${session.token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=$maxAge',
+      },);
     } catch (e, stackTrace) {
       print('[Auth] ERROR during login: $e');
       print('[Auth] Stack trace: $stackTrace');
@@ -83,7 +88,10 @@ class AuthHandler {
 
       return Response.ok(jsonEncode({
         'success': true,
-      }), headers: {'Content-Type': 'application/json'},);
+      }), headers: {
+        'Content-Type': 'application/json',
+        'Set-Cookie': 'session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
+      },);
     } catch (e) {
       return Response.internalServerError(
         body: jsonEncode({'success': false, 'error': e.toString()}),

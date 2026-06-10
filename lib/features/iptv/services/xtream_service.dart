@@ -42,6 +42,36 @@ class XtreamService {
     );
 
     _dio.interceptors.add(DioCacheInterceptor(options: _cacheOptions));
+
+    // Attach the backend session token: the Xtream gateway
+    // (/api/xtream-api) requires authentication and injects the IPTV
+    // credentials server-side.
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          if (kIsWeb) {
+            final token = html.window.localStorage['auth_token'];
+            if (token != null && token.isNotEmpty) {
+              options.headers['Authorization'] = 'Bearer $token';
+            }
+          }
+          handler.next(options);
+        },
+      ),
+    );
+  }
+
+  /// GET on the authenticated Xtream gateway. Credentials are injected by
+  /// the backend; the client only passes the action and its parameters.
+  Future<Response<dynamic>> _apiGet(
+    Map<String, String> params, {
+    Options? options,
+  }) {
+    return _dio.get(
+      '$_backendBaseUrl/api/xtream-api',
+      queryParameters: params,
+      options: options ?? Options(extra: _cacheOptions.toExtra()),
+    );
   }
 
   String? _manualBackendUrl;
@@ -84,47 +114,45 @@ class XtreamService {
     _dio.options.sendTimeout = Duration(seconds: seconds);
   }
 
-  /// Wrap URL with proxy for all external IPTV URLs
-  String _wrapWithProxy(String url) {
-    if (url.startsWith('http')) {
-      return '$_backendBaseUrl/api/xtream/$url';
-    }
-    return url;
-  }
-
   /// Initialize connection with a playlist
   void setPlaylist(PlaylistConfig playlist) {
     _currentPlaylist = playlist;
   }
 
   /// Generate stream URL for live TV (HLS)
-  String getLiveStreamUrl(String streamId) {
+  /// [quality]: source | high | medium | low (server-side FFmpeg preset)
+  String getLiveStreamUrl(String streamId, {String quality = 'high'}) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
-    return '$_backendBaseUrl/api/live/$streamId/playlist.m3u8';
+    return '$_backendBaseUrl/api/live/$streamId/$quality/playlist.m3u8';
   }
 
   /// Generate stream URL for live TV (Direct MPEG-TS)
   /// Faster zapping on compatible players (mpegts.js)
   String getLiveStreamUrlTs(String streamId) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
-    // Direct link to the .ts stream through our proxy
-    final dns = _currentPlaylist!.dns;
-    final user = _currentPlaylist!.username;
-    final pass = _currentPlaylist!.password;
-    final url = '$dns/live/$user/$pass/$streamId.ts';
-    return '$_backendBaseUrl/api/xtream/${Uri.encodeComponent(url)}';
+    // Backend route injects the Xtream credentials server-side
+    return '$_backendBaseUrl/api/live/$streamId.ts';
   }
 
   /// Generate stream URL for VOD (movies)
-  String getVodStreamUrl(String streamId, String containerExtension) {
+  /// [quality]: source | high | medium | low (server-side FFmpeg preset)
+  String getVodStreamUrl(
+    String streamId,
+    String containerExtension, {
+    String quality = 'high',
+  }) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
-    return '$_backendBaseUrl/api/vod/$streamId/playlist.m3u8';
+    return '$_backendBaseUrl/api/vod/$streamId/$quality/playlist.m3u8';
   }
 
   /// Generate stream URL for series episodes
-  String getSeriesStreamUrl(String streamId, String containerExtension) {
+  String getSeriesStreamUrl(
+    String streamId,
+    String containerExtension, {
+    String quality = 'high',
+  }) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
-    return '$_backendBaseUrl/api/vod/$streamId/playlist.m3u8?type=series';
+    return '$_backendBaseUrl/api/vod/$streamId/$quality/playlist.m3u8?type=series';
   }
 
   /// Authenticate and get server info
@@ -132,14 +160,7 @@ class XtreamService {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
 
     try {
-      final response = await _dio.get(
-        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
-        queryParameters: {
-          'username': _currentPlaylist!.username,
-          'password': _currentPlaylist!.password,
-        },
-        options: Options(extra: _cacheOptions.toExtra()),
-      );
+      final response = await _apiGet({});
 
       return response.data as Map<String, dynamic>;
     } catch (e) {
@@ -152,15 +173,7 @@ class XtreamService {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
 
     try {
-      final response = await _dio.get(
-        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
-        queryParameters: {
-          'username': _currentPlaylist!.username,
-          'password': _currentPlaylist!.password,
-          'action': 'get_live_categories',
-        },
-        options: Options(extra: _cacheOptions.toExtra()),
-      );
+      final response = await _apiGet({'action': 'get_live_categories'});
 
       final List<dynamic> categories = response.data as List<dynamic>;
       final Map<String, String> categoryMap = {};
@@ -198,13 +211,8 @@ class XtreamService {
       // Parallelize categories and streams fetching
       final results = await Future.wait([
         _getLiveCategories(),
-        _dio.get(
-          _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
-          queryParameters: {
-            'username': _currentPlaylist!.username,
-            'password': _currentPlaylist!.password,
-            'action': 'get_live_streams',
-          },
+        _apiGet(
+          {'action': 'get_live_streams'},
           options: Options(extra: options),
         ),
       ]);
@@ -279,15 +287,7 @@ class XtreamService {
     if (_currentPlaylist == null) return {};
 
     try {
-      final response = await _dio.get(
-        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
-        queryParameters: {
-          'username': _currentPlaylist!.username,
-          'password': _currentPlaylist!.password,
-          'action': 'get_vod_categories',
-        },
-        options: Options(extra: _cacheOptions.toExtra()),
-      );
+      final response = await _apiGet({'action': 'get_vod_categories'});
 
       final List<dynamic> categories = response.data as List<dynamic>;
       final Map<String, String> categoryMap = {};
@@ -319,13 +319,8 @@ class XtreamService {
       // Parallelize VOD categories and streams fetching
       final results = await Future.wait([
         _getVodCategories(),
-        _dio.get(
-          _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
-          queryParameters: {
-            'username': _currentPlaylist!.username,
-            'password': _currentPlaylist!.password,
-            'action': 'get_vod_streams',
-          },
+        _apiGet(
+          {'action': 'get_vod_streams'},
           options: Options(extra: options),
         ),
       ]);
@@ -364,15 +359,7 @@ class XtreamService {
     if (_currentPlaylist == null) return {};
 
     try {
-      final response = await _dio.get(
-        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
-        queryParameters: {
-          'username': _currentPlaylist!.username,
-          'password': _currentPlaylist!.password,
-          'action': 'get_series_categories',
-        },
-        options: Options(extra: _cacheOptions.toExtra()),
-      );
+      final response = await _apiGet({'action': 'get_series_categories'});
 
       final List<dynamic> categories = response.data as List<dynamic>;
       final Map<String, String> categoryMap = {};
@@ -404,13 +391,8 @@ class XtreamService {
       // Parallelize Series categories and streams fetching
       final results = await Future.wait([
         _getSeriesCategories(),
-        _dio.get(
-          _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
-          queryParameters: {
-            'username': _currentPlaylist!.username,
-            'password': _currentPlaylist!.password,
-            'action': 'get_series',
-          },
+        _apiGet(
+          {'action': 'get_series'},
           options: Options(extra: options),
         ),
       ]);
@@ -455,15 +437,7 @@ class XtreamService {
       // Load categories for mapping
       final categoryMap = await _getVodCategories();
 
-      final response = await _dio.get(
-        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
-        queryParameters: {
-          'username': _currentPlaylist!.username,
-          'password': _currentPlaylist!.password,
-          'action': 'get_vod_streams',
-        },
-        options: Options(extra: _cacheOptions.toExtra()),
-      );
+      final response = await _apiGet({'action': 'get_vod_streams'});
 
       final List<dynamic> allMovies = response.data as List<dynamic>;
 
@@ -494,15 +468,7 @@ class XtreamService {
     try {
       final categoryMap = await _getVodCategories();
 
-      final response = await _dio.get(
-        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
-        queryParameters: {
-          'username': _currentPlaylist!.username,
-          'password': _currentPlaylist!.password,
-          'action': 'get_vod_streams',
-        },
-        options: Options(extra: _cacheOptions.toExtra()),
-      );
+      final response = await _apiGet({'action': 'get_vod_streams'});
 
       final List<dynamic> allMovies = response.data as List<dynamic>;
       final queryLower = query.toLowerCase();
@@ -537,15 +503,7 @@ class XtreamService {
       // Load categories for mapping
       final categoryMap = await _getSeriesCategories();
 
-      final response = await _dio.get(
-        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
-        queryParameters: {
-          'username': _currentPlaylist!.username,
-          'password': _currentPlaylist!.password,
-          'action': 'get_series',
-        },
-        options: Options(extra: _cacheOptions.toExtra()),
-      );
+      final response = await _apiGet({'action': 'get_series'});
 
       final List<dynamic> allSeries = response.data as List<dynamic>;
 
@@ -576,15 +534,7 @@ class XtreamService {
     try {
       final categoryMap = await _getSeriesCategories();
 
-      final response = await _dio.get(
-        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
-        queryParameters: {
-          'username': _currentPlaylist!.username,
-          'password': _currentPlaylist!.password,
-          'action': 'get_series',
-        },
-        options: Options(extra: _cacheOptions.toExtra()),
-      );
+      final response = await _apiGet({'action': 'get_series'});
 
       final List<dynamic> allSeries = response.data as List<dynamic>;
       final queryLower = query.toLowerCase();
@@ -613,16 +563,10 @@ class XtreamService {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
 
     try {
-      final response = await _dio.get(
-        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
-        queryParameters: {
-          'username': _currentPlaylist!.username,
-          'password': _currentPlaylist!.password,
-          'action': 'get_series_info',
-          'series_id': seriesId,
-        },
-        options: Options(extra: _cacheOptions.toExtra()),
-      );
+      final response = await _apiGet({
+        'action': 'get_series_info',
+        'series_id': seriesId,
+      });
 
       return xm.SeriesInfo.fromJson(response.data as Map<String, dynamic>);
     } catch (e) {
@@ -637,16 +581,10 @@ class XtreamService {
     if (_currentPlaylist == null) return null;
 
     try {
-      final response = await _dio.get(
-        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
-        queryParameters: {
-          'username': _currentPlaylist!.username,
-          'password': _currentPlaylist!.password,
-          'action': 'get_vod_info',
-          'vod_id': vodId,
-        },
-        options: Options(extra: _cacheOptions.toExtra()),
-      );
+      final response = await _apiGet({
+        'action': 'get_vod_info',
+        'vod_id': vodId,
+      });
 
       final data = response.data as Map<String, dynamic>;
 
@@ -698,11 +636,8 @@ class XtreamService {
     }
 
     try {
-      final response = await _dio.get(
-        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
-        queryParameters: {
-          'username': _currentPlaylist!.username,
-          'password': _currentPlaylist!.password,
+      final response = await _apiGet(
+        {
           'action': 'get_short_epg',
           'stream_id': streamId,
         },
@@ -740,11 +675,8 @@ class XtreamService {
     }
 
     try {
-      final response = await _dio.get(
-        _wrapWithProxy(_currentPlaylist!.apiBaseUrl),
-        queryParameters: {
-          'username': _currentPlaylist!.username,
-          'password': _currentPlaylist!.password,
+      final response = await _apiGet(
+        {
           'action': 'get_short_epg',
           'stream_id': streamId,
         },

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:shelf/shelf.dart';
 import '../database/database.dart';
 
@@ -16,19 +17,50 @@ Middleware authMiddleware(AppDatabase db) {
         return Response(401, body: 'Unauthorized');
       }
 
-      // Verify session
+      // Verify session (findSessionByToken enforces expires_at)
       final session = db.findSessionByToken(token);
       if (session == null) {
         return Response(401, body: 'Invalid or expired session');
       }
 
-      // Add userId to context
+      // Add user info to context. Both keys are populated because handlers
+      // are inconsistent: playlists_handler reads 'userId', while
+      // getPlaylist/admin routes read 'user'.
+      final user = db.findUserById(session.userId);
       final updatedRequest = request.change(context: {
         ...request.context,
         'userId': session.userId,
+        if (user != null) 'user': user,
       },);
 
       return handler(updatedRequest);
+    };
+  };
+}
+
+/// Auth middleware for streaming routes (HLS playlists/segments).
+///
+/// hls.js/mpegts.js inside the player iframe cannot send Authorization
+/// headers, so these routes accept the HttpOnly session cookie instead.
+/// Loopback requests without X-Forwarded-For are allowed through because
+/// the recording scheduler's local FFmpeg fetches
+/// `http://localhost:8089/api/live/<id>.ts` without credentials.
+Middleware streamAuthMiddleware(AppDatabase db) {
+  return (Handler handler) {
+    return (Request request) async {
+      final connectionInfo =
+          request.context['shelf.io.connection_info'] as HttpConnectionInfo?;
+      final isLoopback = connectionInfo?.remoteAddress.isLoopback ?? false;
+      final viaProxy = request.headers.containsKey('x-forwarded-for');
+      if (isLoopback && !viaProxy) {
+        return handler(request);
+      }
+
+      final token = _extractToken(request);
+      if (token == null || db.findSessionByToken(token) == null) {
+        return Response(401, body: 'Unauthorized');
+      }
+      return handler(request);
     };
   };
 }

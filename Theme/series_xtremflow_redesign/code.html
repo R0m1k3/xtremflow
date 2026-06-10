@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>XtremFlow - TV Series</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary-fixed": "#e2e2e2",
+                      "inverse-surface": "#e3e2e7",
+                      "on-secondary-fixed-variant": "#46464e",
+                      "on-secondary": "#2f3037",
+                      "inverse-on-surface": "#2f3035",
+                      "primary": "#adc6ff",
+                      "on-primary": "#002e69",
+                      "primary-fixed-dim": "#adc6ff",
+                      "on-primary-fixed-variant": "#004493",
+                      "on-error-container": "#ffdad6",
+                      "tertiary": "#c6c6c7",
+                      "on-background": "#e3e2e7",
+                      "on-surface": "#e3e2e7",
+                      "surface": "#121317",
+                      "outline-variant": "#414755",
+                      "on-primary-container": "#00285c",
+                      "error": "#ffb4ab",
+                      "surface-container-low": "#1a1b20",
+                      "outline": "#8b90a0",
+                      "on-tertiary-container": "#282a2a",
+                      "surface-tint": "#adc6ff",
+                      "on-primary-fixed": "#001a41",
+                      "on-tertiary-fixed": "#1a1c1c",
+                      "inverse-primary": "#005bc1",
+                      "background": "#121317",
+                      "surface-bright": "#38393d",
+                      "error-container": "#93000a",
+                      "surface-dim": "#121317",
+                      "surface-container-highest": "#343439",
+                      "tertiary-fixed-dim": "#c6c6c7",
+                      "secondary-container": "#4a4b53",
+                      "primary-fixed": "#d8e2ff",
+                      "on-surface-variant": "#c1c6d7",
+                      "surface-container": "#1f1f24",
+                      "secondary-fixed": "#e3e1eb",
+                      "tertiary-container": "#909191",
+                      "secondary-fixed-dim": "#c6c5cf",
+                      "secondary": "#c6c5cf",
+                      "surface-variant": "#343439",
+                      "on-secondary-container": "#bcbbc4",
+                      "on-tertiary": "#2f3131",
+                      "on-error": "#690005",
+                      "primary-container": "#4b8eff",
+                      "on-tertiary-fixed-variant": "#454747",
+                      "surface-container-lowest": "#0d0e12",
+                      "on-secondary-fixed": "#1a1b22",
+                      "surface-container-high": "#292a2e"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "md": "24px",
+                      "sm": "12px",
+                      "margin": "32px",
+                      "gutter": "24px",
+                      "base": "8px",
+                      "xs": "4px",
+                      "lg": "48px",
+                      "xl": "80px"
+              },
+              "fontFamily": {
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "label-sm": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "label-lg": [
+                              "Inter"
+                      ],
+                      "headline-xl": [
+                              "Space Grotesk"
+                      ],
+                      "headline-md": [
+                              "Space Grotesk"
+                      ],
+                      "headline-lg": [
+                              "Space Grotesk"
+                      ]
+              },
+              "fontSize": {
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "1.5",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "0.02em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-lg": [
+                              "14px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-xl": [
+                              "48px",
+                              {
+                                      "lineHeight": "1.1",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "1.3",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+</head>
+<body class="bg-background text-on-background min-h-screen flex selection:bg-primary-container selection:text-on-primary-container">
+<!-- SideNavBar (from JSON) -->
+<nav class="hidden md:flex h-screen fixed left-0 top-0 w-64 border-r border-white/10 bg-[#0F1014]/80 backdrop-blur-2xl shadow-[10px_0_30px_-15px_rgba(0,122,255,0.2)] flex-col h-full py-8 z-50">
+<!-- Header -->
+<div class="px-6 mb-8 flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center overflow-hidden border border-white/10">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="Portrait of a young male user, professional lighting, dark background, avatar style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBeZC4RgDut3l9e8Yhvtszoa8oVpVwSxh9TcyzDgjyNQTK9cl1kgDoEnWmrd3Bw9IsBYB9eY1zQc7A_hlFwHhuB7OGx2VSMdhvt_s8XB374y34XLUt1B7L6ufCoEf6ju2f90Z_zS4IttLXA9DITjLtxCzqKUfHJtuHamik1PlBkM-SqNF6NJfiLRDJ2OLRMyAf4qQczW-03ZSnuGp5gKh0KqXOirYxZ6542-TXF7rtucQiEefYlwVUCyPr7qYVMfEkfnqnFs8rVruw"/>
+</div>
+<div>
+<h2 class="font-headline-md text-headline-md text-blue-500 font-bold uppercase tracking-widest text-sm leading-tight">Command Center</h2>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Premium Tier</p>
+</div>
+</div>
+<!-- Main Navigation -->
+<div class="flex-1 flex flex-col gap-2 font-['Space_Grotesk'] text-sm font-medium">
+<a class="text-slate-500 flex items-center gap-4 px-6 py-4 hover:bg-white/5 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform duration-200">live_tv</span>
+<span class="group-hover:translate-x-1 transition-transform duration-200">Live TV</span>
+</a>
+<a class="text-slate-500 flex items-center gap-4 px-6 py-4 hover:bg-white/5 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform duration-200">movie</span>
+<span class="group-hover:translate-x-1 transition-transform duration-200">Movies</span>
+</a>
+<!-- Active State -->
+<a class="bg-blue-500/10 text-blue-400 border-l-4 border-blue-500 flex items-center gap-4 px-6 py-4 group" href="#">
+<span class="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform duration-200">theaters</span>
+<span class="group-hover:translate-x-1 transition-transform duration-200">Series</span>
+</a>
+<a class="text-slate-500 flex items-center gap-4 px-6 py-4 hover:bg-white/5 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform duration-200">fiber_manual_record</span>
+<span class="group-hover:translate-x-1 transition-transform duration-200">Recordings</span>
+</a>
+<a class="text-slate-500 flex items-center gap-4 px-6 py-4 hover:bg-white/5 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform duration-200">settings</span>
+<span class="group-hover:translate-x-1 transition-transform duration-200">Settings</span>
+</a>
+</div>
+<!-- Footer Navigation -->
+<div class="mt-auto flex flex-col gap-2 font-['Space_Grotesk'] text-sm font-medium border-t border-white/5 pt-4">
+<a class="text-slate-500 flex items-center gap-4 px-6 py-4 hover:bg-white/5 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform duration-200">help</span>
+<span class="group-hover:translate-x-1 transition-transform duration-200">Support</span>
+</a>
+<a class="text-slate-500 flex items-center gap-4 px-6 py-4 hover:bg-white/5 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform duration-200">logout</span>
+<span class="group-hover:translate-x-1 transition-transform duration-200">Logout</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-64 relative overflow-y-auto">
+<!-- Hero Section: L'affaire Moloch -->
+<section class="relative h-[716px] min-h-[600px] w-full flex items-end pb-xl pt-32 px-md md:px-xl overflow-hidden">
+<!-- Background Image -->
+<div class="absolute inset-0 z-0">
+<img alt="L'affaire Moloch Background" class="w-full h-full object-cover opacity-60" data-alt="Dark, moody cinematic shot of a mysterious figure in a trench coat standing in a foggy, dimly lit European street, neon reflections on wet cobblestone" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCz9SytGaUq4pVuS4xyPqRE9mwnqySR4Hj_xQSzNDUmtjNYm3lZnmtMS5--st-JXJP9GGmvcbTnBlv2PBGZ-wX4hH63QUdZLPpPkalsGDWGlfxK_oZlEhDpAGKUiU2o44Jzpa1ibnmVP9XlNnBmnKxI-fM1BmoJEiJaS4iJSBFmtQoxa-u-Fd1RffEUlDyIcOWbqjJrc_SdjtUjisCfnjjRVPRWUKmgJ5cw101wyudgzg_BfqcYz_GEkagax1kZIawTMloUiZSE4Y8"/>
+<!-- Gradient Overlays for integration -->
+<div class="absolute inset-0 bg-gradient-to-t from-[#0F1014] via-[#0F1014]/60 to-transparent"></div>
+<div class="absolute inset-0 bg-gradient-to-r from-[#0F1014] via-transparent to-transparent"></div>
+</div>
+<!-- Top Search/Profile (Mobile only mostly, since nav is fixed) -->
+<div class="absolute top-0 right-0 p-md flex gap-4 z-20 md:hidden">
+<button class="w-10 h-10 rounded-full bg-surface/50 backdrop-blur-xl border border-white/10 flex items-center justify-center text-on-surface hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined">search</span>
+</button>
+</div>
+<!-- Hero Content -->
+<div class="relative z-10 max-w-4xl flex flex-col gap-sm">
+<!-- Badges -->
+<div class="flex items-center gap-3 mb-2">
+<span class="px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary font-label-sm text-label-sm backdrop-blur-md">NEW EPISODE</span>
+<span class="px-3 py-1 rounded-full bg-surface-variant/50 border border-white/10 text-on-surface-variant font-label-sm text-label-sm backdrop-blur-md">THRILLER</span>
+<span class="px-3 py-1 rounded-full bg-surface-variant/50 border border-white/10 text-on-surface-variant font-label-sm text-label-sm backdrop-blur-md">4K HDR</span>
+</div>
+<h1 class="font-headline-xl text-headline-xl text-on-surface drop-shadow-2xl">L'affaire Moloch</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mt-4 line-clamp-3">
+                    A disgraced detective and an ambitious journalist uncover a web of corruption spanning decades in a sleepy coastal town. As they dig deeper, the lines between truth and paranoia begin to blur.
+                </p>
+<div class="flex items-center gap-4 mt-8">
+<!-- Primary Button -->
+<button class="h-12 px-8 rounded-lg bg-gradient-to-r from-[#007AFF] to-cyan-400 text-white font-label-lg text-label-lg flex items-center gap-2 hover:shadow-[0_0_20px_rgba(0,122,255,0.4)] transition-all hover:scale-105 active:scale-95">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+                        Watch S1 E4
+                    </button>
+<!-- Secondary Button -->
+<button class="h-12 px-8 rounded-lg bg-surface/30 backdrop-blur-xl border border-white/10 text-on-surface font-label-lg text-label-lg flex items-center gap-2 hover:bg-white/10 transition-all active:scale-95">
+<span class="material-symbols-outlined">add</span>
+                        My List
+                    </button>
+</div>
+</div>
+</section>
+<!-- Continue Watching Grid -->
+<section class="px-md md:px-xl py-lg relative z-20 -mt-12">
+<h2 class="font-headline-md text-headline-md text-on-surface mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">history</span>
+                Continue Watching
+            </h2>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+<!-- Card 1 -->
+<div class="group relative rounded-xl overflow-hidden bg-surface-container border border-white/5 hover:border-white/20 transition-all duration-300 cursor-pointer shadow-lg">
+<div class="aspect-video w-full relative">
+<img alt="Stranger Things" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Retro 80s synthwave style neon lights in a dark room with a bicycle silhouette, mysterious sci-fi mood" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB5pj6QM6rWAdzTeoo0zLsW7WKIM34Uu0OUh_KuGxsagRq5y7RzVlXJbQdYYF2vFCaIGBxt3Okd7FiT-wxFyDJG058rTAN-pMH1R_eJPqRID4Oqrk4m7f91ODnp-QPgZed5HQ1p2e_kfwINhh5E4NNpVsD8Iosr-wQYfvFzNLa2IAxDHhHR6rwBsBwcl3LdkUCh-E78isFCuUAjBmrTpyG45zMVvNfz4vlpTfJgGIoYuF8dl6bAegQ1QTK6d8AHZItypxrjiTaV7hI"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-80"></div>
+<!-- Play Overlay -->
+<div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-sm">
+<div class="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-on-primary shadow-[0_0_15px_rgba(173,198,255,0.5)]">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+</div>
+<div class="p-4 relative bg-surface/80 backdrop-blur-md">
+<h3 class="font-label-lg text-label-lg text-on-surface truncate">Stranger Things</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-1">S4:E8 • "Papa"</p>
+<!-- Progress Bar -->
+<div class="w-full h-1 bg-surface-variant rounded-full mt-3 overflow-hidden">
+<div class="h-full bg-primary shadow-[0_0_8px_rgba(173,198,255,0.8)] w-[75%]"></div>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="group relative rounded-xl overflow-hidden bg-surface-container border border-white/5 hover:border-white/20 transition-all duration-300 cursor-pointer shadow-lg">
+<div class="aspect-video w-full relative">
+<img alt="The Crown" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Elegant royal palace interior, dimly lit with ornate gold details and a solitary figure looking out a window" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDaLMl7_348o1rCV-iPOJn0UEHKzHnnz60qvDMQ4W7yUEmzdu4V7LUec_s_R_t7PcVIUPlkjRMSA8-BwNvhozmV5Y8tHpFvWKY6oSU8yPC03rHVSWtqyWEiIboxNPmqqSVTrrvzKZqqlP3K4LTNX8bBlKI-WMeeNOWnVFnTTyGz-Z6MTjriX_bewWRfI2H8z5LQun4tzvd90H78tAQC1rT6eaPmYPigHWWmEp2CEQIk6YyUiZGwH85Q8WLLHECf-30XGJD2oCJKrG0"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-80"></div>
+<div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-sm">
+<div class="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-on-primary shadow-[0_0_15px_rgba(173,198,255,0.5)]">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+</div>
+<div class="p-4 relative bg-surface/80 backdrop-blur-md">
+<h3 class="font-label-lg text-label-lg text-on-surface truncate">The Crown</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-1">S5:E2 • "The System"</p>
+<div class="w-full h-1 bg-surface-variant rounded-full mt-3 overflow-hidden">
+<div class="h-full bg-primary shadow-[0_0_8px_rgba(173,198,255,0.8)] w-[30%]"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Trending Series Grid -->
+<section class="px-md md:px-xl py-lg">
+<div class="flex items-center justify-between mb-6">
+<h2 class="font-headline-md text-headline-md text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">local_fire_department</span>
+                    Trending Now
+                </h2>
+<button class="font-label-sm text-label-sm text-primary hover:text-primary-fixed transition-colors flex items-center gap-1">
+                    View All <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+<!-- Poster 1 -->
+<div class="group relative rounded-lg overflow-hidden bg-surface border border-white/5 hover:border-white/40 transition-all duration-300 cursor-pointer shadow-lg hover:shadow-[0_0_30px_-5px_rgba(0,122,255,0.15)] aspect-[2/3]">
+<img alt="Reykjavik Fusion" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Icy bleak landscape in Iceland, stark contrast, dark moody tones, isolated cabin in the snow" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAuXaoTwWSTHV_Cy0w5VPgZPGkjzMeJLLlSeqaHP-71xzmISlJlwLnmcjKzjO4MnU_AYBkQVl9vVvHqDHq2qiETmZ2ceVZxltzl2UadLkBqjHShoSHdfgwYdM_xA_R-eOodLSV5S5-loDjjHJfZyrTw4mFpA1mUvhVvx1NlKhNvDF0AX_7sPIQwTMA1o6SBpp9gFikVVepjVhoHEJZxS3th10PdPAtloeVR5Tl2GqsoQOGEmv9bx5tIO2dXihJCs_mRqKBfFHOIwTQ"/>
+<!-- Rating Badge -->
+<div class="absolute top-2 right-2 px-2 py-1 bg-surface/80 backdrop-blur-md border border-white/10 rounded text-on-surface font-label-sm text-label-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-yellow-400" style="font-variation-settings: 'FILL' 1;">star</span>
+                        9.2
+                    </div>
+<!-- Metadata Overlay -->
+<div class="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-background via-background/80 to-transparent translate-y-4 group-hover:translate-y-0 transition-transform duration-300 backdrop-blur-[2px]">
+<h3 class="font-label-lg text-label-lg text-on-surface truncate">Reykjavik Fusion</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">Crime • 2 Seasons</p>
+</div>
+</div>
+<!-- Poster 2 -->
+<div class="group relative rounded-lg overflow-hidden bg-surface border border-white/5 hover:border-white/40 transition-all duration-300 cursor-pointer shadow-lg hover:shadow-[0_0_30px_-5px_rgba(0,122,255,0.15)] aspect-[2/3]">
+<img alt="Neon Genesis" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Cyberpunk city street at night, heavy rain, glowing pink and blue neon signs reflecting on wet pavement" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDG6oCPWDHZ4WJTQ1aXyii-WYsESpm9o1pT8J7LnJhlqQ9A2NPmJalFKTMlmsc3qvU0Swue_pbBE4HKmqQLJhoo97NQi98By6toE4Kq6vimNvp504CdQD0T3vybUzUcAxf6-B5qxi8dj4eBBKucNnQ23J0EBfyBLSrDg_fsBYVSDAGB6HrFJIoKzkLWcTPwuJn9DMa5uNJSs4yhs_QsAMxm1Pk9pxZZmiLhUVTvt6rAq_s4nX-NUABss95GadMWc8kVxV_2D24Ah-U"/>
+<div class="absolute top-2 right-2 px-2 py-1 bg-surface/80 backdrop-blur-md border border-white/10 rounded text-on-surface font-label-sm text-label-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-yellow-400" style="font-variation-settings: 'FILL' 1;">star</span>
+                        8.8
+                    </div>
+<div class="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-background via-background/80 to-transparent translate-y-4 group-hover:translate-y-0 transition-transform duration-300 backdrop-blur-[2px]">
+<h3 class="font-label-lg text-label-lg text-on-surface truncate">Neon Genesis</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">Sci-Fi • 1 Season</p>
+</div>
+</div>
+<!-- Poster 3 -->
+<div class="group relative rounded-lg overflow-hidden bg-surface border border-white/5 hover:border-white/40 transition-all duration-300 cursor-pointer shadow-lg hover:shadow-[0_0_30px_-5px_rgba(0,122,255,0.15)] aspect-[2/3]">
+<img alt="The Archive" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Dusty, ancient library filled with glowing books, magical atmosphere, warm golden light rays piercing through small windows" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBMR_YyFPNgkyIHR-pKOvWTUvyf-HP-uzhcRa0TZ7MqKEFdIACiHXc_TTLZC_ZMYgDAw0mLZiFOa7ZbkyALrTFf-sQmeLY5hfwd_TYbXxyGxogB8jWi6F4FV05m4Y2F09p4XaRQMnXukXu2hGcp2fgdorhMh7MzntXHDY3mQyVYHEeiuIUrjlkonBrxjT1B-eMFhKOcHp8FncYgzB5GcFTq2NCaVlxiniHq6ZJmh93PhqXSa4e9-G5HHBbPtJhzYZpQpD3G_-4u2tQ"/>
+<div class="absolute top-2 right-2 px-2 py-1 bg-surface/80 backdrop-blur-md border border-white/10 rounded text-on-surface font-label-sm text-label-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-yellow-400" style="font-variation-settings: 'FILL' 1;">star</span>
+                        9.5
+                    </div>
+<div class="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-background via-background/80 to-transparent translate-y-4 group-hover:translate-y-0 transition-transform duration-300 backdrop-blur-[2px]">
+<h3 class="font-label-lg text-label-lg text-on-surface truncate">The Archive</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">Fantasy • 4 Seasons</p>
+</div>
+</div>
+<!-- Poster 4 -->
+<div class="group relative rounded-lg overflow-hidden bg-surface border border-white/5 hover:border-white/40 transition-all duration-300 cursor-pointer shadow-lg hover:shadow-[0_0_30px_-5px_rgba(0,122,255,0.15)] aspect-[2/3]">
+<img alt="Apex Protocol" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Sleek modern server room, cold blue lighting, sterile environment, rows of high-tech data racks" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCw2S19UFAInTxAS_xXzOHlAtZLiF4hMH4zbtK9kF0goTqcdAKzAr1uFfpNZmhSDJcly_7BvcfK7y2XuUCkhJI3R-EoERxVHuiRiJZN_lcxc2PFWQ73QsbdoiHoU5RWepbS-MLmft2T-vH_w6FRXZnok0-LO9XRySApsOawSTN8x6iQ-QLQAppLwc6JvCh62ICge0ROKI2P-3IiharZxs5AjGrZivO5yt3EqDV26QleiZ3lU9TtTqVWDLLJhFM34Jcw3Kv3lqtXnsk"/>
+<div class="absolute top-2 right-2 px-2 py-1 bg-surface/80 backdrop-blur-md border border-white/10 rounded text-on-surface font-label-sm text-label-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-yellow-400" style="font-variation-settings: 'FILL' 1;">star</span>
+                        7.9
+                    </div>
+<div class="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-background via-background/80 to-transparent translate-y-4 group-hover:translate-y-0 transition-transform duration-300 backdrop-blur-[2px]">
+<h3 class="font-label-lg text-label-lg text-on-surface truncate">Apex Protocol</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">Action • 1 Season</p>
+</div>
+</div>
+<!-- Poster 5 -->
+<div class="group relative rounded-lg overflow-hidden bg-surface border border-white/5 hover:border-white/40 transition-all duration-300 cursor-pointer shadow-lg hover:shadow-[0_0_30px_-5px_rgba(0,122,255,0.15)] aspect-[2/3] hidden md:block">
+<img alt="Whispers" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Eerie dark forest trail covered in dense fog, moonlight barely piercing through tall pine trees, suspenseful mood" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAz4JFta70ndzciiYnKJA5Vr-aIJ_kXX-xWI4HCsrNQ_BUG5DKgS2AEHGrADq5MCaziw2p45G_vAwEnZSjsCSikPqgzkqjBKz3PWvigyPt2EhtAwK-orMWL_8AlyDz--3yusP5DCHtYH1gYurYPoSO7OopzNSEvYIRtD5DI157kJQIFoWujeQomFzBzFxMYOYtIO450dwAuCiBooGlQR0YK98VQg4uyav8Cc_U34zbRz3n4aZ3vXpw5ght_Iaqe2bop7gskJ_rUaBg"/>
+<div class="absolute top-2 right-2 px-2 py-1 bg-surface/80 backdrop-blur-md border border-white/10 rounded text-on-surface font-label-sm text-label-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-yellow-400" style="font-variation-settings: 'FILL' 1;">star</span>
+                        8.4
+                    </div>
+<div class="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-background via-background/80 to-transparent translate-y-4 group-hover:translate-y-0 transition-transform duration-300 backdrop-blur-[2px]">
+<h3 class="font-label-lg text-label-lg text-on-surface truncate">Whispers</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">Horror • 3 Seasons</p>
+</div>
+</div>
+<!-- Poster 6 -->
+<div class="group relative rounded-lg overflow-hidden bg-surface border border-white/5 hover:border-white/40 transition-all duration-300 cursor-pointer shadow-lg hover:shadow-[0_0_30px_-5px_rgba(0,122,255,0.15)] aspect-[2/3] hidden xl:block">
+<img alt="Stellar Drift" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="View of Earth from space, bright glowing atmosphere, deep black starfield, cinematic majestic shot" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9kroaEUwTmg6MfZT6TghSk3WRKsiNu4HpTj7_pOQbgmNKUyoITiRs9LpQvhGzWY2gbPV4YS52jo97vDEcfSesxEUGOIlzMy6w2xQyJIakCETs_8xNt4iFBUdz3gF4NhTbRI8S81mdCQ7QNbqND_OgsFWdTB5tlJxvDV63CGhRpOG6gFELjFfAUS-qwxCVs4TaUkAtHvMoRO314WIVnYa3-KURoWfnc1Dn1hWycv-IpEaf4PVW9Dn6ffJ6Ml2lvJobTkK4acgXfTU"/>
+<div class="absolute top-2 right-2 px-2 py-1 bg-surface/80 backdrop-blur-md border border-white/10 rounded text-on-surface font-label-sm text-label-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-yellow-400" style="font-variation-settings: 'FILL' 1;">star</span>
+                        9.0
+                    </div>
+<div class="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-background via-background/80 to-transparent translate-y-4 group-hover:translate-y-0 transition-transform duration-300 backdrop-blur-[2px]">
+<h3 class="font-label-lg text-label-lg text-on-surface truncate">Stellar Drift</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">Sci-Fi • 5 Seasons</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+</body></html>

@@ -5,7 +5,6 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_static/shelf_static.dart';
 import 'package:shelf_router/shelf_router.dart';
-import 'package:http/http.dart' as http;
 import 'package:args/args.dart';
 import 'database/database.dart';
 import 'models/user.dart';
@@ -20,6 +19,7 @@ import 'api/proxy_handler.dart';
 import 'api/recordings_api.dart';
 import 'api/epg_api.dart';
 import 'api/season_passes_api.dart';
+import 'api/xtream_api_handler.dart';
 import 'middleware/auth_middleware.dart';
 import 'middleware/security_middleware.dart';
 import 'services/cleanup_service.dart';
@@ -113,15 +113,46 @@ void main(List<String> args) async {
   final playlistsHandler = PlaylistsHandler(db);
   final usersHandler = UsersHandler(db);
   final settingsHandler = SettingsHandler(db);
-  final proxyHandler = ProxyHandler(getPlaylist, db);
+  final proxyHandler = ProxyHandler(getPlaylist);
   final recordingsApi = RecordingsApi(db, recordingScheduler);
-  final epgApi = EpgApi(db, getPlaylist);
+  final epgApi = EpgApi(getPlaylist);
   final seasonPassesApi = SeasonPassesApi(db);
+  final xtreamApiHandler = XtreamApiHandler(getPlaylist);
+
+  // TV Recordings sub-router (wrapped with auth below).
+  // NOTE: /api/recordings/stream/* falls through this router (404) and is
+  // handled by streamingRouter further down the Cascade.
+  final recordingsRouter = Router()
+    ..get('/', recordingsApi.handleGetAll)
+    ..post('/', recordingsApi.handlePost)
+    ..delete('/<id>', recordingsApi.handleDelete)
+    ..post('/stop/<id>', recordingsApi.handleStop)
+    ..get('/logs/<id>', recordingsApi.getLogHandler);
+
+  final epgRouter = Router()..get('/<channelId>', epgApi.handleGetEpg);
+
+  final seasonPassesRouter = Router()
+    ..get('/', seasonPassesApi.handleGetAll)
+    ..post('/', seasonPassesApi.handlePost)
+    ..delete('/<id>', seasonPassesApi.handleDelete);
 
   // Setup router
   final apiRouter = Router()
-    // Auth endpoints
-    ..mount('/api/auth', authHandler.router)
+    // Auth endpoints (with per-IP brute-force protection on login)
+    ..mount(
+      '/api/auth',
+      const Pipeline()
+          .addMiddleware(loginRateLimitMiddleware())
+          .addHandler(authHandler.router.call),
+    )
+    // Xtream API gateway: injects credentials server-side so the
+    // frontend never sees them
+    ..mount(
+      '/api/xtream-api',
+      const Pipeline()
+          .addMiddleware(authMiddleware(db))
+          .addHandler(xtreamApiHandler.handle),
+    )
     // Playlists endpoints
     ..mount(
       '/api/playlists',
@@ -143,18 +174,27 @@ void main(List<String> args) async {
           .addMiddleware(authMiddleware(db))
           .addHandler(settingsHandler.router.call),
     )
-    // TV Recordings - routes explicites
-    ..get('/api/recordings', recordingsApi.handleGetAll)
-    ..post('/api/recordings', recordingsApi.handlePost)
-    ..delete('/api/recordings/<id>', recordingsApi.handleDelete)
-    ..post('/api/recordings/stop/<id>', recordingsApi.handleStop)
-    ..get('/api/recordings/logs/<id>', recordingsApi.getLogHandler)
-    // EPG - guide TV
-    ..get('/api/epg/<channelId>', epgApi.handleGetEpg)
-    // Season Passes - enregistrements répétés
-    ..get('/api/season-passes', seasonPassesApi.handleGetAll)
-    ..post('/api/season-passes', seasonPassesApi.handlePost)
-    ..delete('/api/season-passes/<id>', seasonPassesApi.handleDelete);
+    // TV Recordings (auth required)
+    ..mount(
+      '/api/recordings',
+      const Pipeline()
+          .addMiddleware(authMiddleware(db))
+          .addHandler(recordingsRouter.call),
+    )
+    // EPG - guide TV (auth required)
+    ..mount(
+      '/api/epg',
+      const Pipeline()
+          .addMiddleware(authMiddleware(db))
+          .addHandler(epgRouter.call),
+    )
+    // Season Passes - enregistrements répétés (auth required)
+    ..mount(
+      '/api/season-passes',
+      const Pipeline()
+          .addMiddleware(authMiddleware(db))
+          .addHandler(seasonPassesRouter.call),
+    );
   // NOTE: /api/xtream is handled by proxyHandler in the Cascade below
   // Do NOT mount here as it would intercept and block the actual proxy
 
@@ -256,11 +296,17 @@ void main(List<String> args) async {
   // This allows non-/api/xtream requests to fall through to static handler
   final proxyPipeline = proxyHandler.handler;
 
+  // Streaming routes accept the HttpOnly session cookie (hls.js cannot send
+  // Authorization headers); local FFmpeg loopback fetches bypass auth.
+  final protectedStreaming = const Pipeline()
+      .addMiddleware(streamAuthMiddleware(db))
+      .addHandler(streamingRouter.call);
+
   // Main handler
   final handler = Cascade()
       .add(apiRouter.call) /* Standard API endpoints */
       .add(proxyPipeline) /* Xtream Proxy (auth inside handler) */
-      .add(streamingRouter.call) /* Streaming endpoints */
+      .add(protectedStreaming) /* Streaming endpoints */
       .add(staticHandler)
       .handler;
 
@@ -292,26 +338,48 @@ void main(List<String> args) async {
   });
 }
 
-/// CORS middleware to allow cross-origin requests
+/// CORS middleware.
+///
+/// The app is served same-origin by this server, so CORS headers are only
+/// needed for development (Flutter dev server on another port) or an
+/// explicitly configured external origin via the ALLOWED_ORIGIN env var.
+/// The request Origin is echoed back only when it matches the allowlist —
+/// never a wildcard.
 Middleware _corsMiddleware() {
+  final extraOrigin = Platform.environment['ALLOWED_ORIGIN'];
+
+  bool isAllowed(String origin) {
+    if (extraOrigin != null && extraOrigin.isNotEmpty && origin == extraOrigin) {
+      return true;
+    }
+    // Local development origins (flutter run -d chrome, etc.)
+    final uri = Uri.tryParse(origin);
+    return uri != null && (uri.host == 'localhost' || uri.host == '127.0.0.1');
+  }
+
   return (Handler handler) {
     return (Request request) async {
+      final origin = request.headers['origin'];
+      final headers = <String, String>{
+        if (origin != null && isAllowed(origin)) ...{
+          'Access-Control-Allow-Origin': origin,
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers':
+              'Origin, Content-Type, Accept, Authorization, Range',
+          'Access-Control-Expose-Headers': 'Content-Length, Content-Range',
+          'Access-Control-Allow-Credentials': 'true',
+          'Vary': 'Origin',
+        },
+      };
+
       // Handle preflight requests
       if (request.method == 'OPTIONS') {
-        return Response.ok('', headers: _corsHeaders);
+        return Response.ok('', headers: headers);
       }
 
       // Process request and add CORS headers to response
       final response = await handler(request);
-      return response.change(headers: _corsHeaders);
+      return headers.isEmpty ? response : response.change(headers: headers);
     };
   };
 }
-
-final _corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers':
-      'Origin, Content-Type, Accept, Authorization, Range',
-  'Access-Control-Expose-Headers': 'Content-Length, Content-Range',
-};

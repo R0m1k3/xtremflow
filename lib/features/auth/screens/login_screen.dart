@@ -58,9 +58,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Color(0xFF050505),
+                  AppColors.surfaceContainerLowest,
                   AppColors.background,
-                  Color(0xFF0A0A0A),
+                  AppColors.baseLevel0,
                 ],
               ),
             ),

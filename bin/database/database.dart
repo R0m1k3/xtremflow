@@ -186,7 +186,25 @@ class AppDatabase {
       return null;
     }
 
+    // Lazy migration: rehash legacy SHA-256 hashes with bcrypt on
+    // successful login (the only moment the plaintext is available).
+    if (PasswordHasher.isLegacy(passwordHash)) {
+      updatePasswordHash(
+        result.first['id'] as String,
+        PasswordHasher.hash(password),
+      );
+      print('[Auth] Migrated legacy password hash for user: $username');
+    }
+
     return User.fromMap(result.first);
+  }
+
+  /// Replace a user's stored password hash (used by lazy bcrypt migration)
+  void updatePasswordHash(String userId, String newHash) {
+    _db.execute(
+      'UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [newHash, userId],
+    );
   }
 
   /// Create new user

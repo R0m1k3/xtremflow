@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Paramètres - XtremFlow</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#e2e2e2",
+                        "inverse-surface": "#e3e2e7",
+                        "on-secondary-fixed-variant": "#46464e",
+                        "on-secondary": "#2f3037",
+                        "inverse-on-surface": "#2f3035",
+                        "primary": "#adc6ff",
+                        "on-primary": "#002e69",
+                        "primary-fixed-dim": "#adc6ff",
+                        "on-primary-fixed-variant": "#004493",
+                        "on-error-container": "#ffdad6",
+                        "tertiary": "#c6c6c7",
+                        "on-background": "#e3e2e7",
+                        "on-surface": "#e3e2e7",
+                        "surface": "#121317",
+                        "outline-variant": "#414755",
+                        "on-primary-container": "#00285c",
+                        "error": "#ffb4ab",
+                        "surface-container-low": "#1a1b20",
+                        "outline": "#8b90a0",
+                        "on-tertiary-container": "#282a2a",
+                        "surface-tint": "#adc6ff",
+                        "on-primary-fixed": "#001a41",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "inverse-primary": "#005bc1",
+                        "background": "#121317",
+                        "surface-bright": "#38393d",
+                        "error-container": "#93000a",
+                        "surface-dim": "#121317",
+                        "surface-container-highest": "#343439",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "secondary-container": "#4a4b53",
+                        "primary-fixed": "#d8e2ff",
+                        "on-surface-variant": "#c1c6d7",
+                        "surface-container": "#1f1f24",
+                        "secondary-fixed": "#e3e1eb",
+                        "tertiary-container": "#909191",
+                        "secondary-fixed-dim": "#c6c5cf",
+                        "secondary": "#c6c5cf",
+                        "surface-variant": "#343439",
+                        "on-secondary-container": "#bcbbc4",
+                        "on-tertiary": "#2f3131",
+                        "on-error": "#690005",
+                        "primary-container": "#4b8eff",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "surface-container-lowest": "#0d0e12",
+                        "on-secondary-fixed": "#1a1b22",
+                        "surface-container-high": "#292a2e"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "24px",
+                        "sm": "12px",
+                        "margin": "32px",
+                        "gutter": "24px",
+                        "base": "8px",
+                        "xs": "4px",
+                        "lg": "48px",
+                        "xl": "80px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "label-lg": ["Inter"],
+                        "headline-xl": ["Space Grotesk"],
+                        "headline-md": ["Space Grotesk"],
+                        "headline-lg": ["Space Grotesk"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "1.2", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "label-lg": ["14px", { "lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "headline-xl": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "1.3", "fontWeight": "500" }],
+                        "headline-lg": ["32px", { "lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #0F1014; /* Base Level 0 */
+            color: #e3e2e7;
+        }
+        .glass-panel {
+            background: rgba(24, 25, 32, 0.4);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .glass-floating {
+            background: rgba(24, 25, 32, 0.6);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 1px 1px 0px 0px rgba(173, 198, 255, 0.2), 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        }
+        .neon-glow {
+            box-shadow: 0 0 15px rgba(0, 122, 255, 0.5);
+        }
+        .input-dark {
+            background-color: #181920;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #e3e2e7;
+        }
+        .input-dark:focus {
+            border-color: #007AFF;
+            box-shadow: 0 0 10px rgba(0, 122, 255, 0.3);
+            outline: none;
+        }
+        .chip {
+            background-color: rgba(173, 198, 255, 0.1);
+            color: #ffffff;
+            border: 1px solid rgba(173, 198, 255, 0.3);
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md antialiased min-h-screen flex selection:bg-primary selection:text-on-primary">
+<!-- SideNavBar Component -->
+<nav class="hidden md:flex flex-col h-full py-8 h-screen fixed left-0 top-0 w-64 border-r border-white/10 shadow-[10px_0_30px_-15px_rgba(0,122,255,0.2)] bg-[#0F1014]/80 backdrop-blur-2xl z-40">
+<div class="px-6 mb-8 flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 p-0.5">
+<img alt="User Profile" class="w-full h-full rounded-full object-cover" data-alt="Close-up portrait of a young woman with natural lighting, subtle background blur, high-quality professional photography" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCe_G8mDdSMWIlLiW3aBKMRw0ljyLQN8lQuS0_yMFEhjzDIKoe33IJaWfOIOBts14PZb6rXQDhow4BGwoTgoTe6uFLWYfDtjuwow1CAY5UM6O9ZqLYVIbRMx2MmMqMVY6A0WRKOfIEkskYWuoU9dAWtQvIJvov34E6i5pCqhZBjcNL5bGjpsdotbd4skKJtxgUz8XhVkS-3hhZI9ChoZUOskixxOsI4mZgKbBjshcAZAeoAYoNBN1rwl-YzXm75MwvUKoQaDCDRHUg"/>
+</div>
+<div>
+<h2 class="font-headline-md text-headline-md text-blue-500 font-bold uppercase tracking-widest text-sm">Command Center</h2>
+<p class="font-label-sm text-label-sm text-slate-400">Premium Tier</p>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto space-y-1 mt-4">
+<a class="text-slate-500 flex items-center gap-4 px-6 py-4 hover:bg-white/5 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform duration-200">live_tv</span>
+<span class="font-['Space_Grotesk'] text-sm font-medium">Live TV</span>
+</a>
+<a class="text-slate-500 flex items-center gap-4 px-6 py-4 hover:bg-white/5 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform duration-200">movie</span>
+<span class="font-['Space_Grotesk'] text-sm font-medium">Movies</span>
+</a>
+<a class="text-slate-500 flex items-center gap-4 px-6 py-4 hover:bg-white/5 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform duration-200">theaters</span>
+<span class="font-['Space_Grotesk'] text-sm font-medium">Series</span>
+</a>
+<a class="text-slate-500 flex items-center gap-4 px-6 py-4 hover:bg-white/5 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform duration-200">fiber_manual_record</span>
+<span class="font-['Space_Grotesk'] text-sm font-medium">Recordings</span>
+</a>
+<a class="bg-blue-500/10 text-blue-400 border-l-4 border-blue-500 flex items-center gap-4 px-6 py-4 group" href="#">
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform duration-200" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="font-['Space_Grotesk'] text-sm font-medium">Settings</span>
+</a>
+</div>
+<div class="mt-auto px-6 space-y-1">
+<a class="text-slate-500 flex items-center gap-4 py-3 hover:bg-white/5 hover:text-white transition-colors group rounded-lg px-4 -mx-4" href="#">
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform duration-200">help</span>
+<span class="font-['Space_Grotesk'] text-sm font-medium">Support</span>
+</a>
+<a class="text-slate-500 flex items-center gap-4 py-3 hover:bg-white/5 hover:text-white transition-colors group rounded-lg px-4 -mx-4" href="#">
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform duration-200">logout</span>
+<span class="font-['Space_Grotesk'] text-sm font-medium">Logout</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-64 p-margin lg:p-lg min-h-screen flex flex-col gap-lg">
+<!-- Header & Tabs -->
+<header class="flex flex-col gap-md">
+<div>
+<h1 class="font-headline-xl text-headline-xl text-on-surface mb-xs">Paramètres</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Configuration de votre expérience XtremFlow.</p>
+</div>
+<div class="glass-panel rounded-lg p-1 flex gap-2 w-fit">
+<button class="bg-primary/20 text-primary font-label-lg text-label-lg px-6 py-2.5 rounded-md border border-primary/30 shadow-[0_0_15px_rgba(0,122,255,0.2)] transition-all">Filtres</button>
+<button class="text-on-surface-variant hover:text-on-surface hover:bg-white/5 font-label-lg text-label-lg px-6 py-2.5 rounded-md transition-all">Streaming</button>
+<button class="text-on-surface-variant hover:text-on-surface hover:bg-white/5 font-label-lg text-label-lg px-6 py-2.5 rounded-md transition-all">Apparence</button>
+<button class="text-on-surface-variant hover:text-on-surface hover:bg-white/5 font-label-lg text-label-lg px-6 py-2.5 rounded-md transition-all">Administration</button>
+</div>
+</header>
+<!-- Content Grid -->
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-gutter flex-1">
+<!-- Filtre TV Live -->
+<section class="glass-floating rounded-xl p-md flex flex-col gap-md">
+<div class="flex items-center gap-3 pb-sm border-b border-white/10">
+<div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+<span class="material-symbols-outlined text-primary text-xl">live_tv</span>
+</div>
+<h2 class="font-headline-lg text-headline-md text-on-surface">Filtre TV Live</h2>
+</div>
+<div class="flex flex-col gap-4">
+<div>
+<label class="font-label-sm text-label-sm text-on-surface-variant block mb-2 uppercase tracking-wider">Rechercher une catégorie</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full input-dark rounded-md py-2.5 pl-10 pr-4 font-body-md text-body-md transition-all" placeholder="Ex: France, Sport, Info..." type="text"/>
+</div>
+</div>
+<div>
+<label class="font-label-sm text-label-sm text-on-surface-variant block mb-3 uppercase tracking-wider">Catégories Actives</label>
+<div class="flex flex-wrap gap-2">
+<div class="chip rounded-full px-4 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-primary/20 transition-colors">
+<span class="font-label-sm text-label-sm">FRANCE</span>
+<span class="material-symbols-outlined text-[14px]">close</span>
+</div>
+<div class="chip rounded-full px-4 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-primary/20 transition-colors">
+<span class="font-label-sm text-label-sm">SPORT</span>
+<span class="material-symbols-outlined text-[14px]">close</span>
+</div>
+<div class="chip rounded-full px-4 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-primary/20 transition-colors">
+<span class="font-label-sm text-label-sm">DOCUMENTAIRE</span>
+<span class="material-symbols-outlined text-[14px]">close</span>
+</div>
+<div class="chip rounded-full px-4 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-primary/20 transition-colors">
+<span class="font-label-sm text-label-sm">MUSIQUE</span>
+<span class="material-symbols-outlined text-[14px]">close</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Filtre Films -->
+<section class="glass-floating rounded-xl p-md flex flex-col gap-md">
+<div class="flex items-center gap-3 pb-sm border-b border-white/10">
+<div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+<span class="material-symbols-outlined text-primary text-xl">movie</span>
+</div>
+<h2 class="font-headline-lg text-headline-md text-on-surface">Filtre Films</h2>
+</div>
+<div class="flex flex-col gap-4">
+<div>
+<label class="font-label-sm text-label-sm text-on-surface-variant block mb-2 uppercase tracking-wider">Rechercher une catégorie</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full input-dark rounded-md py-2.5 pl-10 pr-4 font-body-md text-body-md transition-all" placeholder="Ex: Action, VF, 4K..." type="text"/>
+</div>
+</div>
+<div>
+<label class="font-label-sm text-label-sm text-on-surface-variant block mb-3 uppercase tracking-wider">Catégories Actives</label>
+<div class="flex flex-wrap gap-2">
+<div class="chip rounded-full px-4 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-primary/20 transition-colors">
+<span class="font-label-sm text-label-sm">VF</span>
+<span class="material-symbols-outlined text-[14px]">close</span>
+</div>
+<div class="chip rounded-full px-4 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-primary/20 transition-colors">
+<span class="font-label-sm text-label-sm">ACTION</span>
+<span class="material-symbols-outlined text-[14px]">close</span>
+</div>
+<div class="chip rounded-full px-4 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-primary/20 transition-colors">
+<span class="font-label-sm text-label-sm">SCI-FI</span>
+<span class="material-symbols-outlined text-[14px]">close</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Filtre Séries -->
+<section class="glass-floating rounded-xl p-md flex flex-col gap-md">
+<div class="flex items-center gap-3 pb-sm border-b border-white/10">
+<div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+<span class="material-symbols-outlined text-primary text-xl">theaters</span>
+</div>
+<h2 class="font-headline-lg text-headline-md text-on-surface">Filtre Séries</h2>
+</div>
+<div class="flex flex-col gap-4">
+<div>
+<label class="font-label-sm text-label-sm text-on-surface-variant block mb-2 uppercase tracking-wider">Rechercher une catégorie</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full input-dark rounded-md py-2.5 pl-10 pr-4 font-body-md text-body-md transition-all" placeholder="Ex: Netflix, VOSTFR, Drame..." type="text"/>
+</div>
+</div>
+<div>
+<label class="font-label-sm text-label-sm text-on-surface-variant block mb-3 uppercase tracking-wider">Catégories Actives</label>
+<div class="flex flex-wrap gap-2">
+<div class="chip rounded-full px-4 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-primary/20 transition-colors">
+<span class="font-label-sm text-label-sm">NETFLIX</span>
+<span class="material-symbols-outlined text-[14px]">close</span>
+</div>
+<div class="chip rounded-full px-4 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-primary/20 transition-colors">
+<span class="font-label-sm text-label-sm">VOSTFR</span>
+<span class="material-symbols-outlined text-[14px]">close</span>
+</div>
+<div class="chip rounded-full px-4 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-primary/20 transition-colors">
+<span class="font-label-sm text-label-sm">DRAME</span>
+<span class="material-symbols-outlined text-[14px]">close</span>
+</div>
+<div class="chip rounded-full px-4 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-primary/20 transition-colors">
+<span class="font-label-sm text-label-sm">HBO</span>
+<span class="material-symbols-outlined text-[14px]">close</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Action Buttons -->
+<div class="flex justify-end gap-4 mt-auto pt-8 border-t border-white/10">
+<button class="px-6 py-2.5 rounded-md border border-outline-variant text-on-surface hover:bg-surface-variant transition-colors font-label-lg text-label-lg glass-panel">Annuler</button>
+<button class="bg-gradient-to-r from-[#007AFF] to-[#00A8FF] text-white px-8 py-2.5 rounded-md font-label-lg text-label-lg hover:shadow-[0_0_20px_rgba(0,122,255,0.4)] transition-all">Sauvegarder les filtres</button>
+</div>
+</main>
+</body></html>

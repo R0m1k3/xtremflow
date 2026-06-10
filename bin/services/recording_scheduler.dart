@@ -4,7 +4,15 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../database/database.dart';
 import '../models/recording.dart';
+import '../utils/log_redactor.dart';
+import 'recording_decision.dart';
 import 'package:path/path.dart' as p;
+
+class _ActiveRecording {
+  final Recording recording;
+  final Process process;
+  _ActiveRecording(this.recording, this.process);
+}
 
 class RecordingScheduler {
   final AppDatabase _db;
@@ -12,9 +20,14 @@ class RecordingScheduler {
   Timer? _seasonPassTimer;
   bool _isRunning = false;
 
-  // Stocker l'enregistrement actuellement en cours d'exécution
-  Recording? _currentRecording;
-  Process? _ffmpegProcess;
+  /// Enregistrements actuellement en cours, indexés par id.
+  final Map<String, _ActiveRecording> _active = {};
+
+  /// Nombre maximum d'enregistrements simultanés (env MAX_CONCURRENT_RECORDINGS).
+  final int maxConcurrent = int.tryParse(
+        Platform.environment['MAX_CONCURRENT_RECORDINGS'] ?? '',
+      ) ??
+      2;
 
   // Playlist config pour les appels EPG des season passes
   // Rempli depuis server.dart après initialisation
@@ -26,7 +39,8 @@ class RecordingScheduler {
 
   void start() {
     print(
-      '[RecordingScheduler] Démarrage du planificateur d\'enregistrements TV',
+      '[RecordingScheduler] Démarrage du planificateur d\'enregistrements TV '
+      '(max simultanés: $maxConcurrent)',
     );
     // Vérifier toutes les 10 secondes (pour un démarrage quasi-immédiat)
     _timer = Timer.periodic(
@@ -45,7 +59,9 @@ class RecordingScheduler {
   void stop() {
     _timer?.cancel();
     _seasonPassTimer?.cancel();
-    _stopCurrentRecording(reason: 'Arrêt du service planificateur');
+    for (final id in _active.keys.toList()) {
+      _stopActiveRecording(id, reason: 'Arrêt du service planificateur');
+    }
     print('[RecordingScheduler] Arrêté');
   }
 
@@ -58,17 +74,15 @@ class RecordingScheduler {
       final now = DateTime.now().toUtc();
 
       final recordings = _db.getAllRecordings();
-      print(
-        '[RecordingScheduler] VÉRIFICATION: now=$now recordings=${recordings.length}',
-      );
 
-      // Si un enregistrement est en cours, vérifier s'il doit s'arrêter
-      if (_currentRecording != null) {
-        if (now.isAfter(_currentRecording!.endTime.toUtc())) {
+      // Arrêter les enregistrements actifs dont l'heure de fin est passée
+      for (final id in _active.keys.toList()) {
+        final active = _active[id]!;
+        if (now.isAfter(active.recording.endTime.toUtc())) {
           print(
-            '[RecordingScheduler] Fin de l\'enregistrement : ${_currentRecording!.title}',
+            '[RecordingScheduler] Fin de l\'enregistrement : ${active.recording.title}',
           );
-          await _stopCurrentRecording();
+          _stopActiveRecording(id);
         }
       }
 
@@ -76,7 +90,7 @@ class RecordingScheduler {
       for (final recording in recordings) {
         // Nettoyer les enregistrements bloqués "recording" suite à un crash serveur
         if (recording.status == 'recording' &&
-            _currentRecording?.id != recording.id) {
+            !_active.containsKey(recording.id)) {
           print(
             '[RecordingScheduler] Enregistrement orphelin détecté: ${recording.id}',
           );
@@ -89,41 +103,38 @@ class RecordingScheduler {
         }
 
         if (recording.status == 'scheduled') {
-          final startUtc = recording.startTime.toUtc();
-          final endUtc = recording.endTime.toUtc();
-          print(
-            '[RecordingScheduler] "${recording.title}" start=$startUtc end=$endUtc now=$now isAfterStart=${now.isAfter(startUtc)} isBeforeEnd=${now.isBefore(endUtc)}',
+          final action = decideRecordingAction(
+            now: now,
+            startTime: recording.startTime,
+            endTime: recording.endTime,
+            activeCount: _active.length,
+            maxConcurrent: maxConcurrent,
           );
 
-          // Si l'enregistrement est planifié, qu'il est temps de démarrer et qu'il n'est pas déjà fini
-          if (now.isAfter(startUtc) && now.isBefore(endUtc)) {
-            if (_currentRecording != null) {
+          switch (action) {
+            case RecordingAction.start:
               print(
-                '[RecordingScheduler] Conflit: "${recording.title}" ne peut pas démarrer, "${_currentRecording!.title}" est en cours.',
+                '[RecordingScheduler] *** DÉMARRAGE DE L\'ENREGISTREMENT : ${recording.title} ***',
+              );
+              await _startRecording(recording);
+            case RecordingAction.wait:
+              // Capacité atteinte mais la fenêtre est encore ouverte :
+              // on garde le statut "scheduled" et on réessaiera au prochain tick.
+              print(
+                '[RecordingScheduler] Capacité max atteinte (${_active.length}/$maxConcurrent), '
+                '"${recording.title}" en attente.',
+              );
+            case RecordingAction.fail:
+              print(
+                '[RecordingScheduler] Enregistrement "${recording.title}" manqué (fin dépassée).',
               );
               _db.updateRecordingStatus(
                 recording.id,
                 'failed',
-                errorReason: 'Un autre enregistrement était déjà en cours.',
+                errorReason: 'Heure de fin dépassée avant le démarrage',
               );
-              continue;
-            }
-            print(
-              '[RecordingScheduler] *** DÉMARRAGE DE L\'ENREGISTREMENT : ${recording.title} ***',
-            );
-            await _startRecording(recording);
-          }
-
-          // Si l'enregistrement est planifié mais que la date de fin est dépassée (loupé)
-          if (now.isAfter(endUtc)) {
-            print(
-              '[RecordingScheduler] Enregistrement "${recording.title}" manqué (fin dépassée).',
-            );
-            _db.updateRecordingStatus(
-              recording.id,
-              'failed',
-              errorReason: 'Heure de fin dépassée avant le démarrage',
-            );
+            case RecordingAction.none:
+              break;
           }
         }
       }
@@ -223,7 +234,6 @@ class RecordingScheduler {
   }
 
   Future<void> _startRecording(Recording recording) async {
-    _currentRecording = recording;
     _db.updateRecordingStatus(recording.id, 'recording');
 
     // Un seul bloc try/catch englobant TOUT pour éviter les Unhandled exceptions
@@ -269,11 +279,12 @@ class RecordingScheduler {
       ];
 
       // Créer le fichier de log de façon sécurisée (openWrite peut lancer une exception)
+      // Le contenu du log est exposé via l'API : ne jamais y écrire de credentials.
       IOSink? logSink;
       try {
         logSink = File(logFilePath).openWrite();
         logSink.writeln('[${DateTime.now()}] Démarrage: ${recording.title}');
-        logSink.writeln('URL: $streamUrl');
+        logSink.writeln('URL: ${LogRedactor.redactUrl(streamUrl)}');
         logSink.writeln('Destination: $filePath');
       } catch (logError) {
         // Si on ne peut pas créer le log, on continue quand même (l'enregistrement reste prioritaire)
@@ -294,21 +305,24 @@ class RecordingScheduler {
         ffmpegPath = '/usr/local/bin/ffmpeg';
       }
 
-      logSink?.writeln('Commande: $ffmpegPath ${args.join(' ')}\n');
-      print('[RecordingScheduler] Exécution: $ffmpegPath ${args.join(' ')}');
+      final redactedArgs =
+          args.map(LogRedactor.redactUrl).join(' ');
+      logSink?.writeln('Commande: $ffmpegPath $redactedArgs\n');
+      print('[RecordingScheduler] Exécution: $ffmpegPath $redactedArgs');
 
-      _ffmpegProcess = await Process.start(ffmpegPath, args);
+      final process = await Process.start(ffmpegPath, args);
+      _active[recording.id] = _ActiveRecording(recording, process);
 
       // Rediriger stdout/stderr dans le log
-      _ffmpegProcess!.stdout.listen((event) => logSink?.add(event));
-      _ffmpegProcess!.stderr.listen((event) => logSink?.add(event));
+      process.stdout.listen((event) => logSink?.add(event));
+      process.stderr.listen((event) => logSink?.add(event));
 
       // Enregistrer le chemin du fichier dans la BDD
       _db.updateRecordingStatus(recording.id, 'recording', filePath: filePath);
 
       // Écouter la fin du processus FFmpeg de manière asynchrone
-      _ffmpegProcess!.exitCode.then((exitCode) async {
-        if (_currentRecording?.id == recording.id) {
+      process.exitCode.then((exitCode) async {
+        if (_active.containsKey(recording.id)) {
           logSink?.writeln(
             '\n[${DateTime.now()}] FFmpeg terminé avec le code $exitCode',
           );
@@ -329,8 +343,7 @@ class RecordingScheduler {
               errorReason: 'Erreur FFmpeg code $exitCode. Voir logs.',
             );
           }
-          _currentRecording = null;
-          _ffmpegProcess = null;
+          _active.remove(recording.id);
         } else {
           await logSink?.close();
         }
@@ -343,34 +356,30 @@ class RecordingScheduler {
         'failed',
         errorReason: 'Erreur au lancement: $e',
       );
-      _currentRecording = null;
-      _ffmpegProcess = null;
+      _active.remove(recording.id);
     }
   }
 
   /// Arrêter un enregistrement en cours (appelé depuis l'API)
   Future<bool> stopRecording(String id) async {
-    if (_ffmpegProcess != null && _currentRecording?.id == id) {
+    if (_active.containsKey(id)) {
       print(
-        '[RecordingScheduler] Arrêt demandé pour: ${_currentRecording!.title}',
+        '[RecordingScheduler] Arrêt demandé pour: ${_active[id]!.recording.title}',
       );
-      _ffmpegProcess!.kill(ProcessSignal.sigterm);
-      _db.updateRecordingStatus(id, 'completed');
-      _ffmpegProcess = null;
-      _currentRecording = null;
+      _stopActiveRecording(id);
       return true;
     }
     return false; // Pas d'enregistrement actif avec cet ID
   }
 
-  Future<void> _stopCurrentRecording({String? reason}) async {
-    if (_ffmpegProcess != null && _currentRecording != null) {
-      print('[RecordingScheduler] Arrêt auto: ${reason ?? "Fin programmée"}');
-      _ffmpegProcess!.kill(ProcessSignal.sigterm);
-      _db.updateRecordingStatus(_currentRecording!.id, 'completed');
-      _ffmpegProcess = null;
-      _currentRecording = null;
+  void _stopActiveRecording(String id, {String? reason}) {
+    final active = _active.remove(id);
+    if (active == null) return;
+    if (reason != null) {
+      print('[RecordingScheduler] Arrêt: $reason (${active.recording.title})');
     }
+    active.process.kill(ProcessSignal.sigterm);
+    _db.updateRecordingStatus(id, 'completed');
   }
 
   Future<void> _checkDiskSpaceAndRotate(Directory dir) async {

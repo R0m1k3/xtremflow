@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Enregistrements - XtremFlow</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#e2e2e2",
+                        "inverse-surface": "#e3e2e7",
+                        "on-secondary-fixed-variant": "#46464e",
+                        "on-secondary": "#2f3037",
+                        "inverse-on-surface": "#2f3035",
+                        "primary": "#adc6ff",
+                        "on-primary": "#002e69",
+                        "primary-fixed-dim": "#adc6ff",
+                        "on-primary-fixed-variant": "#004493",
+                        "on-error-container": "#ffdad6",
+                        "tertiary": "#c6c6c7",
+                        "on-background": "#e3e2e7",
+                        "on-surface": "#e3e2e7",
+                        "surface": "#121317",
+                        "outline-variant": "#414755",
+                        "on-primary-container": "#00285c",
+                        "error": "#ffb4ab",
+                        "surface-container-low": "#1a1b20",
+                        "outline": "#8b90a0",
+                        "on-tertiary-container": "#282a2a",
+                        "surface-tint": "#adc6ff",
+                        "on-primary-fixed": "#001a41",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "inverse-primary": "#005bc1",
+                        "background": "#121317",
+                        "surface-bright": "#38393d",
+                        "error-container": "#93000a",
+                        "surface-dim": "#121317",
+                        "surface-container-highest": "#343439",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "secondary-container": "#4a4b53",
+                        "primary-fixed": "#d8e2ff",
+                        "on-surface-variant": "#c1c6d7",
+                        "surface-container": "#1f1f24",
+                        "secondary-fixed": "#e3e1eb",
+                        "tertiary-container": "#909191",
+                        "secondary-fixed-dim": "#c6c5cf",
+                        "secondary": "#c6c5cf",
+                        "surface-variant": "#343439",
+                        "on-secondary-container": "#bcbbc4",
+                        "on-tertiary": "#2f3131",
+                        "on-error": "#690005",
+                        "primary-container": "#4b8eff",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "surface-container-lowest": "#0d0e12",
+                        "on-secondary-fixed": "#1a1b22",
+                        "surface-container-high": "#292a2e"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "24px",
+                        "sm": "12px",
+                        "margin": "32px",
+                        "gutter": "24px",
+                        "base": "8px",
+                        "xs": "4px",
+                        "lg": "48px",
+                        "xl": "80px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "label-lg": ["Inter"],
+                        "headline-xl": ["Space Grotesk"],
+                        "headline-md": ["Space Grotesk"],
+                        "headline-lg": ["Space Grotesk"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "1.2", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "label-lg": ["14px", { "lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "headline-xl": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "1.3", "fontWeight": "500" }],
+                        "headline-lg": ["32px", { "lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(18, 19, 23, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .glow-hover:hover {
+            box-shadow: 0 0 20px rgba(173, 198, 255, 0.2);
+            border-color: rgba(173, 198, 255, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex overflow-hidden">
+<!-- SideNavBar from JSON -->
+<nav class="h-screen fixed left-0 top-0 w-64 border-r border-white/10 shadow-[10px_0_30px_-15px_rgba(0,122,255,0.2)] bg-[#0F1014]/80 backdrop-blur-2xl flex flex-col h-full py-8 z-50">
+<div class="px-6 mb-8 flex items-center gap-4">
+<img alt="User Profile" class="w-12 h-12 rounded-full border border-outline/30 object-cover" data-alt="Close up portrait of a young man with a neutral expression, dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBUHb3yUjf89D-0v8UESRGpC6at8VoDc4DJ8V5D6pAcW0J_gCgg1ZvJzmVj6V5HmLHFwpBPwvjCuwZP1BZDk1DRiEynAfto0aD2RETGHJ1G_0d7xGOEDqrywl0eqrYWNwD9l81jN0vl0OolwiQElFflOs3lRuEkdK5goIGKwnJ3Rq-DiFevgKRHijZ5IFhTyCNEABGs5Ird48gsslPKtvgLpi3jgC5AQ8HS5CjUOA1mThnHj_y0Hh9VPt0u10IV1QAjX_kMZjSFqDo"/>
+<div>
+<h2 class="font-headline-md text-headline-md text-on-surface">Command Center</h2>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Premium Tier</p>
+</div>
+</div>
+<div class="flex-1 px-0 space-y-2">
+<a class="text-slate-500 flex items-center gap-4 px-6 py-4 hover:bg-white/5 hover:text-white transition-colors group-hover:translate-x-1 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined font-['Space_Grotesk'] text-sm font-medium">live_tv</span>
+<span class="font-label-lg text-label-lg">Live TV</span>
+</a>
+<a class="text-slate-500 flex items-center gap-4 px-6 py-4 hover:bg-white/5 hover:text-white transition-colors group-hover:translate-x-1 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined font-['Space_Grotesk'] text-sm font-medium">movie</span>
+<span class="font-label-lg text-label-lg">Movies</span>
+</a>
+<a class="text-slate-500 flex items-center gap-4 px-6 py-4 hover:bg-white/5 hover:text-white transition-colors group-hover:translate-x-1 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined font-['Space_Grotesk'] text-sm font-medium">theaters</span>
+<span class="font-label-lg text-label-lg">Series</span>
+</a>
+<a class="bg-blue-500/10 text-blue-400 border-l-4 border-blue-500 flex items-center gap-4 px-6 py-4" href="#">
+<span class="material-symbols-outlined font-['Space_Grotesk'] text-sm font-medium" style="font-variation-settings: 'FILL' 1;">fiber_manual_record</span>
+<span class="font-label-lg text-label-lg">Recordings</span>
+</a>
+<a class="text-slate-500 flex items-center gap-4 px-6 py-4 hover:bg-white/5 hover:text-white transition-colors group-hover:translate-x-1 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined font-['Space_Grotesk'] text-sm font-medium">settings</span>
+<span class="font-label-lg text-label-lg">Settings</span>
+</a>
+</div>
+<div class="mt-auto px-0 space-y-2 pt-8 border-t border-white/5 mx-6">
+<a class="text-slate-500 flex items-center gap-4 py-2 hover:bg-white/5 hover:text-white transition-colors group-hover:translate-x-1 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined font-['Space_Grotesk'] text-sm font-medium">help</span>
+<span class="font-label-lg text-label-lg">Support</span>
+</a>
+<a class="text-slate-500 flex items-center gap-4 py-2 hover:bg-white/5 hover:text-white transition-colors group-hover:translate-x-1 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined font-['Space_Grotesk'] text-sm font-medium">logout</span>
+<span class="font-label-lg text-label-lg">Logout</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="ml-64 flex-1 flex flex-col h-screen overflow-y-auto bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-surface-container-high via-background to-background">
+<header class="px-lg py-margin sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/5">
+<div class="flex justify-between items-end">
+<div>
+<h1 class="font-headline-xl text-headline-xl text-on-surface">Enregistrements</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-2">Gérez vos programmes sportifs enregistrés.</p>
+</div>
+<div class="flex gap-4">
+<button class="glass-panel px-4 py-2 rounded-lg font-label-lg text-label-lg text-on-surface hover:bg-surface-variant transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+                        Filtrer
+                    </button>
+<button class="bg-gradient-to-r from-[#007AFF] to-[#00C6FF] text-white px-4 py-2 rounded-lg font-label-lg text-label-lg hover:shadow-[0_0_15px_rgba(0,122,255,0.4)] transition-all flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                        Nouveau
+                    </button>
+</div>
+</div>
+</header>
+<div class="p-lg flex-1">
+<div class="flex flex-col gap-4">
+<!-- Recording Item 1 -->
+<div class="glass-panel rounded-xl p-4 flex items-center justify-between glow-hover transition-all duration-300 group cursor-pointer">
+<div class="flex items-center gap-6">
+<div class="w-16 h-16 rounded-lg bg-surface-container overflow-hidden flex items-center justify-center relative">
+<img alt="Football Pitch" class="w-full h-full object-cover opacity-60" data-alt="Abstract green football pitch with stadium lights glowing in the dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBlIKTXIkr4UrfaRj-jlUL3val7L2ARMwvoQY3BqX4xJYOXbXB1etTrgWjfDrA2fk0Z1ZeV6e4IcTyveGm6C-5VUOzEmHrWwIHwG-8_gPA7SB6sJZRer0zqeCv8w0xgb9g0u028K4wdxGuf0CnvSGwvCuAe5tyhXdBIxeHI-d1PjsxO7yz5UMn3qltsmYGnxbPDEh-Oxn794vwEHVPWtVzBw8RXcbYwdRTQNncgysXXBgwasF88jT5NFwPH-4GTLm66QmThDWAcSSA"/>
+<span class="material-symbols-outlined absolute text-primary text-[32px] drop-shadow-lg">sports_soccer</span>
+</div>
+<div>
+<h3 class="font-headline-lg text-[20px] text-on-surface mb-1">Ligue 1: PSG vs OM</h3>
+<div class="flex items-center gap-3 font-label-sm text-label-sm text-on-surface-variant">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">calendar_today</span> 12 Oct 2023</span>
+<span>•</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">schedule</span> 21:00 (120 min)</span>
+<span>•</span>
+<span class="text-primary-fixed-dim">BEIN SPORTS 1</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-8">
+<div class="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-label-sm text-label-sm flex items-center gap-2 shadow-[0_0_10px_rgba(52,211,153,0.2)]">
+<div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                            Terminé
+                        </div>
+<div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+<button class="w-10 h-10 rounded-full glass-panel flex items-center justify-center text-on-surface hover:text-primary hover:border-primary/50 transition-colors">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+<button class="w-10 h-10 rounded-full glass-panel flex items-center justify-center text-on-surface hover:text-primary hover:border-primary/50 transition-colors">
+<span class="material-symbols-outlined">info</span>
+</button>
+<button class="w-10 h-10 rounded-full glass-panel flex items-center justify-center text-on-surface hover:text-error hover:border-error/50 hover:bg-error/10 transition-colors">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Recording Item 2 -->
+<div class="glass-panel rounded-xl p-4 flex items-center justify-between glow-hover transition-all duration-300 group cursor-pointer">
+<div class="flex items-center gap-6">
+<div class="w-16 h-16 rounded-lg bg-surface-container overflow-hidden flex items-center justify-center relative">
+<img alt="Basketball Court" class="w-full h-full object-cover opacity-60" data-alt="Dark dramatic lighting on an indoor basketball court wooden floor" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBuAxQ5d1F_AjiDesX_IOUWZ-7MUrbKFeRtf0r6JHVXuIfKUyNrwTO8XXQtrzjqTSoUO2uYBjsRavJCN8zuZt9NNirkUxJ_BC_HEDNKR0j1ZJq7whnX4IXQRXkRa_gse1Ck7HBHlaY4AROlDVSNvEYZe8mphvkqq9TmOodiNoH4iWCLr0R9RuIsYJk2qjDcMdwW41w_EpmTpyAXXOzWpNkBEB11M_n5CnDNYVPZ7VwtpMFwI8sgDsZ5zYkMjo0PJzAVbpApa0F1dh8"/>
+<span class="material-symbols-outlined absolute text-primary text-[32px] drop-shadow-lg">sports_basketball</span>
+</div>
+<div>
+<h3 class="font-headline-lg text-[20px] text-on-surface mb-1">NBA Finals: Game 6</h3>
+<div class="flex items-center gap-3 font-label-sm text-label-sm text-on-surface-variant">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">calendar_today</span> 10 Oct 2023</span>
+<span>•</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">schedule</span> 03:00 (180 min)</span>
+<span>•</span>
+<span class="text-primary-fixed-dim">BEIN SPORTS 2</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-8">
+<div class="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-label-sm text-label-sm flex items-center gap-2 shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+<div class="w-2 h-2 rounded-full bg-amber-400"></div>
+                            Échoué
+                        </div>
+<div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+<button class="w-10 h-10 rounded-full glass-panel flex items-center justify-center text-on-surface hover:text-primary hover:border-primary/50 transition-colors opacity-50 cursor-not-allowed">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+<button class="w-10 h-10 rounded-full glass-panel flex items-center justify-center text-on-surface hover:text-primary hover:border-primary/50 transition-colors">
+<span class="material-symbols-outlined">info</span>
+</button>
+<button class="w-10 h-10 rounded-full glass-panel flex items-center justify-center text-on-surface hover:text-error hover:border-error/50 hover:bg-error/10 transition-colors">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Recording Item 3 -->
+<div class="glass-panel rounded-xl p-4 flex items-center justify-between glow-hover transition-all duration-300 group cursor-pointer">
+<div class="flex items-center gap-6">
+<div class="w-16 h-16 rounded-lg bg-surface-container overflow-hidden flex items-center justify-center relative">
+<img alt="Tennis Ball" class="w-full h-full object-cover opacity-60" data-alt="Close up of a yellow tennis ball on a dark green hard court surface" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhEXEQs08c5_awogBJrV1sNwKxQVEQhjEZjuyBh_e9mQmYMfH_boI9ZrYiCjccoAE3Fa1O7ouqRqVlToqxH14hcW38IHY0VZrIepn2ekBT9pWt4OPWIODRY2bZ0AhUpU2e46Q06qin0foVozgerAPRpFcPvSToJrlICAyg6AGESZHWZQ8PA4-Y2ysGo6xA52vS2bO7V7LX9-zJhpuzhSoUePqbKd0EoBe2dSvqnKYVNaSyzyWyWVvBHisGV9ZKsXe4UmvBGanvu7A"/>
+<span class="material-symbols-outlined absolute text-primary text-[32px] drop-shadow-lg">sports_tennis</span>
+</div>
+<div>
+<h3 class="font-headline-lg text-[20px] text-on-surface mb-1">Roland Garros: Finale H</h3>
+<div class="flex items-center gap-3 font-label-sm text-label-sm text-on-surface-variant">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">calendar_today</span> 05 Oct 2023</span>
+<span>•</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">schedule</span> 15:00 (240 min)</span>
+<span>•</span>
+<span class="text-primary-fixed-dim">BEIN SPORTS 1</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-8">
+<div class="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-label-sm text-label-sm flex items-center gap-2 shadow-[0_0_10px_rgba(52,211,153,0.2)]">
+<div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                            Terminé
+                        </div>
+<div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+<button class="w-10 h-10 rounded-full glass-panel flex items-center justify-center text-on-surface hover:text-primary hover:border-primary/50 transition-colors">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+<button class="w-10 h-10 rounded-full glass-panel flex items-center justify-center text-on-surface hover:text-primary hover:border-primary/50 transition-colors">
+<span class="material-symbols-outlined">info</span>
+</button>
+<button class="w-10 h-10 rounded-full glass-panel flex items-center justify-center text-on-surface hover:text-error hover:border-error/50 hover:bg-error/10 transition-colors">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

@@ -371,6 +371,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
         return TvFocusableCard(
           onTap: () => _playChannel(channel, channels),
           borderRadius: 12,
+          semanticLabel: 'Chaîne ${channel.name}',
           child: Container(
             decoration: BoxDecoration(
               color: AppColors.surfaceVariant,
@@ -481,7 +482,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                                   return Text(
                                     currentProgram.title,
                                     style: GoogleFonts.inter(
-                                      color: const Color(0xFFFFD700),
+                                      color: AppColors.ratingGold,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
                                     ),

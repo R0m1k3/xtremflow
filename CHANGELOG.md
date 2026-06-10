@@ -1,5 +1,39 @@
 # 📝 Changelog - XtremFlow Optimisations
 
+## Version 1.2 - Security, Streaming & Design Overhaul (10 Juin 2026)
+
+### 🔐 Sécurité
+- Hachage des mots de passe en **bcrypt** (migration lazy depuis SHA-256 au login)
+- Les credentials Xtream ne quittent plus jamais le serveur : nouvelle passerelle authentifiée `/api/xtream-api` (injection côté serveur), `/api/playlists` ne renvoie plus les mots de passe
+- Redaction des credentials dans tous les logs (proxy, FFmpeg, scheduler, login)
+- Cookie de session HttpOnly + auth sur les routes de streaming, recordings, EPG, season-passes
+- postMessage des players verrouillé sur same-origin (plus de wildcard `*`)
+- hls.js 1.6.7 / mpegts.js 1.7.3 vendorisés et figés (`web/vendor/`, plus de CDN `@latest`)
+- Rate limiter réparé (IP réelle via X-Forwarded-For) + limite login 10/min/IP
+- CORS restreint (plus de wildcard), CSP en Report-Only, anti-SSRF (IP privées bloquées), fix path-traversal sur les logs d'enregistrement, `chmod 770` sur /app/recordings
+- Suppression du code mort HiveService (seed admin SHA-256 en IndexedDB)
+
+### 📺 Streaming
+- **FfmpegSessionManager** : registre des process FFmpeg, reaper d'inactivité (4 min live / 15 min VOD), purge des orphelins au démarrage, arrêt propre SIGTERM, échec rapide avec stderr (fini le timeout 30 s)
+- **Sélection de qualité** : `source | high | medium | low` (live + VOD), `source` = `-c:v copy` zéro transcodage ; sélecteur dans le player
+- **Enregistrements simultanés** (MAX_CONCURRENT_RECORDINGS, défaut 2) : les conflits réessaient au lieu d'échouer
+- Latence live réduite : fenêtre HLS 20→10 segments, `liveSyncDurationCount` 10→3
+- Fix : récupération des logs d'enregistrement (cherchait `.mp4`, fichiers en `.mkv`)
+- Fix : `authMiddleware` ne peuplait pas `user` → getPlaylist retombait toujours sur le 1er utilisateur, purge admin toujours 403
+
+### 🎨 Design
+- Sweep des couleurs hardcodées → tokens `AppColors` (24 occurrences, 12 fichiers)
+- `web/theme.css` : variables CSS synchronisées avec le thème Flutter pour les 3 players HTML
+- Navigation DPAD/clavier : flèches = focus, raccourcis player (espace, ←/→ seek/zap, M mute, Échap)
+- Tooltips sur tous les boutons icône du player, `Semantics` sur les cartes chaînes/films/séries
+- Suppression de 7 widgets morts cassés depuis la fusion Stitch
+
+### 🧪 Qualité
+- Tests backend (`bin/test/`) : bcrypt, redaction, path-traversal, SSRF, logique de conflit d'enregistrement — 21 tests
+- Test widget du sélecteur de qualité
+- CI GitHub Actions (analyze + test + build web)
+- Docs périmées archivées dans `docs/archive/`
+
 ## Version 1.1 - Optimizations Release (26 Mars 2026)
 
 ### 🆕 New Features

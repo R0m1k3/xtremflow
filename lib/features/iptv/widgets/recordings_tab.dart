@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import '../../../core/models/iptv_models.dart';
 import '../../../core/models/playlist_config.dart';
+import '../../../core/theme/app_colors.dart';
 import '../providers/xtream_provider.dart';
 import '../providers/settings_provider.dart';
 import '../screens/player_screen.dart';
@@ -363,7 +364,7 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                             const Icon(
                               Icons.tv_off,
                               size: 64,
-                              color: Color(0x1FFFFFFF),
+                              color: AppColors.glassLevel1Border,
                             ),
                             const SizedBox(height: 16),
                             Text(
@@ -512,7 +513,7 @@ class _ProgrammeCard extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E2E),
+        backgroundColor: AppColors.surfaceContainer,
         title: Row(
           children: [
             const Icon(
@@ -823,7 +824,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          backgroundColor: const Color(0xFF1E1E2E),
+          backgroundColor: AppColors.surfaceContainer,
           title: Text(
             title,
             style: GoogleFonts.outfit(color: Colors.white, fontSize: 14),
@@ -918,7 +919,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                                 const Icon(
                                   Icons.videocam_off,
                                   size: 64,
-                                  color: Color(0x1FFFFFFF),
+                                  color: AppColors.glassLevel1Border,
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
@@ -1124,7 +1125,7 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E2E),
+        backgroundColor: AppColors.surfaceContainer,
         title: Row(
           children: [
             const Icon(Icons.repeat, color: Colors.purpleAccent),
@@ -1282,7 +1283,7 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
                             const Icon(
                               Icons.repeat,
                               size: 64,
-                              color: Color(0x1FFFFFFF),
+                              color: AppColors.glassLevel1Border,
                             ),
                             const SizedBox(height: 16),
                             Text(

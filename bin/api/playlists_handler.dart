@@ -120,7 +120,12 @@ class PlaylistsHandler {
       final name = payload['name'] as String? ?? existing.name;
       final serverUrl = payload['serverUrl'] as String? ?? existing.serverUrl;
       final username = payload['username'] as String? ?? existing.username;
-      final password = payload['password'] as String? ?? existing.password;
+      // Empty password means "keep current": clients never receive the real
+      // password, so edit forms send it back blank.
+      final incomingPassword = payload['password'] as String?;
+      final password = (incomingPassword == null || incomingPassword.isEmpty)
+          ? existing.password
+          : incomingPassword;
       final dns = payload['dns'] as String? ?? existing.dns;
 
       final playlist = db.updatePlaylist(

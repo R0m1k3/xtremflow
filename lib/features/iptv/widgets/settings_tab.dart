@@ -482,7 +482,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
-                    backgroundColor: const Color(0xFF1E1E1E),
+                    backgroundColor: AppColors.surfaceContainer,
                     title: const Text(
                       'Vider le cache ?',
                       style: TextStyle(color: AppColors.onSurface),

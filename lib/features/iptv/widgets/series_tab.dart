@@ -333,6 +333,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                   return TvFocusableCard(
                     onTap: () => _openSeries(serie),
                     borderRadius: 12,
+                    semanticLabel: 'Série ${serie.name}',
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
@@ -434,7 +435,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                                   const Icon(
                                     Icons.star,
                                     size: 10,
-                                    color: Color(0xFFFFD700),
+                                    color: AppColors.ratingGold,
                                   ),
                                   const SizedBox(width: 4),
                                   Text(

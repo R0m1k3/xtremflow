@@ -287,7 +287,7 @@ class StreamingSettingsTab extends ConsumerWidget {
       trailing: DropdownButton<T>(
         value: value,
         underline: const SizedBox(),
-        dropdownColor: const Color(0xFF1C1C1E), // Dark background for dropdown
+        dropdownColor: AppColors.surfaceContainer, // Dark background for dropdown
         items: items.map((item) {
           return DropdownMenuItem<T>(
             value: item,

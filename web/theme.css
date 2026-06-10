@@ -1,0 +1,14 @@
+/* XtremFlow web player theme tokens.
+   Mirrors lib/core/theme/app_colors.dart (Cyber-Cinematic Glass).
+   Keep both files in sync when the palette changes. */
+:root {
+    --color-bg: #0F1014;            /* AppColors.baseLevel0 */
+    --color-surface: #121317;       /* AppColors.surface */
+    --color-text: #e3e2e7;          /* AppColors.textPrimary */
+    --color-text-secondary: #c1c6d7;/* AppColors.textSecondary */
+    --color-accent: #adc6ff;        /* AppColors.primary */
+    --color-accent-strong: #4b8eff; /* AppColors.primaryContainer */
+    --color-error: #ffb4ab;         /* AppColors.error */
+    --color-overlay: rgba(15, 16, 20, 0.6);
+    --color-border: rgba(255, 255, 255, 0.1); /* glassLevel1Border */
+}

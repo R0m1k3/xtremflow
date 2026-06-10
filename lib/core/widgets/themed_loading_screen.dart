@@ -14,8 +14,8 @@ class ThemedLoading extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFF0F1014), // Deep Space Dark
-            Color(0xFF121317), // Stitch background
+            AppColors.baseLevel0,
+            AppColors.background,
           ],
         ),
       ),
@@ -24,7 +24,7 @@ class ThemedLoading extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const CircularProgressIndicator(
-              color: Color(0xFF4b8eff), // AppColors.primaryContainer
+              color: AppColors.primaryContainer,
               strokeWidth: 3,
             ),
             const SizedBox(height: 16),

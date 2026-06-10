@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'dart:convert';
+import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
-import 'package:shelf_router/shelf_router.dart';
 import '../database/database.dart';
+import '../models/user.dart';
 import '../services/recording_scheduler.dart';
+import '../utils/safe_path.dart';
 
 class RecordingsApi {
   final AppDatabase _db;
@@ -30,12 +32,24 @@ class RecordingsApi {
       );
     }
 
-    final logFilePath = recording.filePath!.replaceAll('.mp4', '.log');
-    final logFile = File(logFilePath);
+    // Les enregistrements sont écrits en .mkv avec un .log à côté
+    // (l'ancien replaceAll('.mp4', '.log') ne trouvait jamais le fichier).
+    final logFilePath = p.setExtension(recording.filePath!, '.log');
+
+    // Anti path-traversal : le log doit rester dans /app/recordings
+    final safeLogPath = SafePath.resolveWithin('/app/recordings', logFilePath);
+    if (safeLogPath == null) {
+      return Response.forbidden(
+        json.encode({'error': 'Chemin de log invalide'}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    }
+
+    final logFile = File(safeLogPath);
 
     if (!await logFile.exists()) {
       return Response.notFound(
-        json.encode({'error': 'Le fichier de log est introuvable. Chemin: $logFilePath'}),
+        json.encode({'error': 'Le fichier de log est introuvable.'}),
         headers: {'Content-Type': 'application/json'},
       );
     }
@@ -47,9 +61,13 @@ class RecordingsApi {
     );
   }
 
-  /// GET /api/recordings — Liste tous les enregistrements
+  /// GET /api/recordings — Liste les enregistrements de l'utilisateur
+  /// (tous les enregistrements pour un admin)
   Response handleGetAll(Request request) {
-    final recordings = _db.getAllRecordings();
+    final user = request.context['user'] as User?;
+    final recordings = (user != null && !user.isAdmin)
+        ? _db.getUserRecordings(user.id)
+        : _db.getAllRecordings();
     return Response.ok(
       json.encode(recordings.map((r) => r.toMap()).toList()),
       headers: {'Content-Type': 'application/json'},
@@ -62,8 +80,9 @@ class RecordingsApi {
       final payload = await request.readAsString();
       final data = json.decode(payload);
 
+      final userId = request.context['userId'] as String? ?? 'dev_user_id';
       final recording = _db.createRecording(
-        userId: 'dev_user_id',
+        userId: userId,
         channelId: data['channel_id'],
         streamUrl: data['stream_url'],
         title: data['title'] ?? 'Sans Titre',
