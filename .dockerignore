@@ -17,7 +17,6 @@ macos/
 *.log
 Dockerfile
 docker-compose.yml
-entrypoint.sh
 README.md
 task.md
 implementation_plan.md
