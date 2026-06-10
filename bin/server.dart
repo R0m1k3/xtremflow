@@ -245,12 +245,16 @@ void main(List<String> args) async {
   FutureOr<Response> staticHandler(Request request) async {
     final response = await baseStaticHandler(request);
 
-    // Disable cache for entry points to ensure updates are seen immediately
+    // Disable cache for entry points to ensure updates are seen immediately.
+    // Vendored player libraries (hls.js/mpegts.js, ~750 KB) are pinned
+    // versions: keep them cacheable or every player open re-downloads them.
     final path = request.url.path;
-    if (path.isEmpty ||
-        path == 'index.html' ||
-        path.endsWith('.js') ||
-        path.endsWith('.json')) {
+    final isVendored = path.startsWith('vendor/');
+    if (!isVendored &&
+        (path.isEmpty ||
+            path == 'index.html' ||
+            path.endsWith('.js') ||
+            path.endsWith('.json'))) {
       return response.change(
         headers: {
           'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',

@@ -258,7 +258,7 @@
                 nudgeOffset: 0.8,
                 nudgeMaxRetries: 30,
                 maxLiveSyncPlaybackRate: 1.1,
-                initialLiveManifestSize: 3,
+                initialLiveManifestSize: 1,
                 abrEwmaDefaultEstimate: 1000000,
                 manifestLoadingRetryDelay: 1000,
                 levelLoadingRetryDelay: 1000
@@ -271,11 +271,11 @@
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
                 hideLoading();
                 const checkBuffer = setInterval(() => {
-                    if (video.buffered.length > 0 && video.buffered.end(0) > 1.5) {
+                    if (video.buffered.length > 0 && video.buffered.end(0) > 0.8) {
                         clearInterval(checkBuffer);
                         video.play().catch(() => playOverlay.style.display = 'flex');
                     }
-                }, 200);
+                }, 100);
             });
 
             hls.on(Hls.Events.ERROR, (event, data) => {
@@ -302,7 +302,7 @@
                 url: url
             }, {
                 enableWorker: true,
-                stashInitialSize: 512 * 1024,
+                stashInitialSize: 128 * 1024,
                 enableStashBuffer: true,
                 liveBufferLatencyChasing: false,
                 maxStashSize: 30 * 1024 * 1024
@@ -310,13 +310,13 @@
 
             player.attachMediaElement(video);
             player.load();
-            
+
             const checkBuffer = setInterval(() => {
-                if (video.buffered.length > 0 && video.buffered.end(0) > 1.0) {
+                if (video.buffered.length > 0 && video.buffered.end(0) > 0.5) {
                     clearInterval(checkBuffer);
                     player.play().catch(() => playOverlay.style.display = 'flex');
                 }
-            }, 200);
+            }, 100);
 
             player.on(mpegts.Events.ERROR, (type, detail, info) => {
                 log('MpegTS Error: ' + type + ' - ' + detail);

@@ -220,8 +220,11 @@ Handler createLiveStreamHandler(
         ..._liveVideoArgs(quality, useNvidiaGpu),
         ..._audioArgs(withFilters: false),
         // HLS sliding window: 10 x 2s segments (lower live latency than the
-        // previous 20-segment window while still safe for iOS)
+        // previous 20-segment window while still safe for iOS).
+        // hls_init_time 1: first segment closes after ~1s so playback can
+        // start sooner; subsequent segments use hls_time.
         '-f', 'hls',
+        '-hls_init_time', '1',
         '-hls_time', '2',
         '-hls_list_size', '10',
         '-hls_flags', 'delete_segments+independent_segments',
