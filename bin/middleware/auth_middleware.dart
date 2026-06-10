@@ -48,6 +48,18 @@ Middleware authMiddleware(AppDatabase db) {
 Middleware streamAuthMiddleware(AppDatabase db) {
   return (Handler handler) {
     return (Request request) async {
+      // Only guard actual streaming routes. Anything else must fall through
+      // untouched: the wrapped router returns 404 for unmatched paths and the
+      // Cascade then reaches the static file handler (a 401 here would block
+      // the whole app, e.g. GET / through the reverse proxy).
+      final path = request.url.path;
+      final isStreamingPath = path.startsWith('api/live') ||
+          path.startsWith('api/vod') ||
+          path.startsWith('api/recordings/stream');
+      if (!isStreamingPath) {
+        return handler(request);
+      }
+
       final connectionInfo =
           request.context['shelf.io.connection_info'] as HttpConnectionInfo?;
       final isLoopback = connectionInfo?.remoteAddress.isLoopback ?? false;
