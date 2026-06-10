@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
@@ -215,7 +216,11 @@ Handler createLiveStreamHandler(
         if (useNvidiaGpu && quality != 'source') ...['-hwaccel', 'cuda'],
         '-headers', 'User-Agent: VLC/3.0.18 LibVLC/3.0.18\r\n',
         '-reconnect', '1', '-reconnect_streamed', '1',
+        '-reconnect_at_eof', '1',
         '-reconnect_delay_max', '10',
+        // Abort reads stuck for 30s so a stalled upstream triggers the
+        // reconnect logic instead of wedging the process forever.
+        '-rw_timeout', '30000000',
         '-i', targetUrl,
         ..._liveVideoArgs(quality, useNvidiaGpu),
         ..._audioArgs(withFilters: false),
@@ -276,11 +281,32 @@ Handler createLiveStreamHandler(
     proxyRequest.headers['User-Agent'] = 'VLC/3.0.18 LibVLC/3.0.18';
     proxyRequest.headers['Accept'] = '*/*';
 
-    final response = await client.send(proxyRequest);
+    final http.StreamedResponse response;
+    try {
+      response = await client.send(proxyRequest);
+    } catch (e) {
+      client.close();
+      return Response(502, body: 'Upstream connection failed');
+    }
+
+    // Close the client when the upstream stream ends or errors, otherwise
+    // each proxied stream leaks a socket.
+    final body = response.stream.transform<List<int>>(
+      StreamTransformer.fromHandlers(
+        handleDone: (sink) {
+          sink.close();
+          client.close();
+        },
+        handleError: (error, stackTrace, sink) {
+          sink.close();
+          client.close();
+        },
+      ),
+    );
 
     return Response(
       response.statusCode,
-      body: response.stream,
+      body: body,
       headers: {
         'Content-Type': 'video/mp2t',
         'Connection': 'keep-alive',

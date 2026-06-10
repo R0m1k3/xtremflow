@@ -8,6 +8,7 @@ class FfmpegSession {
   final Process process;
   final Directory dir;
   final bool isLive;
+  final DateTime startedAt = DateTime.now();
   DateTime lastAccess = DateTime.now();
   bool exited = false;
   int? exitCode;
@@ -39,6 +40,9 @@ class FfmpegSessionManager {
 
   static const liveIdleTimeout = Duration(minutes: 4);
   static const vodIdleTimeout = Duration(minutes: 15);
+
+  /// Live playlist not rewritten for this long => FFmpeg is wedged.
+  static const liveStallTimeout = Duration(seconds: 45);
 
   FfmpegSessionManager(this.baseDir);
 
@@ -90,6 +94,12 @@ class FfmpegSessionManager {
       return existing;
     }
     if (existing != null) {
+      // A VOD/recording transcode that finished cleanly is still fully
+      // playable from its segments — reuse it instead of re-transcoding.
+      if (!isLive && existing.exitCode == 0 && _playlistComplete(existing)) {
+        existing.touch();
+        return existing;
+      }
       // Process died: clean up before restarting
       killSession(id);
     }
@@ -128,6 +138,16 @@ class FfmpegSessionManager {
     return session;
   }
 
+  bool _playlistComplete(FfmpegSession session) {
+    final playlistFile = File('${session.dir.path}/playlist.m3u8');
+    if (!playlistFile.existsSync()) return false;
+    try {
+      return playlistFile.readAsStringSync().contains('#EXT-X-ENDLIST');
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Waits until the session's playlist references at least one segment.
   /// Fails fast when the process dies before producing output, returning
   /// the recent stderr for diagnostics.
@@ -139,16 +159,16 @@ class FfmpegSessionManager {
     final deadline = DateTime.now().add(timeout);
 
     while (DateTime.now().isBefore(deadline)) {
-      if (session.exited && session.exitCode != 0) {
+      if (playlistFile.existsSync() &&
+          playlistFile.readAsStringSync().contains('.ts')) {
+        return (ready: true, error: null);
+      }
+      if (session.exited) {
         return (
           ready: false,
           error: 'FFmpeg exited (${session.exitCode}): '
               '${session.recentStderr.join().trim()}'
         );
-      }
-      if (playlistFile.existsSync() &&
-          playlistFile.readAsStringSync().contains('.ts')) {
-        return (ready: true, error: null);
       }
       await Future.delayed(const Duration(milliseconds: 500));
     }
@@ -180,13 +200,43 @@ class FfmpegSessionManager {
     final now = DateTime.now();
     for (final session in _sessions.values.toList()) {
       final timeout = session.isLive ? liveIdleTimeout : vodIdleTimeout;
-      if (session.exited || now.difference(session.lastAccess) > timeout) {
+      final idle = now.difference(session.lastAccess);
+
+      // Exited sessions keep their segments until the idle timeout: a
+      // finished VOD transcode is usually still being watched, and killing
+      // it here would delete the segments mid-playback.
+      if (idle > timeout) {
         print(
           '[FFmpegManager] Reaping idle session ${session.id} '
-          '(idle ${now.difference(session.lastAccess).inSeconds}s)',
+          '(idle ${idle.inSeconds}s)',
         );
         killSession(session.id);
+        continue;
       }
+
+      // Watchdog: a live FFmpeg that is running but has not updated its
+      // playlist recently is wedged on a stalled upstream. Kill it so the
+      // player's next playlist poll restarts the transcoder.
+      if (session.isLive && !session.exited && _isStalled(session, now)) {
+        print('[FFmpegManager] Restarting stalled live session ${session.id}');
+        killSession(session.id);
+      }
+    }
+  }
+
+  /// A live session is stalled when its playlist exists but has not been
+  /// rewritten for [liveStallTimeout] (FFmpeg rewrites it on every segment).
+  bool _isStalled(FfmpegSession session, DateTime now) {
+    final playlistFile = File('${session.dir.path}/playlist.m3u8');
+    if (!playlistFile.existsSync()) {
+      // Never produced output: give it until liveStallTimeout after start.
+      return now.difference(session.startedAt) > liveStallTimeout;
+    }
+    try {
+      return now.difference(playlistFile.lastModifiedSync()) >
+          liveStallTimeout;
+    } catch (_) {
+      return false;
     }
   }
 }
