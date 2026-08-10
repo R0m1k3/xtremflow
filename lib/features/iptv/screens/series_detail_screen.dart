@@ -130,6 +130,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                       width: 248,
                       height: 350,
                       fit: BoxFit.cover,
+                      memCacheWidth: 500,
                       errorWidget: (_, __, ___) => Container(
                         width: 248,
                         height: 350,
@@ -143,7 +144,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 // Title
                 Text(
                   _seriesInfo!.name,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.karla(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: AppColors.onSurface,
@@ -159,7 +160,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                       const SizedBox(width: 4),
                       Text(
                         _formatRating(_seriesInfo!.rating!)!,
-                        style: GoogleFonts.roboto(fontSize: 13, color: AppColors.onSurfaceVariant),
+                        style: GoogleFonts.karla(fontSize: 13, color: AppColors.onSurfaceVariant),
                       ),
                     ],
                   ),
@@ -169,7 +170,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 if (_seriesInfo!.plot != null && _seriesInfo!.plot!.isNotEmpty)
                   Text(
                     _seriesInfo!.plot!,
-                    style: GoogleFonts.roboto(fontSize: 12, color: AppColors.onSurfaceVariant),
+                    style: GoogleFonts.karla(fontSize: 12, color: AppColors.onSurfaceVariant),
                     maxLines: 5,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -178,7 +179,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 // Season selector
                 Text(
                   'Seasons',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.karla(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppColors.onSurface,
@@ -200,7 +201,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                       },
                       selectedColor: AppColors.primaryContainer,
                       backgroundColor: AppColors.surfaceContainer,
-                      labelStyle: GoogleFonts.inter(
+                      labelStyle: GoogleFonts.karla(
                         color: isSelected ? AppColors.onPrimary : AppColors.onSurfaceVariant,
                         fontSize: 12,
                       ),
@@ -224,7 +225,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Text(
                   'Season $_selectedSeason - ${currentEpisodes.length} Episodes',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.karla(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: AppColors.onSurface,
@@ -236,7 +237,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                     ? Center(
                         child: Text(
                           'No episodes found',
-                          style: GoogleFonts.roboto(color: AppColors.onSurfaceVariant),
+                          style: GoogleFonts.karla(color: AppColors.onSurfaceVariant),
                         ),
                       )
                     : ListView.builder(
@@ -323,7 +324,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                       ? const Icon(Icons.check, color: AppColors.onSurface, size: 20)
                       : Text(
                           '${episode.episodeNum}',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.karla(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: AppColors.onSurface,
@@ -340,7 +341,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                   children: [
                     Text(
                       episode.title,
-                      style: GoogleFonts.roboto(
+                      style: GoogleFonts.karla(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                         color: isWatched ? AppColors.onSurfaceVariant : AppColors.onSurface,
@@ -351,7 +352,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                     if (episode.durationSecs != null && episode.durationSecs! > 0)
                       Text(
                         _formatDuration(episode.durationSecs!),
-                        style: GoogleFonts.roboto(
+                        style: GoogleFonts.karla(
                           fontSize: 12,
                           color: AppColors.onSurfaceVariant,
                         ),

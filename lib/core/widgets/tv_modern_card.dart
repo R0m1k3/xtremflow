@@ -131,7 +131,7 @@ class _TvModernCardState extends State<TvModernCard>
                           ),
                           child: Text(
                             widget.badge!,
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.karla(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                               color: Colors.black,
@@ -208,7 +208,7 @@ class _TvModernCardState extends State<TvModernCard>
               widget.title,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.karla(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
@@ -229,7 +229,7 @@ class _TvModernCardState extends State<TvModernCard>
                     const SizedBox(width: 4),
                     Text(
                       widget.rating!,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.karla(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textSecondary,
@@ -241,7 +241,7 @@ class _TvModernCardState extends State<TvModernCard>
                   if (widget.year != null)
                     Text(
                       widget.year!,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.karla(
                         fontSize: 12,
                         fontWeight: FontWeight.w400,
                         color: AppColors.textTertiary,
@@ -273,6 +273,11 @@ class _TvModernCardState extends State<TvModernCard>
     return CachedNetworkImage(
       imageUrl: widget.imageUrl!,
       fit: BoxFit.cover,
+      // Decodage borne a la taille d'affichage : une grille de 40 affiches
+      // passe de ~240 Mo a quelques dizaines de Mo en memoire GPU.
+      memCacheWidth: 400,
+      fadeInDuration: const Duration(milliseconds: 180),
+      fadeOutDuration: Duration.zero,
       placeholder: (context, url) => Container(
         color: AppColors.shimmer,
         child: const Center(
@@ -326,7 +331,7 @@ class _TvModernCardState extends State<TvModernCard>
             const SizedBox(width: 6),
             Text(
               label,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.karla(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: Colors.black,

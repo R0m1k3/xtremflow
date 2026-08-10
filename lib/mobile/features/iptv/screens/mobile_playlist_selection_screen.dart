@@ -71,7 +71,7 @@ class MobilePlaylistSelectionScreen extends ConsumerWidget {
                   color: AppColors.error,
                 ),
                 const SizedBox(height: 16),
-                Text('Error loading playlists', style: GoogleFonts.inter()),
+                Text('Error loading playlists', style: GoogleFonts.karla()),
                 TextButton(
                   onPressed: () => ref.refresh(playlistsProvider),
                   child: const Text('Retry'),
@@ -93,7 +93,7 @@ class MobilePlaylistSelectionScreen extends ConsumerWidget {
                     const SizedBox(height: 16),
                     Text(
                       'No playlists available',
-                      style: GoogleFonts.inter(color: AppColors.textSecondary),
+                      style: GoogleFonts.karla(color: AppColors.textSecondary),
                     ),
                   ],
                 ),
@@ -178,7 +178,7 @@ class _MobilePlaylistCard extends StatelessWidget {
                     children: [
                       Text(
                         playlist.name,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.karla(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary,
@@ -189,7 +189,7 @@ class _MobilePlaylistCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         Uri.tryParse(playlist.dns)?.host ?? playlist.dns,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.karla(
                           fontSize: 13,
                           color: AppColors.textSecondary,
                         ),

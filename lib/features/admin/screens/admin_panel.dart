@@ -152,7 +152,7 @@ class _AdminContentState extends ConsumerState<AdminContent>
                 const SizedBox(width: 8),
                 Text(
                   label,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.karla(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
                     color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
@@ -265,7 +265,7 @@ class _PlaylistsTab extends ConsumerWidget {
                                 style: Theme.of(context)
                                     .textTheme
                                     .titleMedium
-                                    ?.copyWith(color: Colors.white),
+                                    ?.copyWith(color: AppColors.onSurface),
                               ),
                               const SizedBox(height: 4),
                               Text(
@@ -273,7 +273,7 @@ class _PlaylistsTab extends ConsumerWidget {
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodyMedium
-                                    ?.copyWith(color: Colors.white60),
+                                    ?.copyWith(color: AppColors.onSurface54),
                               ),
                             ],
                           ),
@@ -282,7 +282,7 @@ class _PlaylistsTab extends ConsumerWidget {
                           children: [
                             IconButton(
                               icon: const Icon(Icons.edit_outlined, size: 20),
-                              color: Colors.white70,
+                              color: AppColors.onSurfaceVariant,
                               onPressed: () =>
                                   _showPlaylistDialog(context, ref, playlist),
                               tooltip: 'Edit',
@@ -544,7 +544,7 @@ class _UsersTab extends ConsumerWidget {
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium
-                                        ?.copyWith(color: Colors.white),
+                                        ?.copyWith(color: AppColors.onSurface),
                                   ),
                                   if (user.isAdmin) ...[
                                     const SizedBox(width: 8),
@@ -576,7 +576,7 @@ class _UsersTab extends ConsumerWidget {
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodyMedium
-                                    ?.copyWith(color: Colors.white60),
+                                    ?.copyWith(color: AppColors.onSurface54),
                               ),
                             ],
                           ),
@@ -584,7 +584,7 @@ class _UsersTab extends ConsumerWidget {
                         PopupMenuButton<String>(
                           icon: const Icon(
                             Icons.more_vert,
-                            color: Colors.white70,
+                            color: AppColors.onSurfaceVariant,
                           ),
                           color: AppColors.surface,
                           shape: RoundedRectangleBorder(

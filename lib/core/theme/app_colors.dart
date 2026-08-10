@@ -1,133 +1,202 @@
 import 'package:flutter/material.dart';
 
-/// Cyber-Cinematic Glass Design System — Material 3 Token Palette
+/// XtremFlow — "Warm Cinema" Design System
 ///
-/// Extracted from the Stitch design system for XtremFlow.
-/// Optimized for OLED displays and low-light environments.
-/// Primary accent: Neon blue (#4b8eff / #adc6ff)
+/// Palette: charbon chaud + crème + orange brûlé (ember).
+/// Inspiration: salle de projection, pellicule, affiches 70s.
+///
+/// Règle de perf : AUCUNE couleur de surface n'est translucide.
+/// Les anciennes "glass" surfaces sont désormais opaques et pré-teintées,
+/// ce qui supprime tout besoin de `BackdropFilter` (killer de perf sur
+/// Flutter Web). La profondeur vient des ombres et du contraste, pas du flou.
 class AppColors {
   AppColors._();
 
-  // ============ COMPATIBILITY ALIASES (transition) ============
+  // ============ COMPATIBILITY ALIASES ============
   static Color get focusColor => primaryContainer;
   static Color get border => outlineVariant;
 
   // ============ SURFACE / ON SURFACE ============
-  static const Color onSurface = Color(0xFFe3e2e7);
-  static const Color onSurfaceVariant = Color(0xFFc1c6d7);
+  static const Color onSurface = Color(0xFFF3E9DF); // crème
+  static const Color onSurfaceVariant = Color(0xFFC5B3A5); // crème atténué
 
   // ============ BASE LEVEL 0 ============
-  static const Color baseLevel0 = Color(0xFF0F1014);
+  /// Noir chaud — le "noir de salle", jamais un noir pur bleuté.
+  static const Color baseLevel0 = Color(0xFF0B0908);
 
   // ============ BACKGROUNDS ============
-  static const Color background = Color(0xFF121317);
-  static const Color onBackground = Color(0xFFe3e2e7);
+  static const Color background = Color(0xFF100C0A);
+  static const Color onBackground = Color(0xFFF3E9DF);
 
-  static const Color surface = Color(0xFF121317);
-  static const Color surfaceDim = Color(0xFF121317);
-  static const Color surfaceBright = Color(0xFF38393d);
+  static const Color surface = Color(0xFF100C0A);
+  static const Color surfaceDim = Color(0xFF0B0908);
+  static const Color surfaceBright = Color(0xFF3C322C);
 
-  // Surface Containers (Material 3 hierarchy)
-  static const Color surfaceContainerLowest = Color(0xFF0d0e12);
-  static const Color surfaceContainerLow = Color(0xFF1a1b20);
-  static const Color surfaceContainer = Color(0xFF1f1f24);
-  static const Color surfaceContainerHigh = Color(0xFF292a2e);
-  static const Color surfaceContainerHighest = Color(0xFF343439);
-  static const Color surfaceVariant = Color(0xFF343439);
+  // Surface Containers (hiérarchie Material 3, toutes opaques)
+  static const Color surfaceContainerLowest = Color(0xFF070505);
+  static const Color surfaceContainerLow = Color(0xFF181310);
+  static const Color surfaceContainer = Color(0xFF1F1815);
+  static const Color surfaceContainerHigh = Color(0xFF2A211C);
+  static const Color surfaceContainerHighest = Color(0xFF352A24);
+  static const Color surfaceVariant = Color(0xFF352A24);
 
-  // ============ PRIMARY (Neon Blue) ============
-  static const Color primary = Color(0xFFadc6ff);
-  static const Color onPrimary = Color(0xFF002e69);
-  static const Color primaryContainer = Color(0xFF4b8eff);
-  static const Color onPrimaryContainer = Color(0xFF00285c);
-  static const Color inversePrimary = Color(0xFF005bc1);
-  static const Color primaryFixed = Color(0xFFd8e2ff);
-  static const Color primaryFixedDim = Color(0xFFadc6ff);
-  static const Color onPrimaryFixed = Color(0xFF001a41);
-  static const Color onPrimaryFixedVariant = Color(0xFF004493);
+  // ============ PRIMARY (Ember / orange brûlé) ============
+  static const Color primary = Color(0xFFFFB68C); // texte & icônes sur sombre
+  static const Color onPrimary = Color(0xFF521B00);
+  static const Color primaryContainer = Color(0xFFD9541F); // remplissage ember
+  static const Color onPrimaryContainer = Color(0xFF2B0A00);
+  static const Color inversePrimary = Color(0xFFA63B10);
 
-  // ============ SECONDARY ============
-  static const Color secondary = Color(0xFFc6c5cf);
-  static const Color onSecondary = Color(0xFF2f3037);
-  static const Color secondaryContainer = Color(0xFF4a4b53);
-  static const Color onSecondaryContainer = Color(0xFFbcbbc4);
-  static const Color secondaryFixed = Color(0xFFe3e1eb);
-  static const Color secondaryFixedDim = Color(0xFFc6c5cf);
-  static const Color onSecondaryFixed = Color(0xFF1a1b22);
-  static const Color onSecondaryFixedVariant = Color(0xFF46464e);
+  /// Braise profonde — réservée aux **remplissages portant du texte**.
+  /// `primaryContainer` (#D9541F) est trop lumineux : blanc dessus plafonne
+  /// vers 3,9:1, sous le seuil AA de 4,5:1 pour du corps de texte. Cette
+  /// variante passe le seuil tout en restant la même couleur perçue.
+  static const Color primaryFill = Color(0xFFA8360C);
+  static const Color primaryFixed = Color(0xFFFFDBC8);
+  static const Color primaryFixedDim = Color(0xFFFFB68C);
+  static const Color onPrimaryFixed = Color(0xFF360F00);
+  static const Color onPrimaryFixedVariant = Color(0xFF7A2C08);
 
-  // ============ TERTIARY ============
-  static const Color tertiary = Color(0xFFc6c6c7);
-  static const Color onTertiary = Color(0xFF2f3131);
-  static const Color tertiaryContainer = Color(0xFF909191);
-  static const Color onTertiaryContainer = Color(0xFF282a2a);
-  static const Color tertiaryFixed = Color(0xFFe2e2e2);
-  static const Color tertiaryFixedDim = Color(0xFFc6c6c7);
-  static const Color onTertiaryFixed = Color(0xFF1a1c1c);
-  static const Color onTertiaryFixedVariant = Color(0xFF454747);
+  // ============ SECONDARY (Terre cuite / argile) ============
+  static const Color secondary = Color(0xFFE7C3AC);
+  static const Color onSecondary = Color(0xFF442A1B);
+  static const Color secondaryContainer = Color(0xFF5D4030);
+  static const Color onSecondaryContainer = Color(0xFFFFDCC8);
+  static const Color secondaryFixed = Color(0xFFFFDCC8);
+  static const Color secondaryFixedDim = Color(0xFFE7C3AC);
+  static const Color onSecondaryFixed = Color(0xFF2B160A);
+  static const Color onSecondaryFixedVariant = Color(0xFF5D4030);
+
+  // ============ TERTIARY (Laiton / doré patiné) ============
+  static const Color tertiary = Color(0xFFD9C88C);
+  static const Color onTertiary = Color(0xFF3A3016);
+  static const Color tertiaryContainer = Color(0xFF52472A);
+  static const Color onTertiaryContainer = Color(0xFFF6E4A6);
+  static const Color tertiaryFixed = Color(0xFFF6E4A6);
+  static const Color tertiaryFixedDim = Color(0xFFD9C88C);
+  static const Color onTertiaryFixed = Color(0xFF231B04);
+  static const Color onTertiaryFixedVariant = Color(0xFF52472A);
 
   // ============ ERROR ============
-  static const Color error = Color(0xFFffb4ab);
-  static const Color onError = Color(0xFF690005);
-  static const Color errorContainer = Color(0xFF93000a);
-  static const Color onErrorContainer = Color(0xFFffdad6);
+  static const Color error = Color(0xFFFFB4A6);
+  static const Color onError = Color(0xFF5F1409);
+  static const Color errorContainer = Color(0xFF8C2416);
+  static const Color onErrorContainer = Color(0xFFFFDAD4);
 
   // ============ OUTLINE ============
-  static const Color outline = Color(0xFF8b90a0);
-  static const Color outlineVariant = Color(0xFF414755);
+  static const Color outline = Color(0xFF9C8878);
+  static const Color outlineVariant = Color(0xFF4A3C33);
 
   // ============ INVERSE SURFACE ============
-  static const Color inverseSurface = Color(0xFFe3e2e7);
-  static const Color inverseOnSurface = Color(0xFF2f3035);
+  static const Color inverseSurface = Color(0xFFF3E9DF);
+  static const Color inverseOnSurface = Color(0xFF2A211C);
 
   // ============ SURFACE TINT ============
-  static const Color surfaceTint = Color(0xFFadc6ff);
+  static const Color surfaceTint = Color(0xFFFFB68C);
 
-  // ============ TEXT / CONTENT COLORS ============
-  static const Color textPrimary = Color(0xFFe3e2e7);
-  static const Color textSecondary = Color(0xFFc1c6d7);
-  static const Color textTertiary = Color(0xFF8b90a0);
+  // ============ TEXT / CONTENT ============
+  static const Color textPrimary = Color(0xFFF3E9DF);
+  static const Color textSecondary = Color(0xFFC5B3A5);
+  static const Color textTertiary = Color(0xFF9C8878);
 
-  // ============ STATUS COLORS ============
-  static const Color success = Color(0xFF00E676);
-  static const Color warning = Color(0xFFFFAB00);
-  static const Color info = Color(0xFF2979FF);
+  // ============ CRÈME À OPACITÉ (remplace les Colors.whiteNN) ============
+  // Déclarés `const` pour rester utilisables dans les widgets constants.
+  // Un blanc pur sur fond chaud tire vers le bleu : on décline la crème.
+  static const Color onSurface06 = Color(0x0FF3E9DF);
+  static const Color onSurface12 = Color(0x1FF3E9DF);
+  static const Color onSurface24 = Color(0x3DF3E9DF);
+  static const Color onSurface38 = Color(0x61F3E9DF);
+  static const Color onSurface54 = Color(0x8AF3E9DF);
 
-  // ============ CATEGORY COLORS (kept for semantic meaning) ============
-  static const Color live = Color(0xFFFF5252);
-  static const Color movies = Color(0xFF448AFF);
-  static const Color series = Color(0xFF69F0AE);
+  // ============ STATUS ============
+  static const Color success = Color(0xFF9BC46A); // olive lumineux
+  static const Color warning = Color(0xFFE9B23C); // ambre
+  static const Color info = Color(0xFFA3B8C4); // bleu-gris fumé
+
+  // ============ CATÉGORIES ============
+  static const Color live = Color(0xFFE5484D); // rouge enseigne
+  static const Color movies = Color(0xFFD9541F); // ember
+  static const Color series = Color(0xFFD9C88C); // laiton
 
   // ============ RATING / PREMIUM ============
-  static const Color ratingGold = Color(0xFFFFD700);
-  static const Color premiumGold = Color(0xFFFFA000);
+  static const Color ratingGold = Color(0xFFE9B23C);
+  static const Color premiumGold = Color(0xFFC9922A);
 
-  // ============ GLASSMORPHISM LEVELS ============
-  static const Color glassLevel1Bg = Color(0x66121317); // 40% opacity
-  static const Color glassLevel1Border = Color(0x1AFFFFFF); // 10% white
+  // ============ SHIMMER (placeholders de chargement) ============
+  static const Color shimmer = Color(0xFF2A211C);
+  static const Color shimmerHighlight = Color(0xFF3C302A);
 
-  static const Color glassLevel2Bg = Color(0x99121317); // 60% opacity
-  static const Color glassLevel2Border = Color(0x1AFFFFFF); // 10% white
-  static const Color glassLevel2InnerGlow = Color(0x33adc6ff); // 20% primary top-left
+  // ============ SURFACES "GLASS" — désormais OPAQUES ============
+  // Noms conservés pour compatibilité avec les 33 sites d'appel existants.
+  // Plus aucune transparence : zéro BackdropFilter, zéro repaint coûteux.
+  static const Color glassLevel1Bg = Color(0xFF181310);
+  static const Color glassLevel1Border = Color(0x14F3E9DF); // crème 8 %
+
+  static const Color glassLevel2Bg = Color(0xFF1F1815);
+  static const Color glassLevel2Border = Color(0x1FF3E9DF); // crème 12 %
+  static const Color glassLevel2InnerGlow = Color(0x3DD9541F); // ember 24 %
 
   // ============ GRADIENTS ============
+  /// Braise : orange brûlé vers rouge profond.
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF007AFF), Color(0xFF00C6FF)],
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
+    colors: [Color(0xFFE9701F), Color(0xFFC13A1C)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
   );
 
+  /// Fond de salle : projecteur chaud en haut, obscurité en bas.
   static const LinearGradient backgroundGradient = LinearGradient(
-    colors: [Color(0xFF0F1014), Color(0xFF121317)],
+    colors: [Color(0xFF1A1310), Color(0xFF0B0908)],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
 
-  // ============ GLOW / SHADOWS ============
+  /// Voile d'affiche : lecture du texte par-dessus une jaquette.
+  static const LinearGradient posterScrim = LinearGradient(
+    colors: [Color(0x000B0908), Color(0xCC0B0908), Color(0xFF0B0908)],
+    stops: [0.0, 0.55, 1.0],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+
+  /// Voile latéral pour les héros pleine largeur.
+  static const LinearGradient heroScrim = LinearGradient(
+    colors: [Color(0xF20B0908), Color(0x990B0908), Color(0x000B0908)],
+    stops: [0.0, 0.45, 1.0],
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+  );
+
+  // ============ GLOW / OMBRES ============
   static Color glowPrimary(double opacity) =>
-      const Color(0xFF007AFF).withOpacity(opacity);
+      const Color(0xFFD9541F).withValues(alpha: opacity);
   static Color glowPrimaryDim(double opacity) =>
-      const Color(0xFFadc6ff).withOpacity(opacity);
+      const Color(0xFFFFB68C).withValues(alpha: opacity);
+
+  /// Ombre portée « projecteur » : profonde, chaude, jamais grise.
+  static List<BoxShadow> lift({double intensity = 1.0}) => [
+        BoxShadow(
+          color: const Color(0xFF000000).withValues(alpha: 0.55 * intensity),
+          blurRadius: 28 * intensity,
+          spreadRadius: -8,
+          offset: Offset(0, 12 * intensity),
+        ),
+      ];
+
+  /// Halo ember pour l'élément focalisé (navigation TV / télécommande).
+  static List<BoxShadow> emberFocus({double intensity = 1.0}) => [
+        BoxShadow(
+          color: const Color(0xFFD9541F).withValues(alpha: 0.45 * intensity),
+          blurRadius: 32 * intensity,
+          spreadRadius: -4,
+        ),
+        BoxShadow(
+          color: const Color(0xFF000000).withValues(alpha: 0.6),
+          blurRadius: 24,
+          spreadRadius: -10,
+          offset: const Offset(0, 14),
+        ),
+      ];
 
   // ============ COLOR SCHEMES ============
   static ColorScheme get darkColorScheme => const ColorScheme.dark(
@@ -149,6 +218,7 @@ class AppColors {
         onErrorContainer: onErrorContainer,
         surface: surface,
         onSurface: onSurface,
+        onSurfaceVariant: onSurfaceVariant,
         surfaceContainerLowest: surfaceContainerLowest,
         surfaceContainerLow: surfaceContainerLow,
         surfaceContainer: surfaceContainer,
@@ -162,24 +232,27 @@ class AppColors {
         brightness: Brightness.dark,
       );
 
-  // Light scheme is minimal — Stitch is dark-only
+  /// Thème clair : « papier kraft » — même famille chaude, inversée.
   static ColorScheme get lightColorScheme => const ColorScheme.light(
-        primary: Color(0xFF005bc1),
+        primary: Color(0xFFA63B10),
         onPrimary: Colors.white,
-        primaryContainer: Color(0xFFd8e2ff),
-        onPrimaryContainer: Color(0xFF001a41),
-        secondary: Color(0xFF5e5c68),
+        primaryContainer: Color(0xFFFFDBC8),
+        onPrimaryContainer: Color(0xFF360F00),
+        secondary: Color(0xFF765847),
         onSecondary: Colors.white,
-        secondaryContainer: Color(0xFFe3e1eb),
-        onSecondaryContainer: Color(0xFF1a1b22),
-        error: Color(0xFFba1a1a),
+        secondaryContainer: Color(0xFFFFDCC8),
+        onSecondaryContainer: Color(0xFF2B160A),
+        tertiary: Color(0xFF6A5F3F),
+        onTertiary: Colors.white,
+        error: Color(0xFFB3261E),
         onError: Colors.white,
-        errorContainer: Color(0xFFFFdad6),
-        onErrorContainer: Color(0xFF410002),
-        surface: Color(0xFFF9F9FF),
-        onSurface: Color(0xFF1a1b22),
-        outline: Color(0xFF757680),
-        outlineVariant: Color(0xFFc5c6d0),
+        errorContainer: Color(0xFFFFDAD4),
+        onErrorContainer: Color(0xFF410E05),
+        surface: Color(0xFFFBF3EC),
+        onSurface: Color(0xFF201A16),
+        onSurfaceVariant: Color(0xFF52443B),
+        outline: Color(0xFF847369),
+        outlineVariant: Color(0xFFD6C3B7),
         brightness: Brightness.light,
       );
 }

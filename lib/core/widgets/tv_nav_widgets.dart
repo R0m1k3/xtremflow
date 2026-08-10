@@ -62,7 +62,7 @@ class _TvTopNavBarState extends State<TvTopNavBar> {
                 const SizedBox(width: AppTheme.spacing16),
                 Text(
                   widget.title,
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.karla(
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
@@ -152,10 +152,10 @@ class _TvTopNavBarState extends State<TvTopNavBar> {
                       ),
                       child: Text(
                         badge,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.karla(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: AppColors.onSurface,
                         ),
                       ),
                     ),
@@ -256,7 +256,7 @@ class _TvSideNavState extends State<TvSideNav> {
               Expanded(
                 child: Text(
                   item.label,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.karla(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: isSelected ? Colors.black : AppColors.textPrimary,
@@ -364,7 +364,7 @@ class _TvFloatingMenuState extends State<TvFloatingMenu>
                     const SizedBox(width: AppTheme.spacing12),
                     Text(
                       widget.actions[index].label,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.karla(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                         color: AppColors.textPrimary,

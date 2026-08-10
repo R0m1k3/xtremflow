@@ -123,8 +123,8 @@ class CategoryCarousel<T> extends StatelessWidget {
                 end: Alignment.centerRight,
                 colors: [
                   Colors.transparent,
-                  Colors.white,
-                  Colors.white,
+                  AppColors.onSurface,
+                  AppColors.onSurface,
                   Colors.transparent,
                 ],
                 stops: [0.0, 0.02, 0.98, 1.0],

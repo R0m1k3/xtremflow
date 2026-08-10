@@ -446,7 +446,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                                         'Unknown')
                                                     .toString()
                                                 : widget.title,
-                                            style: GoogleFonts.outfit(
+                                            style: GoogleFonts.karla(
                                               color: AppColors.textPrimary,
                                               fontSize: 18,
                                               fontWeight: FontWeight.w600,
@@ -455,7 +455,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                           ),
                                           Text(
                                             'Live TV',
-                                            style: GoogleFonts.inter(
+                                            style: GoogleFonts.karla(
                                               color: AppColors.primary,
                                               fontSize: 12,
                                               fontWeight: FontWeight.bold,
@@ -512,7 +512,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                             _buildInlineEpg(),
                                             const SizedBox(height: 12),
                                             const Divider(
-                                              color: Colors.white10,
+                                              color: AppColors.onSurface06,
                                             ),
                                             const SizedBox(height: 8),
                                             // Control Buttons
@@ -612,10 +612,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               Expanded(
                                 child: Text(
                                   widget.title,
-                                  style: GoogleFonts.outfit(
+                                  style: GoogleFonts.karla(
                                     fontSize: 20,
                                     fontWeight: FontWeight.w600,
-                                    color: Colors.white,
+                                    color: AppColors.onSurface,
                                   ),
                                 ),
                               ),
@@ -639,7 +639,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         right: 40,
                         child: GlassContainer.glass(
                           borderRadius: 24,
-                          borderColor: Colors.white.withOpacity(0.1),
+                          borderColor: AppColors.onSurface.withOpacity(0.1),
                           padding: const EdgeInsets.all(24),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -653,8 +653,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                         seconds: _currentPosition.toInt(),
                                       ),
                                     ),
-                                    style: GoogleFonts.inter(
-                                      color: Colors.white70,
+                                    style: GoogleFonts.karla(
+                                      color: AppColors.onSurfaceVariant,
                                     ),
                                   ),
                                   const SizedBox(width: 16),
@@ -664,8 +664,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                         trackHeight: 4,
                                         activeTrackColor: AppColors.primary,
                                         inactiveTrackColor:
-                                            Colors.white.withOpacity(0.2),
-                                        thumbColor: Colors.white,
+                                            AppColors.onSurface.withOpacity(0.2),
+                                        thumbColor: AppColors.onSurface,
                                         thumbShape: const RoundSliderThumbShape(
                                           enabledThumbRadius: 8,
                                         ),
@@ -705,8 +705,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                         seconds: _totalDuration.toInt(),
                                       ),
                                     ),
-                                    style: GoogleFonts.inter(
-                                      color: Colors.white70,
+                                    style: GoogleFonts.karla(
+                                      color: AppColors.onSurfaceVariant,
                                     ),
                                   ),
                                 ],
@@ -784,7 +784,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }) {
     // Button with direct Material/InkWell - PointerInterceptor is on outer container
     return Material(
-      color: transparent ? Colors.transparent : Colors.white.withOpacity(0.1),
+      color: transparent ? Colors.transparent : AppColors.onSurface.withOpacity(0.1),
       shape: const CircleBorder(),
       child: InkWell(
         onTap: () {
@@ -800,9 +800,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             shape: BoxShape.circle,
             border: transparent
                 ? null
-                : Border.all(color: Colors.white.withOpacity(0.1)),
+                : Border.all(color: AppColors.onSurface.withOpacity(0.1)),
           ),
-          child: Icon(icon, color: Colors.white, size: iconSize),
+          child: Icon(icon, color: AppColors.onSurface, size: iconSize),
         ),
       ),
     );
@@ -867,7 +867,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     return Material(
       color: highlighted
           ? AppColors.primary.withOpacity(0.2)
-          : Colors.white.withOpacity(0.1),
+          : AppColors.onSurface.withOpacity(0.1),
       shape: const CircleBorder(),
       child: InkWell(
         onTap: () {
@@ -886,13 +886,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             border: Border.all(
               color: highlighted
                   ? AppColors.primary.withOpacity(0.5)
-                  : Colors.white.withOpacity(0.2),
+                  : AppColors.onSurface.withOpacity(0.2),
               width: highlighted ? 2 : 1,
             ),
           ),
           child: Icon(
             icon,
-            color: highlighted ? AppColors.primary : Colors.white,
+            color: highlighted ? AppColors.primary : AppColors.onSurface,
             size: iconSize,
           ),
         ),
@@ -930,7 +930,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                     child: const Text(
                       'LIVE',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: AppColors.onSurface,
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
@@ -942,8 +942,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       widget.channels != null
                           ? widget.channels![_currentIndex].name
                           : widget.title,
-                      style: GoogleFonts.outfit(
-                        color: Colors.white,
+                      style: GoogleFonts.karla(
+                        color: AppColors.onSurface,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -978,7 +978,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   child: const Text(
                     'LIVE',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: AppColors.onSurface,
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                     ),
@@ -992,8 +992,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                     children: [
                       Text(
                         currentProgram.title,
-                        style: GoogleFonts.outfit(
-                          color: Colors.white,
+                        style: GoogleFonts.karla(
+                          color: AppColors.onSurface,
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1003,8 +1003,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       if (currentProgram.description.isNotEmpty)
                         Text(
                           currentProgram.description,
-                          style: GoogleFonts.inter(
-                            color: Colors.white60,
+                          style: GoogleFonts.karla(
+                            color: AppColors.onSurface54,
                             fontSize: 12,
                           ),
                           maxLines: 1,
@@ -1027,7 +1027,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 child: const Text(
                   'LIVE',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: AppColors.onSurface,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
@@ -1038,8 +1038,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 widget.channels != null
                     ? widget.channels![_currentIndex].name
                     : widget.title,
-                style: GoogleFonts.outfit(
-                  color: Colors.white,
+                style: GoogleFonts.karla(
+                  color: AppColors.onSurface,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1050,8 +1050,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             widget.channels != null
                 ? widget.channels![_currentIndex].name
                 : widget.title,
-            style: GoogleFonts.outfit(
-              color: Colors.white,
+            style: GoogleFonts.karla(
+              color: AppColors.onSurface,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),

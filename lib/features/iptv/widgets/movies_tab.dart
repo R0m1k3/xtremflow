@@ -219,7 +219,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                   children: [
                     Text(
                       'Movies',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: GoogleFonts.fraunces(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
                         color: AppColors.onSurface,
@@ -251,14 +251,14 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                           Expanded(
                             child: TextField(
                               controller: _searchController,
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.karla(
                                 fontSize: 14,
                                 color: AppColors.onSurface,
                               ),
                               decoration: InputDecoration(
                                 hintText: 'Search movies...',
                                 hintStyle:
-                                    GoogleFonts.inter(color: AppColors.outline),
+                                    GoogleFonts.karla(color: AppColors.outline),
                                 border: InputBorder.none,
                                 isDense: true,
                                 contentPadding:
@@ -352,6 +352,11 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                               ? Image.network(
                                   _getProxiedImageUrl(movie.streamIcon),
                                   fit: BoxFit.cover,
+                                  // Borne le decodage a la taille reelle de la
+                                  // tuile (x2 pour les ecrans HiDPI). Sans ca,
+                                  // chaque jaquette est decodee en 1000x1500.
+                                  cacheWidth: 400,
+                                  filterQuality: FilterQuality.low,
                                   errorBuilder: (ctx, err, stack) => Container(
                                     color: AppColors.surfaceContainerLow,
                                     child: Center(
@@ -425,7 +430,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                                   const SizedBox(width: 4),
                                   Text(
                                     _formatRating(movie.rating)!,
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.karla(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                       color: AppColors.onSurface,
@@ -447,7 +452,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                             children: [
                               Text(
                                 movie.name,
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.karla(
                                   color: AppColors.onSurface,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
@@ -466,7 +471,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                                   padding: const EdgeInsets.only(top: 4),
                                   child: Text(
                                     'WATCHED',
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.karla(
                                       color: AppColors.primary,
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,

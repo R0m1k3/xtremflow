@@ -144,7 +144,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   // Title
                   Text(
                     'XtremFlow',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.karla(
                       fontSize: 42,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
@@ -154,7 +154,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'Sign in to sync your playlists',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.karla(
                       fontSize: 18,
                       color: AppColors.textSecondary,
                       fontWeight: FontWeight.w400,
@@ -266,7 +266,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     )
                                   : Text(
                                       'Sign In',
-                                      style: GoogleFonts.inter(
+                                      style: GoogleFonts.karla(
                                         color: AppColors.primary,
                                         fontSize: 18,
                                         fontWeight: FontWeight.w600,
@@ -282,7 +282,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 32),
                   Text(
                     'Default: admin / admin',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.karla(
                       fontSize: 14,
                       color: AppColors.textTertiary,
                     ),
@@ -310,13 +310,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
-      style: GoogleFonts.inter(fontSize: 18, color: AppColors.textPrimary),
+      style: GoogleFonts.karla(fontSize: 18, color: AppColors.textPrimary),
       autofocus: autofocus,
       textInputAction: nextFocus ? TextInputAction.next : TextInputAction.done,
       onFieldSubmitted: isLast ? (_) => onSubmitted?.call() : null,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.inter(color: AppColors.textSecondary),
+        labelStyle: GoogleFonts.karla(color: AppColors.textSecondary),
         prefixIcon: Icon(icon, color: AppColors.textSecondary),
         suffixIcon: suffix,
         filled: true,

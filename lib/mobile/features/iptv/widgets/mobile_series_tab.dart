@@ -197,13 +197,13 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                     Expanded(
                       child: TextField(
                         controller: _searchController,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.karla(
                           fontSize: 14,
                           color: AppColors.onSurface,
                         ),
                         decoration: InputDecoration(
                           hintText: 'Search Series...',
-                          hintStyle: GoogleFonts.inter(color: AppColors.onSurfaceVariant),
+                          hintStyle: GoogleFonts.karla(color: AppColors.onSurfaceVariant),
                           border: InputBorder.none,
                           isDense: true,
                           contentPadding: const EdgeInsets.only(bottom: 11),
@@ -290,6 +290,8 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                                   ? Image.network(
                                       _getProxiedImageUrl(series.cover, ref),
                                       fit: BoxFit.cover,
+                                      cacheWidth: 360,
+                                      filterQuality: FilterQuality.low,
                                       errorBuilder: (_, __, ___) =>
                                           Container(color: AppColors.surfaceContainerLow),
                                     )
@@ -332,7 +334,7 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                           right: 12,
                           child: Text(
                             series.name,
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.karla(
                               color: AppColors.onSurface,
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -364,7 +366,7 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                                   const SizedBox(width: 4),
                                   Text(
                                     _formatRating(series.rating)!,
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.karla(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                       color: AppColors.onSurface,

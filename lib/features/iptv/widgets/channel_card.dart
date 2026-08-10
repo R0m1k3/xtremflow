@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_theme.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 
 class ChannelCard extends StatefulWidget {
   final String channelNumber;
@@ -127,7 +127,7 @@ class _ChannelCardState extends State<ChannelCard>
                               children: [
                                 Text(
                                   widget.channelNumber,
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.karla(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.textSecondary,
@@ -139,7 +139,7 @@ class _ChannelCardState extends State<ChannelCard>
                                   widget.channelName,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.outfit(
+                                  style: GoogleFonts.karla(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.textPrimary,
@@ -175,7 +175,7 @@ class _ChannelCardState extends State<ChannelCard>
                               widget.currentProgram!,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.karla(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
                                 color: AppColors.textSecondary,
@@ -185,7 +185,7 @@ class _ChannelCardState extends State<ChannelCard>
                               SizedBox(height: AppTheme.spacingXs),
                               Text(
                                 widget.programTime!,
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.karla(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w400,
                                   color: AppColors.textTertiary,

@@ -1,127 +1,21 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 
 <head>
     <meta charset="UTF-8">
     <title>XtremFlow Player</title>
-    <!-- HLS.js and mpegts.js for MPEG-TS support -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.12/dist/hls.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        html,
-        body {
-            background: #000;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
-
-        #player-container {
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
-
-        #video {
-            width: 100%;
-            height: 100%;
-            background: #000;
-        }
-
-        #error {
-            display: none;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #fff;
-            text-align: center;
-            font-family: Arial, sans-serif;
-            z-index: 30;
-        }
-
-        #error-icon {
-            font-size: 64px;
-            color: #f44336;
-            margin-bottom: 16px;
-        }
-
-        #loading {
-            display: none;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #fff;
-            text-align: center;
-            font-family: Arial, sans-serif;
-            z-index: 20;
-        }
-
-        .spinner {
-            width: 48px;
-            height: 48px;
-            border: 4px solid rgba(255, 255, 255, 0.2);
-            border-top-color: #fff;
-            border-radius: 50%;
-            animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-            margin: 0 auto 16px;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        /* Safari Autoplay Hint Overlay */
-        #play-overlay {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 90px;
-            height: 90px;
-            background: rgba(0, 0, 0, 0.6);
-            border-radius: 50%;
-            display: none;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            z-index: 25;
-            transition: transform 0.2s;
-        }
-
-        #play-overlay:active {
-            transform: translate(-50%, -50%) scale(0.9);
-        }
-
-        #play-overlay svg {
-            width: 44px;
-            height: 44px;
-            fill: white;
-            margin-left: 5px;
-        }
-    </style>
+    <!--
+      Les libs hls.js / mpegts.js ne sont PLUS chargées depuis un CDN ni de
+      façon bloquante : xf-player-core.js ne récupère que celle réellement
+      nécessaire au flux courant, en local. Deux requêtes bloquantes en moins
+      et environ 200 Ko de JS jamais téléchargés dans le cas courant.
+    -->
+    <link rel="stylesheet" href="xf-player.css">
+    <link rel="preload" href="vendor/hls.min.js" as="script">
 </head>
 
 <body>
     <div id="player-container">
-        <!-- iOS/Safari core attributes -->
         <video id="video" autoplay playsinline webkit-playsinline preload="auto"></video>
 
         <div id="play-overlay">
@@ -130,242 +24,80 @@
             </svg>
         </div>
 
-        <div id="loading">
-            <div class="spinner"></div>
-            <div id="loading-text">Chargement du flux...</div>
+        <div id="loading" class="xf-center">
+            <div class="xf-leader">
+                <div class="xf-leader-cross"></div>
+            </div>
+            <div class="xf-label" id="loading-text">Ouverture du flux</div>
+            <div class="xf-hint" id="loading-hint"></div>
         </div>
-        <div id="error">
-            <div id="error-icon">⚠</div>
-            <div id="error-message">Erreur de chargement</div>
+
+        <div id="error" class="xf-center">
+            <div class="xf-error-mark">!</div>
+            <div class="xf-error-title" id="error-message">Erreur de chargement</div>
+            <div class="xf-error-sub">Vérifiez le lien ou votre connexion</div>
         </div>
     </div>
 
+    <script src="xf-player-core.js"></script>
     <script>
-        const video = document.getElementById('video');
-        const loading = document.getElementById('loading');
-        const loadingText = document.getElementById('loading-text');
-        const error = document.getElementById('error');
-        const errorMessage = document.getElementById('error-message');
-        const playOverlay = document.getElementById('play-overlay');
+        (function () {
+            var video = document.getElementById('video');
+            var loading = document.getElementById('loading');
+            var loadingText = document.getElementById('loading-text');
+            var loadingHint = document.getElementById('loading-hint');
+            var errorBox = document.getElementById('error');
+            var errorMessage = document.getElementById('error-message');
+            var playOverlay = document.getElementById('play-overlay');
 
-        const urlParams = new URLSearchParams(window.location.search);
-        let streamUrl = urlParams.get('url');
-        const startTime = parseFloat(urlParams.get('t') || '0');
-        const streamType = urlParams.get('type') || '';
-        const injectedDuration = parseFloat(urlParams.get('duration') || '0');
-
-        function log(msg) { console.log('[Player] ' + msg); }
-
-        function showLoading(msg) {
-            loading.style.display = 'block';
-            loadingText.textContent = msg || 'Chargement du flux...';
-            error.style.display = 'none';
-        }
-
-        function hideLoading() { loading.style.display = 'none'; }
-
-        function showError(message) {
-            hideLoading();
-            error.style.display = 'block';
-            errorMessage.textContent = message || 'Erreur de chargement';
-            playOverlay.style.display = 'none';
-        }
-
-        playOverlay.addEventListener('click', () => {
-            log('Manual play triggered');
-            video.play();
-            playOverlay.style.display = 'none';
-        });
-
-        video.addEventListener('loadedmetadata', () => {
-            if (startTime > 0 && startTime < video.duration) {
-                video.currentTime = startTime;
-            }
-        });
-
-        let lastReportedTime = 0;
-        function reportPosition() {
-            if (video.currentTime > 0 && !video.paused && video.readyState > 2) {
-                if (Math.abs(video.currentTime - lastReportedTime) >= 1) {
-                    lastReportedTime = video.currentTime;
-                    let duration = video.duration;
-                    const hlsDuration = window.currentHlsDuration || 0;
-                    if (!isFinite(duration) || isNaN(duration) || duration < 1) {
-                        duration = hlsDuration > 0 ? hlsDuration : (injectedDuration > 0 ? injectedDuration : 0);
-                    } else if (hlsDuration > duration) {
-                        duration = hlsDuration;
-                    } else if (injectedDuration > 0 && duration < injectedDuration * 0.9) {
-                        duration = injectedDuration;
-                    }
-                    window.parent.postMessage({ type: 'playback_position', currentTime: video.currentTime, duration: duration }, '*');
-                }
-            }
-        }
-        setInterval(reportPosition, 5000);
-
-        video.addEventListener('pause', () => {
-            window.parent.postMessage({ type: 'playback_status', status: 'paused' }, '*');
-        });
-
-        video.addEventListener('playing', () => {
-            window.parent.postMessage({ type: 'playback_status', status: 'playing' }, '*');
-            hideLoading();
-            playOverlay.style.display = 'none';
-        });
-
-        video.addEventListener('ended', () => {
-            window.parent.postMessage({ type: 'playback_ended', duration: isFinite(video.duration) ? video.duration : injectedDuration }, '*');
-        });
-
-        function reportActivity() { window.parent.postMessage({ type: 'user_activity' }, '*'); }
-        document.addEventListener('mousemove', reportActivity);
-        document.addEventListener('touchstart', reportActivity);
-        document.addEventListener('click', reportActivity);
-
-        window.addEventListener('message', (event) => {
-            const data = event.data;
-            if (!data) return;
-            switch (data.type) {
-                case 'play': video.play().catch(() => playOverlay.style.display = 'flex'); break;
-                case 'pause': video.pause(); break;
-                case 'seek': if (Number.isFinite(data.value)) video.currentTime = data.value; break;
-                case 'set_volume': video.volume = Math.max(0, Math.min(1, data.value)); video.muted = video.volume === 0; break;
-            }
-        });
-
-        async function playWithHLS(url) {
-            log('Trying HLS.js with: ' + url);
-            showLoading('Chargement HLS...');
-
-            if (!Hls.isSupported()) {
-                if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                    video.src = url;
-                    video.load();
-                    video.play().catch(() => {
-                        loading.style.display = 'none';
-                        playOverlay.style.display = 'flex';
-                    });
-                    return true;
-                }
-                return false;
+            function showLoading(msg) {
+                loading.style.display = 'block';
+                loadingText.textContent = msg || 'Ouverture du flux';
+                errorBox.style.display = 'none';
             }
 
-            const isTurbo = urlParams.get('turbo') === 'true';
-            const isRecording = urlParams.get('is_recording') === 'true';
-
-            const hlsOptions = {
-                maxBufferLength: 120,
-                enableWorker: true,
-                nudgeOffset: 0.8, // More aggressive jump over corrupted frames
-                nudgeMaxRetries: 30,
-                maxLiveSyncPlaybackRate: 1.1, // Slower catch-up to avoid chaos
-                initialLiveManifestSize: 3, // Wait for more segments before starting
-                abrEwmaDefaultEstimate: 1000000,
-                manifestLoadingRetryDelay: 1000,
-                levelLoadingRetryDelay: 1000
-            };
-
-            // Limit live sync only for actual LIVE IPTV, not recordings
-            if (!isRecording && streamType === 'live') {
-                hlsOptions.liveSyncDurationCount = 10;
-                hlsOptions.liveMaxLatencyDurationCount = 20;
+            function hideLoading() {
+                loading.style.display = 'none';
+                loadingHint.textContent = '';
             }
 
-            const hls = new Hls(hlsOptions);
-            window.hlsInstance = hls;
-            hls.loadSource(url);
-            hls.attachMedia(video);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            function showError(msg) {
                 hideLoading();
-                // Wait for a small buffer before playing to avoid chaos
-                const checkBuffer = setInterval(() => {
-                    if (video.buffered.length > 0) {
-                        const bufferEnd = video.buffered.end(0);
-                        if (bufferEnd > 1.5) { // 1.5s buffer-first
-                            clearInterval(checkBuffer);
-                            video.play().catch(() => playOverlay.style.display = 'flex');
-                        }
-                    }
-                }, 200);
-            });
-            hls.on(Hls.Events.LEVEL_LOADED, (e, d) => {
-                if (d.details && d.details.totalduration > injectedDuration) window.currentHlsDuration = d.details.totalduration;
-            });
-            hls.on(Hls.Events.ERROR, (e, d) => {
-                if (d.fatal) {
-                    if (d.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
-                    else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
-                    else showError('HLS Error: ' + d.details);
-                }
-            });
-            return true;
-        }
-
-        async function playWithMpegTS(url, isLive = true) {
-            log('Trying mpegts.js with: ' + url);
-            showLoading('Chargement MPEG-TS...');
-            if (!mpegts.isSupported()) return false;
-            const player = mpegts.createPlayer({ type: 'mpegts', isLive: isLive, url: url }, { 
-                enableWorker: true, 
-                stashInitialSize: 512 * 1024, // Buffer-First: 512KB
-                enableStashBuffer: true,
-                liveBufferLatencyChasing: false, // Avoid chaotic catch-up
-                maxStashSize: 30 * 1024 * 1024
-            });
-            player.attachMediaElement(video);
-            player.load();
-            
-            // Wait for buffer to fill slightly before playing
-            const checkBuffer = setInterval(() => {
-                if (video.buffered.length > 0) {
-                    if (video.buffered.end(0) > 1.0) {
-                        clearInterval(checkBuffer);
-                        player.play().catch(() => playOverlay.style.display = 'flex');
-                    }
-                }
-            }, 200);
-            
-            player.on(mpegts.Events.ERROR, (type, detail) => {
-                log('MpegTS Error: ' + type + ' - ' + detail);
-                setTimeout(() => {
-                    player.destroy();
-                    playWithMpegTS(url, isLive);
-                }, 2000);
-            });
-            return true;
-        }
-
-        async function playDirect(url) {
-            log('Direct play logic for Safari stability: ' + url);
-            showLoading('Lancement...');
-            video.src = url;
-            video.load();
-            video.play().catch(async () => {
-                log('Direct play blocked, trying fallbacks...');
-                if (url.toLowerCase().includes('.m3u8')) await playWithHLS(url);
-                else playOverlay.style.display = 'flex';
-            });
-            video.addEventListener('canplay', () => hideLoading(), { once: true });
-            video.addEventListener('error', () => showError('Format non supporté'), { once: true });
-            return true;
-        }
-
-        async function initPlayer() {
-            if (!streamUrl) return showError('No URL');
-            const lowerUrl = streamUrl.toLowerCase();
-            if (streamType === 'live') {
-                if (lowerUrl.includes('.m3u8')) await playWithHLS(streamUrl);
-                else await playWithMpegTS(streamUrl, true);
-            } else if (streamType === 'vod') {
-                if (lowerUrl.includes('.m3u8')) await playWithHLS(streamUrl);
-                else await playDirect(streamUrl);
-            } else {
-                if (lowerUrl.includes('.m3u8')) await playWithHLS(streamUrl);
-                else await playDirect(streamUrl);
+                errorBox.style.display = 'block';
+                errorMessage.textContent = msg || 'Erreur de chargement';
+                playOverlay.style.display = 'none';
             }
-        }
 
-        initPlayer();
+            var player = new XFPlayer({
+                video: video,
+                logPrefix: '[Player]',
+                onLoading: showLoading,
+                onReady: function () {
+                    hideLoading();
+                    playOverlay.style.display = 'none';
+                },
+                onError: showError,
+                onBlocked: function () {
+                    hideLoading();
+                    playOverlay.style.display = 'flex';
+                },
+                onProfileChange: function (name) {
+                    // Retour visuel discret : l'utilisateur comprend pourquoi
+                    // la latence augmente légèrement après des coupures.
+                    loadingHint.textContent =
+                        name === 'safe' ? 'Réseau instable — buffer maximal'
+                                        : 'Réseau instable — buffer élargi';
+                }
+            });
+
+            playOverlay.addEventListener('click', function () {
+                video.play();
+                playOverlay.style.display = 'none';
+            });
+
+            player.start();
+            window.xfPlayer = player;
+        })();
     </script>
 </body>
 

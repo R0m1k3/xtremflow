@@ -99,7 +99,7 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
                   ),
                   child: Text(
                     'LIVE',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.karla(
                       fontSize: 9,
                       fontWeight: FontWeight.bold,
                       color: AppColors.onSurface,
@@ -110,7 +110,7 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
                 Expanded(
                   child: Text(
                     _epg!.nowPlaying!,
-                    style: GoogleFonts.roboto(
+                    style: GoogleFonts.karla(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: AppColors.onSurface,
@@ -151,7 +151,7 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
                 Expanded(
                   child: Text(
                     'Next: ${_epg!.nextPlaying}',
-                    style: GoogleFonts.roboto(
+                    style: GoogleFonts.karla(
                       fontSize: 10,
                       color: AppColors.outline,
                     ),

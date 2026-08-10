@@ -206,13 +206,13 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                     Expanded(
                       child: TextField(
                         controller: _searchController,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.karla(
                           fontSize: 14,
                           color: AppColors.onSurface,
                         ),
                         decoration: InputDecoration(
                           hintText: 'Search Movies...',
-                          hintStyle: GoogleFonts.inter(color: AppColors.onSurfaceVariant),
+                          hintStyle: GoogleFonts.karla(color: AppColors.onSurfaceVariant),
                           border: InputBorder.none,
                           isDense: true,
                           contentPadding: const EdgeInsets.only(bottom: 11),
@@ -300,6 +300,8 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                               ? Image.network(
                                   _getProxiedImageUrl(movie.streamIcon, ref),
                                   fit: BoxFit.cover,
+                                  cacheWidth: 360,
+                                  filterQuality: FilterQuality.low,
                                   errorBuilder: (_, __, ___) =>
                                       Container(color: AppColors.surfaceContainerLow),
                                 )
@@ -346,7 +348,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                             children: [
                               Text(
                                 movie.name,
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.karla(
                                   color: AppColors.onSurface,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
@@ -357,7 +359,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                               if (isWatched)
                                 Text(
                                   'WATCHED',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.karla(
                                     color: AppColors.primary,
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
@@ -389,7 +391,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                                   const SizedBox(width: 4),
                                   Text(
                                     _formatRating(movie.rating)!,
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.karla(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                       color: AppColors.onSurface,

@@ -199,7 +199,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                   children: [
                     Text(
                       'TV Series',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: GoogleFonts.fraunces(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
                         color: AppColors.onSurface,
@@ -229,14 +229,14 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                           Expanded(
                             child: TextField(
                               controller: _searchController,
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.karla(
                                 fontSize: 14,
                                 color: AppColors.onSurface,
                               ),
                               decoration: InputDecoration(
                                 hintText: 'Search series...',
                                 hintStyle:
-                                    GoogleFonts.inter(color: AppColors.outline),
+                                    GoogleFonts.karla(color: AppColors.outline),
                                 border: InputBorder.none,
                                 isDense: true,
                                 contentPadding:
@@ -343,6 +343,8 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                               ? Image.network(
                                   _getProxiedImageUrl(serie.cover),
                                   fit: BoxFit.cover,
+                                  cacheWidth: 400,
+                                  filterQuality: FilterQuality.low,
                                   errorBuilder: (ctx, err, stack) => Container(
                                     color: AppColors.surfaceContainerLow,
                                     child: Center(
@@ -396,7 +398,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                           bottom: 12,
                           child: Text(
                             serie.name,
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.karla(
                               color: AppColors.onSurface,
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -439,7 +441,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                                   const SizedBox(width: 4),
                                   Text(
                                     _formatRating(serie.rating)!,
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.karla(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                       color: AppColors.onSurface,
