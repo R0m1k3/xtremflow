@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:html' as html;
 import 'package:dio/dio.dart';
@@ -7,10 +8,43 @@ import '../../../core/models/playlist_config.dart';
 import '../../../core/models/iptv_models.dart';
 import '../models/xtream_models.dart' as xm;
 
+/// Limiteur de concurrence minimal (pas de dépendance supplémentaire).
+class _Semaphore {
+  _Semaphore(this.max);
+
+  final int max;
+  int _current = 0;
+  final List<Completer<void>> _waiters = [];
+
+  Future<void> acquire() {
+    if (_current < max) {
+      _current++;
+      return Future<void>.value();
+    }
+    final completer = Completer<void>();
+    _waiters.add(completer);
+    return completer.future;
+  }
+
+  void release() {
+    if (_waiters.isNotEmpty) {
+      _waiters.removeAt(0).complete();
+    } else {
+      _current--;
+    }
+  }
+}
+
 /// Xtream Codes API Service
 ///
 /// Handles all communication with Xtream API servers
 class XtreamService {
+  /// Une grille de chaînes déclenche un appel EPG par tuile visible — une
+  /// trentaine de requêtes simultanées vers `player_api.php`. Beaucoup de
+  /// panneaux Xtream limitent le débit et répondent en erreur au-delà de
+  /// quelques connexions parallèles, ce qui vide l'EPG de toute la grille.
+  /// On sérialise donc par petits paquets.
+  static final _Semaphore _epgGate = _Semaphore(3);
   late final Dio _dio;
   late final CacheOptions _cacheOptions;
 
@@ -635,6 +669,7 @@ class XtreamService {
       await Future.delayed(_throttleDelay);
     }
 
+    await _epgGate.acquire();
     try {
       final response = await _apiGet(
         {
@@ -650,18 +685,58 @@ class XtreamService {
         ),
       );
 
-      if (response.data == null || response.data['epg_listings'] == null) {
+      var data = response.data;
+
+      // Certains panneaux renvoient du JSON avec un Content-Type textuel :
+      // Dio livre alors une String brute et l'accès par clé échouait
+      // silencieusement, aboutissant au même « No Info » qu'une vraie panne.
+      if (data is String) {
+        if (data.trim().isEmpty) {
+          debugPrint('[XtreamService] EPG $streamId : réponse vide');
+          return [];
+        }
+        try {
+          data = json.decode(data);
+        } catch (_) {
+          debugPrint(
+            '[XtreamService] EPG $streamId : réponse non-JSON '
+            '(${response.headers.value('content-type')}) — '
+            '${data.length > 120 ? '${data.substring(0, 120)}…' : data}',
+          );
+          return [];
+        }
+      }
+
+      if (data == null) {
+        debugPrint('[XtreamService] EPG $streamId : corps nul');
         return [];
       }
 
-      final List<dynamic> epgData =
-          response.data['epg_listings'] as List<dynamic>;
+      if (data is! Map || data['epg_listings'] == null) {
+        debugPrint(
+          '[XtreamService] EPG $streamId : pas de champ epg_listings '
+          '(clés: ${data is Map ? data.keys.toList() : data.runtimeType})',
+        );
+        return [];
+      }
+
+      final List<dynamic> epgData = data['epg_listings'] as List<dynamic>;
       return epgData
           .map((entry) => EpgEntry.fromJson(entry as Map<String, dynamic>))
           .toList();
-    } catch (e) {
-      // EPG is optional, don't throw on failure
+    } on DioException catch (e) {
+      // L'EPG reste optionnel — mais avaler l'erreur en silence rendait toute
+      // panne indiscernable d'une grille réellement vide.
+      debugPrint(
+        '[XtreamService] EPG $streamId en échec : '
+        'HTTP ${e.response?.statusCode} ${e.type} — ${e.message}',
+      );
       return [];
+    } catch (e) {
+      debugPrint('[XtreamService] EPG $streamId en échec : $e');
+      return [];
+    } finally {
+      _epgGate.release();
     }
   }
 
