@@ -52,7 +52,7 @@ class EpgOverlay extends ConsumerWidget {
               color: AppColors.surfaceContainerLow
                   .withOpacity(0.85), // Match Native player controls
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
+              border: Border.all(color: AppColors.onSurface.withOpacity(0.1)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,

@@ -63,3 +63,8 @@ dev_dependencies:
   
 flutter:
   uses-material-design: true
+
+  # Polices embarquees : google_fonts detecte ces fichiers via l'AssetManifest
+  # et n'effectue AUCUNE requete reseau vers fonts.gstatic.com au demarrage.
+  assets:
+    - assets/google_fonts/

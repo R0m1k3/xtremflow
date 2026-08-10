@@ -124,7 +124,7 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                       const SizedBox(height: 24),
                       Text(
                         'XtremFlow',
-                        style: GoogleFonts.syne(
+                        style: GoogleFonts.fraunces(
                           fontSize: 32,
                           fontWeight: FontWeight.w700,
                           color: AppColors.onSurface,
@@ -133,7 +133,7 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                       ),
                        Text(
                         'Mobile Edition',
-                        style: GoogleFonts.instrumentSans(
+                        style: GoogleFonts.karla(
                           fontSize: 14,
                           color: AppColors.onSurfaceVariant,
                           letterSpacing: 0.5,
@@ -173,7 +173,7 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                                 ),
                                 child: Text(
                                   authState.errorMessage!,
-                                  style: GoogleFonts.instrumentSans(color: AppColors.error, fontSize: 13),
+                                  style: GoogleFonts.karla(color: AppColors.error, fontSize: 13),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
@@ -199,7 +199,7 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                                 onPressed: authState.isLoading ? null : _handleLogin,
                                 style: FilledButton.styleFrom(
                                   backgroundColor: Colors.transparent,
-                                  foregroundColor: Colors.white,
+                                  foregroundColor: AppColors.onSurface,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   elevation: 0,
                                 ).copyWith(
@@ -209,11 +209,11 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                                     ? const SizedBox(
                                         width: 24,
                                         height: 24,
-                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onSurface),
                                       )
                                     : Text(
                                         'Sign In',
-                                        style: GoogleFonts.instrumentSans(fontWeight: FontWeight.w600, fontSize: 16, color: Colors.white),
+                                        style: GoogleFonts.karla(fontWeight: FontWeight.w600, fontSize: 16, color: AppColors.onSurface),
                                       ),
                               ),
                             ),
@@ -243,10 +243,10 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
-      style: GoogleFonts.instrumentSans(color: AppColors.onSurface),
+      style: GoogleFonts.karla(color: AppColors.onSurface),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.instrumentSans(color: AppColors.onSurfaceVariant),
+        labelStyle: GoogleFonts.karla(color: AppColors.onSurfaceVariant),
         prefixIcon: Icon(icon, color: AppColors.onSurfaceVariant),
         suffixIcon: isPassword
           ? IconButton(

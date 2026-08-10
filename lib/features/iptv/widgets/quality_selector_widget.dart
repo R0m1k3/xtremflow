@@ -64,7 +64,7 @@ class QualitySelectorButton extends StatelessWidget {
                           Text(
                             q.label,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.instrumentSans(
+                            style: GoogleFonts.karla(
                               color: AppColors.textPrimary,
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
@@ -73,7 +73,7 @@ class QualitySelectorButton extends StatelessWidget {
                           Text(
                             q.description,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.instrumentSans(
+                            style: GoogleFonts.karla(
                               color: AppColors.textTertiary,
                               fontSize: 11,
                             ),
@@ -91,13 +91,13 @@ class QualitySelectorButton extends StatelessWidget {
           height: size,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
+            color: AppColors.onSurface.withOpacity(0.1),
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white.withOpacity(0.2)),
+            border: Border.all(color: AppColors.onSurface.withOpacity(0.2)),
           ),
           child: const Icon(
             Icons.high_quality_rounded,
-            color: Colors.white,
+            color: AppColors.onSurface,
             size: 22,
           ),
         ),

@@ -1,25 +1,25 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 
-/// XtremFlow Mobile Theme
+/// Thème mobile XtremFlow — déclinaison tactile de « Warm Cinema ».
 ///
-/// Adapted from AppTheme for touch-first screens.
-/// Uses the same Cyber-Cinematic Glass design system.
+/// Mêmes tokens que [AppTheme] (charbon chaud / crème / braise), échelles
+/// typographiques réduites et cibles tactiles élargies.
 class MobileTheme {
   MobileTheme._();
 
-  // ============ SPACING (8px rhythmic system) ============
+  // ============ ESPACEMENT ============
   static const double spacingXs = 4.0;
   static const double spacingSm = 8.0;
   static const double spacingMd = 16.0;
   static const double spacingLg = 24.0;
   static const double spacingXl = 32.0;
 
-  // ============ RADIUS ============
-  static const double radiusSm = 8.0;
-  static const double radiusMd = 12.0;
-  static const double radiusLg = 16.0;
+  // ============ RAYONS (alignés sur AppTheme) ============
+  static const double radiusSm = 6.0;
+  static const double radiusMd = 10.0;
+  static const double radiusLg = 14.0;
   static const double radiusXl = 20.0;
 
   // ============ DARK THEME (Mobile Main) ============
@@ -32,69 +32,69 @@ class MobileTheme {
 
       // Typography: Scaled down for mobile
       textTheme: TextTheme(
-        displayLarge: GoogleFonts.syne(
+        displayLarge: GoogleFonts.fraunces(
           fontSize: 32,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.02,
           height: 1.1,
           color: AppColors.onSurface,
         ),
-        displayMedium: GoogleFonts.syne(
+        displayMedium: GoogleFonts.fraunces(
           fontSize: 28,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.01,
           height: 1.2,
           color: AppColors.onSurface,
         ),
-        displaySmall: GoogleFonts.syne(
+        displaySmall: GoogleFonts.fraunces(
           fontSize: 22,
           fontWeight: FontWeight.w500,
           height: 1.3,
           color: AppColors.onSurface,
         ),
-        headlineMedium: GoogleFonts.syne(
+        headlineMedium: GoogleFonts.fraunces(
           fontSize: 20,
           fontWeight: FontWeight.w500,
           height: 1.3,
           color: AppColors.onSurface,
         ),
-        titleLarge: GoogleFonts.syne(
+        titleLarge: GoogleFonts.fraunces(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: AppColors.onSurface,
         ),
-        titleMedium: GoogleFonts.instrumentSans(
+        titleMedium: GoogleFonts.karla(
           fontSize: 16,
           fontWeight: FontWeight.w600,
           color: AppColors.onSurface,
         ),
-        bodyLarge: GoogleFonts.instrumentSans(
+        bodyLarge: GoogleFonts.karla(
           fontSize: 16,
           fontWeight: FontWeight.w400,
           height: 1.5,
           color: AppColors.onSurfaceVariant,
         ),
-        bodyMedium: GoogleFonts.instrumentSans(
+        bodyMedium: GoogleFonts.karla(
           fontSize: 14,
           fontWeight: FontWeight.w400,
           height: 1.5,
           color: AppColors.onSurfaceVariant,
         ),
-        labelLarge: GoogleFonts.instrumentSans(
+        labelLarge: GoogleFonts.karla(
           fontSize: 14,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.05,
           height: 1.2,
           color: AppColors.onSurface,
         ),
-        labelMedium: GoogleFonts.instrumentSans(
+        labelMedium: GoogleFonts.karla(
           fontSize: 12,
           fontWeight: FontWeight.w500,
           letterSpacing: 0.02,
           height: 1.2,
           color: AppColors.onSurface,
         ),
-        labelSmall: GoogleFonts.instrumentSans(
+        labelSmall: GoogleFonts.karla(
           fontSize: 11,
           fontWeight: FontWeight.w500,
           letterSpacing: 0.02,
@@ -110,7 +110,7 @@ class MobileTheme {
         elevation: 0,
         centerTitle: true,
         scrolledUnderElevation: 0,
-        titleTextStyle: GoogleFonts.syne(
+        titleTextStyle: GoogleFonts.fraunces(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: AppColors.onSurface,
@@ -119,14 +119,16 @@ class MobileTheme {
 
       // Bottom Navigation Bar
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: AppColors.surfaceContainerLow.withOpacity(0.9),
-        selectedItemColor: AppColors.onSurface,
+        // Opaque : une barre translucide impose une couche de composition
+        // supplementaire sur toute la largeur, a chaque frame.
+        backgroundColor: AppColors.surfaceContainerLowest,
+        selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.outline,
-        selectedLabelStyle: GoogleFonts.instrumentSans(
+        selectedLabelStyle: GoogleFonts.karla(
           fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
-        unselectedLabelStyle: GoogleFonts.instrumentSans(
+        unselectedLabelStyle: GoogleFonts.karla(
           fontSize: 11,
           fontWeight: FontWeight.w500,
         ),
@@ -157,7 +159,7 @@ class MobileTheme {
             width: 2,
           ),
         ),
-        hintStyle: GoogleFonts.instrumentSans(
+        hintStyle: GoogleFonts.karla(
           color: AppColors.outline,
           fontSize: 14,
         ),
@@ -166,14 +168,16 @@ class MobileTheme {
       // Buttons
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppColors.primaryContainer,
-          foregroundColor: AppColors.onPrimaryContainer,
+          // Braise profonde : seule variante qui tient le contraste AA
+          // (4,5:1) avec du texte blanc.
+          backgroundColor: AppColors.primaryFill,
+          foregroundColor: AppColors.onSurface,
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusMd),
           ),
-          textStyle: GoogleFonts.instrumentSans(
+          textStyle: GoogleFonts.karla(
             fontWeight: FontWeight.w600,
             fontSize: 14,
           ),
@@ -182,7 +186,8 @@ class MobileTheme {
 
       // Cards
       cardTheme: CardThemeData(
-        color: AppColors.glassLevel1Bg,
+        color: AppColors.surfaceContainerLow,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(

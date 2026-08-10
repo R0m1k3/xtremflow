@@ -19,7 +19,7 @@ class StreamingSettingsTab extends ConsumerWidget {
         // Header
         Text(
           'Paramètres Streaming Live TV',
-          style: GoogleFonts.instrumentSans(
+          style: GoogleFonts.karla(
             fontSize: 18,
             fontWeight: FontWeight.bold,
             color: AppColors.onSurface,
@@ -28,7 +28,7 @@ class StreamingSettingsTab extends ConsumerWidget {
         const SizedBox(height: 8),
         Text(
           'Ces paramètres s\'appliquent uniquement aux flux TV en direct.',
-          style: GoogleFonts.instrumentSans(
+          style: GoogleFonts.karla(
             fontSize: 12,
             color: AppColors.onSurfaceVariant,
           ),
@@ -101,15 +101,15 @@ class StreamingSettingsTab extends ConsumerWidget {
                 ConnectionTimeout.long => 'Long (60s)',
               },
             ),
-            Divider(height: 1, color: Colors.white.withOpacity(0.1)),
+            Divider(height: 1, color: AppColors.onSurface.withOpacity(0.1)),
             SwitchListTile(
               title: Text(
                 'Reconnexion automatique',
-                style: GoogleFonts.instrumentSans(fontSize: 14, color: AppColors.onSurface),
+                style: GoogleFonts.karla(fontSize: 14, color: AppColors.onSurface),
               ),
               subtitle: Text(
                 'Se reconnecter en cas de coupure',
-                style: GoogleFonts.instrumentSans(fontSize: 12, color: AppColors.onSurfaceVariant),
+                style: GoogleFonts.karla(fontSize: 12, color: AppColors.onSurfaceVariant),
               ),
               value: settings.autoReconnect,
               activeThumbColor: AppColors.primaryContainer,
@@ -137,15 +137,15 @@ class StreamingSettingsTab extends ConsumerWidget {
                 TranscodingMode.disabled => 'Désactivé (direct)',
               },
             ),
-            Divider(height: 1, color: Colors.white.withOpacity(0.1)),
+            Divider(height: 1, color: AppColors.onSurface.withOpacity(0.1)),
             SwitchListTile(
               title: Text(
                 'Préférer lecture directe',
-                style: GoogleFonts.instrumentSans(fontSize: 14, color: AppColors.onSurface),
+                style: GoogleFonts.karla(fontSize: 14, color: AppColors.onSurface),
               ),
               subtitle: Text(
                 'Utiliser le flux original si compatible',
-                style: GoogleFonts.instrumentSans(fontSize: 12, color: AppColors.onSurfaceVariant),
+                style: GoogleFonts.karla(fontSize: 12, color: AppColors.onSurfaceVariant),
               ),
               value: settings.preferDirectPlay,
               activeThumbColor: AppColors.primaryContainer,
@@ -186,11 +186,11 @@ class StreamingSettingsTab extends ConsumerWidget {
             SwitchListTile(
               title: Text(
                 'Accélération NVIDIA GPU',
-                style: GoogleFonts.instrumentSans(fontSize: 14, color: AppColors.onSurface),
+                style: GoogleFonts.karla(fontSize: 14, color: AppColors.onSurface),
               ),
               subtitle: Text(
                 'Utiliser NVENC/NVDEC pour le transcodage (requiert GPU NVIDIA)',
-                style: GoogleFonts.instrumentSans(fontSize: 12, color: AppColors.onSurfaceVariant),
+                style: GoogleFonts.karla(fontSize: 12, color: AppColors.onSurfaceVariant),
               ),
               value: settings.enableNvidiaGpu,
               activeThumbColor: Colors.green,
@@ -215,7 +215,7 @@ class StreamingSettingsTab extends ConsumerWidget {
               Expanded(
                 child: Text(
                   'Les changements prennent effet immédiatement pour les nouveaux flux.',
-                  style: GoogleFonts.instrumentSans(
+                  style: GoogleFonts.karla(
                     fontSize: 12,
                     color: AppColors.primary,
                   ),
@@ -236,9 +236,9 @@ class StreamingSettingsTab extends ConsumerWidget {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: AppColors.onSurface.withOpacity(0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: AppColors.onSurface.withOpacity(0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -251,7 +251,7 @@ class StreamingSettingsTab extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Text(
                   title,
-                  style: GoogleFonts.instrumentSans(
+                  style: GoogleFonts.karla(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: AppColors.onSurface,
@@ -260,7 +260,7 @@ class StreamingSettingsTab extends ConsumerWidget {
               ],
             ),
           ),
-          Divider(height: 1, color: Colors.white.withOpacity(0.1)),
+          Divider(height: 1, color: AppColors.onSurface.withOpacity(0.1)),
           ...children,
         ],
       ),
@@ -278,11 +278,11 @@ class StreamingSettingsTab extends ConsumerWidget {
     return ListTile(
       title: Text(
         title,
-        style: GoogleFonts.instrumentSans(fontSize: 14, color: AppColors.onSurface),
+        style: GoogleFonts.karla(fontSize: 14, color: AppColors.onSurface),
       ),
       subtitle: Text(
         subtitle,
-        style: GoogleFonts.instrumentSans(fontSize: 12, color: AppColors.onSurfaceVariant),
+        style: GoogleFonts.karla(fontSize: 12, color: AppColors.onSurfaceVariant),
       ),
       trailing: DropdownButton<T>(
         value: value,
@@ -293,12 +293,12 @@ class StreamingSettingsTab extends ConsumerWidget {
             value: item,
             child: Text(
               labelBuilder(item),
-              style: GoogleFonts.instrumentSans(fontSize: 13, color: AppColors.onSurface),
+              style: GoogleFonts.karla(fontSize: 13, color: AppColors.onSurface),
             ),
           );
         }).toList(),
         onChanged: onChanged,
-        style: GoogleFonts.instrumentSans(color: AppColors.onSurface),
+        style: GoogleFonts.karla(color: AppColors.onSurface),
         iconEnabledColor: AppColors.onSurfaceVariant,
       ),
     );

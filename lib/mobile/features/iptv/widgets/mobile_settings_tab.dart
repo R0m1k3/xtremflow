@@ -398,7 +398,7 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.only(left: 8, bottom: 8),
       child: Text(
         title,
-        style: GoogleFonts.instrumentSans(
+        style: GoogleFonts.karla(
           fontSize: 14,
           fontWeight: FontWeight.w600,
           color: AppColors.onSurfaceVariant,

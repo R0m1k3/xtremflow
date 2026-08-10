@@ -179,6 +179,7 @@ class _HeroCarouselState extends State<HeroCarousel>
           Image.network(
             item.imageUrl!,
             fit: BoxFit.cover,
+            cacheWidth: 1280,
             errorBuilder: (context, error, stackTrace) {
               return Container(
                 color: AppColors.surface,
@@ -220,7 +221,7 @@ class _HeroCarouselState extends State<HeroCarousel>
             ),
             child: Text(
               item.badge!,
-              style: GoogleFonts.instrumentSans(
+              style: GoogleFonts.karla(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: AppColors.primary,
@@ -233,7 +234,7 @@ class _HeroCarouselState extends State<HeroCarousel>
           item.title,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.syne(
+          style: GoogleFonts.fraunces(
             fontSize: 48,
             fontWeight: FontWeight.w800,
             color: AppColors.textPrimary,
@@ -247,7 +248,7 @@ class _HeroCarouselState extends State<HeroCarousel>
             item.subtitle!,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.instrumentSans(
+            style: GoogleFonts.karla(
               fontSize: 16,
               fontWeight: FontWeight.w400,
               color: AppColors.textSecondary,
@@ -292,7 +293,7 @@ class _HeroCarouselState extends State<HeroCarousel>
                           const SizedBox(width: 8),
                           Text(
                             'Play',
-                            style: GoogleFonts.instrumentSans(
+                            style: GoogleFonts.karla(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: AppColors.primary,
@@ -330,7 +331,7 @@ class _HeroCarouselState extends State<HeroCarousel>
                         const SizedBox(width: 8),
                         Text(
                           'More Info',
-                          style: GoogleFonts.instrumentSans(
+                          style: GoogleFonts.karla(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,

@@ -1,0 +1,255 @@
+/* =====================================================================
+ * XtremFlow — Habillage des lecteurs, thème « Warm Cinema »
+ * Charbon chaud (#0B0908), crème (#F3E9DF), braise (#D9541F).
+ *
+ * PERF : aucun backdrop-filter. Le flou de fond force le compositeur à
+ * relire le framebuffer à chaque frame — inacceptable par-dessus une vidéo.
+ * ===================================================================== */
+
+:root {
+  --xf-ink: #0B0908;
+  --xf-cream: #F3E9DF;
+  --xf-cream-dim: #C5B3A5;
+  --xf-ember: #D9541F;
+  --xf-ember-light: #FFB68C;
+  --xf-danger: #E5484D;
+  --xf-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  background: var(--xf-ink);
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--xf-ui);
+  color: var(--xf-cream);
+}
+
+#player-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: var(--xf-ink);
+}
+
+#video {
+  width: 100%;
+  height: 100%;
+  background: var(--xf-ink);
+  display: block;
+}
+
+/* ---------------------------------------------------------------
+ * Amorce de projection — l'anneau de compte à rebours d'une bobine
+ * --------------------------------------------------------------- */
+.xf-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 20;
+}
+
+#loading {
+  display: none;
+}
+
+.xf-leader {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+  position: relative;
+}
+
+/* Anneau fixe, très discret */
+.xf-leader::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(243, 233, 223, 0.14);
+}
+
+/* Balayage braise */
+.xf-leader::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--xf-ember);
+  border-right-color: var(--xf-ember);
+  animation: xf-sweep 900ms cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+/* Réticule central : croix d'amorce de pellicule */
+.xf-leader-cross,
+.xf-leader-cross::before {
+  position: absolute;
+  background: rgba(243, 233, 223, 0.22);
+}
+
+.xf-leader-cross {
+  top: 50%;
+  left: 12px;
+  right: 12px;
+  height: 1px;
+  transform: translateY(-0.5px);
+}
+
+.xf-leader-cross::before {
+  content: "";
+  top: -14px;
+  bottom: -14px;
+  left: 50%;
+  width: 1px;
+  height: 28px;
+  transform: translateX(-0.5px);
+}
+
+@keyframes xf-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.xf-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--xf-cream-dim);
+}
+
+/* Mention discrète quand le buffer s'élargit tout seul */
+.xf-hint {
+  margin-top: 10px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(243, 233, 223, 0.42);
+  min-height: 14px;
+}
+
+/* ---------------------------------------------------------------
+ * Erreur
+ * --------------------------------------------------------------- */
+#error {
+  display: none;
+  max-width: 78vw;
+}
+
+.xf-error-mark {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 18px;
+  border: 2px solid var(--xf-danger);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--xf-danger);
+}
+
+.xf-error-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--xf-cream);
+}
+
+.xf-error-sub {
+  margin-top: 8px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: rgba(243, 233, 223, 0.5);
+}
+
+/* ---------------------------------------------------------------
+ * Overlay lecture (autoplay bloqué)
+ * --------------------------------------------------------------- */
+#play-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  background: rgba(11, 9, 8, 0.82);
+  border: 2px solid var(--xf-ember);
+  box-shadow: 0 0 40px rgba(217, 84, 31, 0.35);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 25;
+  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#play-overlay:hover {
+  transform: translate(-50%, -50%) scale(1.06);
+}
+
+#play-overlay:active {
+  transform: translate(-50%, -50%) scale(0.94);
+}
+
+#play-overlay svg {
+  width: 40px;
+  height: 40px;
+  fill: var(--xf-cream);
+  margin-left: 5px;
+}
+
+/* ---------------------------------------------------------------
+ * Bouton « activer le son » (iOS)
+ * --------------------------------------------------------------- */
+.xf-sound-btn {
+  position: absolute;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 22px;
+  border: 1px solid var(--xf-ember);
+  border-radius: 999px;
+  background: rgba(11, 9, 8, 0.88);
+  color: var(--xf-cream);
+  font-family: var(--xf-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  z-index: 26;
+}
+
+.xf-sound-btn svg {
+  width: 17px;
+  height: 17px;
+  fill: var(--xf-ember-light);
+}
+
+/* Respect des préférences d'accessibilité */
+@media (prefers-reduced-motion: reduce) {
+  .xf-leader::after {
+    animation-duration: 2s;
+  }
+
+  #play-overlay {
+    transition: none;
+  }
+}

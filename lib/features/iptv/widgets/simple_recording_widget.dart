@@ -132,10 +132,10 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
               // Title
               Text(
                 '🎬 Record "${widget.channel.name}"',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.fraunces(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: AppColors.onSurface,
                 ),
               ),
               const SizedBox(height: 24),
@@ -150,9 +150,9 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
                   ),
                   child: Text(
                     _status,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.fraunces(
                       fontSize: 14,
-                      color: Colors.white70,
+                      color: AppColors.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -162,10 +162,10 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
               if (!_isRecording) ...[
                 Text(
                   '⚡ Quick Record',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.fraunces(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: AppColors.onSurface,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -202,7 +202,7 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
                   label: const Text('STOP RECORDING'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.onSurface,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                 ),
@@ -212,10 +212,10 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
                 ExpansionTile(
                   title: Text(
                     '🔵 Schedule for Later',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.fraunces(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      color: AppColors.onSurface,
                     ),
                   ),
                   children: [

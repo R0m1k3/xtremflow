@@ -32,13 +32,13 @@ class _DigitalClockState extends State<DigitalClock> {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
+            color: AppColors.onSurface.withOpacity(0.1),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
+            border: Border.all(color: AppColors.onSurface.withOpacity(0.05)),
           ),
           child: Text(
             timeString,
-            style: GoogleFonts.instrumentSans(
+            style: GoogleFonts.karla(
               fontWeight: FontWeight.w600,
               fontSize: 16,
               color: AppColors.onSurface,

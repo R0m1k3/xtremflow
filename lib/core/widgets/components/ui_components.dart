@@ -149,7 +149,7 @@ class _GradientButtonState extends State<GradientButton>
                         ],
                         Text(
                           widget.label,
-                          style: GoogleFonts.instrumentSans(
+                          style: GoogleFonts.karla(
                             color: AppColors.onSurface,
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
@@ -253,7 +253,7 @@ class LiveBadge extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             'LIVE',
-            style: GoogleFonts.instrumentSans(
+            style: GoogleFonts.karla(
               color: AppColors.onSurface,
               fontSize: 10,
               fontWeight: FontWeight.w700,
@@ -302,7 +302,7 @@ class CategoryChip extends StatelessWidget {
           ),
           child: Text(
             label,
-            style: GoogleFonts.instrumentSans(
+            style: GoogleFonts.karla(
               fontSize: 13,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
               color: isSelected ? AppColors.primary : AppColors.onSurfaceVariant,
@@ -413,6 +413,7 @@ class _MediaCardState extends State<MediaCard>
                           CachedNetworkImage(
                             imageUrl: widget.imageUrl!,
                             fit: BoxFit.cover,
+                            memCacheWidth: 400,
                             placeholder: (context, url) => Container(
                               color: AppColors.surfaceContainerLow,
                               child: Center(
@@ -458,7 +459,7 @@ class _MediaCardState extends State<MediaCard>
                                   const SizedBox(width: 4),
                                   Text(
                                     widget.rating!,
-                                    style: GoogleFonts.instrumentSans(
+                                    style: GoogleFonts.karla(
                                       color: AppColors.onSurface,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
@@ -502,7 +503,7 @@ class _MediaCardState extends State<MediaCard>
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.instrumentSans(
+                    style: GoogleFonts.karla(
                       color: _isHovered
                           ? AppColors.primary
                           : AppColors.onSurface,
@@ -518,7 +519,7 @@ class _MediaCardState extends State<MediaCard>
                       textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.instrumentSans(
+                      style: GoogleFonts.karla(
                         color: AppColors.onSurfaceVariant,
                         fontSize: 11,
                       ),

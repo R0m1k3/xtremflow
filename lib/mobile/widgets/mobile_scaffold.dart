@@ -60,9 +60,9 @@ class MobileScaffold extends ConsumerWidget {
           selectedItemColor: AppColors.primary,
           unselectedItemColor: AppColors.textSecondary,
           selectedLabelStyle:
-              GoogleFonts.instrumentSans(fontWeight: FontWeight.w600, fontSize: 11),
+              GoogleFonts.karla(fontWeight: FontWeight.w600, fontSize: 11),
           unselectedLabelStyle:
-              GoogleFonts.instrumentSans(fontWeight: FontWeight.w500, fontSize: 11),
+              GoogleFonts.karla(fontWeight: FontWeight.w500, fontSize: 11),
           items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.live_tv_rounded),

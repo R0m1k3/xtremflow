@@ -107,6 +107,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                         CachedNetworkImage(
                           imageUrl: item.imageUrl,
                           fit: BoxFit.cover,
+                          memCacheWidth: 1280,
                           placeholder: (context, url) => Container(color: AppColors.surfaceContainerLow),
                           errorWidget: (context, url, error) => Container(
                             color: AppColors.surfaceContainerLow,
@@ -140,7 +141,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                             children: [
                               Text(
                                 item.title,
-                                style: GoogleFonts.syne(
+                                style: GoogleFonts.fraunces(
                                   fontSize: 32,
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.onSurface,
@@ -152,7 +153,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                                 const SizedBox(height: 8),
                                 Text(
                                   item.subtitle!,
-                                  style: GoogleFonts.instrumentSans(
+                                  style: GoogleFonts.karla(
                                     fontSize: 16,
                                     color: AppColors.onSurface,
                                   ),
@@ -245,7 +246,7 @@ class _HeroButtonState extends State<_HeroButton> {
               const SizedBox(width: 8),
               Text(
                 widget.label,
-                style: GoogleFonts.instrumentSans(
+                style: GoogleFonts.karla(
                   color: AppColors.onSurface,
                   fontWeight: FontWeight.w600,
                 ),
