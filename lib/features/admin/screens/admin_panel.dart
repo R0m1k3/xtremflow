@@ -24,16 +24,13 @@ class AdminPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
+      backgroundColor: AppColors.baseLevel0,
       body: Container(
+        // Meme precaution que sur l'ecran de selection de playlist : sans
+        // contrainte d'expansion, le degrade ne couvre que le contenu.
+        constraints: const BoxConstraints.expand(),
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppColors.surfaceVariant,
-              AppColors.background,
-            ],
-          ),
+          gradient: AppColors.backgroundGradient,
         ),
         child: const AdminContent(),
       ),

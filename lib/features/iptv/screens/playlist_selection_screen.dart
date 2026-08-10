@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/services/playlist_api_service.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/xtream_provider.dart';
 
@@ -24,6 +25,9 @@ class PlaylistSelectionScreen extends ConsumerWidget {
 
     return Scaffold(
       extendBodyBehindAppBar: true,
+      // Filet de securite : meme pendant une transition de route, le fond
+      // reste dans la palette au lieu de virer au noir pur.
+      backgroundColor: AppColors.baseLevel0,
       appBar: AppBar(
         title: Text(
           'Select Playlist',
@@ -57,16 +61,14 @@ class PlaylistSelectionScreen extends ConsumerWidget {
         ],
       ),
       body: Container(
+        // `BoxConstraints.expand()` est indispensable ici : sous les
+        // contraintes laches du body, ce Container se dimensionnait sur son
+        // contenu (SingleChildScrollView -> Wrap shrink-wrappent tous les
+        // deux), si bien que le degrade n'etait peint que sur un rectangle
+        // de la taille des cartes, le reste de l'ecran restant noir.
+        constraints: const BoxConstraints.expand(),
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppColors.surfaceContainerLowest,
-              AppColors.background,
-              AppColors.baseLevel0,
-            ],
-          ),
+          gradient: AppColors.backgroundGradient,
         ),
         child: SafeArea(
           child: LayoutBuilder(
@@ -208,26 +210,21 @@ class _PlaylistCardState extends State<_PlaylistCard> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
+            // Surface OPAQUE : une plaque a 3 % de creme prenait la couleur du
+            // fond et flottait sans jamais se poser dessus. Un cran de la
+            // hierarchie de surfaces ancre la carte, l'ombre fait le relief.
             color: _isHovered
-                ? AppColors.onSurface.withOpacity(0.1)
-                : AppColors.onSurface.withOpacity(0.03),
-            borderRadius: BorderRadius.circular(24),
+                ? AppColors.surfaceContainerHigh
+                : AppColors.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(AppTheme.radiusXl),
             border: Border.all(
               color: _isHovered
-                  ? AppColors.primary.withOpacity(0.5)
-                  : AppColors.onSurface.withOpacity(0.08),
-              width: 1.5,
+                  ? AppColors.primaryContainer
+                  : AppColors.glassLevel1Border,
+              width: _isHovered ? 2 : 1,
             ),
-            boxShadow: _isHovered
-                ? [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.2),
-                      blurRadius: 30,
-                      spreadRadius: -5,
-                      offset: const Offset(0, 10),
-                    ),
-                  ]
-                : [],
+            boxShadow:
+                _isHovered ? AppColors.emberFocus() : AppColors.lift(),
           ),
           padding: const EdgeInsets.all(24),
           child: Column(
