@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
+import '../../../core/api/authed_http.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
@@ -111,7 +111,7 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
     });
 
     try {
-      final response = await http.get(Uri.parse('/api/epg/${ch.streamId}'));
+      final response = await AuthedHttp.get(Uri.parse('/api/epg/${ch.streamId}'));
       if (mounted) {
         if (response.statusCode == 200) {
           final data = json.decode(response.body) as Map<String, dynamic>;
@@ -589,7 +589,7 @@ class _ProgrammeCard extends StatelessWidget {
     DateTime end,
   ) async {
     try {
-      final response = await http.post(
+      final response = await AuthedHttp.post(
         Uri.parse('/api/recordings'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
@@ -745,7 +745,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
       _error = null;
     });
     try {
-      final response = await http.get(Uri.parse('/api/recordings'));
+      final response = await AuthedHttp.get(Uri.parse('/api/recordings'));
       if (response.statusCode == 200) {
         setState(() {
           final decoded = json.decode(response.body);
@@ -767,7 +767,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
   }
 
   Future<void> _stopRecording(String id, String title) async {
-    await http.post(Uri.parse('/api/recordings/stop/$id'));
+    await AuthedHttp.post(Uri.parse('/api/recordings/stop/$id'));
     _fetchRecordings();
     if (mounted) {
       ScaffoldMessenger.of(context)
@@ -776,7 +776,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
   }
 
   Future<void> _deleteRecording(String id) async {
-    await http.delete(Uri.parse('/api/recordings/$id'));
+    await AuthedHttp.delete(Uri.parse('/api/recordings/$id'));
     _fetchRecordings();
   }
 
@@ -817,7 +817,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
 
   Future<void> _showLogs(String id, String title) async {
     try {
-      final response = await http.get(Uri.parse('/api/recordings/logs/$id'));
+      final response = await AuthedHttp.get(Uri.parse('/api/recordings/logs/$id'));
       if (!mounted) return;
       final content = response.statusCode == 200
           ? (json.decode(response.body)['logs'] as String? ?? 'Aucun log')
@@ -1095,7 +1095,7 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
   Future<void> _loadPasses() async {
     setState(() => _isLoading = true);
     try {
-      final r = await http.get(Uri.parse('/api/season-passes'));
+      final r = await AuthedHttp.get(Uri.parse('/api/season-passes'));
       if (r.statusCode == 200) {
         setState(() {
           _passes = json.decode(r.body);
@@ -1110,7 +1110,7 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
   }
 
   Future<void> _deletePass(String id, String title) async {
-    await http.delete(Uri.parse('/api/season-passes/$id'));
+    await AuthedHttp.delete(Uri.parse('/api/season-passes/$id'));
     _loadPasses();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1177,7 +1177,7 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
                   ? '/api/live/$c.ts'
                   : urlCtrl.text.trim();
               Navigator.pop(ctx);
-              final r = await http.post(
+              final r = await AuthedHttp.post(
                 Uri.parse('/api/season-passes'),
                 headers: {'Content-Type': 'application/json'},
                 body: json.encode(

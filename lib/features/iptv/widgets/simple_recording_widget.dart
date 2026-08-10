@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import '../../../core/api/authed_http.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/theme/app_colors.dart';
@@ -31,7 +31,7 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
     setState(() => _status = 'Starting...');
 
     try {
-      final response = await http.post(
+      final response = await AuthedHttp.post(
         Uri.parse('/api/record/now'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
@@ -66,7 +66,7 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
     final endTime = _startTime.add(Duration(minutes: _durationMinutes));
 
     try {
-      final response = await http.post(
+      final response = await AuthedHttp.post(
         Uri.parse('/api/record/schedule'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
@@ -96,7 +96,7 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
   /// 🔴 Stop recording
   Future<void> _stopRecording() async {
     try {
-      await http.post(
+      await AuthedHttp.post(
         Uri.parse('/api/record/stop/${widget.channel.streamId}'),
         headers: {'Content-Type': 'application/json'},
       );

@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
+import '../../../core/api/authed_http.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/glass_container.dart';
@@ -45,7 +45,7 @@ class _RecordingModalState extends State<RecordingModal> {
     
     try {
       // Utilisation d'une URL relative en Web (ou d'une configuration pour autres plateformes)
-      final response = await http.post(
+      final response = await AuthedHttp.post(
         Uri.parse('/api/recordings'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
