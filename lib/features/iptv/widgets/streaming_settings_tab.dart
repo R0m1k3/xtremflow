@@ -193,7 +193,7 @@ class StreamingSettingsTab extends ConsumerWidget {
                 style: GoogleFonts.karla(fontSize: 12, color: AppColors.onSurfaceVariant),
               ),
               value: settings.enableNvidiaGpu,
-              activeThumbColor: Colors.green,
+              activeThumbColor: AppColors.success,
               onChanged: (v) => notifier.setEnableNvidiaGpu(v),
             ),
           ],

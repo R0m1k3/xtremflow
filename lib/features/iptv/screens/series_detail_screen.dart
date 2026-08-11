@@ -156,7 +156,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 if (_seriesInfo!.rating != null)
                   Row(
                     children: [
-                      Icon(Icons.star, size: 16, color: Colors.amber.shade700),
+                      Icon(Icons.star, size: 16, color: AppColors.ratingGold),
                       const SizedBox(width: 4),
                       Text(
                         _formatRating(_seriesInfo!.rating!)!,

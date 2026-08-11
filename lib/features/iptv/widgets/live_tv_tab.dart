@@ -63,7 +63,8 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
       body: channelsAsync.when(
         loading: () => const ThemedLoading(),
         error: (e, s) => Center(
-          child: Text('Error: $e', style: const TextStyle(color: AppColors.onSurface)),
+          child: Text('Error: $e',
+              style: const TextStyle(color: AppColors.onSurface)),
         ),
         data: (groupedChannels) {
           var categories = groupedChannels.keys.toList();
@@ -160,9 +161,10 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                           style: GoogleFonts.karla(color: AppColors.onSurface),
                           decoration: InputDecoration(
                             hintText: 'Search channels...',
-                            hintStyle: GoogleFonts.karla(color: AppColors.onSurface54),
-                            prefixIcon:
-                                const Icon(Icons.search, color: AppColors.onSurface54),
+                            hintStyle:
+                                GoogleFonts.karla(color: AppColors.onSurface54),
+                            prefixIcon: const Icon(Icons.search,
+                                color: AppColors.onSurface54),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 16,
@@ -483,7 +485,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                                   return Text(
                                     currentProgram.title,
                                     style: GoogleFonts.karla(
-                                      color: AppColors.ratingGold,
+                                      color: AppColors.primary,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -501,7 +503,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                                 error: (_, __) => Text(
                                   'Err',
                                   style: GoogleFonts.karla(
-                                    color: Colors.red,
+                                    color: AppColors.error,
                                     fontSize: 10,
                                   ),
                                 ),
@@ -531,7 +533,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                       ),
                       child: const Icon(
                         Icons.fiber_manual_record,
-                        color: Colors.redAccent,
+                        color: AppColors.live,
                         size: 16,
                       ),
                     ),

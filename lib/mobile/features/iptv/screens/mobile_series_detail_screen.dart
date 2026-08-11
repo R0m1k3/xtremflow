@@ -200,7 +200,7 @@ class _MobileSeriesDetailScreenState
                             const Icon(
                               Icons.star,
                               size: 16,
-                              color: Colors.amber,
+                              color: AppColors.ratingGold,
                             ),
                             const SizedBox(width: 4),
                             Text(

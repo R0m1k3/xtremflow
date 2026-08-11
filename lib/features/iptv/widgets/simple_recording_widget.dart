@@ -201,7 +201,7 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
                   icon: const Icon(Icons.stop),
                   label: const Text('STOP RECORDING'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
+                    backgroundColor: AppColors.errorContainer,
                     foregroundColor: AppColors.onSurface,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),

@@ -361,7 +361,7 @@ class _MobileSeriesTabState extends ConsumerState<MobileSeriesTab> {
                                   const Icon(
                                     Icons.star,
                                     size: 10,
-                                    color: Colors.amber,
+                                    color: AppColors.ratingGold,
                                   ),
                                   const SizedBox(width: 4),
                                   Text(

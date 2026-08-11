@@ -386,7 +386,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                                   const Icon(
                                     Icons.star,
                                     size: 10,
-                                    color: Colors.amber,
+                                    color: AppColors.ratingGold,
                                   ),
                                   const SizedBox(width: 4),
                                   Text(

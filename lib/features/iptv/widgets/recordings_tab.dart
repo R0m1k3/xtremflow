@@ -298,12 +298,12 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                                     ),
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? Colors.redAccent.withOpacity(0.2)
+                                          ? AppColors.live.withOpacity(0.2)
                                           : AppColors.onSurface.withOpacity(0.05),
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
                                         color: isSelected
-                                            ? Colors.redAccent.withOpacity(0.5)
+                                            ? AppColors.live.withOpacity(0.5)
                                             : Colors.transparent,
                                       ),
                                     ),
@@ -415,7 +415,7 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                                         child: Text(
                                           'Erreur EPG: $_epgError',
                                           style: const TextStyle(
-                                            color: Colors.redAccent,
+                                            color: AppColors.live,
                                             fontSize: 12,
                                           ),
                                           textAlign: TextAlign.center,
@@ -519,7 +519,7 @@ class _ProgrammeCard extends StatelessWidget {
           children: [
             const Icon(
               Icons.fiber_manual_record,
-              color: Colors.redAccent,
+              color: AppColors.live,
               size: 20,
             ),
             const SizedBox(width: 8),
@@ -565,7 +565,10 @@ class _ProgrammeCard extends StatelessWidget {
             child: const Text('Annuler'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.errorContainer,
+              foregroundColor: AppColors.onErrorContainer,
+            ),
             onPressed: () async {
               Navigator.pop(ctx);
               await _saveRecording(
@@ -608,9 +611,7 @@ class _ProgrammeCard extends StatelessWidget {
                   ? '✅ "$title" planifié !'
                   : '❌ Erreur: ${response.body}',
             ),
-            backgroundColor: response.statusCode == 200
-                ? Colors.green.shade800
-                : Colors.red.shade800,
+            backgroundColor: AppColors.surfaceContainerHigh,
           ),
         );
       }
@@ -631,14 +632,14 @@ class _ProgrammeCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
         color: isNow
-            ? Colors.red.withOpacity(0.15)
+            ? AppColors.live.withValues(alpha: 0.15)
             : isPast
                 ? AppColors.onSurface.withOpacity(0.03)
                 : AppColors.onSurface.withOpacity(0.06),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isNow
-              ? Colors.redAccent.withOpacity(0.4)
+              ? AppColors.live.withOpacity(0.4)
               : AppColors.onSurface.withOpacity(0.07),
         ),
       ),
@@ -654,7 +655,7 @@ class _ProgrammeCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.redAccent,
+                    color: AppColors.live,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -705,7 +706,7 @@ class _ProgrammeCard extends StatelessWidget {
             ? IconButton(
                 icon: const Icon(
                   Icons.fiber_manual_record,
-                  color: Colors.redAccent,
+                  color: AppColors.live,
                   size: 20,
                 ),
                 tooltip: 'Enregistrer ce programme',
@@ -861,9 +862,9 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
   }
 
   Color _statusColor(String status) => switch (status) {
-        'recording' => Colors.redAccent,
-        'completed' => Colors.green,
-        'failed' => Colors.orangeAccent,
+        'recording' => AppColors.live,
+        'completed' => AppColors.success,
+        'failed' => AppColors.warning,
         _ => AppColors.primaryContainer,
       };
 
@@ -909,7 +910,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                     ? Center(
                         child: Text(
                           _error ?? 'Erreur',
-                          style: const TextStyle(color: Colors.redAccent),
+                          style: const TextStyle(color: AppColors.live),
                         ),
                       )
                     : _recordings.isEmpty
@@ -983,7 +984,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                                         Text(
                                           '⚠ ${rec['error_reason']}',
                                           style: const TextStyle(
-                                            color: Colors.orangeAccent,
+                                            color: AppColors.warning,
                                             fontSize: 11,
                                           ),
                                         ),
@@ -1019,7 +1020,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                                         IconButton(
                                           icon: const Icon(
                                             Icons.stop_circle,
-                                            color: Colors.redAccent,
+                                            color: AppColors.live,
                                           ),
                                           tooltip: 'Arrêter',
                                           onPressed: () => _stopRecording(
@@ -1031,7 +1032,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                                         IconButton(
                                           icon: const Icon(
                                             Icons.play_circle_outline,
-                                            color: Colors.greenAccent,
+                                            color: AppColors.success,
                                             size: 20,
                                           ),
                                           tooltip: 'Lecture',
@@ -1129,7 +1130,7 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
         backgroundColor: AppColors.surfaceContainer,
         title: Row(
           children: [
-            const Icon(Icons.repeat, color: Colors.purpleAccent),
+            const Icon(Icons.repeat, color: AppColors.secondary),
             const SizedBox(width: 8),
             Text(
               'Nouveau Season Pass',
@@ -1167,8 +1168,10 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
             child: const Text('Annuler'),
           ),
           ElevatedButton(
-            style:
-                ElevatedButton.styleFrom(backgroundColor: Colors.purpleAccent),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.secondaryContainer,
+              foregroundColor: AppColors.onSecondaryContainer,
+            ),
             onPressed: () async {
               final t = titleCtrl.text.trim();
               final c = channelCtrl.text.trim();
@@ -1215,7 +1218,7 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
           borderSide: BorderSide(color: AppColors.onSurface24),
         ),
         focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.purpleAccent),
+          borderSide: BorderSide(color: AppColors.secondary),
         ),
       ),
     );
@@ -1236,7 +1239,8 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
               ),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purpleAccent,
+                  backgroundColor: AppColors.secondaryContainer,
+                  foregroundColor: AppColors.onSecondaryContainer,
                 ),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Nouveau'),
@@ -1248,15 +1252,15 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.purpleAccent.withOpacity(0.08),
+              color: AppColors.secondary.withOpacity(0.08),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.purpleAccent.withOpacity(0.2)),
+              border: Border.all(color: AppColors.secondary.withOpacity(0.2)),
             ),
             child: Row(
               children: [
                 const Icon(
                   Icons.info_outline,
-                  color: Colors.purpleAccent,
+                  color: AppColors.secondary,
                   size: 18,
                 ),
                 const SizedBox(width: 12),
@@ -1264,7 +1268,7 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
                   child: Text(
                     'Scanne l\'EPG toutes les 4h et programme automatiquement les nouvelles diffusions. Seuls les nouveaux épisodes sont enregistrés.',
                     style: GoogleFonts.fraunces(
-                      color: Colors.purpleAccent.shade100,
+                      color: AppColors.secondaryFixed,
                       fontSize: 12,
                     ),
                   ),
@@ -1313,16 +1317,16 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
                           return Container(
                             margin: const EdgeInsets.only(bottom: 8),
                             decoration: BoxDecoration(
-                              color: Colors.purpleAccent.withOpacity(0.08),
+                              color: AppColors.secondary.withOpacity(0.08),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: Colors.purpleAccent.withOpacity(0.2),
+                                color: AppColors.secondary.withOpacity(0.2),
                               ),
                             ),
                             child: ListTile(
                               leading: const Icon(
                                 Icons.repeat,
-                                color: Colors.purpleAccent,
+                                color: AppColors.secondary,
                               ),
                               title: Text(
                                 p['show_title'] ?? '—',
