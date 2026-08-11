@@ -289,6 +289,34 @@
     this.mpegts = player;
     this._mpegtsIsLive = isLive;
 
+    // mpegts.js ne démuxe que l'AAC et le MP3. Une chaîne diffusée en E-AC3
+    // (stream_type 0x87) ou en AC-3 (0x81) est donc lue sans aucune piste
+    // audio, sans erreur ni avertissement : l'image passe, le son est
+    // simplement absent. On bascule alors sur le chemin HLS, où FFmpeg
+    // réencode systématiquement l'audio en AAC.
+    player.on(mpegts.Events.MEDIA_INFO, function (mediaInfo) {
+      if (self._destroyed || self._audioFallbackDone) return;
+      if (mediaInfo && mediaInfo.hasAudio) return;
+
+      var hlsUrl = self._hlsEquivalent(self.url);
+      if (!hlsUrl) return;
+
+      self._audioFallbackDone = true;
+      self.log('Aucune piste audio démuxée (codec non supporté) — bascule HLS');
+      self.onLoading('Piste audio incompatible — réencodage');
+
+      try {
+        player.unload();
+        player.detachMediaElement();
+        player.destroy();
+      } catch (e) {}
+      self.mpegts = null;
+
+      self.url = hlsUrl;
+      if (self._canPlayNativeHls()) self._playDirect(hlsUrl);
+      else self._startHls();
+    });
+
     player.on(mpegts.Events.ERROR, function (type, detail) {
       self.log('Erreur MPEG-TS : ' + type + ' / ' + detail);
       if (self._destroyed) return;
@@ -308,6 +336,17 @@
     player.attachMediaElement(this.video);
     player.load();
     this._attemptPlay();
+  };
+
+  /// `/api/live/<id>.ts` → `/api/live/<id>/source/playlist.m3u8`.
+  ///
+  /// Le préréglage `source` garde la vidéo en copie de flux (`-c:v copy`) :
+  /// seul l'audio est réencodé, le coût processeur reste négligeable.
+  /// Renvoie `null` si l'URL n'est pas un flux live direct — rien à tenter.
+  XFPlayer.prototype._hlsEquivalent = function (url) {
+    var match = /^(.*\/api\/live\/)([^/?#]+)\.ts(\?.*)?$/.exec(url);
+    if (!match) return null;
+    return match[1] + match[2] + '/source/playlist.m3u8';
   };
 
   // ---------------- Lecture directe ----------------
