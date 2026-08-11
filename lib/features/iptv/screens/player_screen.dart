@@ -103,12 +103,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     super.dispose();
   }
 
-  bool get _documentIsFullscreen {
-    final doc = html.document;
-    return doc.fullscreenElement != null ||
-        (doc as dynamic).webkitFullscreenElement != null ||
-        (doc as dynamic).mozFullScreenElement != null;
-  }
+  /// Ne teste que l'API non préfixée.
+  ///
+  /// Les variantes `webkitFullscreenElement` / `mozFullScreenElement` étaient
+  /// lues via un cast `dynamic` : dart2js ne retombe pas sur la propriété JS
+  /// pour un membre absent de la classe `Document`, il lève un
+  /// `NoSuchMethodError`. Le getter échouait donc systématiquement, et le
+  /// bouton plein écran ne faisait rien. L'API standard est supportée par
+  /// tous les navigateurs visés.
+  bool get _documentIsFullscreen => html.document.fullscreenElement != null;
 
   void _syncFullscreenState() {
     final value = _documentIsFullscreen;
