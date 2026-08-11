@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/models/iptv_models.dart';
 import '../models/xtream_models.dart' as xm;
+import '../../../core/api/authed_http.dart';
 
 /// Limiteur de concurrence minimal (pas de dépendance supplémentaire).
 class _Semaphore {
@@ -45,17 +46,6 @@ class XtreamService {
   /// quelques connexions parallèles, ce qui vide l'EPG de toute la grille.
   /// On sérialise donc par petits paquets.
   static final _Semaphore _epgGate = _Semaphore(3);
-
-  /// Action EPG retenue pour ce panneau.
-  ///
-  /// `get_short_epg` est la requête légère (2-3 programmes) mais une partie
-  /// des panneaux répond `{"epg_listings":[]}` en permanence ; seule
-  /// `get_simple_data_table` y renvoie le guide. On teste la première, et
-  /// dès qu'un panneau se révèle incapable de la servir on bascule
-  /// définitivement, pour ne pas payer deux requêtes par tuile de grille.
-  static const _epgActionShort = 'get_short_epg';
-  static const _epgActionTable = 'get_simple_data_table';
-  static String _epgAction = _epgActionShort;
 
   late final Dio _dio;
   late final CacheOptions _cacheOptions;
@@ -674,170 +664,100 @@ class XtreamService {
   ///
   /// Returns "Now" and "Next" program info
   Future<List<EpgEntry>> getShortEpg(String streamId) async {
-    final listings = await _fetchEpgListings(streamId);
-    return listings.map(EpgEntry.fromJson).toList();
+    final programmes = await _fetchEpgProgrammes(streamId);
+    return programmes
+        .map(
+          (p) => EpgEntry(
+            id: '',
+            epgId: '',
+            title: p['title']?.toString() ?? '',
+            start: p['start']?.toString() ?? '',
+            end: p['end']?.toString() ?? '',
+            description: p['description']?.toString() ?? '',
+            channelId: streamId,
+          ),
+        )
+        .toList();
   }
 
   /// Get short EPG as ShortEPG object (for EPGWidget)
   Future<xm.ShortEPG> getShortEPG(String streamId) async {
-    final listings = await _fetchEpgListings(streamId);
-    if (listings.isEmpty) return const xm.ShortEPG();
-    return xm.ShortEPG.fromJson({'epg_listings': listings});
+    final programmes = await _fetchEpgProgrammes(streamId);
+    if (programmes.isEmpty) return const xm.ShortEPG();
+
+    final now = DateTime.now();
+    for (var i = 0; i < programmes.length; i++) {
+      final start = DateTime.tryParse('${programmes[i]['start']}');
+      final stop = DateTime.tryParse('${programmes[i]['end']}');
+      if (start == null || stop == null) continue;
+      if (now.isBefore(start) || !now.isBefore(stop)) continue;
+
+      final duration = stop.difference(start).inSeconds;
+      return xm.ShortEPG(
+        nowPlaying: programmes[i]['title']?.toString(),
+        nextPlaying: i + 1 < programmes.length
+            ? programmes[i + 1]['title']?.toString()
+            : null,
+        progress: duration > 0
+            ? now.difference(start).inSeconds / duration
+            : null,
+      );
+    }
+    return const xm.ShortEPG();
   }
 
-  /// Récupère le guide d'une chaîne, normalisé et réduit à la fenêtre utile.
+  /// Guide d'une chaîne, servi par le backend `/api/epg/<streamId>`.
   ///
-  /// Bascule automatiquement de `get_short_epg` vers `get_simple_data_table`
-  /// quand le panneau ne sert pas la première : voir [_epgAction].
-  Future<List<Map<String, dynamic>>> _fetchEpgListings(String streamId) async {
+  /// Le client interrogeait auparavant `player_api.php` en direct et devait
+  /// donc dupliquer le choix de l'action Xtream, la conversion des fuseaux et
+  /// le décodage base64. Le backend fait tout cela une fois, met en cache
+  /// 30 minutes pour tous les utilisateurs, et sait basculer sur la source
+  /// XMLTV de repli quand le panneau ne rend rien d'actuel — bascule
+  /// impossible à faire côté navigateur.
+  ///
+  /// Les programmes reviennent déjà triés, en ISO-8601 UTC et en clair.
+  Future<List<Map<String, dynamic>>> _fetchEpgProgrammes(
+    String streamId,
+  ) async {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
 
     if (isPlaybackLoading) {
-      debugPrint('[XtreamService] Throttling short EPG for $streamId');
+      debugPrint('[XtreamService] Throttling EPG for $streamId');
       await Future.delayed(_throttleDelay);
     }
 
     await _epgGate.acquire();
     try {
-      var listings = await _requestEpg(streamId, _epgAction);
-
-      // Panneau muet sur l'action légère : on retente avec le tableau complet
-      // et on mémorise le choix pour toutes les chaînes suivantes.
-      if (listings.isEmpty && _epgAction == _epgActionShort) {
-        listings = await _requestEpg(streamId, _epgActionTable);
-        if (listings.isNotEmpty) {
-          debugPrint(
-            '[XtreamService] EPG : $_epgActionShort vide sur ce panneau, '
-            'bascule définitive vers $_epgActionTable',
-          );
-          _epgAction = _epgActionTable;
-        }
-      }
-
-      return _normalizeListings(listings);
-    } finally {
-      _epgGate.release();
-    }
-  }
-
-  Future<List<dynamic>> _requestEpg(String streamId, String action) async {
-    try {
-      final response = await _apiGet(
-        {
-          'action': action,
-          'stream_id': streamId,
-        },
-        options: Options(
-          extra: CacheOptions(
-            store: _cacheOptions.store,
-            policy: CachePolicy.request,
-            maxStale: const Duration(minutes: 5), // EPG changes frequently
-          ).toExtra(),
-        ),
-      );
-
-      var data = response.data;
-
-      // Certains panneaux renvoient du JSON avec un Content-Type textuel :
-      // Dio livre alors une String brute et l'accès par clé échouait
-      // silencieusement, aboutissant au même « No Info » qu'une vraie panne.
-      if (data is String) {
-        if (data.trim().isEmpty) {
-          debugPrint('[XtreamService] EPG $streamId : réponse vide');
-          return const [];
-        }
-        try {
-          data = json.decode(data);
-        } catch (_) {
-          debugPrint(
-            '[XtreamService] EPG $streamId : réponse non-JSON '
-            '(${response.headers.value('content-type')}) — '
-            '${data.length > 120 ? '${data.substring(0, 120)}…' : data}',
-          );
-          return const [];
-        }
-      }
-
-      if (data == null) {
-        debugPrint('[XtreamService] EPG $streamId : corps nul');
-        return const [];
-      }
-
-      if (data is! Map || data['epg_listings'] is! List) {
-        // Cas typique de `get_epg` / `get_short_epg` non supportés : le
-        // panneau répond 200 avec le payload d'authentification.
+      final response = await AuthedHttp.get(Uri.parse('/api/epg/$streamId'));
+      if (response.statusCode != 200) {
         debugPrint(
-          '[XtreamService] EPG $streamId ($action) : pas de champ '
-          'epg_listings (clés: '
-          '${data is Map ? data.keys.toList() : data.runtimeType})',
+          '[XtreamService] EPG $streamId : HTTP ${response.statusCode}',
         );
         return const [];
       }
 
-      return data['epg_listings'] as List<dynamic>;
-    } on DioException catch (e) {
-      // L'EPG reste optionnel — mais avaler l'erreur en silence rendait toute
-      // panne indiscernable d'une grille réellement vide.
-      debugPrint(
-        '[XtreamService] EPG $streamId ($action) en échec : '
-        'HTTP ${e.response?.statusCode} ${e.type} — ${e.message}',
-      );
-      return const [];
+      final decoded = json.decode(response.body);
+      if (decoded is! Map || decoded['programmes'] is! List) return const [];
+
+      final now = DateTime.now();
+      final result = <Map<String, dynamic>>[];
+      for (final item in decoded['programmes'] as List) {
+        if (item is! Map) continue;
+        final end = DateTime.tryParse('${item['end']}');
+        // Les appelants prennent le premier élément comme programme courant :
+        // laisser passer les programmes terminés afficherait celui d'hier.
+        if (end == null || end.isBefore(now)) continue;
+        result.add(Map<String, dynamic>.from(item));
+        if (result.length >= 8) break;
+      }
+      return result;
     } catch (e) {
-      debugPrint('[XtreamService] EPG $streamId ($action) en échec : $e');
+      // L'EPG reste optionnel : une panne ne doit pas casser la grille.
+      debugPrint('[XtreamService] EPG $streamId en échec : $e');
       return const [];
+    } finally {
+      _epgGate.release();
     }
-  }
-
-  /// Aligne les dates sur de l'ISO-8601 UTC et ne garde que la fenêtre utile.
-  ///
-  /// Deux raisons :
-  /// * `get_simple_data_table` renvoie plusieurs jours de programmes (~35 Ko
-  ///   par chaîne). Les appelants prennent « le premier élément » comme
-  ///   programme courant : sans coupe, ils afficheraient un programme
-  ///   d'avant-hier.
-  /// * Les champs texte `start`/`end` sont dans le fuseau du panneau et sans
-  ///   indicateur de zone ; seuls les `*_timestamp` (epoch UTC) sont fiables.
-  static List<Map<String, dynamic>> _normalizeListings(List<dynamic> raw) {
-    final now = DateTime.now();
-    final result = <Map<String, dynamic>>[];
-
-    for (final item in raw) {
-      if (item is! Map) continue;
-      final entry = Map<String, dynamic>.from(item);
-
-      final start = _epgDate(entry['start_timestamp'], entry['start']);
-      final end = _epgDate(
-        entry['stop_timestamp'] ?? entry['end_timestamp'],
-        entry['stop'] ?? entry['end'],
-      );
-      if (start == null || end == null) continue;
-
-      // Programme déjà terminé : sans intérêt pour un « en cours / à suivre ».
-      if (end.isBefore(now)) continue;
-
-      entry['start'] = start.toIso8601String();
-      entry['end'] = end.toIso8601String();
-      entry['stop'] = entry['end'];
-      result.add(entry);
-
-      if (result.length >= 8) break;
-    }
-
-    return result;
-  }
-
-  /// Epoch UTC prioritaire, repli sur la chaîne « YYYY-MM-DD HH:MM:SS ».
-  static DateTime? _epgDate(dynamic timestamp, dynamic text) {
-    final seconds = timestamp is int ? timestamp : int.tryParse('$timestamp');
-    if (seconds != null && seconds > 0) {
-      return DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
-    }
-    final str = text?.toString() ?? '';
-    if (str.isEmpty) return null;
-    return DateTime.tryParse(
-      str.contains(' ') && !str.contains('T') ? str.replaceFirst(' ', 'T') : str,
-    );
   }
 
   /// Dispose resources

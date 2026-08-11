@@ -19,6 +19,7 @@ dependencies:
   uuid: ^4.3.3
   hive: ^2.2.3
   equatable: ^2.0.5
+  xml: ^6.5.0
 
 dev_dependencies:
   test: ^1.25.0

@@ -18,6 +18,7 @@ import 'api/streaming_handler.dart';
 import 'api/proxy_handler.dart';
 import 'api/recordings_api.dart';
 import 'api/epg_api.dart';
+import 'services/xmltv_epg_service.dart';
 import 'api/season_passes_api.dart';
 import 'api/xtream_api_handler.dart';
 import 'middleware/auth_middleware.dart';
@@ -115,7 +116,23 @@ void main(List<String> args) async {
   final settingsHandler = SettingsHandler(db);
   final proxyHandler = ProxyHandler(getPlaylist);
   final recordingsApi = RecordingsApi(db, recordingScheduler);
-  final epgApi = EpgApi(getPlaylist);
+  // Source XMLTV de repli. Vider EPG_XMLTV_URLS désactive tout appel sortant :
+  // l'EPG se limite alors au panneau de l'abonné.
+  final xmltvUrls = (Platform.environment['EPG_XMLTV_URLS'] ??
+          'https://epgshare01.online/epgshare01/epg_ripper_FR1.xml.gz')
+      .split(',')
+      .map((u) => u.trim())
+      .where((u) => u.isNotEmpty)
+      .toList();
+  if (xmltvUrls.isEmpty) {
+    print('[EPG] Repli XMLTV désactivé (EPG_XMLTV_URLS vide)');
+  } else {
+    print('[EPG] Repli XMLTV : ${xmltvUrls.length} source(s)');
+  }
+  final epgApi = EpgApi(
+    getPlaylist,
+    xmltv: xmltvUrls.isEmpty ? null : XmltvEpgService(sourceUrls: xmltvUrls),
+  );
   final seasonPassesApi = SeasonPassesApi(db);
   final xtreamApiHandler = XtreamApiHandler(getPlaylist);
 

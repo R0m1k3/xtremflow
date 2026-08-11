@@ -2,11 +2,21 @@ import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:http/http.dart' as http;
 import '../models/playlist_config.dart';
+import '../services/xmltv_epg_service.dart';
 
 /// API EPG — proxy vers Xtream avec cache 30 minutes
 /// GET /api/epg/<channel_id>?days=1
+///
+/// Le panneau de l'abonné reste la source de référence. Une source XMLTV
+/// externe n'est interrogée qu'en dernier recours, quand le panneau ne rend
+/// aucun programme couvrant l'instant présent ou à venir — cas fréquent des
+/// revendeurs dont le guide est figé depuis plusieurs jours.
 class EpgApi {
   final Future<PlaylistConfig?> Function(Request) _getPlaylist;
+
+  /// Repli XMLTV. `null` quand aucune source n'est configurée : l'API se
+  /// comporte alors exactement comme avant, sans le moindre appel sortant.
+  final XmltvEpgService? _xmltv;
 
   /// Cache mémoire : « dns|username|channelId » → {data, expiresAt}.
   ///
@@ -15,7 +25,12 @@ class EpgApi {
   /// identifiant et se servaient alors le guide l'une de l'autre.
   final Map<String, _CacheEntry> _cache = {};
 
-  EpgApi(this._getPlaylist);
+  /// Correspondance `stream_id` → identifiant EPG et nom, par compte.
+  /// Nécessaire au repli : le dump XMLTV indexe par identifiant de chaîne,
+  /// pas par `stream_id` propre au panneau.
+  final Map<String, _ChannelMap> _channelMaps = {};
+
+  EpgApi(this._getPlaylist, {XmltvEpgService? xmltv}) : _xmltv = xmltv;
 
   Future<Response> handleGetEpg(Request request, String channelId) async {
     final playlist = await _getPlaylist(request);
@@ -71,6 +86,15 @@ class EpgApi {
         if ((epgData['programmes'] as List).isNotEmpty) break;
       }
 
+      var source = 'xtream';
+      if (!_hasCurrentProgramme(epgData)) {
+        final fallback = await _xmltvProgrammes(playlist, channelId);
+        if (fallback.isNotEmpty) {
+          epgData = {'channel_id': channelId, 'programmes': fallback};
+          source = 'xmltv';
+        }
+      }
+
       final jsonStr = json.encode(epgData);
 
       // Mettre en cache 30 minutes
@@ -81,7 +105,11 @@ class EpgApi {
 
       return Response.ok(
         jsonStr,
-        headers: {'Content-Type': 'application/json', 'X-Cache': 'MISS'},
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Cache': 'MISS',
+          'X-Epg-Source': source,
+        },
       );
     } catch (e) {
       return Response.internalServerError(
@@ -89,6 +117,91 @@ class EpgApi {
         headers: {'Content-Type': 'application/json'},
       );
     }
+  }
+
+  /// Le guide contient-il un programme en cours ou à venir ?
+  ///
+  /// Un panneau dont l'EPG est figé répond avec des centaines de programmes,
+  /// tous terminés depuis plusieurs jours. Compter les entrées ne suffit donc
+  /// pas à décider si le guide est exploitable.
+  static bool _hasCurrentProgramme(Map<String, dynamic> epgData) {
+    final now = DateTime.now().toUtc();
+    for (final programme in epgData['programmes'] as List) {
+      if (programme is! Map) continue;
+      final end = DateTime.tryParse('${programme['end']}');
+      if (end != null && end.isAfter(now)) return true;
+    }
+    return false;
+  }
+
+  /// Programmes issus du dump XMLTV, ou liste vide si indisponible.
+  Future<List<Map<String, dynamic>>> _xmltvProgrammes(
+    PlaylistConfig playlist,
+    String channelId,
+  ) async {
+    final xmltv = _xmltv;
+    if (xmltv == null) return const [];
+
+    try {
+      final channels = await _channelMapFor(playlist);
+      final epgId = channels.epgIds[channelId];
+      final name = channels.names[channelId];
+      if (epgId == null && name == null) return const [];
+
+      final programmes =
+          await xmltv.programmesFor(epgId, displayName: name);
+      if (programmes.isEmpty) return const [];
+
+      final now = DateTime.now().toUtc();
+      return programmes
+          .where((p) => p.stop.isAfter(now))
+          .take(64)
+          .map((p) => p.toJson(channelId))
+          .toList();
+    } catch (e) {
+      print('[EpgApi] repli XMLTV indisponible pour $channelId : $e');
+      return const [];
+    }
+  }
+
+  /// Table des chaînes du compte, rafraîchie toutes les 6 heures.
+  Future<_ChannelMap> _channelMapFor(PlaylistConfig playlist) async {
+    final key = '${playlist.dns}|${playlist.username}';
+    final cached = _channelMaps[key];
+    if (cached != null && DateTime.now().isBefore(cached.expiresAt)) {
+      return cached;
+    }
+
+    final url = '${playlist.dns}/player_api.php'
+        '?username=${playlist.username}&password=${playlist.password}'
+        '&action=get_live_streams';
+    final response =
+        await http.get(Uri.parse(url)).timeout(const Duration(seconds: 90));
+
+    final epgIds = <String, String>{};
+    final names = <String, String>{};
+    if (response.statusCode == 200) {
+      final decoded = json.decode(response.body);
+      if (decoded is List) {
+        for (final item in decoded) {
+          if (item is! Map) continue;
+          final streamId = item['stream_id']?.toString();
+          if (streamId == null || streamId.isEmpty) continue;
+          final epgId = item['epg_channel_id']?.toString();
+          if (epgId != null && epgId.isNotEmpty) epgIds[streamId] = epgId;
+          final name = item['name']?.toString();
+          if (name != null && name.isNotEmpty) names[streamId] = name;
+        }
+      }
+    }
+
+    final map = _ChannelMap(
+      epgIds: epgIds,
+      names: names,
+      expiresAt: DateTime.now().add(const Duration(hours: 6)),
+    );
+    _channelMaps[key] = map;
+    return map;
   }
 
   /// Normalise une réponse Xtream (`epg_listings`) vers le format servi au
@@ -165,6 +278,17 @@ class EpgApi {
     }
     return raw;
   }
+}
+
+class _ChannelMap {
+  final Map<String, String> epgIds;
+  final Map<String, String> names;
+  final DateTime expiresAt;
+  _ChannelMap({
+    required this.epgIds,
+    required this.names,
+    required this.expiresAt,
+  });
 }
 
 class _CacheEntry {

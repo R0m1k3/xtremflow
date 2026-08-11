@@ -20,6 +20,11 @@ services:
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-}
       # Nombre max d'enregistrements TV simultanés (FFmpeg -c copy, peu de CPU)
       - MAX_CONCURRENT_RECORDINGS=${MAX_CONCURRENT_RECORDINGS:-2}
+      # Source XMLTV de repli, interrogée uniquement quand le panneau ne rend
+      # aucun programme couvrant l'instant présent. Vider la variable coupe
+      # tout appel sortant : l'EPG se limite alors au panneau de l'abonné.
+      # Plusieurs dumps se séparent par des virgules.
+      - EPG_XMLTV_URLS=${EPG_XMLTV_URLS-https://epgshare01.online/epgshare01/epg_ripper_FR1.xml.gz}
       # Accélération GPU NVIDIA pour le transcodage (NVENC) : true/false
       - NVIDIA_GPU=${NVIDIA_GPU:-false}
     restart: unless-stopped

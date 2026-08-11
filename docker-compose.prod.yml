@@ -7,6 +7,9 @@ services:
     environment:
       - ALLOWED_ORIGIN=https://xtrem.vonrodbox.eu
       - MAX_CONCURRENT_RECORDINGS=2
+      # Source XMLTV de repli, utilisée seulement quand le panneau ne rend
+      # aucun programme actuel. Vider la variable coupe tout appel sortant.
+      - EPG_XMLTV_URLS=https://epgshare01.online/epgshare01/epg_ripper_FR1.xml.gz
       - NVIDIA_GPU=true
     volumes:
       - xtremflow-data:/app/data
