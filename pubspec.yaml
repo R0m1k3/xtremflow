@@ -64,7 +64,10 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # Polices embarquees : google_fonts detecte ces fichiers via l'AssetManifest
-  # et n'effectue AUCUNE requete reseau vers fonts.gstatic.com au demarrage.
-  assets:
-    - assets/google_fonts/
+  # NOTE : ne pas re-embarquer les polices via assets/google_fonts/ sans
+  # verifier la signature des fichiers (un TTF valide commence par
+  # 00 01 00 00). Une tentative precedente a embarque des fichiers invalides
+  # que Skia refusait, avec pour resultat "Failed to parse font family" et un
+  # rendu en police de repli. Les seuls fichiers officiels disponibles sont
+  # des polices VARIABLES, que google_fonts ne sait pas mapper par graisse en
+  # mode assets : un embarquement correct demande des instances statiques.
