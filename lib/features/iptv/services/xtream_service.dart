@@ -45,6 +45,18 @@ class XtreamService {
   /// quelques connexions parallèles, ce qui vide l'EPG de toute la grille.
   /// On sérialise donc par petits paquets.
   static final _Semaphore _epgGate = _Semaphore(3);
+
+  /// Action EPG retenue pour ce panneau.
+  ///
+  /// `get_short_epg` est la requête légère (2-3 programmes) mais une partie
+  /// des panneaux répond `{"epg_listings":[]}` en permanence ; seule
+  /// `get_simple_data_table` y renvoie le guide. On teste la première, et
+  /// dès qu'un panneau se révèle incapable de la servir on bascule
+  /// définitivement, pour ne pas payer deux requêtes par tuile de grille.
+  static const _epgActionShort = 'get_short_epg';
+  static const _epgActionTable = 'get_simple_data_table';
+  static String _epgAction = _epgActionShort;
+
   late final Dio _dio;
   late final CacheOptions _cacheOptions;
 
@@ -662,6 +674,22 @@ class XtreamService {
   ///
   /// Returns "Now" and "Next" program info
   Future<List<EpgEntry>> getShortEpg(String streamId) async {
+    final listings = await _fetchEpgListings(streamId);
+    return listings.map(EpgEntry.fromJson).toList();
+  }
+
+  /// Get short EPG as ShortEPG object (for EPGWidget)
+  Future<xm.ShortEPG> getShortEPG(String streamId) async {
+    final listings = await _fetchEpgListings(streamId);
+    if (listings.isEmpty) return const xm.ShortEPG();
+    return xm.ShortEPG.fromJson({'epg_listings': listings});
+  }
+
+  /// Récupère le guide d'une chaîne, normalisé et réduit à la fenêtre utile.
+  ///
+  /// Bascule automatiquement de `get_short_epg` vers `get_simple_data_table`
+  /// quand le panneau ne sert pas la première : voir [_epgAction].
+  Future<List<Map<String, dynamic>>> _fetchEpgListings(String streamId) async {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
 
     if (isPlaybackLoading) {
@@ -671,9 +699,32 @@ class XtreamService {
 
     await _epgGate.acquire();
     try {
+      var listings = await _requestEpg(streamId, _epgAction);
+
+      // Panneau muet sur l'action légère : on retente avec le tableau complet
+      // et on mémorise le choix pour toutes les chaînes suivantes.
+      if (listings.isEmpty && _epgAction == _epgActionShort) {
+        listings = await _requestEpg(streamId, _epgActionTable);
+        if (listings.isNotEmpty) {
+          debugPrint(
+            '[XtreamService] EPG : $_epgActionShort vide sur ce panneau, '
+            'bascule définitive vers $_epgActionTable',
+          );
+          _epgAction = _epgActionTable;
+        }
+      }
+
+      return _normalizeListings(listings);
+    } finally {
+      _epgGate.release();
+    }
+  }
+
+  Future<List<dynamic>> _requestEpg(String streamId, String action) async {
+    try {
       final response = await _apiGet(
         {
-          'action': 'get_short_epg',
+          'action': action,
           'stream_id': streamId,
         },
         options: Options(
@@ -693,7 +744,7 @@ class XtreamService {
       if (data is String) {
         if (data.trim().isEmpty) {
           debugPrint('[XtreamService] EPG $streamId : réponse vide');
-          return [];
+          return const [];
         }
         try {
           data = json.decode(data);
@@ -703,76 +754,90 @@ class XtreamService {
             '(${response.headers.value('content-type')}) — '
             '${data.length > 120 ? '${data.substring(0, 120)}…' : data}',
           );
-          return [];
+          return const [];
         }
       }
 
       if (data == null) {
         debugPrint('[XtreamService] EPG $streamId : corps nul');
-        return [];
+        return const [];
       }
 
-      if (data is! Map || data['epg_listings'] == null) {
+      if (data is! Map || data['epg_listings'] is! List) {
+        // Cas typique de `get_epg` / `get_short_epg` non supportés : le
+        // panneau répond 200 avec le payload d'authentification.
         debugPrint(
-          '[XtreamService] EPG $streamId : pas de champ epg_listings '
-          '(clés: ${data is Map ? data.keys.toList() : data.runtimeType})',
+          '[XtreamService] EPG $streamId ($action) : pas de champ '
+          'epg_listings (clés: '
+          '${data is Map ? data.keys.toList() : data.runtimeType})',
         );
-        return [];
+        return const [];
       }
 
-      final List<dynamic> epgData = data['epg_listings'] as List<dynamic>;
-      return epgData
-          .map((entry) => EpgEntry.fromJson(entry as Map<String, dynamic>))
-          .toList();
+      return data['epg_listings'] as List<dynamic>;
     } on DioException catch (e) {
       // L'EPG reste optionnel — mais avaler l'erreur en silence rendait toute
       // panne indiscernable d'une grille réellement vide.
       debugPrint(
-        '[XtreamService] EPG $streamId en échec : '
+        '[XtreamService] EPG $streamId ($action) en échec : '
         'HTTP ${e.response?.statusCode} ${e.type} — ${e.message}',
       );
-      return [];
+      return const [];
     } catch (e) {
-      debugPrint('[XtreamService] EPG $streamId en échec : $e');
-      return [];
-    } finally {
-      _epgGate.release();
+      debugPrint('[XtreamService] EPG $streamId ($action) en échec : $e');
+      return const [];
     }
   }
 
-  /// Get short EPG as ShortEPG object (for EPGWidget)
-  Future<xm.ShortEPG> getShortEPG(String streamId) async {
-    if (_currentPlaylist == null) throw Exception('No playlist configured');
+  /// Aligne les dates sur de l'ISO-8601 UTC et ne garde que la fenêtre utile.
+  ///
+  /// Deux raisons :
+  /// * `get_simple_data_table` renvoie plusieurs jours de programmes (~35 Ko
+  ///   par chaîne). Les appelants prennent « le premier élément » comme
+  ///   programme courant : sans coupe, ils afficheraient un programme
+  ///   d'avant-hier.
+  /// * Les champs texte `start`/`end` sont dans le fuseau du panneau et sans
+  ///   indicateur de zone ; seuls les `*_timestamp` (epoch UTC) sont fiables.
+  static List<Map<String, dynamic>> _normalizeListings(List<dynamic> raw) {
+    final now = DateTime.now();
+    final result = <Map<String, dynamic>>[];
 
-    if (isPlaybackLoading) {
-      debugPrint('[XtreamService] Throttling short EPG metadata for $streamId');
-      await Future.delayed(_throttleDelay);
-    }
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final entry = Map<String, dynamic>.from(item);
 
-    try {
-      final response = await _apiGet(
-        {
-          'action': 'get_short_epg',
-          'stream_id': streamId,
-        },
-        options: Options(
-          extra: CacheOptions(
-            store: _cacheOptions.store,
-            policy: CachePolicy.request,
-            maxStale: const Duration(minutes: 5),
-          ).toExtra(),
-        ),
+      final start = _epgDate(entry['start_timestamp'], entry['start']);
+      final end = _epgDate(
+        entry['stop_timestamp'] ?? entry['end_timestamp'],
+        entry['stop'] ?? entry['end'],
       );
+      if (start == null || end == null) continue;
 
-      if (response.data == null) {
-        return const xm.ShortEPG();
-      }
+      // Programme déjà terminé : sans intérêt pour un « en cours / à suivre ».
+      if (end.isBefore(now)) continue;
 
-      return xm.ShortEPG.fromJson(response.data as Map<String, dynamic>);
-    } catch (e) {
-      // EPG is optional, don't throw on failure
-      return const xm.ShortEPG();
+      entry['start'] = start.toIso8601String();
+      entry['end'] = end.toIso8601String();
+      entry['stop'] = entry['end'];
+      result.add(entry);
+
+      if (result.length >= 8) break;
     }
+
+    return result;
+  }
+
+  /// Epoch UTC prioritaire, repli sur la chaîne « YYYY-MM-DD HH:MM:SS ».
+  static DateTime? _epgDate(dynamic timestamp, dynamic text) {
+    final seconds = timestamp is int ? timestamp : int.tryParse('$timestamp');
+    if (seconds != null && seconds > 0) {
+      return DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
+    }
+    final str = text?.toString() ?? '';
+    if (str.isEmpty) return null;
+    return DateTime.tryParse(
+      str.contains(' ') && !str.contains('T') ? str.replaceFirst(' ', 'T') : str,
+    );
   }
 
   /// Dispose resources

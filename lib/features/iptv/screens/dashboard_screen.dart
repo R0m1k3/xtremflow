@@ -46,24 +46,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // 1. Cinematic Deep Space Background - Premium Apple TV Style
+          // 1. Fond « salle de projection » — dégradé chaud du design system.
           Positioned.fill(
             child: Container(
               decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    AppColors.surfaceContainerLowest, // Very dark top
-                    AppColors.background, // Black bottom
-                    AppColors.baseLevel0, // Slightly darker for depth
-                  ],
-                ),
+                gradient: AppColors.backgroundGradient,
               ),
             ),
           ),
 
-          // Ambient Glow Top-Left - Teal (Primary) - VISIBLE
+          // Faisceau du projecteur, en haut à gauche.
+          // Intensité volontairement basse (8 %) : au-delà, le halo délave la
+          // sidebar et les cartes en pêche et sort le rendu de la palette.
           Positioned(
             top: -300,
             left: -300,
@@ -74,8 +68,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.primary.withOpacity(0.4),
-                    AppColors.primary.withOpacity(0.1),
+                    AppColors.glowPrimary(0.08),
+                    AppColors.glowPrimary(0.03),
                     Colors.transparent,
                   ],
                 ),
@@ -83,7 +77,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
           ),
 
-          // Ambient Glow Bottom-Right - Blue - VISIBLE
+          // Braise résiduelle en bas à droite. L'ancien halo utilisait
+          // `AppColors.info` (bleu-gris) : une teinte froide dans une palette
+          // entièrement chaude, d'où le rendu grisâtre.
           Positioned(
             bottom: -250,
             right: -250,
@@ -94,8 +90,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.info.withOpacity(0.35),
-                    AppColors.info.withOpacity(0.1),
+                    AppColors.glowPrimary(0.06),
+                    AppColors.glowPrimary(0.02),
                     Colors.transparent,
                   ],
                 ),
@@ -124,9 +120,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             top: 24,
             bottom: 24,
             width: 80,
-            child: GlassContainer.glass(
+            // Niveau « flottant » : le niveau 1 (#181310) se confondait avec
+            // le haut du dégradé de fond (#1A1310) — la barre n'existait plus
+            // que par sa bordure. Le niveau 2 apporte l'arête ember et
+            // l'ombre profonde qui la détachent vraiment.
+            child: GlassContainer.floating(
               borderRadius: 24,
-              borderColor: AppColors.border,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -141,7 +140,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withOpacity(0.4),
+                            color: AppColors.glowPrimary(0.35),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -149,7 +148,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ),
                       child: const Icon(
                         Icons.play_arrow_rounded,
-                        color: AppColors.textPrimary,
+                        color: AppColors.onPrimary,
                         size: 28,
                       ),
                     ),
@@ -172,21 +171,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           width: 48,
                           height: 48,
                           decoration: BoxDecoration(
+                            // Remplissage ember (`primaryContainer`) et non
+                            // `primary` : cette dernière est la teinte claire
+                            // réservée au texte/icône, pas aux surfaces.
                             color: isSelected
-                                ? AppColors.primary.withOpacity(0.2)
+                                ? AppColors.primaryContainer
+                                    .withValues(alpha: 0.20)
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(16),
                             border: isSelected
                                 ? Border.all(
-                                    color: AppColors.primary.withOpacity(0.5),
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.55),
                                   )
                                 : null,
                           ),
                           child: Icon(
                             _icons[index],
                             color: isSelected
-                                ? AppColors.textPrimary
-                                : AppColors.textSecondary,
+                                ? AppColors.primary
+                                : AppColors.textTertiary,
                             size: 24,
                           ),
                         ),
@@ -203,10 +207,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       onTap: () {},
                       borderRadius: 50,
                       scaleFactor: 1.1,
-                      child: CircleAvatar(
+                      child: const CircleAvatar(
                         radius: 20,
-                        backgroundColor: AppColors.primary.withOpacity(0.1),
-                        child: const Icon(
+                        backgroundColor: AppColors.surfaceContainerHigh,
+                        child: Icon(
                           Icons.person,
                           color: AppColors.textSecondary,
                           size: 20,
