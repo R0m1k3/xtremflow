@@ -89,7 +89,11 @@ Middleware honeypotMiddleware() {
 /// 3. Rate Limit Middleware (In-Memory)
 /// Limits requests per IP address.
 /// Default: 200 requests per minute per IP.
-Middleware rateLimitMiddleware({int requestsPerMinute = 200}) {
+/// 600 plutôt que 200 : une grille de chaînes déclenche une requête de
+/// logo et une de guide par tuile, et tous les clients partagent l'IP du
+/// reverse proxy. Le plafond précédent coupait la grille en 429 au bout de
+/// quelques écrans de défilement.
+Middleware rateLimitMiddleware({int requestsPerMinute = 600}) {
   final clientRequests = <String, List<DateTime>>{};
 
   // Cleanup timer to remove old entries and prevent memory leaks

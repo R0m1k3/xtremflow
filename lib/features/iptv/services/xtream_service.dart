@@ -47,6 +47,16 @@ class XtreamService {
   /// On sérialise donc par petits paquets.
   static final _Semaphore _epgGate = _Semaphore(3);
 
+  /// Cache mémoire du guide, partagé par toutes les instances.
+  ///
+  /// Une grille de chaînes reconstruit ses tuiles à chaque défilement et
+  /// redemandait le guide à chaque fois. Sur une playlist de 500 chaînes, le
+  /// limiteur de débit du backend (200 requêtes par minute et par IP) coupait
+  /// la grille en 429 au bout de quelques écrans. Le backend garde déjà ces
+  /// réponses 30 minutes ; ce cache évite d'aller les chercher.
+  static final Map<String, _EpgCacheEntry> _epgCache = {};
+  static const _epgCacheTtl = Duration(minutes: 10);
+
   late final Dio _dio;
   late final CacheOptions _cacheOptions;
 
@@ -726,6 +736,11 @@ class XtreamService {
       await Future.delayed(_throttleDelay);
     }
 
+    final cached = _epgCache[streamId];
+    if (cached != null && DateTime.now().isBefore(cached.expiresAt)) {
+      return cached.programmes;
+    }
+
     await _epgGate.acquire();
     try {
       final response = await AuthedHttp.get(Uri.parse('/api/epg/$streamId'));
@@ -750,6 +765,11 @@ class XtreamService {
         result.add(Map<String, dynamic>.from(item));
         if (result.length >= 8) break;
       }
+
+      _epgCache[streamId] = _EpgCacheEntry(
+        programmes: result,
+        expiresAt: DateTime.now().add(_epgCacheTtl),
+      );
       return result;
     } catch (e) {
       // L'EPG reste optionnel : une panne ne doit pas casser la grille.
@@ -764,4 +784,11 @@ class XtreamService {
   void dispose() {
     _dio.close();
   }
+}
+
+class _EpgCacheEntry {
+  const _EpgCacheEntry({required this.programmes, required this.expiresAt});
+
+  final List<Map<String, dynamic>> programmes;
+  final DateTime expiresAt;
 }
