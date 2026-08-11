@@ -61,6 +61,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _isMuted = false;
   bool _ignoreStatusUpdates = false;
 
+  /// Reflète l'état plein écran du document. Le navigateur peut en sortir
+  /// sans passer par notre bouton (touche Échap), d'où l'écoute de
+  /// `fullscreenchange` plutôt qu'un simple booléen basculé au clic.
+  bool _isFullscreen = false;
+  StreamSubscription<html.Event>? _fullscreenSubscription;
+
   /// Server-side transcoding quality. Live TV defaults to `source`
   /// (direct MPEG-TS proxy, zero transcoding); VOD defaults to `high`.
   late StreamQuality _quality = widget.streamType == StreamType.live
@@ -85,13 +91,30 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _onHover(); // Start the auto-hide timer
     _initializePlayer(startTimeOverride: widget.startTime);
     _setupMessageListener();
+    _fullscreenSubscription =
+        html.document.onFullscreenChange.listen((_) => _syncFullscreenState());
   }
 
   @override
   void dispose() {
     _messageSubscription?.cancel();
+    _fullscreenSubscription?.cancel();
     _controlsTimer?.cancel();
     super.dispose();
+  }
+
+  bool get _documentIsFullscreen {
+    final doc = html.document;
+    return doc.fullscreenElement != null ||
+        (doc as dynamic).webkitFullscreenElement != null ||
+        (doc as dynamic).mozFullScreenElement != null;
+  }
+
+  void _syncFullscreenState() {
+    final value = _documentIsFullscreen;
+    if (mounted && value != _isFullscreen) {
+      setState(() => _isFullscreen = value);
+    }
   }
 
   Future<void> _initializePlayer({
@@ -320,15 +343,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   void _toggleFullscreen() {
     try {
-      final doc = html.document;
-      final isFullscreen = doc.fullscreenElement != null ||
-          (doc as dynamic).webkitFullscreenElement != null ||
-          (doc as dynamic).mozFullScreenElement != null;
-
-      if (isFullscreen) {
-        doc.exitFullscreen();
+      if (_documentIsFullscreen) {
+        html.document.exitFullscreen();
       } else {
-        final element = doc.documentElement;
+        final element = html.document.documentElement;
         if (element != null) {
           element.requestFullscreen();
         }
@@ -337,6 +355,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       print('[PlayerScreen] Fullscreen error: $e');
       _sendMessage({'type': 'request_fullscreen'});
     }
+    // `fullscreenchange` arrive de façon asynchrone : relire l'état juste
+    // après l'appel évite que l'icône reste figée si l'évènement est perdu.
+    Future.delayed(
+      const Duration(milliseconds: 150),
+      _syncFullscreenState,
+    );
   }
 
   void _toggleMute() {
@@ -860,10 +884,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                   ),
                                   const SizedBox(width: 16),
                                   _buildGlassIconButton(
-                                    icon: Icons.aspect_ratio_rounded,
+                                    icon: _isFullscreen
+                                        ? Icons.fullscreen_exit_rounded
+                                        : Icons.fullscreen_rounded,
                                     onTap: _toggleFullscreen,
                                     transparent: true,
-                                    tooltip: 'Plein écran',
+                                    tooltip: _isFullscreen
+                                        ? 'Quitter le plein écran'
+                                        : 'Plein écran',
                                   ),
                                 ],
                               ),
@@ -971,6 +999,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         current: _quality,
         onSelected: _changeQuality,
         size: buttonSize,
+      ),
+
+      SizedBox(width: spacing),
+
+      // Fullscreen
+      _buildSimpleIconButton(
+        icon: _isFullscreen
+            ? Icons.fullscreen_exit_rounded
+            : Icons.fullscreen_rounded,
+        onTap: _toggleFullscreen,
+        size: buttonSize,
+        tooltip: _isFullscreen ? 'Quitter le plein écran' : 'Plein écran',
       ),
     ];
   }

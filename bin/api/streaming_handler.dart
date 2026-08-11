@@ -179,6 +179,103 @@ Map<String, String> _segmentHeaders({int maxAge = 60}) => {
 // 1. LIVE TV HANDLER (FFmpeg HLS + direct TS proxy)
 // ==========================================
 
+/// Connexion amont ouverte, avec son client pour pouvoir le refermer.
+class _LiveUpstream {
+  final http.Client client;
+  final http.StreamedResponse response;
+  _LiveUpstream(this.client, this.response);
+}
+
+Future<_LiveUpstream?> _openLiveUpstream(String targetUrl) async {
+  final client = http.Client();
+  try {
+    final request = http.Request('GET', Uri.parse(targetUrl))
+      ..headers['User-Agent'] = 'VLC/3.0.18 LibVLC/3.0.18'
+      ..headers['Accept'] = '*/*';
+    final response = await client.send(request);
+    return _LiveUpstream(client, response);
+  } catch (_) {
+    client.close();
+    return null;
+  }
+}
+
+/// Nombre de reconnexions consécutives tentées avant d'abandonner le flux.
+const _liveProxyMaxRetries = 4;
+
+/// Corps du proxy `.ts` direct, avec reconnexion amont.
+///
+/// Les panneaux Xtream ferment régulièrement la connexion en cours de route
+/// (bascule de source, limite de connexions simultanées, recyclage nginx).
+/// Sans reprise, le `MediaSource` du navigateur reçoit un `sourceEnded` et la
+/// lecture s'arrête net — le symptôme « ça coupe au bout de 30 s ».
+/// On rouvre donc la source tant que le client, lui, écoute toujours.
+///
+/// Le compteur de tentatives est remis à zéro dès qu'une connexion a duré
+/// assez longtemps pour être considérée saine : une coupure toutes les
+/// 10 minutes ne doit pas finir par épuiser le quota.
+Stream<List<int>> _resilientLiveBody(
+  String streamId,
+  String targetUrl,
+  _LiveUpstream first,
+) async* {
+  var upstream = first;
+  var attempt = 0;
+
+  while (true) {
+    final startedAt = DateTime.now();
+    var bytes = 0;
+
+    try {
+      await for (final chunk in upstream.response.stream) {
+        bytes += chunk.length;
+        yield chunk;
+      }
+    } catch (e) {
+      print('[Live Proxy] $streamId : coupure amont ($e)');
+    } finally {
+      upstream.client.close();
+    }
+
+    final lasted = DateTime.now().difference(startedAt);
+    if (lasted > const Duration(seconds: 60) && bytes > 0) {
+      attempt = 0;
+    }
+
+    print(
+      '[Live Proxy] $streamId : flux terminé après ${lasted.inSeconds}s '
+      '($bytes octets)',
+    );
+
+    // Rouvrir la source, en réessayant tant qu'il reste du quota.
+    _LiveUpstream? next;
+    while (next == null && attempt < _liveProxyMaxRetries) {
+      attempt++;
+      // Laisser le panneau libérer le slot de connexion précédent : sur les
+      // comptes limités à une connexion simultanée, rouvrir immédiatement se
+      // fait refuser.
+      await Future<void>.delayed(const Duration(seconds: 1));
+
+      final candidate = await _openLiveUpstream(targetUrl);
+      if (candidate != null && candidate.response.statusCode == 200) {
+        next = candidate;
+      } else {
+        candidate?.client.close();
+        print(
+          '[Live Proxy] $streamId : reconnexion '
+          '$attempt/$_liveProxyMaxRetries échouée',
+        );
+      }
+    }
+
+    if (next == null) {
+      print('[Live Proxy] $streamId : abandon, source injoignable');
+      return;
+    }
+    upstream = next;
+  }
+}
+
 Handler createLiveStreamHandler(
   Future<PlaylistConfig?> Function(Request) getPlaylist, {
   bool Function()? isGpuEnabled,
@@ -274,39 +371,23 @@ Handler createLiveStreamHandler(
 
     final targetUrl =
         '${playlist.dns}/live/${playlist.username}/${playlist.password}/$streamId.ts';
-    print('[Live Proxy] Forwarding $streamId: ${LogRedactor.redactUrl(targetUrl)}');
+    print(
+        '[Live Proxy] Forwarding $streamId: ${LogRedactor.redactUrl(targetUrl)}');
 
-    final client = http.Client();
-    final proxyRequest = http.Request('GET', Uri.parse(targetUrl));
-    proxyRequest.headers['User-Agent'] = 'VLC/3.0.18 LibVLC/3.0.18';
-    proxyRequest.headers['Accept'] = '*/*';
-
-    final http.StreamedResponse response;
-    try {
-      response = await client.send(proxyRequest);
-    } catch (e) {
-      client.close();
+    // Première connexion faite hors du générateur : elle seule décide du code
+    // de réponse renvoyé au client.
+    final first = await _openLiveUpstream(targetUrl);
+    if (first == null) {
       return Response(502, body: 'Upstream connection failed');
     }
-
-    // Close the client when the upstream stream ends or errors, otherwise
-    // each proxied stream leaks a socket.
-    final body = response.stream.transform<List<int>>(
-      StreamTransformer.fromHandlers(
-        handleDone: (sink) {
-          sink.close();
-          client.close();
-        },
-        handleError: (error, stackTrace, sink) {
-          sink.close();
-          client.close();
-        },
-      ),
-    );
+    if (first.response.statusCode != 200) {
+      first.client.close();
+      return Response(first.response.statusCode, body: 'Upstream refused');
+    }
 
     return Response(
-      response.statusCode,
-      body: body,
+      200,
+      body: _resilientLiveBody(streamId, targetUrl, first),
       headers: {
         'Content-Type': 'video/mp2t',
         'Connection': 'keep-alive',
