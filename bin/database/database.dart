@@ -529,17 +529,22 @@ class AppDatabase {
   }
 
   /// Mettre à jour le statut et éventuellement le chemin d'un enregistrement
+  ///
+  /// [clearError] efface le motif d'erreur au lieu de conserver l'ancien :
+  /// utile quand un enregistrement précédemment en échec est relancé.
   void updateRecordingStatus(
     String id,
     String status, {
     String? filePath,
     String? errorReason,
+    bool clearError = false,
   }) {
     final now = DateTime.now().toIso8601String();
+    final errorExpr = clearError ? '?' : 'COALESCE(?, error_reason)';
     _db.execute(
       '''
       UPDATE tv_recordings 
-      SET status = ?, file_path = COALESCE(?, file_path), error_reason = COALESCE(?, error_reason), updated_at = ?
+      SET status = ?, file_path = COALESCE(?, file_path), error_reason = $errorExpr, updated_at = ?
       WHERE id = ?
     ''',
       [status, filePath, errorReason, now, id],

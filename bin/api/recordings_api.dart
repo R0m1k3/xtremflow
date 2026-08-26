@@ -36,8 +36,8 @@ class RecordingsApi {
     // (l'ancien replaceAll('.mp4', '.log') ne trouvait jamais le fichier).
     final logFilePath = p.setExtension(recording.filePath!, '.log');
 
-    // Anti path-traversal : le log doit rester dans /app/recordings
-    final safeLogPath = SafePath.resolveWithin('/app/recordings', logFilePath);
+    // Anti path-traversal : le log doit rester dans le dossier des enregistrements
+    final safeLogPath = SafePath.resolveWithin(recordingsDirPath, logFilePath);
     if (safeLogPath == null) {
       return Response.forbidden(
         json.encode({'error': 'Chemin de log invalide'}),
