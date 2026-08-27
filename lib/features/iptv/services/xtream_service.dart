@@ -176,8 +176,11 @@ class XtreamService {
   /// Faster zapping on compatible players (mpegts.js)
   String getLiveStreamUrlTs(String streamId) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
-    // Backend route injects the Xtream credentials server-side
-    return '$_backendBaseUrl/api/live/$streamId.ts';
+    // Route « turbo » : vidéo copiée, audio réencodé en AAC côté serveur.
+    // Le proxy brut ($_backendBaseUrl/api/live/$streamId.ts) livrait l'audio
+    // d'origine — AC-3/E-AC-3/MP2 que mpegts.js ne décode pas → chaînes
+    // muettes. Il reste utilisé tel quel par le scheduler d'enregistrement.
+    return '$_backendBaseUrl/api/live/$streamId/turbo.ts';
   }
 
   /// Generate stream URL for VOD (movies)

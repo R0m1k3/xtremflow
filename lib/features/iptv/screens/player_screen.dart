@@ -190,18 +190,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // - Live TV: Player Lite (simple TS playback with mpegts.js)
       // - VOD/Series: Player Standard (fuller controls, HLS support)
 
-      // Cache buster to force reload of updated player.html
-      final cacheBuster = DateTime.now().millisecondsSinceEpoch;
-
       final streamTypeParam =
           widget.streamType == StreamType.live ? 'live' : 'vod';
       final playerFile = isMobile
           ? 'player_mobile.html'
           : (isLiveTV ? 'player_lite.html' : 'player.html');
 
-      // Inject Turbo-Start flag
+      // Plus de cache-buster « &v=timestamp » : il forçait le re-téléchargement
+      // et le re-parse de player.html à CHAQUE zap. Le serveur sert désormais
+      // les .html en no-cache, la fraîcheur est garantie sans pénaliser le zap.
       var playerSrc =
-          '$playerFile?url=$encodedUrl&type=$streamTypeParam&turbo=true&v=$cacheBuster';
+          '$playerFile?url=$encodedUrl&type=$streamTypeParam&turbo=true';
 
       if (widget.streamType == StreamType.recording) {
         playerSrc += '&is_recording=true';

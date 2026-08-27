@@ -2,6 +2,12 @@
 
 ## Non publié
 
+### ▶️ Lecture vidéo
+- **Fix du son manquant sur certaines chaînes** : nouvelle route `/api/live/<id>/turbo.ts` pour le zapping — vidéo copiée telle quelle, audio systématiquement réencodé en AAC côté serveur. Les chaînes en AC-3/E-AC-3/MP2 (que mpegts.js ne décode pas) ont maintenant du son, sans coût de transcodage vidéo
+- **Players mis à jour** : hls.js 1.6.7 → 1.7.1, mpegts.js 1.7.3 → 1.8.2 (vendorisés)
+- **Démarrage plus rapide** : sonde FFmpeg bornée (`-fflags nobuffer`, probesize réduit) sur le live et le turbo ; probesize VOD 10 Mo → 5 Mo ; preset live `high` et lecture d'enregistrement en `veryfast` (medium ne tenait pas le temps réel) ; détection de playlist toutes les 100 ms au lieu de 500 ms ; suppression du cache-buster qui re-téléchargeait player.html à chaque zap (les .html passent en no-cache serveur)
+- **Latence live maîtrisée** : rattrapage du direct activé dans mpegts.js (profil rapide) — les micro-coupures ne font plus dériver la lecture derrière le direct
+
 ### 📺 Enregistrements
 - La liste des enregistrements se met à jour automatiquement : rafraîchissement immédiat dès qu'un enregistrement est créé/arrêté n'importe où dans l'app (guide EPG, modal, widget rapide), et polling en arrière-plan (5 s quand un enregistrement est en cours ou planifié, 20 s sinon) pour suivre les statuts sans clic manuel
 - Indicateur « Suivi auto » avec heure de dernière actualisation dans l'onglet Enregistrements

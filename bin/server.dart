@@ -269,7 +269,7 @@ void main(List<String> args) async {
     final isVendored = path.startsWith('vendor/');
     if (!isVendored &&
         (path.isEmpty ||
-            path == 'index.html' ||
+            path.endsWith('.html') ||
             path.endsWith('.js') ||
             path.endsWith('.json'))) {
       return response.change(
