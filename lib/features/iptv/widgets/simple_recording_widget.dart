@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/glass_container.dart';
+import '../providers/recordings_refresh.dart';
 
 class SimpleRecordingWidget extends StatefulWidget {
   final Channel channel;
@@ -43,6 +44,7 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
       );
 
       if (response.statusCode == 200) {
+        notifyRecordingsChanged();
         setState(() {
           _isRecording = true;
           _status = '🔴 Recording for $minutes min';
@@ -79,6 +81,7 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
       );
 
       if (response.statusCode == 200) {
+        notifyRecordingsChanged();
         setState(() => _status = '⏰ Scheduled for ${_startTime.toLocal()}');
 
         if (mounted) {
@@ -101,6 +104,7 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
         headers: {'Content-Type': 'application/json'},
       );
 
+      notifyRecordingsChanged();
       setState(() {
         _isRecording = false;
         _status = 'Stopped';

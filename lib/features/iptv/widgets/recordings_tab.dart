@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import '../../../core/api/authed_http.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
+import '../providers/recordings_refresh.dart';
 import '../providers/xtream_provider.dart';
 import '../providers/settings_provider.dart';
 import '../screens/player_screen.dart';
@@ -603,6 +605,7 @@ class _ProgrammeCard extends StatelessWidget {
           'end_time': end.toIso8601String(),
         }),
       );
+      if (response.statusCode == 200) notifyRecordingsChanged();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -733,37 +736,83 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
   List<dynamic> _recordings = [];
   bool _isLoading = true;
   String? _error;
+  Timer? _pollTimer;
+  DateTime? _lastRefresh;
+
+  // Polling rapproché quand un enregistrement est en cours, plus espacé sinon.
+  static const _activeInterval = Duration(seconds: 5);
+  static const _idleInterval = Duration(seconds: 20);
 
   @override
   void initState() {
     super.initState();
+    recordingsRefreshBus.addListener(_onExternalChange);
     _fetchRecordings();
   }
 
-  Future<void> _fetchRecordings() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  @override
+  void dispose() {
+    recordingsRefreshBus.removeListener(_onExternalChange);
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Un enregistrement vient d'être créé/modifié ailleurs dans l'app.
+  void _onExternalChange() {
+    _fetchRecordings(silent: true);
+  }
+
+  bool get _hasActiveOrPending => _recordings.any((rec) {
+        final status = rec is Map ? rec['status'] as String? : null;
+        return status == 'recording' || status == 'scheduled';
+      });
+
+  void _scheduleNextPoll() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer(
+      _hasActiveOrPending ? _activeInterval : _idleInterval,
+      () => _fetchRecordings(silent: true),
+    );
+  }
+
+  /// [silent] : recharge en arrière-plan sans spinner ni vidage de la liste,
+  /// pour que le suivi automatique ne fasse pas clignoter l'écran.
+  Future<void> _fetchRecordings({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
     try {
       final response = await AuthedHttp.get(Uri.parse('/api/recordings'));
+      if (!mounted) return;
       if (response.statusCode == 200) {
         setState(() {
           final decoded = json.decode(response.body);
           _recordings = decoded is List ? decoded : [];
           _isLoading = false;
+          _error = null;
+          _lastRefresh = DateTime.now();
         });
-      } else {
+      } else if (!silent) {
         setState(() {
           _error = 'Erreur ${response.statusCode}';
           _isLoading = false;
         });
       }
     } catch (e) {
-      setState(() {
-        _error = '$e';
-        _isLoading = false;
-      });
+      if (!mounted) return;
+      // En mode silencieux on garde la liste affichée plutôt que
+      // de remplacer l'écran par une erreur transitoire.
+      if (!silent) {
+        setState(() {
+          _error = '$e';
+          _isLoading = false;
+        });
+      }
+    } finally {
+      if (mounted) _scheduleNextPoll();
     }
   }
 
@@ -896,10 +945,27 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
+              Icon(
+                Icons.autorenew,
+                color: _hasActiveOrPending
+                    ? AppColors.success
+                    : AppColors.onSurface38,
+                size: 14,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _lastRefresh == null
+                    ? 'Suivi automatique'
+                    : 'Suivi auto · ${_lastRefresh!.hour.toString().padLeft(2, '0')}:${_lastRefresh!.minute.toString().padLeft(2, '0')}:${_lastRefresh!.second.toString().padLeft(2, '0')}',
+                style: const TextStyle(
+                  color: AppColors.onSurface38,
+                  fontSize: 11,
+                ),
+              ),
               IconButton(
                 icon: const Icon(Icons.refresh, color: AppColors.onSurfaceVariant),
                 onPressed: _fetchRecordings,
-                tooltip: 'Rafraîchir',
+                tooltip: 'Rafraîchir maintenant',
               ),
             ],
           ),
