@@ -131,7 +131,10 @@
   };
 
   XFPlayer.prototype.send = function (msg) {
-    try { global.parent.postMessage(msg, '*'); } catch (e) {}
+    // Cible restreinte à notre origine : l'iframe est toujours même-origine
+    // que le parent Flutter, un wildcard '*' livrerait l'état du player à
+    // n'importe quelle page qui embarquerait player.html.
+    try { global.parent.postMessage(msg, global.location.origin); } catch (e) {}
   };
 
   // ---------------- Démarrage ----------------
@@ -491,6 +494,9 @@
   XFPlayer.prototype._wireParentMessages = function () {
     var self = this;
     global.addEventListener('message', function (event) {
+      // N'accepter que les commandes émises par notre propre origine
+      // (le côté Flutter filtre déjà les messages entrants de la même façon).
+      if (event.origin !== global.location.origin) return;
       var d = event.data;
       if (!d || !d.type) return;
       var v = self.video;

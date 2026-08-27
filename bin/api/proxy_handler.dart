@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:shelf/shelf.dart';
 import 'package:http/http.dart' as http;
+import '../database/database.dart';
+import '../middleware/auth_middleware.dart';
 import '../models/playlist_config.dart';
 import '../utils/log_redactor.dart';
 
@@ -31,6 +33,7 @@ bool isForbiddenProxyHost(String host) {
 /// Handler for the Xtream Proxy
 class ProxyHandler {
   final Future<PlaylistConfig?> Function(Request) _getPlaylist;
+  final AppDatabase _db;
   final http.Client _client = http.Client();
 
   final Map<String, (PlaylistConfig, DateTime)> _playlistCache = {};
@@ -70,7 +73,7 @@ class ProxyHandler {
     return playlist;
   }
 
-  ProxyHandler(this._getPlaylist);
+  ProxyHandler(this._getPlaylist, this._db);
 
   /// Create Xtream proxy handler with M3U8 URL rewriting support
   Handler get handler {
@@ -84,8 +87,16 @@ class ProxyHandler {
         return Response.notFound(null);
       }
 
-      // NOTE: Authentication REMOVED from proxy to allow browser-initiated requests (img src, etc.)
-      // SSRF protection is still active via domain validation below.
+      // Authentification par session. Les requêtes initiées par le navigateur
+      // (img src, hls.js) ne portent pas d'en-tête Authorization mais envoient
+      // le cookie HttpOnly `session` (SameSite=Lax, même origine) posé au
+      // login : extractAuthToken accepte les deux. Un proxy ouvert offrait un
+      // rebond SSRF non authentifié vers n'importe quel hôte public via les
+      // extensions d'image.
+      final token = extractAuthToken(request);
+      if (token == null || _db.findSessionByToken(token) == null) {
+        return Response(401, body: 'Unauthorized');
+      }
 
       Uri? targetUrl;
 
@@ -139,6 +150,7 @@ class ProxyHandler {
             targetUrl.path.contains('/picons/') ||
             targetUrl.path.contains('/logos/');
 
+        String? allowedHost;
         if (!isStaticAsset) {
           // For API calls, enforce domain allowlist
           final playlist = await _getCachedPlaylist(request);
@@ -149,7 +161,7 @@ class ProxyHandler {
           }
 
           final targetHost = targetUrl.host.toLowerCase();
-          final allowedHost = Uri.parse(playlist.dns).host.toLowerCase();
+          allowedHost = Uri.parse(playlist.dns).host.toLowerCase();
 
           if (targetHost != allowedHost) {
             print(
@@ -175,7 +187,6 @@ class ProxyHandler {
 
         try {
           print('[Proxy] Forwarding to: ${LogRedactor.redactUrl(targetUrl.toString())}');
-          final proxyRequest = http.Request(request.method, targetUrl);
 
           // Forward safe request headers
           for (final header in _allowedRequestHeaders) {
@@ -184,18 +195,61 @@ class ProxyHandler {
             }
           }
 
-          proxyRequest.headers.addAll(proxyHeaders);
-          proxyRequest.followRedirects = true;
-
+          List<int>? postBody;
           if (request.method == 'POST') {
             final bodyBytes = await request.read().toList();
-            proxyRequest.bodyBytes = bodyBytes.expand((i) => i).toList();
+            postBody = bodyBytes.expand((i) => i).toList();
           }
 
-          // Added 90s timeout to allow frontend (60s) to time out gracefully first
-          final response = await _client
-              .send(proxyRequest)
-              .timeout(const Duration(seconds: 90));
+          // Redirections suivies MANUELLEMENT : chaque destination est
+          // revalidée (hôte privé, allowlist de domaine). Avec
+          // followRedirects, la validation ne portait que sur l'URL
+          // initiale — une 302 du serveur amont suffisait pour atteindre
+          // un hôte interne malgré l'anti-SSRF.
+          http.StreamedResponse response;
+          var currentUrl = targetUrl;
+          var redirects = 0;
+          while (true) {
+            final proxyRequest = http.Request(request.method, currentUrl);
+            proxyRequest.headers.addAll(proxyHeaders);
+            proxyRequest.followRedirects = false;
+            if (postBody != null) proxyRequest.bodyBytes = postBody;
+
+            // Added 90s timeout to allow frontend (60s) to time out gracefully first
+            response = await _client
+                .send(proxyRequest)
+                .timeout(const Duration(seconds: 90));
+
+            final location = response.headers['location'];
+            final isRedirect = response.statusCode >= 300 &&
+                response.statusCode < 400 &&
+                location != null;
+            if (!isRedirect) break;
+
+            if (++redirects > 3) {
+              return Response.forbidden('Too many redirects');
+            }
+            final next = Uri.parse(location);
+            currentUrl = next.isAbsolute ? next : currentUrl.resolve(location);
+            if (currentUrl.scheme != 'http' && currentUrl.scheme != 'https') {
+              return Response.forbidden('Unsupported redirect scheme');
+            }
+            if (isForbiddenProxyHost(currentUrl.host)) {
+              print(
+                '[Proxy] Blocked SSRF redirect to private host: ${currentUrl.host}',
+              );
+              return Response.forbidden('Access to this host is forbidden');
+            }
+            if (allowedHost != null &&
+                currentUrl.host.toLowerCase() != allowedHost) {
+              print(
+                '[Proxy] Blocked redirect to ${currentUrl.host} (Allowed: $allowedHost)',
+              );
+              return Response.forbidden(
+                'Access to this domain is forbidden by policy',
+              );
+            }
+          }
 
           // Build response headers from source response
           final responseHeaders = <String, String>{
@@ -221,7 +275,12 @@ class ProxyHandler {
           rethrow;
         }
       } catch (e) {
-        print('[ProxyHandler] error on $path: $e');
+        // Redaction : une ClientException porte l'URL amont, credentials
+        // Xtream inclus. Jamais de détail d'exception vers le client.
+        print(
+          '[ProxyHandler] error on ${LogRedactor.redactUrl(path)}: '
+          '${LogRedactor.redactUrl('$e')}',
+        );
 
         // Return transparent 1x1 pixel image fallback for images
         if (targetUrl?.path.endsWith('.png') == true ||
@@ -235,7 +294,7 @@ class ProxyHandler {
         }
 
         return Response.internalServerError(
-          body: jsonEncode({'error': 'Proxy error', 'message': e.toString()}),
+          body: jsonEncode({'error': 'Proxy error'}),
           headers: {'content-type': 'application/json'},
         );
       }

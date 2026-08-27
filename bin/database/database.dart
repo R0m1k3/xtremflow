@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:uuid/uuid.dart';
 import '../models/user.dart';
@@ -127,14 +128,21 @@ class AppDatabase {
     );
   }
 
-  /// Seed default admin user if no users exist
+  /// Seed default admin user if no users exist.
+  ///
+  /// Le mot de passe initial vient de ADMIN_INITIAL_PASSWORD, ou est généré
+  /// aléatoirement et affiché UNE FOIS dans les logs de démarrage. L'ancien
+  /// couple admin/admin restait souvent en place sur les instances exposées.
   Future<void> seedAdmin() async {
     final result = _db.select('SELECT COUNT(*) as count FROM users');
     final count = result.first['count'] as int;
 
     if (count == 0) {
       final adminId = _uuid.v4();
-      final passwordHash = PasswordHasher.hash('admin');
+      final envPassword = Platform.environment['ADMIN_INITIAL_PASSWORD'];
+      final generated = envPassword == null || envPassword.isEmpty;
+      final password = generated ? _generatePassword() : envPassword;
+      final passwordHash = PasswordHasher.hash(password);
 
       _db.execute(
         '''
@@ -144,8 +152,32 @@ class AppDatabase {
         [adminId, 'admin', passwordHash],
       );
 
-      print('Default admin user created (username: admin, password: admin)');
+      if (generated) {
+        print('╔══════════════════════════════════════════════════════════╗');
+        print('  Compte admin créé — mot de passe initial (affiché une');
+        print('  seule fois, changez-le après la première connexion) :');
+        print('  utilisateur: admin');
+        print('  mot de passe: $password');
+        print('╚══════════════════════════════════════════════════════════╝');
+      } else {
+        print(
+          'Default admin user created (username: admin, '
+          'password: ADMIN_INITIAL_PASSWORD)',
+        );
+      }
     }
+  }
+
+  static String _generatePassword({int length = 16}) {
+    // Sans caractères ambigus (0/O, 1/l/I) : le mot de passe est recopié
+    // depuis les logs du conteneur.
+    const chars =
+        'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    final random = Random.secure();
+    return List.generate(
+      length,
+      (_) => chars[random.nextInt(chars.length)],
+    ).join();
   }
 
   // ==================== Users ====================
