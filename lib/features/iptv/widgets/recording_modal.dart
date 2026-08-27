@@ -6,6 +6,7 @@ import '../../../core/models/iptv_models.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/glass_container.dart';
 import '../../../core/widgets/tv_focusable_card.dart';
+import '../providers/recordings_refresh.dart';
 
 class RecordingModal extends StatefulWidget {
   final Channel channel;
@@ -59,6 +60,7 @@ class _RecordingModalState extends State<RecordingModal> {
       );
 
       if (response.statusCode == 200) {
+        notifyRecordingsChanged();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Enregistrement programmé !')),

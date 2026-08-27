@@ -1,5 +1,11 @@
 # 📝 Changelog - XtremFlow Optimisations
 
+## Non publié
+
+### 📺 Enregistrements
+- La liste des enregistrements se met à jour automatiquement : rafraîchissement immédiat dès qu'un enregistrement est créé/arrêté n'importe où dans l'app (guide EPG, modal, widget rapide), et polling en arrière-plan (5 s quand un enregistrement est en cours ou planifié, 20 s sinon) pour suivre les statuts sans clic manuel
+- Indicateur « Suivi auto » avec heure de dernière actualisation dans l'onglet Enregistrements
+
 ## Version 1.2 - Security, Streaming & Design Overhaul (10 Juin 2026)
 
 ### 🔐 Sécurité
