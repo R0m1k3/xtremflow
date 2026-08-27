@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+# Un push qui en suit un autre annule le run précédent : inutile de
+# consommer un runner pour un commit déjà obsolète.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   frontend:
     runs-on: ubuntu-latest
@@ -13,7 +19,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
+          # Version épinglée : `channel: stable` seul fait dériver le SDK au
+          # fil du temps (une release Flutter peut casser la CI sans aucun
+          # changement dans le dépôt). Le cache évite de retélécharger SDK et
+          # dépendances pub à chaque run.
+          flutter-version: 3.38.4
           channel: stable
+          cache: true
       - run: flutter pub get
       # Infos (pre-existing withOpacity/dart:html deprecations) are not
       # fatal; errors and warnings still fail the build.
@@ -30,7 +42,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dart-lang/setup-dart@v1
         with:
-          sdk: stable
+          sdk: 3.13.2
       - run: dart pub get
       - run: dart analyze
       - run: dart test

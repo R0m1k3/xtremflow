@@ -1,282 +1,103 @@
-# XtremFlow - IPTV Web Application
+# XtremFlow — Application Web IPTV
 
-High-performance, containerized IPTV Web Application using Flutter Web and Xtream Codes API.
+Application IPTV auto-hébergée : frontend Flutter Web + serveur Dart natif, empaquetés dans une seule image Docker. Se connecte à un abonnement Xtream Codes et ajoute le magnétoscope (enregistrements planifiés, season passes), l'EPG avec repli XMLTV, et le transcodage FFmpeg à la demande.
 
-## Features
+## Fonctionnalités
 
-✅ **Local Authentication System**
-- Default admin user (`admin`/`admin`)
-- Secure salt-based password hashing (SHA-256)
-- No public signup - private app only
+- **Live TV, Films, Séries** : catalogues Xtream avec catégories, recherche, favoris, reprise de lecture
+- **Guide TV (EPG)** : panneau de l'abonné en priorité, repli automatique sur un dump XMLTV quand le panneau est figé
+- **Enregistrements TV** : planification depuis le guide, capture FFmpeg (`-c copy`), reprise après coupure amont ou redémarrage du serveur, fusion automatique des parties
+- **Season Passes** : enregistrement automatique de toutes les diffusions d'une émission (scan EPG toutes les 4 h)
+- **Transcodage à la demande** : `source | high | medium | low` (live et VOD), `source` = zéro transcodage ; NVENC optionnel
+- **Multi-utilisateurs** : comptes locaux (bcrypt), playlists par utilisateur, panneau d'administration
 
-✅ **Multi-Playlist Management**
-- Centralized Xtream credentials management
-- Playlist assignment to users
-- Easy switching between playlists
+## Stack
 
-✅ **High-Performance Dashboard (60fps)**
-- Category-based pagination (100 items/page for Live TV, 50 for Movies)
-- Lazy loading with `ListView.builder` / `GridView.builder`
-- Image caching with `cached_network_image`
+| Couche | Techno |
+|---|---|
+| Frontend | Flutter Web (Riverpod, GoRouter), players HTML (hls.js / mpegts.js vendorisés) |
+| Backend | Dart compilé en natif (`dart compile exe`), shelf |
+| Base | SQLite côté serveur (`/app/data/xtremflow.db`) |
+| Capture/Transcodage | FFmpeg (build BtbN, NVENC inclus) |
+| Conteneur | Debian slim multi-stage, port **8089** |
 
-✅ **Live TV with EPG**
-- Electronic Program Guide (EPG) overlay
-- "Now & Next" program display
-- Real-time progress bar
-
-✅ **VOD & Series**
-- Movies and Series organized by categories
-- Grid layout with posters
-- Optimized ratings display (1 decimal place)
-
-✅ **Docker Deployment**
-- Multi-stage build with Flutter and Dart
-- Custom Dart Server (`bin/server.dart`)
-- **FFmpeg Transcoding** for mobile compatibility
-- **Cache Management** system for temporary files
-- External network support (`nginx_default`)
-
-## Tech Stack
-
-- **Framework**: Flutter Web
-- **State Management**: Riverpod
-- **Local Database**: Hive (Web IndexedDB) with AES encryption
-- **Networking**: Dio with cache interceptors
-- **Routing**: GoRouter with auth guards
-- **Video Player**: `video_player` + `chewie`
-- **UI**: Google Fonts, Material Design 3
-
-## Prerequisites
-
-- Docker & Docker Compose
-- Existing `nginx_default` network (for reverse proxy routing)
-- Flutter SDK (for local development only)
-
-## Quick Start (Docker)
-
-### 1. Build the Docker image
+## Démarrage rapide (Docker)
 
 ```bash
-docker-compose build
+docker-compose up -d --build
+# Application sur http://localhost:8089
 ```
 
-### 2. Start the container
+Au premier démarrage, un compte `admin` est créé avec un **mot de passe aléatoire affiché une seule fois dans les logs** (`docker logs xtremflow`), sauf si `ADMIN_INITIAL_PASSWORD` est défini. Changez-le après la première connexion.
+
+### Variables d'environnement (docker-compose.yml)
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `RECORDINGS_PATH` | `./data/recordings` | Dossier hôte des enregistrements |
+| `TZ` | `Europe/Paris` | Fuseau du conteneur (les enregistrements sont stockés en UTC) |
+| `MAX_CONCURRENT_RECORDINGS` | `2` | Enregistrements simultanés |
+| `EPG_XMLTV_URLS` | dump FR | Sources XMLTV de repli (vide = aucun appel sortant) |
+| `NVIDIA_GPU` | `false` | Transcodage NVENC |
+| `ADMIN_INITIAL_PASSWORD` | *(généré)* | Mot de passe initial du compte admin |
+| `MIN_FREE_DISK_MB` | `500` | Espace libre minimal pour démarrer une capture |
+| `RECORDINGS_QUOTA_GB` | `0` (off) | Quota du dossier d'enregistrements (rotation des plus anciens terminés) |
+| `TRUSTED_PROXIES` | loopback + RFC1918 | IPs de reverse proxy dont `X-Forwarded-For` est honoré |
+
+## Développement local
 
 ```bash
-docker-compose up -d
-```
-
-### 3. Access via reverse proxy
-
-Configure your reverse proxy (Nginx/Traefik) to route traffic to:
-- **Container**: `xtremflow`
-- **Internal Port**: `8080`
-- **Network**: `nginx_default`
-
-Example Nginx configuration:
-
-```nginx
-location /iptv {
-    proxy_pass http://xtremflow:8080;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-}
-```
-
-### 4. Login
-
-- **URL**: `http://your-domain/iptv`
-- **Default Credentials**:
-  - Username: `admin`
-  - Password: `admin`
-
-⚠️ **Change the admin password immediately after first login!**
-
-## Local Development
-
-### Install dependencies
-
-```bash
+# Frontend
 flutter pub get
+flutter analyze && flutter test
+flutter run -d chrome        # nécessite le backend lancé pour les routes /api
+
+# Backend
+cd bin
+dart pub get
+dart analyze && dart test
+dart run server.dart --port 8089 --path ../build/web
 ```
 
-### Generate Hive adapters (if modified)
+Le build Windows natif est documenté dans `BUILD.md`.
 
-```bash
-flutter pub run build_runner build --delete-conflicting-outputs
-```
-
-### Run web app
-
-```bash
-flutter run -d chrome
-```
-
-## Project Structure
+## Structure du projet
 
 ```
-lib/
-├── core/
-│   ├── database/
-│   │   └── hive_service.dart          # Hive initialization & encryption
-│   ├── models/
-│   │   ├── app_user.dart              # User model (Hive)
-│   │   ├── playlist_config.dart       # Playlist credentials (Hive)
-│   │   └── iptv_models.dart          # Channel, VOD, Series, EPG models
-│   ├── router/
-│   │   └── app_router.dart           # GoRouter configuration
-│   └── utils/
-│       └── crypto_utils.dart         # Password hashing utilities
-├── features/
-│   ├── auth/
-│   │   ├── providers/
-│   │   │   └── auth_provider.dart    # Authentication state
-│   │   └── screens/
-│   │       └── login_screen.dart
-│   ├── admin/
-│   │   └── screens/
-│   │       └── admin_panel.dart      # User & Playlist CRUD
-│   └── iptv/
-│       ├── services/
-│       │   └── xtream_service.dart   # Xtream API client
-│       ├── providers/
-│       │   └── xtream_provider.dart  # Riverpod providers
-│       ├── screens/
-│       │   └── player_screen.dart    # Video player
-│       └── widgets/
-│           ├── live_tv_tab.dart      # Live TV with pagination
-│           ├── movies_tab.dart       # Movies grid
-│           ├── series_tab.dart       # Series grid
-│           └── epg_overlay.dart      # EPG display
-└── main.dart
+bin/                    Serveur Dart
+├── server.dart         Point d'entrée, routage, arrêt gracieux
+├── api/                Handlers HTTP (auth, playlists, recordings, EPG, proxy…)
+├── services/           Scheduler d'enregistrement, sessions FFmpeg, XMLTV
+├── database/           SQLite (schéma, migrations)
+├── middleware/         Auth (session), sécurité (rate limit, honeypot, logs redactés)
+└── test/               Tests backend (dart test)
+
+lib/                    Frontend Flutter
+├── core/               Modèles, thème, router, clients API
+├── features/           auth / admin / iptv (desktop)
+└── mobile/             Variantes d'écrans mobiles
+
+web/                    Players HTML + libs vendorisées (hls.js, mpegts.js)
 ```
 
-## Security Features
+## Sécurité
 
-### Password Storage
-- **Algorithm**: SHA-256 with random UUID-based salt
-- **Format**: `salt:hash` (stored in Hive)
-- **Legacy Support**: Fallback to unsalted comparison for migration
+- Mots de passe **bcrypt** (migration lazy depuis les anciens hashes au login)
+- Les credentials Xtream ne quittent jamais le serveur : passerelle `/api/xtream-api` et proxy `/api/xtream` (authentifié par session) avec injection côté serveur
+- Redaction des credentials dans tous les logs ; anti-SSRF avec revalidation des redirections
+- Cookie de session HttpOnly ; rate limiting global + limite de tentatives de login par IP
 
-### Database Encryption
-- **Hive AES Cipher** (256-bit key)
-- Key stored in `FlutterSecureStorage`
-- Automatic key generation on first run
+## CI / Publication
 
-### Authentication Flow
-1. User enters credentials
-2. System retrieves stored hash
-3. Input password is hashed with same salt
-4. Constant-time comparison prevents timing attacks
+`ci.yml` (analyze + tests + build web/backend) tourne sur chaque PR et push main ; `docker-publish.yml` publie `ghcr.io/r0m1k3/xtremflow:latest` **uniquement après une CI verte** sur main.
 
-## Performance Optimizations
+## Dépannage
 
-### Memory Management (20k+ channels)
-- **Grouping**: Channels organized by category
-- **Pagination**: 100 items per page (Live TV), 50 per page (Movies)
-- **Lazy Loading**: Only render visible items
-- **Image Caching**: Disk/memory cache with `cached_network_image`
+- **Logs** : `docker logs xtremflow` (les URLs y sont redactées)
+- **Mot de passe admin perdu** : supprimer le volume `xtremflow-data` recrée la base et affiche un nouveau mot de passe (⚠ efface utilisateurs et historique d'enregistrements)
+- **EPG vide** : vérifier `EPG_XMLTV_URLS` et que la chaîne a un `epg_channel_id` ; l'en-tête `X-Epg-Source` des réponses `/api/epg/<id>` indique la source utilisée
+- **Enregistrement échoué** : bouton « Logs » sur la ligne de l'enregistrement ; la raison (`error_reason`) est affichée sous le titre
 
-### Network Optimization
-- **Dio Cache Interceptor**: 1-hour cache for API responses
-- **EPG Cache**: 5-minute refresh for program data
-- **Hive Disk Store**: Persistent cache across sessions
+## Licence
 
-### Rendering (60fps Target)
-- `ListView.builder` with fixed `itemExtent`
-- `AutomaticKeepAliveClientMixin` for tab state
-- Expansion panels for category navigation
-- Grid with fixed `crossAxisCount` and `childAspectRatio`
-
-## Xtream API Integration
-
-### Supported Endpoints
-
-| Endpoint | Purpose | Caching |
-|----------|---------|---------|
-| `player_api.php` | Authentication | 1 hour |
-| `get_live_streams` | Live TV channels | 1 hour |
-| `get_vod_streams` | Movies | 1 hour |
-| `get_series` | Series | 1 hour |
-| `get_short_epg` | EPG data | 5 minutes |
-
-### Stream URL Formats
-
-```dart
-// Live TV
-http://[dns]/live/[username]/[password]/[stream_id].m3u8
-
-// Movies
-http://[dns]/movie/[username]/[password]/[stream_id].[container_extension]
-
-// Series
-http://[dns]/series/[username]/[password]/[stream_id].[container_extension]
-```
-
-## Docker Configuration
-
-### Dockerfile (Multi-Stage)
-
-**Stage 1: Builder**
-- Base: `cirrusci/flutter:stable`
-- Build: `flutter build web --release --web-renderer html`
-
-**Stage 2: Runtime**
-- Base: `dart:stable`
-- Server: `dhttpd --host 0.0.0.0 --port 8080`
-- Size: ~150MB (compressed)
-
-### docker-compose.yml
-
-```yaml
-services:
-  iptv-web:
-    build: .
-    container_name: xtremflow
-    restart: unless-stopped
-    networks:
-      - nginx_default
-
-networks:
-  nginx_default:
-    external: true
-```
-
-**No port mapping** - Access via reverse proxy only.
-
-## Troubleshooting
-
-### Container won't start
-```bash
-# Check logs
-docker logs xtremflow
-
-# Verify network exists
-docker network ls | grep nginx_default
-
-# Create network if missing
-docker network create nginx_default
-```
-
-### Login fails with admin/admin
-- Check Hive database initialization in logs
-- Verify `HiveService.init()` completed successfully
-- Default admin is seeded only if `users` box is empty
-
-### EPG not displaying
-- EPG is optional and gracefully degrades
-- Check if Xtream server supports `get_short_epg`
-- Verify stream has `epg_channel_id`
-
-### Performance issues (FPS drops)
-- Reduce `_itemsPerPage` constant (currently 100 for Live TV)
-- Disable image caching temporarily
-- Check browser DevTools Performance tab
-
-## License
-
-Proprietary - Private Use Only
-
-## Support
-
-For Xtream API documentation, consult your IPTV provider.
+Propriétaire — usage privé uniquement.

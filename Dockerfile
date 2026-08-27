@@ -12,9 +12,10 @@ ENV FLUTTER_NO_ANALYTICS=1
 RUN flutter config --enable-web && flutter precache --web
 
 # 2. Dependency Resolution (ONLY UPDATES IF PUBSPEC CHANGES)
-COPY pubspec.yaml ./
-COPY bin/pubspec.yaml ./bin/
-# Note: No .lock files found locally, so we fetch fresh ones here
+# Les lockfiles sont versionnés : le build résout exactement les versions
+# committées au lieu d'en chercher de nouvelles à chaque build.
+COPY pubspec.yaml pubspec.lock ./
+COPY bin/pubspec.yaml bin/pubspec.lock ./bin/
 RUN flutter pub get && cd bin && dart pub get
 
 # 3. Source Code Copy (CHANGES OFTEN)
