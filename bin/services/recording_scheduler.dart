@@ -127,13 +127,33 @@ class RecordingScheduler {
       ) ??
       2;
 
-  // Playlist config pour les appels EPG des season passes
-  // Rempli depuis server.dart après initialisation
-  String? playlistDns;
-  String? playlistUsername;
-  String? playlistPassword;
+  /// Espace libre minimal (Mo) exigé pour démarrer une capture.
+  final int minFreeDiskMb = int.tryParse(
+        Platform.environment['MIN_FREE_DISK_MB'] ?? '',
+      ) ??
+      500;
+
+  /// Quota du dossier d'enregistrements en Go (0 = rotation désactivée).
+  /// Remplace l'ancienne rotation « max 50 fichiers » qui supprimait
+  /// aveuglément, y compris des enregistrements en cours d'écriture.
+  final int recordingsQuotaGb = int.tryParse(
+        Platform.environment['RECORDINGS_QUOTA_GB'] ?? '',
+      ) ??
+      0;
+
+  /// Nombre maximal d'enregistrements créés par season pass et par scan.
+  final int seasonPassMaxPerScan = int.tryParse(
+        Platform.environment['SEASON_PASS_MAX_PER_SCAN'] ?? '',
+      ) ??
+      10;
 
   RecordingScheduler(this._db);
+
+  /// Un enregistrement est-il activement capturé par un processus FFmpeg ?
+  bool isCapturing(String id) => _active.containsKey(id);
+
+  /// Nombre de relances FFmpeg de l'enregistrement actif [id] (null si inactif).
+  int? retryCountOf(String id) => _active[id]?.consecutiveFailures;
 
   void start() {
     print(
@@ -163,6 +183,31 @@ class RecordingScheduler {
     print('[RecordingScheduler] Arrêté');
   }
 
+  /// Arrêt gracieux pour un `docker stop` : arrête les timers, clôt chaque
+  /// enregistrement actif (kill FFmpeg, fusion des parties, statut en base)
+  /// et attend la fin des clôtures dans la limite de [timeout].
+  ///
+  /// Sans cette attente, le conteneur meurt avant la clôture : les
+  /// enregistrements restent au statut « recording » et la reprise d'orphelins
+  /// doit systématiquement rattraper au redémarrage.
+  Future<void> shutdown({Duration timeout = const Duration(seconds: 8)}) async {
+    _timer?.cancel();
+    _seasonPassTimer?.cancel();
+    final closings = <Future<void>>[];
+    for (final id in _active.keys.toList()) {
+      final future =
+          _stopActiveRecording(id, reason: 'Arrêt du serveur');
+      if (future != null) closings.add(future);
+    }
+    if (closings.isNotEmpty) {
+      print(
+        '[RecordingScheduler] Clôture de ${closings.length} enregistrement(s)…',
+      );
+      await Future.wait(closings).timeout(timeout, onTimeout: () => const []);
+    }
+    print('[RecordingScheduler] Arrêté proprement');
+  }
+
   Future<void> _checkAndRunRecordings() async {
     if (_isRunning) return;
     _isRunning = true;
@@ -185,7 +230,7 @@ class RecordingScheduler {
       // Lire la base APRÈS les arrêts : un instantané pris avant ferait passer
       // l'enregistrement tout juste terminé pour un orphelin (il n'est plus
       // dans `_active` alors que l'instantané le dit encore « recording »).
-      final recordings = _db.getAllRecordings();
+      final recordings = _db.getPendingRecordings();
 
       // Rechercher les enregistrements planifiés
       for (final recording in recordings) {
@@ -286,20 +331,21 @@ class RecordingScheduler {
     }
   }
 
+  /// Normalise un titre pour la correspondance : minuscules, espaces réduits.
+  static String _normalizeTitle(String title) =>
+      title.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
+
+  /// Le titre EPG [title] correspond-il au pass selon son [matchMode] ?
+  static bool _titleMatches(String title, String showTitle, String matchMode) {
+    final t = _normalizeTitle(title);
+    final s = _normalizeTitle(showTitle);
+    if (s.isEmpty) return false;
+    return matchMode == 'contains' ? t.contains(s) : t == s;
+  }
+
   Future<void> _checkSeasonPasses() async {
     final passes = _db.getAllSeasonPasses();
     if (passes.isEmpty) return;
-
-    final dns = playlistDns;
-    final username = playlistUsername;
-    final password = playlistPassword;
-
-    if (dns == null || username == null || password == null) {
-      print(
-        '[SeasonPass] Config playlist non disponible, vérification annulée',
-      );
-      return;
-    }
 
     print('[SeasonPass] Vérification de ${passes.length} Season Pass(s)...');
 
@@ -309,9 +355,28 @@ class RecordingScheduler {
         final streamUrl = pass['stream_url'] as String;
         final showTitle = pass['show_title'] as String;
         final userId = pass['user_id'] as String;
+        final matchMode = pass['match_mode'] as String? ?? 'contains';
 
-        // Récupérer l'EPG de la chaîne (48 prochaines heures)
-        final url = '$dns/player_api.php?username=$username&password=$password'
+        // Résoudre la playlist du PROPRIÉTAIRE du pass au moment du scan.
+        // L'ancienne config injectée au démarrage venait du premier utilisateur
+        // de la base et n'était jamais réactualisée : une playlist ajoutée
+        // après coup rendait les passes muets, et en multi-utilisateurs les
+        // credentials de l'un servaient aux passes d'un autre.
+        final playlists = _db.getPlaylists(userId);
+        if (playlists.isEmpty) {
+          print(
+            '[SeasonPass] Aucune playlist pour le propriétaire du pass '
+            '"$showTitle", scan ignoré',
+          );
+          continue;
+        }
+        final playlist = playlists.first;
+
+        // Récupérer l'EPG de la chaîne (les prochains programmes ; `limit`
+        // est un nombre de programmes, pas des heures)
+        final url =
+            '${playlist.serverUrl}/player_api.php?username=${playlist.username}'
+            '&password=${playlist.password}'
             '&action=get_simple_data_table&stream_id=$channelId&type=epg&limit=48';
 
         final response =
@@ -322,14 +387,14 @@ class RecordingScheduler {
         final listings =
             (raw is Map ? raw['epg_listings'] : raw) as List<dynamic>? ?? [];
 
+        var createdThisScan = 0;
         for (final item in listings) {
           String title = item['title'] as String? ?? '';
           try {
             title = utf8.decode(base64Decode(title));
           } catch (_) {}
 
-          // Vérifier si le titre correspond au Season Pass (insensible casse, recherche partielle)
-          if (!title.toLowerCase().contains(showTitle.toLowerCase())) continue;
+          if (!_titleMatches(title, showTitle, matchMode)) continue;
 
           // Parser les heures de début/fin
           final startStr = item['start'] as String? ?? '';
@@ -348,10 +413,29 @@ class RecordingScheduler {
           // Ne pas créer pour les programmes déjà terminés
           if (endTime.isBefore(DateTime.now().toUtc())) continue;
 
-          // Déduplication : vérifier si cet épisode est déjà planifié/enregistré
-          if (_db.existsRecordingForEpisode(title, startTime)) {
-            print('[SeasonPass] "$title" déjà enregistré, skip.');
+          // Déduplication : cet épisode est-il déjà planifié/enregistré ?
+          final existing = _db.findRecordingForEpisode(title, startTime);
+          if (existing != null) {
+            // Programme déplacé dans l'EPG depuis la planification :
+            // réaligner la fenêtre tant que la capture n'a pas commencé.
+            if (existing.status == 'scheduled' &&
+                (existing.startTime.toUtc() != startTime ||
+                    existing.endTime.toUtc() != endTime)) {
+              _db.updateRecordingWindow(existing.id, startTime, endTime);
+              print(
+                '[SeasonPass] "$title" réaligné sur le nouvel horaire '
+                '${startTime.toLocal()}',
+              );
+            }
             continue;
+          }
+
+          if (createdThisScan >= seasonPassMaxPerScan) {
+            print(
+              '[SeasonPass] Plafond de $seasonPassMaxPerScan créations atteint '
+              'pour "$showTitle" sur ce scan',
+            );
+            break;
           }
 
           // Créer l'enregistrement automatiquement
@@ -363,12 +447,18 @@ class RecordingScheduler {
             startTime: startTime,
             endTime: endTime,
           );
+          createdThisScan++;
           print(
             '[SeasonPass] ✓ Planifié automatiquement: "$title" le ${startTime.toLocal()}',
           );
         }
       } catch (e) {
-        print('[SeasonPass] Erreur pour le pass "${pass['show_title']}": $e');
+        // Ne jamais imprimer l'exception brute : une ClientException peut
+        // contenir l'URL amont avec les credentials Xtream.
+        print(
+          '[SeasonPass] Erreur pour le pass "${pass['show_title']}": '
+          '${LogRedactor.redactUrl('$e')}',
+        );
       }
     }
   }
@@ -391,6 +481,24 @@ class RecordingScheduler {
 
       // Nettoyer l'espace disque si nécessaire
       await _checkDiskSpaceAndRotate(recordingsDir);
+
+      // Refuser de démarrer sur un volume plein : mieux vaut un échec
+      // explicite immédiat qu'une capture qui meurt à mi-parcours.
+      final freeBytes = await _freeDiskBytes(recordingsDir.path);
+      if (freeBytes != null && freeBytes < minFreeDiskMb * 1024 * 1024) {
+        final freeMb = freeBytes ~/ (1024 * 1024);
+        print(
+          '[RecordingScheduler] Espace disque insuffisant ($freeMb Mo libres, '
+          'minimum $minFreeDiskMb Mo) : "${recording.title}" refusé',
+        );
+        _db.updateRecordingStatus(
+          recording.id,
+          'failed',
+          errorReason:
+              'Espace disque insuffisant ($freeMb Mo libres, minimum $minFreeDiskMb Mo)',
+        );
+        return;
+      }
 
       final filePath = p.join(recordingsDir.path, _fileNameFor(recording));
       final logPath = p.setExtension(filePath, '.log');
@@ -673,9 +781,11 @@ class RecordingScheduler {
     return false; // Pas d'enregistrement actif avec cet ID
   }
 
-  void _stopActiveRecording(String id, {String? reason}) {
+  /// Arrête l'enregistrement actif [id] et retourne la future de clôture
+  /// (fusion des parties + statut), ou null si aucun n'est actif.
+  Future<void>? _stopActiveRecording(String id, {String? reason}) {
     final active = _active.remove(id);
-    if (active == null) return;
+    if (active == null) return null;
     active.stopping = true;
     if (reason != null) {
       print('[RecordingScheduler] Arrêt: $reason (${active.recording.title})');
@@ -685,7 +795,9 @@ class RecordingScheduler {
     );
     active.process?.kill(ProcessSignal.sigterm);
     _db.updateRecordingStatus(id, 'completed');
-    unawaited(_finalizeStopped(active));
+    final closing = _finalizeStopped(active);
+    unawaited(closing);
+    return closing;
   }
 
   /// Attend la fin effective de FFmpeg puis clôture proprement (fusion + log).
@@ -709,7 +821,9 @@ class RecordingScheduler {
   }
 
   String _fileNameFor(Recording recording) {
-    // Génération d'un nom de fichier unique et sûr
+    // Génération d'un nom de fichier unique et sûr. Le fragment d'id garantit
+    // l'unicité : deux utilisateurs enregistrant le même programme sur la même
+    // chaîne s'écrasaient mutuellement (FFmpeg est lancé avec -y).
     final safeTitle =
         recording.title.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
     final dateStr = recording.startTime
@@ -717,7 +831,10 @@ class RecordingScheduler {
         .toIso8601String()
         .replaceAll(':', '')
         .split('.')[0];
-    return '${safeTitle}_$dateStr.mkv';
+    final idFragment = recording.id.length >= 8
+        ? recording.id.substring(0, 8)
+        : recording.id;
+    return '${safeTitle}_${dateStr}_$idFragment.mkv';
   }
 
   /// Chemin de la n-ième partie (la partie 1 étant le fichier principal).
@@ -755,27 +872,86 @@ class RecordingScheduler {
     } catch (_) {}
   }
 
-  Future<void> _checkDiskSpaceAndRotate(Directory dir) async {
-    // Cette fonction pourrait invoquer une commande système `df` ou simplement lister les fichiers
-    // et supprimer les plus anciens si un quota (ex: max 20 Go) est atteint.
-    // Pour l'implémentation initiale, nous pouvons lister et supprimer si plus de X fichiers
+  /// Espace libre (octets) sur le volume qui porte [path], ou null si `df`
+  /// n'est pas disponible.
+  Future<int?> _freeDiskBytes(String path) async {
     try {
-      const maxFiles = 50; // Nombre max d'enregistrements (exemple simpliste)
-      final files = dir.listSync().whereType<File>().toList();
+      final result = await Process.run('df', ['-B1', '--output=avail', path]);
+      if (result.exitCode != 0) return null;
+      final lines = (result.stdout as String).trim().split('\n');
+      return int.tryParse(lines.last.trim());
+    } catch (_) {
+      return null;
+    }
+  }
 
-      if (files.length > maxFiles) {
-        print(
-          '[RecordingScheduler] Rotation de l\'espace disque : suppression des anciens enregistrements',
-        );
-        files.sort(
-          (a, b) => a.statSync().modified.compareTo(b.statSync().modified),
-        ); // Du plus vieux au plus récent
+  /// Fichiers sur disque associés à un enregistrement : fichier principal,
+  /// log, et parties issues des relances.
+  List<String> filesFor(String filePath) {
+    final paths = <String>[filePath, p.setExtension(filePath, '.log')];
+    for (var attempt = 1;; attempt++) {
+      final part = _partPath(filePath, attempt);
+      if (!File(part).existsSync()) break;
+      paths.add(part);
+    }
+    return paths;
+  }
 
-        // Supprimer les plus anciens pour revenir sous la limite
-        final filesToDelete = files.take(files.length - maxFiles);
-        for (var file in filesToDelete) {
-          file.deleteSync();
+  /// Supprime les fichiers d'un enregistrement (appelé par l'API à la
+  /// suppression, et par la rotation disque).
+  Future<void> deleteRecordingFiles(String filePath) async {
+    for (final path in filesFor(filePath)) {
+      await _deleteQuietly(path);
+    }
+  }
+
+  /// Rotation par quota d'octets (env RECORDINGS_QUOTA_GB, 0 = désactivée).
+  ///
+  /// Remplace l'ancienne rotation « max 50 fichiers » qui supprimait les plus
+  /// anciens fichiers du dossier sans distinction : elle pouvait effacer une
+  /// partie en cours d'écriture par FFmpeg et laissait en base des lignes
+  /// pointant vers des fichiers disparus. Ici on ne supprime que des
+  /// enregistrements TERMINÉS connus de la base, du plus ancien au plus
+  /// récent, fichiers et ligne BDD ensemble, jamais un enregistrement actif.
+  Future<void> _checkDiskSpaceAndRotate(Directory dir) async {
+    if (recordingsQuotaGb <= 0) return;
+    try {
+      final quotaBytes = recordingsQuotaGb * 1024 * 1024 * 1024;
+      var totalBytes = 0;
+      await for (final entity in dir.list()) {
+        if (entity is File) {
+          try {
+            totalBytes += await entity.length();
+          } catch (_) {}
         }
+      }
+      if (totalBytes <= quotaBytes) return;
+
+      print(
+        '[RecordingScheduler] Quota disque dépassé '
+        '(${totalBytes ~/ (1024 * 1024)} Mo > $recordingsQuotaGb Go) : '
+        'rotation des enregistrements terminés les plus anciens',
+      );
+
+      for (final old in _db.getFinishedRecordingsOldestFirst()) {
+        if (totalBytes <= quotaBytes) break;
+        final path = old.filePath;
+        if (path == null) continue;
+        // Jamais un enregistrement encore capturé (statut périmé en base).
+        if (_active.containsKey(old.id)) continue;
+        var freed = 0;
+        for (final f in filesFor(path)) {
+          try {
+            freed += File(f).existsSync() ? File(f).lengthSync() : 0;
+          } catch (_) {}
+        }
+        await deleteRecordingFiles(path);
+        _db.deleteRecording(old.id);
+        totalBytes -= freed;
+        print(
+          '[RecordingScheduler] Rotation : "${old.title}" supprimé '
+          '(${freed ~/ (1024 * 1024)} Mo libérés)',
+        );
       }
     } catch (e) {
       print(
