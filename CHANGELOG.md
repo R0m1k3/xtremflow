@@ -2,6 +2,14 @@
 
 ## Non publié
 
+### ✨ Fonctionnalités
+- **Guide TV et Season Passes de retour** : l'onglet Enregistrements retrouve ses 3 vues (Guide TV pour programmer depuis l'EPG, liste des enregistrements, Season Passes) — le code existait mais n'était plus branché depuis une refonte
+- **Favoris enfin utilisables** : bouton cœur sur les tuiles chaînes (desktop et mobile) ; le filtre « Favoris » affichait toujours vide faute de moyen d'en ajouter
+- **Reprise de lecture** : films et épisodes reprennent où on s'était arrêté (les positions étaient sauvegardées mais jamais relues) ; le live ne pollue plus le stockage de positions
+- **Enregistrements sur mobile** : nouvel onglet REC dans la barre de navigation ; les onglets mobiles conservent leur état (IndexedStack) au lieu d'être reconstruits à chaque bascule
+- **Menu profil** sur l'avatar de la sidebar : nom d'utilisateur + déconnexion (le bouton était mort, aucune déconnexion possible depuis le dashboard)
+- **Confirmation avant suppression** d'un enregistrement, et messages d'erreur avec bouton « Réessayer » (chaînes, enregistrements) au lieu d'exceptions brutes
+
 ### 📺 Enregistrements
 - La liste des enregistrements se met à jour automatiquement : rafraîchissement immédiat dès qu'un enregistrement est créé/arrêté n'importe où dans l'app (guide EPG, modal, widget rapide), et polling en arrière-plan (5 s quand un enregistrement est en cours ou planifié, 20 s sinon) pour suivre les statuts sans clic manuel
 - Indicateur « Suivi auto » avec heure de dernière actualisation dans l'onglet Enregistrements

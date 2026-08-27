@@ -335,7 +335,7 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
   }
 }
 
-class _MobileChannelTile extends StatelessWidget {
+class _MobileChannelTile extends ConsumerWidget {
   final Channel channel;
   final VoidCallback onTap;
 
@@ -345,7 +345,10 @@ class _MobileChannelTile extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Sans ce bouton, aucun moyen d'ajouter un favori : le filtre « Favoris »
+    // de l'en-tête affichait toujours une liste vide.
+    final isFav = ref.watch(favoritesProvider).contains(channel.streamId);
     final iconUrl =
         channel.streamIcon.isNotEmpty && channel.streamIcon.startsWith('http')
             ? '/api/xtream/${channel.streamIcon}'
@@ -392,6 +395,18 @@ class _MobileChannelTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: isFav ? 'Retirer des favoris' : 'Ajouter aux favoris',
+                icon: Icon(
+                  isFav ? Icons.favorite : Icons.favorite_border,
+                  color: isFav ? AppColors.primary : AppColors.onSurface54,
+                  size: 20,
+                ),
+                onPressed: () => ref
+                    .read(favoritesProvider.notifier)
+                    .toggleFavorite(channel.streamId),
               ),
               Container(
                 padding: const EdgeInsets.all(8),
