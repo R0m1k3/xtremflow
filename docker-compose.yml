@@ -13,8 +13,11 @@ services:
       # Pour changer: modifiez le chemin avant les deux points ":"
       # Exemple Windows : - D:\MesVideos\TV:/app/recordings
       # Exemple Linux   : - /mnt/nas/videos:/app/recordings
-      - ${RECORDINGS_PATH:-/mnt/user/Data/Sport}:/app/recordings
+      - ${RECORDINGS_PATH:-./data/recordings}:/app/recordings
     environment:
+      # Fuseau horaire du conteneur (affichage des logs ; les enregistrements
+      # sont stockés en UTC quoi qu'il arrive)
+      - TZ=${TZ:-Europe/Paris}
       # Origine externe autorisée pour CORS (optionnel — l'app est servie
       # same-origin, ne définir que si un autre domaine doit appeler l'API)
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-}

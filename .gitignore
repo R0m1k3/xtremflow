@@ -49,4 +49,7 @@ app.*.map.json
 # Hive data (local development)
 *.hive
 *.lock
+# Les lockfiles pub sont versionnés : sans eux, chaque build Docker/CI
+# résout des versions différentes (builds non reproductibles).
+!pubspec.lock
 .claude/settings.local.json

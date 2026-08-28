@@ -2,6 +2,13 @@
 
 ## Non publié
 
+### 🧰 Qualité / Infra
+- **Builds reproductibles** : `pubspec.lock` (frontend et backend) désormais versionnés et utilisés par le Dockerfile — chaque build résolvait jusqu'ici des versions fraîches
+- **CI durcie** : versions Flutter/Dart épinglées, cache pub, annulation des runs obsolètes (`concurrency`) ; `docker-publish` ne publie plus `:latest` qu'après une CI verte sur main (il tournait en parallèle et pouvait publier une image cassée)
+- **docker-compose** : défaut `RECORDINGS_PATH` porté à `./data/recordings` (l'ancien défaut était un chemin unRAID spécifique à une machine), variable `TZ` ajoutée
+- **README réécrit** : il décrivait une architecture disparue (Hive/IndexedDB, SHA-256, dhttpd port 8080) — remplacé par l'état réel (SQLite serveur, bcrypt, binaire natif port 8089, enregistrements, CI)
+- `DEPLOYMENT_CHECKLIST.md` archivé et avertissement ajouté sur `docs/archive/` (plusieurs documents s'y déclarent « COMPLETE » à tort)
+
 ### ✨ Fonctionnalités
 - **Guide TV et Season Passes de retour** : l'onglet Enregistrements retrouve ses 3 vues (Guide TV pour programmer depuis l'EPG, liste des enregistrements, Season Passes) — le code existait mais n'était plus branché depuis une refonte
 - **Favoris enfin utilisables** : bouton cœur sur les tuiles chaînes (desktop et mobile) ; le filtre « Favoris » affichait toujours vide faute de moyen d'en ajouter
