@@ -270,8 +270,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           });
         }
 
-        // Update watch history if relevant
-        if (currentTime > 0) {
+        // Update watch history if relevant. Jamais en live : la « position »
+        // d'un flux continu n'a pas de sens et polluait le stockage avec une
+        // entrée bidon par chaîne zappée.
+        if (currentTime > 0 && widget.streamType != StreamType.live) {
           ref.read(playbackPositionsProvider.notifier).savePosition(
                 widget.streamId,
                 currentTime,

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/playlist_config.dart';
 import '../models/xtream_models.dart';
 import '../providers/xtream_provider.dart';
+import '../providers/playback_positions_provider.dart';
 import '../providers/watch_history_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import 'player_screen.dart';
@@ -287,7 +288,14 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
           }
            
           if (!context.mounted) return;
-          
+
+          // Reprise de lecture : le player sauvegarde la position sous
+          // episode.id, on la relit ici pour reprendre où on s'était arrêté.
+          final positions = ref.read(playbackPositionsProvider);
+          final resumeAt = positions.hasPosition(episode.id)
+              ? positions.getPosition(episode.id)
+              : null;
+
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -298,6 +306,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 streamType: StreamType.series,
                 containerExtension: episode.containerExtension ?? 'mkv',
                 duration: episodeDuration,
+                startTime: resumeAt,
               ),
             ),
           );

@@ -3,6 +3,7 @@ import 'package:shelf/shelf.dart';
 import 'package:http/http.dart' as http;
 import '../models/playlist_config.dart';
 import '../services/xmltv_epg_service.dart';
+import '../utils/log_redactor.dart';
 
 /// API EPG — proxy vers Xtream avec cache 30 minutes
 /// GET /api/epg/<channel_id>?days=1
@@ -112,8 +113,11 @@ class EpgApi {
         },
       );
     } catch (e) {
+      // Détail redacté en log uniquement : une ClientException Dart contient
+      // l'URI amont, credentials Xtream inclus.
+      print('[EpgApi] Erreur EPG: ${LogRedactor.redactUrl('$e')}');
       return Response.internalServerError(
-        body: json.encode({'error': 'Erreur lors de la récupération EPG: $e'}),
+        body: json.encode({'error': 'Erreur lors de la récupération EPG'}),
         headers: {'Content-Type': 'application/json'},
       );
     }
@@ -258,7 +262,12 @@ class EpgApi {
 
       return {'channel_id': channelId, 'programmes': programmes};
     } catch (e) {
-      return {'channel_id': channelId, 'programmes': [], 'error': e.toString()};
+      print('[EpgApi] Erreur panneau pour $channelId: ${LogRedactor.redactUrl('$e')}');
+      return {
+        'channel_id': channelId,
+        'programmes': [],
+        'error': 'EPG indisponible',
+      };
     }
   }
 
