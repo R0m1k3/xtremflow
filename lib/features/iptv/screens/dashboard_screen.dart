@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/glass_container.dart';
@@ -200,13 +201,61 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
                   const Spacer(),
 
-                  // Settings / Profile
+                  // Profil : nom d'utilisateur + déconnexion. L'avatar était
+                  // un bouton mort (onTap vide) — aucune déconnexion possible
+                  // depuis le dashboard desktop.
                   Padding(
                     padding: const EdgeInsets.only(bottom: 24),
-                    child: TvFocusableCard(
-                      onTap: () {},
-                      borderRadius: 50,
-                      scaleFactor: 1.1,
+                    child: PopupMenuButton<String>(
+                      tooltip: 'Profil',
+                      color: AppColors.surfaceContainerHigh,
+                      offset: const Offset(56, -12),
+                      itemBuilder: (context) => [
+                        PopupMenuItem<String>(
+                          enabled: false,
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.person,
+                                size: 18,
+                                color: AppColors.textSecondary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                ref.read(authProvider).currentUser?.username ??
+                                    'Utilisateur',
+                                style: const TextStyle(
+                                  color: AppColors.onSurface,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuDivider(),
+                        const PopupMenuItem<String>(
+                          value: 'logout',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.logout,
+                                size: 18,
+                                color: AppColors.textSecondary,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'Déconnexion',
+                                style: TextStyle(color: AppColors.onSurface),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      onSelected: (value) {
+                        if (value == 'logout') {
+                          ref.read(authProvider.notifier).logout();
+                        }
+                      },
                       child: const CircleAvatar(
                         radius: 20,
                         backgroundColor: AppColors.surfaceContainerHigh,

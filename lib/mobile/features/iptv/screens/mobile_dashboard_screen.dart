@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/playlist_config.dart';
 import '../../../widgets/mobile_scaffold.dart';
 import '../../../theme/mobile_theme.dart';
+import '../../../../features/iptv/widgets/recordings_tab.dart';
 import '../widgets/mobile_live_tv_tab.dart';
 import '../widgets/mobile_movies_tab.dart';
 import '../widgets/mobile_series_tab.dart';
@@ -34,23 +35,20 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
             _currentIndex = index;
           });
         },
-        child: _buildActiveTab(),
+        // IndexedStack conserve l'état des onglets (position de scroll,
+        // catalogues chargés) : l'ancien switch reconstruisait tout à chaque
+        // changement d'onglet. Même approche que le dashboard desktop.
+        child: IndexedStack(
+          index: _currentIndex,
+          children: [
+            MobileLiveTVTab(playlist: widget.playlist),
+            MobileMoviesTab(playlist: widget.playlist),
+            MobileSeriesTab(playlist: widget.playlist),
+            RecordingsTab(playlist: widget.playlist),
+            const MobileSettingsTab(),
+          ],
+        ),
       ),
     );
-  }
-
-  Widget _buildActiveTab() {
-    switch (_currentIndex) {
-      case 0:
-        return MobileLiveTVTab(playlist: widget.playlist);
-      case 1:
-        return MobileMoviesTab(playlist: widget.playlist);
-      case 2:
-        return MobileSeriesTab(playlist: widget.playlist);
-      case 3:
-        return const MobileSettingsTab();
-      default:
-        return MobileLiveTVTab(playlist: widget.playlist);
-    }
   }
 }
