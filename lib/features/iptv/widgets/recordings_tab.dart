@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/api/authed_http.dart';
+import '../../../core/api/recording_requests.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
@@ -649,16 +650,15 @@ class _ProgrammeCard extends StatelessWidget {
     DateTime end,
   ) async {
     try {
-      final response = await AuthedHttp.post(
-        Uri.parse('/api/recordings'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'channel_id': channel.streamId,
-          'stream_url': '/api/live/${channel.streamId}.ts',
-          'title': title,
-          'start_time': start.toIso8601String(),
-          'end_time': end.toIso8601String(),
-        }),
+      // Les horaires EPG sont des heures UTC naïves : wallClockIsUtc les
+      // re-tague sans décalage (l'ancien envoi naïf était interprété dans le
+      // fuseau du serveur → enregistrement décalé de 1-2 h).
+      final response = await postRecording(
+        channelId: channel.streamId,
+        title: title,
+        start: start,
+        end: end,
+        wallClockIsUtc: true,
       );
       if (response.statusCode == 200) notifyRecordingsChanged();
       if (context.mounted) {
@@ -1001,6 +1001,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
         'recording' => AppColors.live,
         'completed' => AppColors.success,
         'failed' => AppColors.warning,
+        'cancelled' => AppColors.onSurface38,
         _ => AppColors.primaryContainer,
       };
 
@@ -1009,8 +1010,19 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
         'recording' => '● En cours',
         'completed' => 'Terminé',
         'failed' => 'Échoué',
+        'cancelled' => 'Annulé',
         _ => status,
       };
+
+  String _fmtSize(int bytes) {
+    if (bytes >= 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} Go';
+    }
+    if (bytes >= 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(0)} Mo';
+    }
+    return '${(bytes / 1024).toStringAsFixed(0)} Ko';
+  }
 
   String _fmtDate(dynamic raw) {
     if (raw == null) return '?';
@@ -1138,12 +1150,34 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        '${_fmtDate(rec['start_time'])} → ${_fmtDate(rec['end_time'])}',
+                                        '${_fmtDate(rec['start_time'])} → ${_fmtDate(rec['end_time'])}'
+                                        '${rec['file_size_bytes'] is int ? ' · ${_fmtSize(rec['file_size_bytes'] as int)}' : ''}',
                                         style: const TextStyle(
                                           color: AppColors.onSurface54,
                                           fontSize: 12,
                                         ),
                                       ),
+                                      if (status == 'recording' &&
+                                          rec['progress_pct'] is int) ...[
+                                        const SizedBox(height: 6),
+                                        ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(3),
+                                          child: LinearProgressIndicator(
+                                            value:
+                                                (rec['progress_pct'] as int) /
+                                                    100,
+                                            minHeight: 4,
+                                            backgroundColor: AppColors
+                                                .onSurface
+                                                .withOpacity(0.1),
+                                            valueColor:
+                                                const AlwaysStoppedAnimation(
+                                              AppColors.live,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                       if (rec['error_reason'] != null)
                                         Text(
                                           '⚠ ${rec['error_reason']}',
