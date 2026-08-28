@@ -165,7 +165,9 @@ class FfmpegSessionManager {
               '${session.recentStderr.join().trim()}'
         );
       }
-      await Future.delayed(const Duration(milliseconds: 500));
+      // 100 ms : à 500 ms, on ajoutait en moyenne un quart de seconde de
+      // latence pure entre la disponibilité de la playlist et sa réponse.
+      await Future.delayed(const Duration(milliseconds: 100));
     }
     return (ready: false, error: 'Timeout waiting for transcoder');
   }

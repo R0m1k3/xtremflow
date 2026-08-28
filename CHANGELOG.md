@@ -2,6 +2,12 @@
 
 ## Non publié
 
+### ▶️ Lecture vidéo
+- **Fix du son manquant sur certaines chaînes** : nouvelle route `/api/live/<id>/turbo.ts` pour le zapping — vidéo copiée telle quelle, audio systématiquement réencodé en AAC côté serveur. Les chaînes en AC-3/E-AC-3/MP2 (que mpegts.js ne décode pas) ont maintenant du son, sans coût de transcodage vidéo
+- **Players mis à jour** : hls.js 1.6.7 → 1.7.1, mpegts.js 1.7.3 → 1.8.2 (vendorisés)
+- **Démarrage plus rapide** : sonde FFmpeg bornée (`-fflags nobuffer`, probesize réduit) sur le live et le turbo ; probesize VOD 10 Mo → 5 Mo ; preset live `high` et lecture d'enregistrement en `veryfast` (medium ne tenait pas le temps réel) ; détection de playlist toutes les 100 ms au lieu de 500 ms ; suppression du cache-buster qui re-téléchargeait player.html à chaque zap (les .html passent en no-cache serveur)
+- **Latence live maîtrisée** : rattrapage du direct activé dans mpegts.js (profil rapide) — les micro-coupures ne font plus dériver la lecture derrière le direct
+
 ### 🧰 Qualité / Infra
 - **Builds reproductibles** : `pubspec.lock` (frontend et backend) désormais versionnés et utilisés par le Dockerfile — chaque build résolvait jusqu'ici des versions fraîches
 - **CI durcie** : versions Flutter/Dart épinglées, cache pub, annulation des runs obsolètes (`concurrency`) ; `docker-publish` ne publie plus `:latest` qu'après une CI verte sur main (il tournait en parallèle et pouvait publier une image cassée)

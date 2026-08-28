@@ -94,7 +94,11 @@ List<String> _liveVideoArgs(String quality, bool gpu) {
               '-g', '50',
             ]
           : [
-              '-c:v', 'libx264', '-preset', 'medium', '-tune', 'zerolatency',
+              // veryfast au lieu de medium : en live, l'encodeur doit tenir
+              // le temps réel ET produire le premier segment vite ; medium
+              // ajoutait plusieurs secondes au zap sans gain visible à ce
+              // débit.
+              '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'zerolatency',
               '-profile:v', 'high', '-level', '4.0',
               '-b:v', '6000k', '-maxrate', '8000k', '-bufsize', '12000k',
               '-pix_fmt', 'yuv420p', '-g', '50',
@@ -318,6 +322,11 @@ Handler createLiveStreamHandler(
         // Abort reads stuck for 30s so a stalled upstream triggers the
         // reconnect logic instead of wedging the process forever.
         '-rw_timeout', '30000000',
+        // Démarrage rapide : sans borne, FFmpeg peut passer plusieurs
+        // secondes à sonder le flux avant d'écrire le premier segment.
+        '-fflags', 'nobuffer',
+        '-probesize', '1000000',
+        '-analyzeduration', '1000000',
         '-i', targetUrl,
         ..._liveVideoArgs(quality, useNvidiaGpu),
         ..._audioArgs(withFilters: false),
@@ -362,6 +371,85 @@ Handler createLiveStreamHandler(
     final quality =
         _sanitizeQuality(request.url.queryParameters['quality']);
     return Response.found('/api/live/$streamId/$quality/playlist.m3u8');
+  });
+
+  // Route: /api/live/{streamId}/turbo.ts — flux MPEG-TS continu pour le
+  // player web (mpegts.js) : vidéo copiée telle quelle, audio TOUJOURS
+  // réencodé en AAC.
+  //
+  // POURQUOI : mpegts.js ne démuxe que l'AAC et le MP3. Les chaînes qui
+  // diffusent en AC-3/E-AC-3 (0x81/0x87) ou en MPEG-1 Layer II passaient par
+  // le proxy brut → image sans aucun son. Le réencodage audio seul coûte
+  // quelques % de CPU (pas de transcodage vidéo) et garde le zapping
+  // instantané : un seul flux continu, pas de segmentation HLS à amorcer.
+  //
+  // Latence : -fflags nobuffer + probesize réduit → première image en
+  // ~0,5-1,5 s au lieu des 2-6 s d'analyse par défaut de FFmpeg.
+  router.get('/<streamId>/turbo.ts', (Request request, String streamId) async {
+    if (!_isValidStreamId(streamId)) {
+      return Response.badRequest(body: 'Invalid stream ID');
+    }
+    final playlist = await getPlaylist(request);
+    if (playlist == null) return Response.forbidden('No playlist');
+
+    final targetUrl =
+        '${playlist.dns}/live/${playlist.username}/${playlist.password}/$streamId.ts';
+    print(
+      '[Live Turbo] $streamId: ${LogRedactor.redactUrl(targetUrl)}',
+    );
+
+    final process = await Process.start(_getFFmpegPath(), [
+      '-hide_banner', '-loglevel', 'warning',
+      '-headers', 'User-Agent: VLC/3.0.18 LibVLC/3.0.18\r\n',
+      '-reconnect', '1', '-reconnect_streamed', '1',
+      '-reconnect_at_eof', '1',
+      '-reconnect_delay_max', '10',
+      '-rw_timeout', '30000000',
+      // Démarrage rapide : ne pas bufferiser l'analyse, sonde réduite.
+      '-fflags', 'nobuffer',
+      '-flags', 'low_delay',
+      '-probesize', '1000000',
+      '-analyzeduration', '1000000',
+      '-i', targetUrl,
+      '-c:v', 'copy',
+      '-c:a', 'aac', '-b:a', '160k', '-ac', '2', '-ar', '48000',
+      '-af', 'aresample=async=1',
+      // Pas de délai de mux : les paquets partent dès qu'ils existent.
+      '-muxdelay', '0', '-muxpreload', '0',
+      '-f', 'mpegts', 'pipe:1',
+    ]);
+
+    // Journaliser les erreurs FFmpeg (redactées) sans bloquer le flux.
+    process.stderr.transform(const SystemEncoding().decoder).listen((line) {
+      final trimmed = line.trim();
+      if (trimmed.isNotEmpty) {
+        print('[Live Turbo] $streamId ffmpeg: '
+            '${LogRedactor.redactUrl(trimmed)}');
+      }
+    });
+
+    // Relayer stdout vers le client ; tuer FFmpeg dès que le client zappe
+    // ou ferme l'onglet (sinon les processus s'accumulent à chaque zap).
+    final controller = StreamController<List<int>>();
+    final subscription = process.stdout.listen(
+      controller.add,
+      onError: controller.addError,
+      onDone: controller.close,
+    );
+    controller.onCancel = () {
+      subscription.cancel();
+      process.kill(ProcessSignal.sigterm);
+    };
+
+    return Response(
+      200,
+      body: controller.stream,
+      headers: {
+        'Content-Type': 'video/mp2t',
+        'Cache-Control': 'no-store',
+        'Connection': 'keep-alive',
+      },
+    );
   });
 
   // Route: /api/live/{streamId}.ts (Direct Proxy for recordings/raw playback)
@@ -464,8 +552,11 @@ Handler createVodStreamHandler(
         '-reconnect_delay_max', '10',
         '-rw_timeout', '30000000',
         '-timeout', '30000000',
-        '-analyzeduration', '5000000',
-        '-probesize', '10000000',
+        // Sonde réduite (10 Mo → 5 Mo) : sur un upstream lent, télécharger
+        // 10 Mo avant la première image ajoutait plusieurs secondes au
+        // démarrage de chaque film.
+        '-analyzeduration', '2000000',
+        '-probesize', '5000000',
         '-i', targetUrl,
         ..._vodVideoArgs(quality, useNvidiaGpu),
         ..._audioArgs(withFilters: quality != 'source'),
@@ -586,7 +677,11 @@ Handler createRecordingStreamHandler(
           '-bufsize', '6000k',
           '-g', '48', '-bf', '2', '-pix_fmt', 'yuv420p',
         ] else ...[
-          '-c:v', 'libx264', '-preset', 'medium', '-crf', '18',
+          // veryfast/crf 20 au lieu de medium/crf 18 : à ce niveau le rendu
+          // est visuellement identique, mais medium ne tenait pas le temps
+          // réel en 1080p sur un CPU modeste → lecture d'enregistrement qui
+          // démarre lentement puis bufferise.
+          '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
           '-maxrate', '12000k', '-bufsize', '24000k', '-pix_fmt', 'yuv420p',
           '-g', '48', '-threads', '0',
         ],

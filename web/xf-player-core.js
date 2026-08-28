@@ -284,7 +284,13 @@
         // 64 Ko en profil « fast » contre 512 Ko auparavant.
         stashInitialSize: this.profile.mpegtsStash,
         maxStashSize: 30 * 1024 * 1024,
-        liveBufferLatencyChasing: false,
+        // Rattrapage du direct : sans lui, chaque micro-coupure fait dériver
+        // la lecture derrière le direct (latence qui s'accumule). Activé
+        // uniquement en profil « fast » — les profils élargis privilégient
+        // la stabilité du buffer.
+        liveBufferLatencyChasing: isLive && this.profile.name === 'fast',
+        liveBufferLatencyMaxLatency: 5,
+        liveBufferLatencyMinRemain: 1,
         lazyLoad: false
       }
     );
@@ -341,13 +347,15 @@
     this._attemptPlay();
   };
 
-  /// `/api/live/<id>.ts` → `/api/live/<id>/source/playlist.m3u8`.
+  /// `/api/live/<id>/turbo.ts` (ou l'ancien `/api/live/<id>.ts`)
+  /// → `/api/live/<id>/source/playlist.m3u8`.
   ///
-  /// Le préréglage `source` garde la vidéo en copie de flux (`-c:v copy`) :
-  /// seul l'audio est réencodé, le coût processeur reste négligeable.
+  /// Filet de sécurité : la route turbo réencode déjà l'audio en AAC côté
+  /// serveur, donc ce fallback ne devrait plus jamais se déclencher — il
+  /// reste pour couvrir un flux sans piste audio exploitable du tout.
   /// Renvoie `null` si l'URL n'est pas un flux live direct — rien à tenter.
   XFPlayer.prototype._hlsEquivalent = function (url) {
-    var match = /^(.*\/api\/live\/)([^/?#]+)\.ts(\?.*)?$/.exec(url);
+    var match = /^(.*\/api\/live\/)([^/?#]+)(?:\/turbo)?\.ts(\?.*)?$/.exec(url);
     if (!match) return null;
     return match[1] + match[2] + '/source/playlist.m3u8';
   };
