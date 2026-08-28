@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:uuid/uuid.dart';
 import '../models/user.dart';
@@ -23,8 +24,66 @@ class AppDatabase {
 
     _db = sqlite3.open(dbPath);
 
+    // Sans foreign_keys, les ON DELETE CASCADE déclarés dans le schéma sont
+    // ignorés par SQLite : supprimer un utilisateur laissait ses sessions
+    // (donc des jetons valides), playlists et enregistrements orphelins.
+    _db.execute('PRAGMA foreign_keys = ON');
+    _db.execute('PRAGMA journal_mode = WAL');
+    _db.execute('PRAGMA busy_timeout = 5000');
+
     await _createTables();
+    _runMigrations();
     print('Database initialized: $dbPath');
+  }
+
+  /// Migrations de schéma pour les bases créées par une version antérieure.
+  ///
+  /// `CREATE TABLE IF NOT EXISTS` n'ajoute jamais de colonne à une table
+  /// existante : chaque colonne introduite après coup doit avoir sa migration.
+  /// Les migrations sont numérotées et rejouées uniquement si nécessaire.
+  void _runMigrations() {
+    _db.execute('''
+      CREATE TABLE IF NOT EXISTS schema_version (
+        version INTEGER PRIMARY KEY
+      )
+    ''');
+
+    final result = _db.select(
+      'SELECT COALESCE(MAX(version), 0) AS v FROM schema_version',
+    );
+    var current = result.first['v'] as int;
+
+    final migrations = <int, void Function()>{
+      // v1 : colonne error_reason absente des bases d'avant son introduction.
+      1: () => _addColumnIfMissing('tv_recordings', 'error_reason', 'TEXT'),
+      // v2 : mode de correspondance des season passes. 'contains' pour les
+      // lignes existantes (comportement historique) ; les nouvelles créations
+      // passent par l'API qui choisit 'exact' par défaut.
+      2: () => _addColumnIfMissing(
+            'season_passes',
+            'match_mode',
+            "TEXT NOT NULL DEFAULT 'contains'",
+          ),
+    };
+
+    for (final entry in migrations.entries) {
+      if (entry.key <= current) continue;
+      entry.value();
+      _db.execute(
+        'INSERT INTO schema_version (version) VALUES (?)',
+        [entry.key],
+      );
+      current = entry.key;
+      print('[DB] Migration v${entry.key} appliquée');
+    }
+  }
+
+  void _addColumnIfMissing(String table, String column, String definition) {
+    final columns = _db.select('PRAGMA table_info($table)');
+    final exists = columns.any((row) => row['name'] == column);
+    if (!exists) {
+      _db.execute('ALTER TABLE $table ADD COLUMN $column $definition');
+    }
   }
 
   /// Create database tables
@@ -107,6 +166,7 @@ class AppDatabase {
         channel_id TEXT NOT NULL,
         stream_url TEXT NOT NULL,
         enabled INTEGER DEFAULT 1,
+        match_mode TEXT NOT NULL DEFAULT 'exact',
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
@@ -125,16 +185,32 @@ class AppDatabase {
     _db.execute(
       'CREATE INDEX IF NOT EXISTS idx_recordings_status ON tv_recordings(status)',
     );
+    _db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_recordings_user ON tv_recordings(user_id)',
+    );
+    _db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_recordings_start ON tv_recordings(start_time)',
+    );
+    _db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_season_passes_user ON season_passes(user_id)',
+    );
   }
 
-  /// Seed default admin user if no users exist
+  /// Seed default admin user if no users exist.
+  ///
+  /// Le mot de passe initial vient de ADMIN_INITIAL_PASSWORD, ou est généré
+  /// aléatoirement et affiché UNE FOIS dans les logs de démarrage. L'ancien
+  /// couple admin/admin restait souvent en place sur les instances exposées.
   Future<void> seedAdmin() async {
     final result = _db.select('SELECT COUNT(*) as count FROM users');
     final count = result.first['count'] as int;
 
     if (count == 0) {
       final adminId = _uuid.v4();
-      final passwordHash = PasswordHasher.hash('admin');
+      final envPassword = Platform.environment['ADMIN_INITIAL_PASSWORD'];
+      final generated = envPassword == null || envPassword.isEmpty;
+      final password = generated ? _generatePassword() : envPassword;
+      final passwordHash = PasswordHasher.hash(password);
 
       _db.execute(
         '''
@@ -144,8 +220,32 @@ class AppDatabase {
         [adminId, 'admin', passwordHash],
       );
 
-      print('Default admin user created (username: admin, password: admin)');
+      if (generated) {
+        print('╔══════════════════════════════════════════════════════════╗');
+        print('  Compte admin créé — mot de passe initial (affiché une');
+        print('  seule fois, changez-le après la première connexion) :');
+        print('  utilisateur: admin');
+        print('  mot de passe: $password');
+        print('╚══════════════════════════════════════════════════════════╝');
+      } else {
+        print(
+          'Default admin user created (username: admin, '
+          'password: ADMIN_INITIAL_PASSWORD)',
+        );
+      }
     }
+  }
+
+  static String _generatePassword({int length = 16}) {
+    // Sans caractères ambigus (0/O, 1/l/I) : le mot de passe est recopié
+    // depuis les logs du conteneur.
+    const chars =
+        'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    final random = Random.secure();
+    return List.generate(
+      length,
+      (_) => chars[random.nextInt(chars.length)],
+    ).join();
   }
 
   // ==================== Users ====================
@@ -473,6 +573,11 @@ class AppDatabase {
     final recordingId = _uuid.v4();
     final now = DateTime.now().toIso8601String();
 
+    // Toujours stocker en UTC avec suffixe 'Z' : les comparaisons du scheduler
+    // et la déduplication des season passes reposent sur ce format unique.
+    final startUtc = startTime.toUtc();
+    final endUtc = endTime.toUtc();
+
     _db.execute(
       '''
       INSERT INTO tv_recordings (id, user_id, channel_id, stream_url, title, start_time, end_time, created_at, updated_at)
@@ -484,8 +589,8 @@ class AppDatabase {
         channelId,
         streamUrl,
         title,
-        startTime.toIso8601String(),
-        endTime.toIso8601String(),
+        startUtc.toIso8601String(),
+        endUtc.toIso8601String(),
         now,
         now,
       ],
@@ -497,18 +602,38 @@ class AppDatabase {
       channelId: channelId,
       streamUrl: streamUrl,
       title: title,
-      startTime: startTime,
-      endTime: endTime,
+      startTime: startUtc,
+      endTime: endUtc,
       status: 'scheduled',
       createdAt: DateTime.parse(now),
       updatedAt: DateTime.parse(now),
     );
   }
 
-  /// Lister tous les enregistrements (pour le Scheduler et l'admin)
+  /// Lister tous les enregistrements (pour l'admin)
   List<Recording> getAllRecordings() {
     final result =
         _db.select('SELECT * FROM tv_recordings ORDER BY start_time ASC');
+    return result.map((row) => Recording.fromMap(row)).toList();
+  }
+
+  /// Enregistrements qui intéressent le scheduler : à lancer ou en cours.
+  /// Évite de désérialiser tout l'historique toutes les 10 secondes.
+  List<Recording> getPendingRecordings() {
+    final result = _db.select(
+      "SELECT * FROM tv_recordings WHERE status IN ('scheduled', 'recording') "
+      'ORDER BY start_time ASC',
+    );
+    return result.map((row) => Recording.fromMap(row)).toList();
+  }
+
+  /// Enregistrements terminés (completed/failed/cancelled) du plus ancien au
+  /// plus récent — utilisé par la rotation disque.
+  List<Recording> getFinishedRecordingsOldestFirst() {
+    final result = _db.select(
+      "SELECT * FROM tv_recordings WHERE status IN ('completed', 'failed', 'cancelled') "
+      'ORDER BY start_time ASC',
+    );
     return result.map((row) => Recording.fromMap(row)).toList();
   }
 
@@ -551,6 +676,24 @@ class AppDatabase {
     );
   }
 
+  /// Réaligner la fenêtre d'un enregistrement planifié (programme déplacé
+  /// dans l'EPG depuis sa création par un season pass).
+  void updateRecordingWindow(String id, DateTime start, DateTime end) {
+    _db.execute(
+      '''
+      UPDATE tv_recordings
+      SET start_time = ?, end_time = ?, updated_at = ?
+      WHERE id = ?
+    ''',
+      [
+        start.toUtc().toIso8601String(),
+        end.toUtc().toIso8601String(),
+        DateTime.now().toIso8601String(),
+        id,
+      ],
+    );
+  }
+
   /// Supprimer un enregistrement depuis la BDD (ne supprime pas le fichier)
   void deleteRecording(String id) {
     _db.execute('DELETE FROM tv_recordings WHERE id = ?', [id]);
@@ -564,12 +707,13 @@ class AppDatabase {
     required String showTitle,
     required String channelId,
     required String streamUrl,
+    String matchMode = 'exact',
   }) {
     final id = _uuid.v4();
     final now = DateTime.now().toIso8601String();
     _db.execute(
-      'INSERT INTO season_passes (id, user_id, show_title, channel_id, stream_url, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [id, userId, showTitle, channelId, streamUrl, now],
+      'INSERT INTO season_passes (id, user_id, show_title, channel_id, stream_url, match_mode, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [id, userId, showTitle, channelId, streamUrl, matchMode, now],
     );
     return {
       'id': id,
@@ -577,12 +721,13 @@ class AppDatabase {
       'show_title': showTitle,
       'channel_id': channelId,
       'stream_url': streamUrl,
+      'match_mode': matchMode,
       'enabled': 1,
       'created_at': now,
     };
   }
 
-  /// Lister tous les Season Passes
+  /// Lister les Season Passes actifs (pour le scheduler)
   List<Map<String, dynamic>> getAllSeasonPasses() {
     final result = _db.select(
       'SELECT * FROM season_passes WHERE enabled = 1 ORDER BY created_at DESC',
@@ -590,23 +735,57 @@ class AppDatabase {
     return result.map((r) => Map<String, dynamic>.from(r)).toList();
   }
 
+  /// Lister les Season Passes d'un utilisateur (actifs ou non, pour l'API)
+  List<Map<String, dynamic>> getSeasonPassesForUser(String userId) {
+    final result = _db.select(
+      'SELECT * FROM season_passes WHERE user_id = ? ORDER BY created_at DESC',
+      [userId],
+    );
+    return result.map((r) => Map<String, dynamic>.from(r)).toList();
+  }
+
+  /// Récupérer un Season Pass par id (contrôle de propriété côté API)
+  Map<String, dynamic>? getSeasonPassById(String id) {
+    final result =
+        _db.select('SELECT * FROM season_passes WHERE id = ?', [id]);
+    if (result.isEmpty) return null;
+    return Map<String, dynamic>.from(result.first);
+  }
+
   /// Supprimer un Season Pass
   void deleteSeasonPass(String id) {
     _db.execute('DELETE FROM season_passes WHERE id = ?', [id]);
   }
 
-  /// Vérifier si un enregistrement existe déjà pour ce titre (déduplication)
-  /// Retourne true si un enregistrement non-échoué avec ce titre existe pour cetteémission programméeà la même heure
-  bool existsRecordingForEpisode(String title, DateTime startTime) {
-    // Normaliser le titre pour la comparaison (insensible casse, sans espaces doubles)
+  /// Cherche un enregistrement existant pour cet épisode (déduplication des
+  /// season passes) : même titre, début à ±[tolerance] près.
+  ///
+  /// La comparaison par plage remplace l'ancienne égalité de chaîne, qui
+  /// échouait dès que le format stocké différait (avec/sans 'Z') ou que le
+  /// panneau décalait le programme de quelques secondes — l'épisode était
+  /// alors réenregistré en double.
+  Recording? findRecordingForEpisode(
+    String title,
+    DateTime startTime, {
+    Duration tolerance = const Duration(minutes: 2),
+  }) {
+    final startUtc = startTime.toUtc();
+    // Les dates sont stockées en ISO-8601 UTC : l'ordre lexicographique
+    // correspond à l'ordre chronologique, un BETWEEN sur chaînes suffit.
     final result = _db.select(
-      '''SELECT COUNT(*) as cnt FROM tv_recordings 
-         WHERE LOWER(title) = LOWER(?) 
-         AND start_time = ?
-         AND status NOT IN ('failed')''',
-      [title, startTime.toUtc().toIso8601String()],
+      '''SELECT * FROM tv_recordings
+         WHERE LOWER(title) = LOWER(?)
+         AND start_time BETWEEN ? AND ?
+         AND status NOT IN ('failed', 'cancelled')
+         LIMIT 1''',
+      [
+        title,
+        startUtc.subtract(tolerance).toIso8601String(),
+        startUtc.add(tolerance).toIso8601String(),
+      ],
     );
-    return (result.first['cnt'] as int) > 0;
+    if (result.isEmpty) return null;
+    return Recording.fromMap(result.first);
   }
 
   /// Close database connection

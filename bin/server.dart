@@ -42,30 +42,36 @@ void main(List<String> args) async {
   await db.seedAdmin();
 
   // Initialize and start Recording Scheduler
+  // (les Season Passes résolvent la playlist de leur propriétaire à chaque
+  // scan : plus d'injection figée du premier utilisateur au démarrage)
   final recordingScheduler = RecordingScheduler(db);
   recordingScheduler.start();
 
-  // Injecter la config playlist dans le scheduler pour les Season Passes
-  // (on prend la playlist du premier utilisateur disponible)
-  Future<void> injectPlaylistToScheduler() async {
-    final users = db.getAllUsers();
-    if (users.isNotEmpty) {
-      final playlists = db.getPlaylists(users[0].id);
-      if (playlists.isNotEmpty) {
-        final p = playlists.first;
-        recordingScheduler.playlistDns = p.serverUrl;
-        recordingScheduler.playlistUsername = p.username;
-        recordingScheduler.playlistPassword = p.password;
-        print('[Server] Playlist injectée dans le scheduler: ${p.name}');
-      }
-    }
-  }
-
-  // Injecter après 5s pour attendre l'initialisation complète
-  Future.delayed(const Duration(seconds: 5), injectPlaylistToScheduler);
-
   // Initialize Streaming Subsystem
   await initStreaming();
+
+  // Arrêt gracieux unique (docker stop / Ctrl+C) : clôturer d'abord les
+  // enregistrements (kill FFmpeg, fusion des parties, statut en base), puis
+  // les sessions de streaming, puis sortir. Sans cela les enregistrements
+  // restaient au statut « recording » et la reprise d'orphelins devait
+  // systématiquement rattraper au redémarrage.
+  var shuttingDown = false;
+  Future<void> shutdownServer(String signal) async {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    print('[Server] $signal reçu, arrêt en cours…');
+    try {
+      await recordingScheduler.shutdown();
+    } catch (e) {
+      print('[Server] Erreur à l\'arrêt du scheduler: $e');
+    }
+    sessionManager.killAll();
+    db.close();
+    exit(0);
+  }
+
+  ProcessSignal.sigterm.watch().listen((_) => shutdownServer('SIGTERM'));
+  ProcessSignal.sigint.watch().listen((_) => shutdownServer('SIGINT'));
 
   // Helper to get playlist from request
   Future<PlaylistConfig?> getPlaylist(Request request) async {
@@ -114,7 +120,7 @@ void main(List<String> args) async {
   final playlistsHandler = PlaylistsHandler(db);
   final usersHandler = UsersHandler(db);
   final settingsHandler = SettingsHandler(db);
-  final proxyHandler = ProxyHandler(getPlaylist);
+  final proxyHandler = ProxyHandler(getPlaylist, db);
   final recordingsApi = RecordingsApi(db, recordingScheduler);
   // Source XMLTV de repli. Vider EPG_XMLTV_URLS désactive tout appel sortant :
   // l'EPG se limite alors au panneau de l'abonné.
@@ -216,8 +222,10 @@ void main(List<String> args) async {
   // Do NOT mount here as it would intercept and block the actual proxy
 
   // Initialize Cleanup Service
+  // Ne JAMAIS cibler Directory.systemTemp en récursif : il contient les
+  // temporaires de la VM Dart et le dossier des sessions HLS — les fichiers
+  // de plus de 24 h y étaient supprimés aveuglément.
   final cleanupService = CleanupService();
-  cleanupService.addTarget(Directory.systemTemp);
   cleanupService.addTarget(Directory('/app/data/logs'));
   cleanupService.addTarget(Directory('/app/data/tmp'));
 
@@ -332,8 +340,10 @@ void main(List<String> args) async {
       .handler;
 
   // Add middleware
+  // redactedLogRequests remplace logRequests() : l'URI de /api/xtream/<url>
+  // contient username/password Xtream en clair.
   final pipeline = const Pipeline()
-      .addMiddleware(logRequests())
+      .addMiddleware(redactedLogRequests())
       .addMiddleware(securityHeadersMiddleware())
       .addMiddleware(honeypotMiddleware())
       .addMiddleware(rateLimitMiddleware())

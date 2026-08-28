@@ -63,8 +63,23 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
       body: channelsAsync.when(
         loading: () => const ThemedLoading(),
         error: (e, s) => Center(
-          child: Text('Error: $e',
-              style: const TextStyle(color: AppColors.onSurface)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Impossible de charger les chaînes',
+                style: TextStyle(color: AppColors.onSurface),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Réessayer'),
+                onPressed: () => ref.invalidate(
+                  liveChannelsByPlaylistProvider(widget.playlist),
+                ),
+              ),
+            ],
+          ),
         ),
         data: (groupedChannels) {
           var categories = groupedChannels.keys.toList();
@@ -514,6 +529,43 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                       ),
                     ),
                   ],
+                ),
+                // Favori (Positioned top left) — toggleFavorite n'était appelé
+                // nulle part : le filtre « Favoris » affichait toujours vide.
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final isFav = ref
+                          .watch(favoritesProvider)
+                          .contains(channel.streamId);
+                      return TvFocusableCard(
+                        onTap: () => ref
+                            .read(favoritesProvider.notifier)
+                            .toggleFavorite(channel.streamId),
+                        borderRadius: 20,
+                        scaleFactor: 1.2,
+                        semanticLabel: isFav
+                            ? 'Retirer ${channel.name} des favoris'
+                            : 'Ajouter ${channel.name} aux favoris',
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isFav ? Icons.favorite : Icons.favorite_border,
+                            color: isFav
+                                ? AppColors.primary
+                                : AppColors.onSurface54,
+                            size: 16,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
                 // Record Button Icon Overlay (Positioned top right)
                 Positioned(

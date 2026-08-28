@@ -8,6 +8,7 @@ import '../../../core/utils/responsive_layout.dart';
 import '../../../core/widgets/hero_carousel.dart';
 import '../../../core/widgets/glass_container.dart';
 import '../../../core/widgets/tv_focusable_card.dart';
+import '../providers/playback_positions_provider.dart';
 import '../providers/watch_history_provider.dart';
 import '../models/xtream_models.dart';
 import '../providers/xtream_provider.dart';
@@ -163,6 +164,13 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
 
     if (!mounted) return;
 
+    // Reprise de lecture : les positions étaient sauvegardées par le player
+    // mais jamais relues — le film repartait systématiquement de zéro.
+    final positions = ref.read(playbackPositionsProvider);
+    final resumeAt = positions.hasPosition(movie.streamId)
+        ? positions.getPosition(movie.streamId)
+        : null;
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -173,6 +181,7 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
           streamType: StreamType.vod,
           containerExtension: movie.containerExtension ?? 'mp4',
           duration: movieDuration,
+          startTime: resumeAt,
         ),
       ),
     );

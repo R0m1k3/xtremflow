@@ -79,6 +79,11 @@ class MobileScaffold extends ConsumerWidget {
               label: 'Series',
             ),
             BottomNavigationBarItem(
+              icon: Icon(Icons.videocam_outlined),
+              activeIcon: Icon(Icons.videocam_rounded),
+              label: 'REC',
+            ),
+            BottomNavigationBarItem(
               icon: Icon(Icons.settings_outlined),
               activeIcon: Icon(Icons.settings_rounded),
               label: 'Settings',

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/api/authed_http.dart';
+import '../../../core/api/recording_requests.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
@@ -14,6 +15,10 @@ import '../screens/player_screen.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  ENTRÉE — Onglet "Enregistrements"
+//  Trois vues : Guide TV (programmer depuis l'EPG), Enregistrements (liste),
+//  Season Passes (enregistrements récurrents). _EpgGuideView et
+//  _SeasonPassesView existaient déjà mais n'étaient plus instanciés depuis
+//  une refonte : les fonctions étaient codées mais inaccessibles.
 // ═══════════════════════════════════════════════════════════════════════════
 
 class RecordingsTab extends StatefulWidget {
@@ -24,7 +29,24 @@ class RecordingsTab extends StatefulWidget {
   State<RecordingsTab> createState() => _RecordingsTabState();
 }
 
-class _RecordingsTabState extends State<RecordingsTab> {
+class _RecordingsTabState extends State<RecordingsTab>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    // Ouvrir sur la liste des enregistrements (onglet du milieu), l'usage le
+    // plus fréquent ; le guide sert à en programmer de nouveaux.
+    _tabController = TabController(length: 3, vsync: this, initialIndex: 1);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -32,25 +54,59 @@ class _RecordingsTabState extends State<RecordingsTab> {
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
             color: Colors.grey[900],
-            child: const Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.videocam, color: AppColors.onSurface, size: 28),
-                SizedBox(width: 12),
-                Text(
-                  'Enregistrements',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.onSurface,
-                  ),
+                const Row(
+                  children: [
+                    Icon(Icons.videocam, color: AppColors.onSurface, size: 28),
+                    SizedBox(width: 12),
+                    Text(
+                      'Enregistrements',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  indicatorColor: AppColors.primary,
+                  labelColor: AppColors.onSurface,
+                  unselectedLabelColor: AppColors.onSurface54,
+                  tabs: const [
+                    Tab(
+                      icon: Icon(Icons.calendar_month, size: 18),
+                      text: 'Guide TV',
+                    ),
+                    Tab(
+                      icon: Icon(Icons.fiber_manual_record, size: 18),
+                      text: 'Enregistrements',
+                    ),
+                    Tab(
+                      icon: Icon(Icons.repeat, size: 18),
+                      text: 'Season Passes',
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
           Expanded(
-            child: _RecordingsListView(playlist: widget.playlist),
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _EpgGuideView(playlist: widget.playlist),
+                _RecordingsListView(playlist: widget.playlist),
+                const _SeasonPassesView(),
+              ],
+            ),
           ),
         ],
       ),
@@ -594,16 +650,15 @@ class _ProgrammeCard extends StatelessWidget {
     DateTime end,
   ) async {
     try {
-      final response = await AuthedHttp.post(
-        Uri.parse('/api/recordings'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'channel_id': channel.streamId,
-          'stream_url': '/api/live/${channel.streamId}.ts',
-          'title': title,
-          'start_time': start.toIso8601String(),
-          'end_time': end.toIso8601String(),
-        }),
+      // Les horaires EPG sont des heures UTC naïves : wallClockIsUtc les
+      // re-tague sans décalage (l'ancien envoi naïf était interprété dans le
+      // fuseau du serveur → enregistrement décalé de 1-2 h).
+      final response = await postRecording(
+        channelId: channel.streamId,
+        title: title,
+        start: start,
+        end: end,
+        wallClockIsUtc: true,
       );
       if (response.statusCode == 200) notifyRecordingsChanged();
       if (context.mounted) {
@@ -825,7 +880,39 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
     }
   }
 
-  Future<void> _deleteRecording(String id) async {
+  /// Demande confirmation avant suppression : l'ancienne corbeille supprimait
+  /// immédiatement, sans retour ni possibilité d'annuler.
+  Future<void> _deleteRecording(String id, String title) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surfaceContainer,
+        title: Text(
+          'Supprimer l\'enregistrement ?',
+          style: GoogleFonts.fraunces(color: AppColors.onSurface, fontSize: 18),
+        ),
+        content: Text(
+          '« $title » et son fichier seront définitivement supprimés.',
+          style: const TextStyle(color: AppColors.onSurfaceVariant),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.errorContainer,
+              foregroundColor: AppColors.onErrorContainer,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
     await AuthedHttp.delete(Uri.parse('/api/recordings/$id'));
     _fetchRecordings();
   }
@@ -914,6 +1001,7 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
         'recording' => AppColors.live,
         'completed' => AppColors.success,
         'failed' => AppColors.warning,
+        'cancelled' => AppColors.onSurface38,
         _ => AppColors.primaryContainer,
       };
 
@@ -922,8 +1010,19 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
         'recording' => '● En cours',
         'completed' => 'Terminé',
         'failed' => 'Échoué',
+        'cancelled' => 'Annulé',
         _ => status,
       };
+
+  String _fmtSize(int bytes) {
+    if (bytes >= 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} Go';
+    }
+    if (bytes >= 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(0)} Mo';
+    }
+    return '${(bytes / 1024).toStringAsFixed(0)} Ko';
+  }
 
   String _fmtDate(dynamic raw) {
     if (raw == null) return '?';
@@ -974,9 +1073,20 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
                     ? Center(
-                        child: Text(
-                          _error ?? 'Erreur',
-                          style: const TextStyle(color: AppColors.live),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'Impossible de charger les enregistrements',
+                              style: TextStyle(color: AppColors.live),
+                            ),
+                            const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.refresh, size: 18),
+                              label: const Text('Réessayer'),
+                              onPressed: _fetchRecordings,
+                            ),
+                          ],
                         ),
                       )
                     : _recordings.isEmpty
@@ -1040,12 +1150,34 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        '${_fmtDate(rec['start_time'])} → ${_fmtDate(rec['end_time'])}',
+                                        '${_fmtDate(rec['start_time'])} → ${_fmtDate(rec['end_time'])}'
+                                        '${rec['file_size_bytes'] is int ? ' · ${_fmtSize(rec['file_size_bytes'] as int)}' : ''}',
                                         style: const TextStyle(
                                           color: AppColors.onSurface54,
                                           fontSize: 12,
                                         ),
                                       ),
+                                      if (status == 'recording' &&
+                                          rec['progress_pct'] is int) ...[
+                                        const SizedBox(height: 6),
+                                        ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(3),
+                                          child: LinearProgressIndicator(
+                                            value:
+                                                (rec['progress_pct'] as int) /
+                                                    100,
+                                            minHeight: 4,
+                                            backgroundColor: AppColors
+                                                .onSurface
+                                                .withOpacity(0.1),
+                                            valueColor:
+                                                const AlwaysStoppedAnimation(
+                                              AppColors.live,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                       if (rec['error_reason'] != null)
                                         Text(
                                           '⚠ ${rec['error_reason']}',
@@ -1123,8 +1255,10 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                                           size: 20,
                                         ),
                                         tooltip: 'Supprimer',
-                                        onPressed: () =>
-                                            _deleteRecording(rec['id']),
+                                        onPressed: () => _deleteRecording(
+                                          rec['id'],
+                                          rec['title'] ?? '',
+                                        ),
                                       ),
                                     ],
                                   ),
