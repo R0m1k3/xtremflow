@@ -65,6 +65,13 @@ class UsersHandler {
         }), headers: {'Content-Type': 'application/json'},);
       }
 
+      if (password.length < 8) {
+        return Response.badRequest(body: jsonEncode({
+          'success': false,
+          'error': 'Le mot de passe doit faire au moins 8 caractères',
+        }), headers: {'Content-Type': 'application/json'},);
+      }
+
       if (db.findUserByUsername(username) != null) {
          return Response.badRequest(body: jsonEncode({
           'success': false,
@@ -100,6 +107,13 @@ class UsersHandler {
         return Response.badRequest(body: jsonEncode({
           'success': false,
           'error': 'Missing password',
+        }), headers: {'Content-Type': 'application/json'},);
+      }
+
+      if (password.length < 8) {
+        return Response.badRequest(body: jsonEncode({
+          'success': false,
+          'error': 'Le mot de passe doit faire au moins 8 caractères',
         }), headers: {'Content-Type': 'application/json'},);
       }
 

@@ -1,26 +1,94 @@
 import 'package:shelf/shelf.dart';
 import 'dart:async';
 import 'dart:io';
+import '../utils/log_redactor.dart';
 
 /// Security Middleware Collection
 ///
 /// Includes:
+/// - Redacted request logging
 /// - Honeypot Routes (Trap for bots)
 /// - Security Headers (HSTS, XSS Protection, CSP Report-Only)
 /// - Rate Limiting (Basic DoS protection)
 /// - Login-specific rate limiting (brute-force protection)
 
-/// Resolve the real client IP.
-/// Honors the first hop of X-Forwarded-For when behind nginx, otherwise
-/// falls back to the socket connection info.
-String clientIpOf(Request request) {
-  final forwarded = request.headers['x-forwarded-for'];
-  if (forwarded != null && forwarded.isNotEmpty) {
-    return forwarded.split(',').first.trim();
+/// Proxys de confiance dont l'en-tête X-Forwarded-For est honoré.
+/// Par défaut : loopback et plages privées RFC1918 (le reverse proxy du
+/// docker-compose parle depuis le réseau Docker). Surcharger avec
+/// TRUSTED_PROXIES (liste d'IP séparées par des virgules) pour restreindre.
+final List<String> _trustedProxies =
+    (Platform.environment['TRUSTED_PROXIES'] ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+bool _isTrustedProxy(String address) {
+  if (_trustedProxies.isNotEmpty) return _trustedProxies.contains(address);
+  final ip = InternetAddress.tryParse(address);
+  if (ip == null) return false;
+  if (ip.isLoopback) return true;
+  if (ip.type == InternetAddressType.IPv4) {
+    final parts = ip.address.split('.').map(int.parse).toList();
+    if (parts[0] == 10) return true;
+    if (parts[0] == 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+    if (parts[0] == 192 && parts[1] == 168) return true;
   }
+  return false;
+}
+
+/// Resolve the real client IP.
+///
+/// X-Forwarded-For n'est honoré que si la connexion socket provient d'un
+/// proxy de confiance : sinon un client direct peut forger l'en-tête et
+/// contourner le rate limit global comme la limite de tentatives de login.
+String clientIpOf(Request request) {
   final connectionInfo =
       request.context['shelf.io.connection_info'] as HttpConnectionInfo?;
-  return connectionInfo?.remoteAddress.address ?? 'unknown';
+  final socketAddress = connectionInfo?.remoteAddress.address;
+
+  final forwarded = request.headers['x-forwarded-for'];
+  if (forwarded != null &&
+      forwarded.isNotEmpty &&
+      socketAddress != null &&
+      _isTrustedProxy(socketAddress)) {
+    return forwarded.split(',').first.trim();
+  }
+  return socketAddress ?? 'unknown';
+}
+
+/// 0. Redacted request logging.
+///
+/// Remplace `logRequests()` de shelf : le chemin `/api/xtream/<url>` embarque
+/// `username`/`password` Xtream en clair dans l'URI, que le logger standard
+/// écrivait tels quels — annulant l'effort de LogRedactor partout ailleurs.
+Middleware redactedLogRequests() {
+  return (Handler handler) {
+    return (Request request) async {
+      final watch = Stopwatch()..start();
+      try {
+        final response = await handler(request);
+        watch.stop();
+        final query =
+            request.requestedUri.hasQuery ? '?${request.requestedUri.query}' : '';
+        print(
+          '${DateTime.now().toIso8601String()} ${response.statusCode} '
+          '${request.method} '
+          '${LogRedactor.redactUrl('${request.requestedUri.path}$query')} '
+          '(${watch.elapsedMilliseconds}ms)',
+        );
+        return response;
+      } catch (e) {
+        watch.stop();
+        print(
+          '${DateTime.now().toIso8601String()} ERR ${request.method} '
+          '${LogRedactor.redactUrl(request.requestedUri.path)}: '
+          '${LogRedactor.redactUrl('$e')}',
+        );
+        rethrow;
+      }
+    };
+  };
 }
 
 /// 1. Security Headers Middleware
@@ -71,11 +139,14 @@ Middleware honeypotMiddleware() {
 
   return (Handler handler) {
     return (Request request) {
-      final path = request.url.path;
+      // Comparaison sur le chemin exact ou un préfixe de segment. L'ancienne
+      // comparaison `contains(trap.replaceAll('/', ''))` bloquait toute URL
+      // contenant « console », « env » ou « wpadmin » n'importe où — y
+      // compris des URLs proxifiées parfaitement légitimes.
+      final path = '/${request.url.path}';
 
-      // Check if path contains any honeypot target
       for (final trap in honeypotPaths) {
-        if (path.contains(trap.replaceAll('/', ''))) { // Simple check
+        if (path == trap || path.startsWith('$trap/')) {
           print('SECURITY ALERT: Honeypot triggered by ${clientIpOf(request)} on path: $path');
           return Response.forbidden('Access Denied');
         }
