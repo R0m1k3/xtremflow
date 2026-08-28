@@ -1,7 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../core/api/authed_http.dart';
+import '../../../core/api/recording_requests.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/glass_container.dart';
@@ -43,20 +42,15 @@ class _RecordingModalState extends State<RecordingModal> {
     setState(() => _isLoading = true);
     
     final endTime = _startTime.add(Duration(minutes: _durationMinutes));
-    
+
     try {
-      // Utilisation d'une URL relative en Web (ou d'une configuration pour autres plateformes)
-      final response = await AuthedHttp.post(
-        Uri.parse('/api/recordings'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'channel_id': widget.channel.streamId,
-          'stream_url': '/api/live/${widget.channel.streamId}.ts',
-          'title': widget.channel.name,
-          // Forcer UTC pour éviter le décalage +01:00 (France) vs UTC (serveur Docker)
-          'start_time': _startTime.toUtc().toIso8601String(),
-          'end_time': endTime.toUtc().toIso8601String(),
-        }),
+      // _startTime est une vraie heure locale (pickers) : postRecording la
+      // convertit en UTC — seule convention acceptée par le backend.
+      final response = await postRecording(
+        channelId: widget.channel.streamId,
+        title: widget.channel.name,
+        start: _startTime,
+        end: endTime,
       );
 
       if (response.statusCode == 200) {

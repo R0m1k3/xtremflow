@@ -9,17 +9,29 @@ class SeasonPassesApi {
 
   SeasonPassesApi(this._db);
 
-  /// GET /api/season-passes — liste tous les season passes
+  /// GET /api/season-passes — liste les season passes de l'utilisateur
+  /// (tous les passes pour un admin)
   Response handleGetAll(Request request) {
     try {
-      final passes = _db.getAllSeasonPasses();
+      final user = request.context['user'] as User?;
+      if (user == null) {
+        return Response(
+          401,
+          body: json.encode({'error': 'Authentification requise'}),
+          headers: {'Content-Type': 'application/json'},
+        );
+      }
+      final passes = user.isAdmin
+          ? _db.getAllSeasonPasses()
+          : _db.getSeasonPassesForUser(user.id);
       return Response.ok(
         json.encode(passes),
         headers: {'Content-Type': 'application/json'},
       );
     } catch (e) {
+      print('[SeasonPass] Erreur au listage: $e');
       return Response.internalServerError(
-        body: json.encode({'error': 'Erreur: $e'}),
+        body: json.encode({'error': 'Erreur interne'}),
         headers: {'Content-Type': 'application/json'},
       );
     }
@@ -59,10 +71,20 @@ class SeasonPassesApi {
 
       // Récupérer l'utilisateur depuis le contexte
       final user = request.context['user'] as User?;
-      final userId = user?.id ?? 'admin'; // fallback
+      if (user == null) {
+        return Response(
+          401,
+          body: json.encode({'error': 'Authentification requise'}),
+          headers: {'Content-Type': 'application/json'},
+        );
+      }
 
-      // Vérifier si un season pass identique existe déjà
-      final existing = _db.getAllSeasonPasses();
+      // 'exact' par défaut : « Journal » ne doit pas capturer tous les
+      // programmes qui contiennent le mot. 'contains' reste disponible.
+      final matchMode = data['match_mode'] == 'contains' ? 'contains' : 'exact';
+
+      // Vérifier si un season pass identique existe déjà pour cet utilisateur
+      final existing = _db.getSeasonPassesForUser(user.id);
       final duplicate = existing.any(
         (p) =>
             (p['show_title'] as String).toLowerCase() ==
@@ -78,10 +100,11 @@ class SeasonPassesApi {
       }
 
       final pass = _db.createSeasonPass(
-        userId: userId,
+        userId: user.id,
         showTitle: showTitle,
         channelId: channelId,
         streamUrl: streamUrl,
+        matchMode: matchMode,
       );
 
       print('[SeasonPass] Créé: "$showTitle" sur chaîne $channelId');
@@ -101,14 +124,30 @@ class SeasonPassesApi {
   /// DELETE /api/season-passes/<id> — supprimer un season pass
   Response handleDelete(Request request, String id) {
     try {
+      final user = request.context['user'] as User?;
+      final pass = _db.getSeasonPassById(id);
+      if (pass == null) {
+        return Response.notFound(
+          json.encode({'error': 'Season Pass non trouvé'}),
+          headers: {'Content-Type': 'application/json'},
+        );
+      }
+      // Contrôle de propriété : seul le propriétaire ou un admin supprime.
+      if (user == null || (!user.isAdmin && pass['user_id'] != user.id)) {
+        return Response.forbidden(
+          json.encode({'error': 'Accès refusé'}),
+          headers: {'Content-Type': 'application/json'},
+        );
+      }
       _db.deleteSeasonPass(id);
       return Response.ok(
         json.encode({'message': 'Season Pass supprimé'}),
         headers: {'Content-Type': 'application/json'},
       );
     } catch (e) {
+      print('[SeasonPass] Erreur à la suppression: $e');
       return Response.internalServerError(
-        body: json.encode({'error': 'Erreur: $e'}),
+        body: json.encode({'error': 'Erreur interne'}),
         headers: {'Content-Type': 'application/json'},
       );
     }

@@ -59,15 +59,10 @@ class FfmpegSessionManager {
 
     _reaper = Timer.periodic(const Duration(seconds: 60), (_) => _reap());
 
-    // Clean shutdown for docker stop / Ctrl+C
-    ProcessSignal.sigterm.watch().listen((_) {
-      killAll();
-      exit(0);
-    });
-    ProcessSignal.sigint.watch().listen((_) {
-      killAll();
-      exit(0);
-    });
+    // L'arrêt propre (docker stop / Ctrl+C) est orchestré par server.dart :
+    // il clôture d'abord les enregistrements puis appelle killAll(). Un
+    // handler local qui ferait exit(0) immédiatement court-circuiterait
+    // cette clôture.
   }
 
   FfmpegSession? get(String id) => _sessions[id];

@@ -2,6 +2,18 @@
 
 ## Non publié
 
+### 🔧 Fiabilité des enregistrements
+- **Fuseaux horaires unifiés** : le backend exige des dates ISO-8601 avec fuseau (400 sinon) et stocke tout en UTC ; le frontend passe par un helper unique `postRecording()` — fini les enregistrements décalés de 1-2 h selon l'écran utilisé
+- **Contrôle de propriété** : stop/suppression/logs d'un enregistrement et suppression d'un season pass ne sont plus possibles que par leur propriétaire (ou un admin)
+- **SQLite durci** : `foreign_keys=ON` (les CASCADE déclarés s'appliquent enfin), WAL, `busy_timeout`, migrations de schéma versionnées, index sur `user_id`/`start_time`
+- **Gestion disque** : refus explicite de démarrer une capture sous `MIN_FREE_DISK_MB` (défaut 500 Mo) ; nouvelle rotation par quota d'octets (`RECORDINGS_QUOTA_GB`, désactivée par défaut) qui ne touche jamais un enregistrement actif et supprime fichiers + ligne BDD ensemble (l'ancienne rotation « 50 fichiers » pouvait effacer une capture en cours) ; la suppression d'un enregistrement efface aussi ses fichiers (.mkv, .log, parties)
+- **Arrêt gracieux** : `docker stop` clôture proprement les enregistrements (fusion des parties, statut en base) avant de tuer les sessions de streaming
+- **Noms de fichiers uniques** (fragment d'id) : deux enregistrements du même programme ne s'écrasent plus
+- **Statut `cancelled`** : arrêter un enregistrement planifié l'annule au lieu de le marquer « terminé » sans fichier (lecture cassée)
+- **Season passes** : la playlist du propriétaire du pass est résolue à chaque scan (plus d'injection figée du premier utilisateur), correspondance de titre exacte par défaut (`match_mode`), plafond de créations par scan, réalignement automatique des horaires si le programme est déplacé dans l'EPG, déduplication tolérante (±2 min)
+- **API de suivi** : `GET /api/recordings` renvoie désormais `progress_pct`, `file_size_bytes`, `retry_count`, `is_active` ; la liste affiche la barre de progression et la taille
+- Le scheduler ne relit plus toute la table toutes les 10 s (requête filtrée sur `scheduled`/`recording`)
+
 ### 📺 Enregistrements
 - La liste des enregistrements se met à jour automatiquement : rafraîchissement immédiat dès qu'un enregistrement est créé/arrêté n'importe où dans l'app (guide EPG, modal, widget rapide), et polling en arrière-plan (5 s quand un enregistrement est en cours ou planifié, 20 s sinon) pour suivre les statuts sans clic manuel
 - Indicateur « Suivi auto » avec heure de dernière actualisation dans l'onglet Enregistrements
