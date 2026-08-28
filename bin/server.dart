@@ -120,7 +120,7 @@ void main(List<String> args) async {
   final playlistsHandler = PlaylistsHandler(db);
   final usersHandler = UsersHandler(db);
   final settingsHandler = SettingsHandler(db);
-  final proxyHandler = ProxyHandler(getPlaylist);
+  final proxyHandler = ProxyHandler(getPlaylist, db);
   final recordingsApi = RecordingsApi(db, recordingScheduler);
   // Source XMLTV de repli. Vider EPG_XMLTV_URLS désactive tout appel sortant :
   // l'EPG se limite alors au panneau de l'abonné.
@@ -222,8 +222,10 @@ void main(List<String> args) async {
   // Do NOT mount here as it would intercept and block the actual proxy
 
   // Initialize Cleanup Service
+  // Ne JAMAIS cibler Directory.systemTemp en récursif : il contient les
+  // temporaires de la VM Dart et le dossier des sessions HLS — les fichiers
+  // de plus de 24 h y étaient supprimés aveuglément.
   final cleanupService = CleanupService();
-  cleanupService.addTarget(Directory.systemTemp);
   cleanupService.addTarget(Directory('/app/data/logs'));
   cleanupService.addTarget(Directory('/app/data/tmp'));
 
@@ -338,8 +340,10 @@ void main(List<String> args) async {
       .handler;
 
   // Add middleware
+  // redactedLogRequests remplace logRequests() : l'URI de /api/xtream/<url>
+  // contient username/password Xtream en clair.
   final pipeline = const Pipeline()
-      .addMiddleware(logRequests())
+      .addMiddleware(redactedLogRequests())
       .addMiddleware(securityHeadersMiddleware())
       .addMiddleware(honeypotMiddleware())
       .addMiddleware(rateLimitMiddleware())

@@ -77,7 +77,12 @@ Middleware streamAuthMiddleware(AppDatabase db) {
   };
 }
 
-/// Extract token from Authorization header or cookie
+/// Extract token from Authorization header or cookie.
+/// Public : le proxy /api/xtream fait sa propre vérification de session
+/// (le contrôle doit rester DANS le handler, après le test de chemin,
+/// pour que les requêtes non-proxy tombent sur le handler statique).
+String? extractAuthToken(Request request) => _extractToken(request);
+
 String? _extractToken(Request request) {
   // Try Authorization header first
   final authHeader = request.headers['authorization'];
