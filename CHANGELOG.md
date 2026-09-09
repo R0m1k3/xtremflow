@@ -7,6 +7,9 @@
 - **Players mis à jour** : hls.js 1.6.7 → 1.7.1, mpegts.js 1.7.3 → 1.8.2 (vendorisés)
 - **Démarrage plus rapide** : sonde FFmpeg bornée (`-fflags nobuffer`, probesize réduit) sur le live et le turbo ; probesize VOD 10 Mo → 5 Mo ; preset live `high` et lecture d'enregistrement en `veryfast` (medium ne tenait pas le temps réel) ; détection de playlist toutes les 100 ms au lieu de 500 ms ; suppression du cache-buster qui re-téléchargeait player.html à chaque zap (les .html passent en no-cache serveur)
 - **Latence live maîtrisée** : rattrapage du direct activé dans mpegts.js (profil rapide) — les micro-coupures ne font plus dériver la lecture derrière le direct
+- **Fix « Échec du chargement : vendor/mpegts.min.js »** : un échec de chargement d'une lib de lecture n'affiche plus un écran d'erreur définitif. Le chargement est retenté une fois en contournant le cache HTTP (une entrée tronquée condamnait le lecteur jusqu'au vidage manuel du cache), le résultat n'est mémorisé qu'en cas de succès (une promesse rejetée en cache rendait tout réessai impossible) et, si la lib reste introuvable, le live bascule automatiquement sur la route HLS équivalente. Le message affiché précise désormais la cause (HTTP 404, 429, réseau injoignable)
+- **Préchargement de la bonne lib** : les trois players préchargeaient hls.js en dur, soit 618 Ko téléchargés pour rien à chaque zap TV — où c'est mpegts.js qui sert — au détriment du flux et du chargement de mpegts.js. Le préchargement suit maintenant le flux réellement demandé (et ne charge rien sur Safari/iOS, qui lit le HLS nativement)
+- **Alerte au démarrage** : le serveur signale explicitement l'absence de `web/vendor/*.min.js` au lancement, au lieu de laisser le navigateur échouer sans explication
 
 ### 🧰 Qualité / Infra
 - **Builds reproductibles** : `pubspec.lock` (frontend et backend) désormais versionnés et utilisés par le Dockerfile — chaque build résolvait jusqu'ici des versions fraîches

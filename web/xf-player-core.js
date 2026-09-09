@@ -60,17 +60,67 @@
   // ------------------------------------------------------------------
   var _scriptCache = {};
 
-  function loadScript(src) {
-    if (_scriptCache[src]) return _scriptCache[src];
-    _scriptCache[src] = new Promise(function (resolve, reject) {
+  function _delay(ms) {
+    return new Promise(function (resolve) { setTimeout(resolve, ms); });
+  }
+
+  function _injectScript(src) {
+    return new Promise(function (resolve, reject) {
       var s = document.createElement('script');
       s.src = src;
       s.async = true;
-      s.onload = resolve;
-      s.onerror = function () { reject(new Error('Échec du chargement : ' + src)); };
+      s.onload = function () { resolve(); };
+      s.onerror = function () {
+        // Laisser une balise morte dans le <head> ferait échouer une
+        // éventuelle nouvelle tentative sur le même src.
+        if (s.parentNode) s.parentNode.removeChild(s);
+        reject(new Error('script error'));
+      };
       document.head.appendChild(s);
     });
-    return _scriptCache[src];
+  }
+
+  /**
+   * Précise la cause d'un échec pour le message affiché et les logs :
+   * 404 = lib absente de l'image déployée, 429 = quota du rate limiter,
+   * échec réseau = lien coupé. Sans cela, toutes les causes se
+   * ressemblaient à l'écran.
+   */
+  function _describeFailure(src) {
+    if (typeof fetch !== 'function') return Promise.resolve('');
+    return fetch(src, { credentials: 'same-origin', cache: 'no-store' })
+      .then(function (r) { return r.ok ? '' : ' (HTTP ' + r.status + ')'; })
+      .catch(function () { return ' (réseau injoignable)'; });
+  }
+
+  /**
+   * Charge une lib vendorisée, avec une seconde tentative qui contourne le
+   * cache HTTP : les libs sont servies en `max-age=86400`, donc une entrée
+   * tronquée par une coupure réseau condamnait le lecteur jusqu'au vidage
+   * manuel du cache navigateur. Seuls les succès sont mémorisés — une
+   * promesse rejetée gardée en cache rendait tout réessai impossible pour
+   * le reste de la session.
+   */
+  function loadScript(src) {
+    if (_scriptCache[src]) return _scriptCache[src];
+
+    var attempt = _injectScript(src)
+      .catch(function () {
+        return _delay(400).then(function () {
+          return _injectScript(
+            src + (src.indexOf('?') === -1 ? '?' : '&') + 'reload=' + Date.now()
+          );
+        });
+      })
+      .catch(function () {
+        return _describeFailure(src).then(function (why) {
+          throw new Error('Échec du chargement : ' + src + why);
+        });
+      });
+
+    _scriptCache[src] = attempt;
+    attempt.catch(function () { delete _scriptCache[src]; });
+    return attempt;
   }
 
   /** Ouvre la connexion vers l'hôte du flux avant même de connaître l'URL finale. */
@@ -253,6 +303,11 @@
         }
       });
     }).catch(function (err) {
+      // hls.js indisponible : plutôt que d'échouer, tenter les chemins qui
+      // ne demandent aucune lib (HLS natif Safari/iOS, sinon lecture directe
+      // si le navigateur sait décoder le conteneur).
+      self.log(err.message);
+      if (self._canPlayNativeHls()) { self._playDirect(self.url); return; }
       self.onError(err.message);
     });
   };
@@ -267,6 +322,24 @@
       }
       self._createMpegts(isLive);
     }).catch(function (err) {
+      // mpegts.js indisponible (build incomplet, coupure réseau, quota du
+      // rate limiter…) : le même flux reste lisible par la route HLS, où
+      // FFmpeg réencode déjà l'audio en AAC. Une seconde de latence en plus
+      // vaut mieux qu'un écran d'erreur sur une chaîne parfaitement lisible.
+      var hlsUrl = self._hlsEquivalent(self.url);
+      self.log(err.message + (hlsUrl ? ' — bascule sur le chemin HLS' : ''));
+      if (hlsUrl) {
+        self.url = hlsUrl;
+        self.onLoading('Ouverture du flux');
+        if (self._canPlayNativeHls()) { self._playDirect(hlsUrl); return; }
+        return self._startHls();
+      }
+      // Aucun équivalent HLS (flux direct fourni par la playlist) : dernier
+      // recours, laisser le navigateur décoder lui-même le conteneur.
+      if (self.video.canPlayType('video/mp2t') !== '') {
+        self._playDirect(self.url);
+        return;
+      }
       self.onError(err.message);
     });
   };

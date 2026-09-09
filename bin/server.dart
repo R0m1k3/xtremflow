@@ -259,6 +259,20 @@ void main(List<String> args) async {
     }),
   );
 
+  // Les libs de lecture sont servies depuis l'image, plus depuis un CDN : si
+  // elles manquent (build web incomplet, copie Docker partielle), le lecteur
+  // échoue côté navigateur avec un simple « Échec du chargement » sans que
+  // rien ne l'ait signalé au démarrage. On le dit ici, une fois, clairement.
+  for (final lib in const ['hls.min.js', 'mpegts.min.js']) {
+    final file = File('$webPath/vendor/$lib');
+    if (!file.existsSync()) {
+      print(
+        '[Server] ATTENTION: web/vendor/$lib absent de $webPath — '
+        'la lecture échouera dans le navigateur.',
+      );
+    }
+  }
+
   // Create static handler
   final baseStaticHandler = createStaticHandler(
     webPath,

@@ -5,7 +5,35 @@
     <meta charset="UTF-8">
     <title>XtremFlow Player Lite</title>
     <link rel="stylesheet" href="xf-player.css">
-    <link rel="preload" href="vendor/hls.min.js" as="script">
+    <script>
+        // Précharge la SEULE lib utile à CE flux, dès le parse du <head>.
+        // Un préchargement fixe de hls.js faisait télécharger 618 Ko inutiles
+        // à chaque zap TV — la lib réellement nécessaire au direct est
+        // mpegts.js — et cette bande passante était prise sur le flux
+        // lui-même et sur mpegts.js, jusqu'à faire échouer son chargement sur
+        // les liens contraints. Même décision que XFPlayer.start().
+        (function () {
+            var p = new URLSearchParams(location.search);
+            var url = (p.get('url') || '').toLowerCase();
+            var isHls = url.indexOf('.m3u8') !== -1;
+            var nativeHls =
+                document.createElement('video')
+                    .canPlayType('application/vnd.apple.mpegurl') !== '';
+            var lib = null;
+            if (isHls) {
+                // Safari/iOS lit le HLS nativement : aucune lib à charger.
+                if (!nativeHls) lib = 'hls.min.js';
+            } else if (p.get('type') === 'live' || url.indexOf('.ts') !== -1) {
+                lib = 'mpegts.min.js';
+            }
+            if (!lib) return;
+            var l = document.createElement('link');
+            l.rel = 'preload';
+            l.as = 'script';
+            l.href = 'vendor/' + lib;
+            document.head.appendChild(l);
+        })();
+    </script>
 </head>
 
 <body>
