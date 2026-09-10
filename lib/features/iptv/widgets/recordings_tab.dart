@@ -8,6 +8,7 @@ import '../../../core/api/recording_requests.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
+import '../providers/playback_positions_provider.dart';
 import '../providers/recordings_refresh.dart';
 import '../providers/xtream_provider.dart';
 import '../providers/settings_provider.dart';
@@ -780,14 +781,15 @@ class _ProgrammeCard extends StatelessWidget {
 //  ONGLET 2 — ENREGISTREMENTS
 // ═══════════════════════════════════════════════════════════════════════════
 
-class _RecordingsListView extends StatefulWidget {
+class _RecordingsListView extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
   const _RecordingsListView({required this.playlist});
   @override
-  State<_RecordingsListView> createState() => _RecordingsListViewState();
+  ConsumerState<_RecordingsListView> createState() =>
+      _RecordingsListViewState();
 }
 
-class _RecordingsListViewState extends State<_RecordingsListView> {
+class _RecordingsListViewState extends ConsumerState<_RecordingsListView> {
   List<dynamic> _recordings = [];
   bool _isLoading = true;
   String? _error;
@@ -917,6 +919,35 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
     _fetchRecordings();
   }
 
+  /// Clé de reprise d'un enregistrement (même convention que le lecteur).
+  static String _resumeKey(String recordingId) => 'rec_$recordingId';
+
+  /// Position sauvegardée, ou 0 s'il n'y en a pas d'exploitable.
+  double _savedPosition(Map<String, dynamic> rec) {
+    final id = rec['id'] as String?;
+    if (id == null || id.isEmpty) return 0;
+    return ref.read(playbackPositionsProvider).getPosition(_resumeKey(id));
+  }
+
+  /// Durée du média : celle mesurée par le serveur si disponible, sinon la
+  /// durée programmée. Un enregistrement arrêté en avance est plus court que
+  /// `end_time - start_time`.
+  Duration? _recordingDuration(Map<String, dynamic> rec) {
+    final probed = rec['duration_seconds'];
+    if (probed is num && probed > 0) {
+      return Duration(seconds: probed.round());
+    }
+    try {
+      if (rec['start_time'] != null && rec['end_time'] != null) {
+        final start = DateTime.parse(rec['start_time'].toString());
+        final end = DateTime.parse(rec['end_time'].toString());
+        final scheduled = end.difference(start);
+        if (scheduled > Duration.zero) return scheduled;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<void> _playRecording(BuildContext context, Map<String, dynamic> rec) async {
     final recordingId = rec['id'] as String?;
     final title = rec['title'] as String? ?? 'Enregistrement';
@@ -928,17 +959,52 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
       return;
     }
 
-    Duration? recordingDuration;
-    try {
-      if (rec['start_time'] != null && rec['end_time'] != null) {
-        final start = DateTime.parse(rec['start_time'].toString());
-        final end = DateTime.parse(rec['end_time'].toString());
-        recordingDuration = end.difference(start);
+    final recordingDuration = _recordingDuration(rec);
+    final saved = _savedPosition(rec);
+
+    // Reprise proposée, jamais imposée : un enregistrement déjà vu se
+    // relance parfois depuis le début.
+    double? startAt;
+    if (saved > 30) {
+      if (!mounted) return;
+      final resume = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppColors.surfaceContainer,
+          title: Text(
+            'Reprendre la lecture ?',
+            style: GoogleFonts.fraunces(color: AppColors.onSurface),
+          ),
+          content: Text(
+            '« $title » a été interrompu à '
+            '${PlaybackPositionsNotifier.formatTime(saved)}.',
+            style: const TextStyle(color: AppColors.onSurfaceVariant),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Depuis le début'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(ctx, true),
+              icon: const Icon(Icons.play_arrow_rounded, size: 18),
+              label: const Text('Reprendre'),
+            ),
+          ],
+        ),
+      );
+      if (resume == null) return; // dialogue fermé : on n'ouvre rien
+      if (resume) {
+        startAt = saved;
+      } else {
+        ref
+            .read(playbackPositionsProvider.notifier)
+            .clearPosition(_resumeKey(recordingId));
       }
-    } catch (_) {}
+    }
 
     if (!mounted) return;
-    Navigator.of(context).push(
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (ctx) => PlayerScreen(
           streamId: recordingId,
@@ -947,9 +1013,51 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
           streamType: StreamType.recording,
           containerExtension: 'ts',
           duration: recordingDuration,
+          startTime: startAt,
         ),
       ),
     );
+    // Au retour du lecteur, la progression affichée dans la liste doit
+    // refléter la position atteinte.
+    if (mounted) setState(() {});
+  }
+
+  /// Barre « déjà vu jusqu'ici » sous un enregistrement entamé.
+  List<Widget> _buildResumeIndicator(Map<String, dynamic> rec) {
+    final saved = _savedPosition(rec);
+    if (saved <= 30) return const [];
+
+    final total = _recordingDuration(rec)?.inSeconds ?? 0;
+    final ratio = total > 0 ? (saved / total).clamp(0.0, 1.0) : null;
+
+    return [
+      const SizedBox(height: 6),
+      Row(
+        children: [
+          if (ratio != null)
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: LinearProgressIndicator(
+                  value: ratio,
+                  minHeight: 4,
+                  backgroundColor: AppColors.onSurface.withOpacity(0.1),
+                  valueColor:
+                      const AlwaysStoppedAnimation(AppColors.primary),
+                ),
+              ),
+            ),
+          if (ratio != null) const SizedBox(width: 8),
+          Text(
+            'Reprendre à ${PlaybackPositionsNotifier.formatTime(saved)}',
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    ];
   }
 
   Future<void> _showLogs(String id, String title) async {
@@ -1037,6 +1145,10 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
 
   @override
   Widget build(BuildContext context) {
+    // Les positions de reprise arrivent de façon asynchrone (SharedPreferences)
+    // et changent au retour du lecteur : sans cette écoute, la mention
+    // « Reprendre à … » n'apparaîtrait qu'au prochain rafraîchissement.
+    ref.watch(playbackPositionsProvider);
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -1178,6 +1290,8 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                                           ),
                                         ),
                                       ],
+                                      if (status == 'completed')
+                                        ..._buildResumeIndicator(rec),
                                       if (rec['error_reason'] != null)
                                         Text(
                                           '⚠ ${rec['error_reason']}',
@@ -1228,13 +1342,18 @@ class _RecordingsListViewState extends State<_RecordingsListView> {
                                         ),
                                       if (status == 'completed')
                                         IconButton(
-                                          icon: const Icon(
-                                            Icons.play_circle_outline,
+                                          icon: Icon(
+                                            _savedPosition(rec) > 30
+                                                ? Icons.play_circle_fill
+                                                : Icons.play_circle_outline,
                                             color: AppColors.success,
                                             size: 20,
                                           ),
-                                          tooltip: 'Lecture',
-                                          onPressed: () => _playRecording(context, rec),
+                                          tooltip: _savedPosition(rec) > 30
+                                              ? 'Reprendre'
+                                              : 'Lecture',
+                                          onPressed: () =>
+                                              _playRecording(context, rec),
                                         ),
                                       IconButton(
                                         icon: const Icon(

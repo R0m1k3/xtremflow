@@ -185,6 +185,28 @@ class FfmpegSessionManager {
     }
   }
 
+  /// Tue les sessions frères d'un même contenu (`rec_<id>_t0`, `rec_<id>_t600`…)
+  /// que plus personne ne consomme depuis [idleFor].
+  ///
+  /// Chaque saut hors de la zone déjà transcodée démarre un FFmpeg à un
+  /// nouvel offset ; sans ce ménage, une poignée d'allers-retours dans la
+  /// barre de progression laisserait autant de processus vivants jusqu'au
+  /// TTL de 15 minutes. Le délai d'inactivité protège un second spectateur
+  /// du même enregistrement : sa session est « touchée » à chaque segment.
+  void killIdleSiblings(
+    String prefix, {
+    required String keep,
+    Duration idleFor = const Duration(seconds: 30),
+  }) {
+    final now = DateTime.now();
+    for (final session in _sessions.values.toList()) {
+      if (session.id == keep || !session.id.startsWith(prefix)) continue;
+      if (now.difference(session.lastAccess) < idleFor) continue;
+      print('[FFmpegManager] Dropping stale sibling ${session.id}');
+      killSession(session.id);
+    }
+  }
+
   void killAll() {
     print('[FFmpegManager] Killing ${_sessions.length} session(s)');
     for (final id in _sessions.keys.toList()) {

@@ -3,6 +3,9 @@
 ## Non publié
 
 ### ▶️ Lecture vidéo
+- **Lecteur avancé pour les enregistrements** : barre de progression réellement utilisable (avance, retour, saut n'importe où), pause/reprise, et reprise automatique là où on s'était arrêté. La playlist d'un enregistrement était servie en `EXT-X-PLAYLIST-TYPE:VOD` : hls.js la considérait comme définitive et ne voyait donc que les quelques secondes déjà transcodées à l'ouverture. Elle passe en `EVENT` (la zone navigable grandit avec l'encodage) et un saut hors de cette zone relance FFmpeg à la position visée (`?start=`), au lieu d'attendre que l'encodeur y arrive
+- **Reprise des enregistrements** : la liste affiche « Reprendre à … » avec la progression, et propose au clic de reprendre ou de repartir du début ; la durée affichée est mesurée par ffprobe (`duration_seconds`) et non plus déduite des horaires programmés — un enregistrement arrêté en avance donnait une barre fausse
+- **Contrôles enrichis (VOD, séries, enregistrements)** : sauts ±10 s et ±1 min, sélecteur de vitesse (0,5× à 2×), portion déjà transcodée visible sur la barre, et raccourcis clavier `K`/espace, `J`/`L`, Maj+←/→, `0`-`9`, `F`, `M`, `,`/`.`
 - **Fix du son manquant sur certaines chaînes** : nouvelle route `/api/live/<id>/turbo.ts` pour le zapping — vidéo copiée telle quelle, audio systématiquement réencodé en AAC côté serveur. Les chaînes en AC-3/E-AC-3/MP2 (que mpegts.js ne décode pas) ont maintenant du son, sans coût de transcodage vidéo
 - **Players mis à jour** : hls.js 1.6.7 → 1.7.1, mpegts.js 1.7.3 → 1.8.2 (vendorisés)
 - **Démarrage plus rapide** : sonde FFmpeg bornée (`-fflags nobuffer`, probesize réduit) sur le live et le turbo ; probesize VOD 10 Mo → 5 Mo ; preset live `high` et lecture d'enregistrement en `veryfast` (medium ne tenait pas le temps réel) ; détection de playlist toutes les 100 ms au lieu de 500 ms ; suppression du cache-buster qui re-téléchargeait player.html à chaque zap (les .html passent en no-cache serveur)

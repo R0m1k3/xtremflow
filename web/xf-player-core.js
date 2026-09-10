@@ -161,6 +161,13 @@
     this.injectedDuration = parseFloat(p.get('duration') || '0');
     this.isRecording = p.get('is_recording') === 'true';
 
+    // Décalage du média par rapport au début du contenu. Un enregistrement
+    // ouvert à 45 min est transcodé par FFmpeg *depuis* 45 min : le média
+    // commence à 0 alors que la lecture, elle, est à 2700 s. Tout ce qui
+    // sort du lecteur (position, recherche) est exprimé en temps absolu.
+    this.mediaOffset = parseFloat(p.get('offset') || '0');
+    if (!isFinite(this.mediaOffset) || this.mediaOffset < 0) this.mediaOffset = 0;
+
     // Profil de départ : forçable via ?buffer=balanced|safe
     var forced = p.get('buffer');
     this.profile = PROFILES[forced] ? PROFILES[forced] : PROFILES.fast;
@@ -535,9 +542,23 @@
     v.addEventListener('ended', function () {
       self.send({
         type: 'playback_ended',
-        duration: isFinite(v.duration) ? v.duration : self.injectedDuration
+        duration: self._totalDuration()
       });
     });
+
+    // Le front de transcodage avance : le parent doit pouvoir griser la
+    // portion pas encore navigable de la barre de progression. `progress`
+    // se déclenche à chaque bloc reçu — bridé à 2 s, sinon chaque segment
+    // provoquerait une reconstruction de l'interface Flutter.
+    v.addEventListener('progress', function () {
+      if (!self._started) return;
+      var now = Date.now();
+      if (now - (self._lastProgressSent || 0) < 2000) return;
+      self._lastProgressSent = now;
+      self._sendPosition();
+    });
+
+    v.addEventListener('seeked', function () { self._sendPosition(); });
 
     // Remontée de position (5 s) — même contrat qu'avant.
     this._posTimer = setInterval(function () { self._reportPosition(); }, 5000);
@@ -549,27 +570,100 @@
     document.addEventListener('click', activity, { passive: true });
   };
 
+  /** Fin de la plage réellement navigable, en temps média. */
+  XFPlayer.prototype._seekableEnd = function () {
+    var v = this.video;
+    try {
+      if (v.seekable && v.seekable.length > 0) {
+        return v.seekable.end(v.seekable.length - 1);
+      }
+    } catch (e) {}
+    try {
+      if (v.buffered && v.buffered.length > 0) {
+        return v.buffered.end(v.buffered.length - 1);
+      }
+    } catch (e) {}
+    return isFinite(v.duration) ? v.duration : 0;
+  };
+
+  /** Durée totale du contenu (et non du seul média chargé), en secondes. */
+  XFPlayer.prototype._totalDuration = function () {
+    var v = this.video;
+    var duration = v.duration;
+    var hlsDur = this._hlsDuration || 0;
+    if (!isFinite(duration) || isNaN(duration) || duration < 1) {
+      duration = hlsDur;
+    } else if (hlsDur > duration) {
+      duration = hlsDur;
+    }
+
+    // Temps absolu : le média peut commencer après le début du contenu.
+    var total = duration > 0 ? this.mediaOffset + duration : 0;
+
+    // La durée annoncée par l'app fait foi tant que le média n'en connaît
+    // qu'une fraction — cas d'une playlist `event` encore en cours de
+    // transcodage, où la durée grandirait sous la barre de progression.
+    // Au-delà, le média a raison : les métadonnées Xtream sont approximatives.
+    if (this.injectedDuration > 0 && total < this.injectedDuration * 0.98) {
+      return this.injectedDuration;
+    }
+    return total;
+  };
+
   XFPlayer.prototype._reportPosition = function () {
     var v = this.video;
     if (!(v.currentTime > 0) || v.paused || v.readyState <= 2) return;
     if (Math.abs(v.currentTime - this._reportedTime) < 1) return;
     this._reportedTime = v.currentTime;
+    this._sendPosition();
+  };
 
-    var duration = v.duration;
-    var hlsDur = this._hlsDuration || 0;
-    if (!isFinite(duration) || isNaN(duration) || duration < 1) {
-      duration = hlsDur > 0 ? hlsDur : (this.injectedDuration > 0 ? this.injectedDuration : 0);
-    } else if (hlsDur > duration) {
-      duration = hlsDur;
-    } else if (this.injectedDuration > 0 && duration < this.injectedDuration * 0.9) {
-      duration = this.injectedDuration;
-    }
-
+  /** Envoi immédiat de l'état de lecture (position, durée, zone navigable). */
+  XFPlayer.prototype._sendPosition = function () {
     this.send({
       type: 'playback_position',
-      currentTime: v.currentTime,
-      duration: duration
+      currentTime: this.mediaOffset + this.video.currentTime,
+      duration: this._totalDuration(),
+      seekableEnd: this.mediaOffset + this._seekableEnd()
     });
+  };
+
+  /**
+   * Recherche à un instant ABSOLU du contenu.
+   *
+   * Tant que la cible est dans la zone déjà transcodée, c'est une simple
+   * affectation de `currentTime`. Au-delà, aucune quantité d'attente ne la
+   * rendra disponible rapidement : le parent est prévenu pour relancer le
+   * flux à cet instant (nouvelle session FFmpeg `?start=`).
+   */
+  XFPlayer.prototype.seekTo = function (absolute) {
+    if (!isFinite(absolute)) return;
+    var v = this.video;
+    var target = absolute - this.mediaOffset;
+    var end = this._seekableEnd();
+
+    if (target < 0) {
+      // Avant le début du média chargé : cette portion n'est pas dans cette
+      // session de transcodage, il faut en relancer une plus tôt.
+      this.send({ type: 'seek_out_of_range', value: Math.max(0, absolute) });
+      return;
+    }
+
+    // Marge de 10 s : juste devant le front de transcodage, attendre coûte
+    // moins cher que relancer un encodeur.
+    if (end > 0 && target > end + 10) {
+      this.send({ type: 'seek_out_of_range', value: absolute });
+      return;
+    }
+
+    try {
+      v.currentTime = end > 0 ? Math.min(target, Math.max(0, end - 0.5)) : target;
+    } catch (e) {
+      this.send({ type: 'seek_out_of_range', value: absolute });
+      return;
+    }
+    this._reportedTime = v.currentTime;
+    this._sendPosition();
   };
 
   XFPlayer.prototype._wireParentMessages = function () {
@@ -589,7 +683,12 @@
           v.pause();
           break;
         case 'seek':
-          if (isFinite(d.value)) v.currentTime = d.value;
+          self.seekTo(d.value);
+          break;
+        case 'set_rate':
+          if (isFinite(d.value) && d.value > 0) {
+            try { v.playbackRate = Math.max(0.25, Math.min(4, d.value)); } catch (e) {}
+          }
           break;
         case 'set_volume':
           v.volume = Math.max(0, Math.min(1, d.value));

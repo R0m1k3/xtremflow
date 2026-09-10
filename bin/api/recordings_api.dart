@@ -74,16 +74,92 @@ class RecordingsApi {
   /// GET /api/recordings — Liste les enregistrements de l'utilisateur
   /// (tous les enregistrements pour un admin), enrichis des informations de
   /// suivi : taille du fichier, progression, relances FFmpeg.
-  Response handleGetAll(Request request) {
+  Future<Response> handleGetAll(Request request) async {
     final user = request.context['user'] as User?;
     final recordings = (user != null && !user.isAdmin)
         ? _db.getUserRecordings(user.id)
         : _db.getAllRecordings();
     final now = DateTime.now().toUtc();
+    final enriched = <Map<String, dynamic>>[];
+    for (final r in recordings) {
+      final map = _enrich(r, now);
+      // Durée réelle du média : `end_time - start_time` n'est que la durée
+      // *programmée*. Un enregistrement arrêté en avance ou tronqué par une
+      // coupure amont donnait une barre de progression fausse et un « reprendre »
+      // hors des clous.
+      final duration = await _probeDuration(r);
+      if (duration != null) map['duration_seconds'] = duration;
+      enriched.add(map);
+    }
     return Response.ok(
-      json.encode(recordings.map((r) => _enrich(r, now)).toList()),
+      json.encode(enriched),
       headers: {'Content-Type': 'application/json'},
     );
+  }
+
+  /// Binaire ffprobe : même logique de résolution que FFmpeg côté scheduler
+  /// (l'image Docker les installe tous deux dans `/usr/local/bin`).
+  static String _ffprobePath() {
+    final fromEnv = Platform.environment['FFPROBE_PATH'];
+    if (fromEnv != null && fromEnv.isNotEmpty) return fromEnv;
+    if (Platform.isLinux && File('/usr/local/bin/ffprobe').existsSync()) {
+      return '/usr/local/bin/ffprobe';
+    }
+    return 'ffprobe';
+  }
+
+  /// Durées mesurées par ffprobe, mémorisées tant que le fichier ne bouge pas.
+  /// Sans ce cache, chaque cycle de rafraîchissement (5 s pendant une capture)
+  /// relancerait un ffprobe par enregistrement.
+  static final Map<String, ({int size, int mtimeMs, double duration})>
+      _durationCache = {};
+
+  /// Durée du média en secondes, ou `null` si elle n'est pas mesurable
+  /// (ffprobe absent, fichier en cours d'écriture, conteneur sans durée).
+  Future<double?> _probeDuration(Recording r) async {
+    final path = r.filePath;
+    // Un enregistrement en cours grossit en permanence : le cache serait
+    // invalidé à chaque appel et ffprobe tournerait en boucle. La durée
+    // programmée suffit tant que la capture n'est pas terminée.
+    if (path == null || r.status != 'completed') return null;
+
+    final safePath = SafePath.resolveWithin(recordingsDirPath, path);
+    if (safePath == null) return null;
+
+    final file = File(safePath);
+    FileStat stat;
+    try {
+      stat = file.statSync();
+      if (stat.type == FileSystemEntityType.notFound) return null;
+    } catch (_) {
+      return null;
+    }
+
+    final cached = _durationCache[safePath];
+    if (cached != null &&
+        cached.size == stat.size &&
+        cached.mtimeMs == stat.modified.millisecondsSinceEpoch) {
+      return cached.duration;
+    }
+
+    try {
+      final result = await Process.run(_ffprobePath(), [
+        '-v', 'error',
+        '-show_entries', 'format=duration',
+        '-of', 'default=noprint_wrappers=1:nokey=1',
+        safePath,
+      ]);
+      final value = double.tryParse((result.stdout as String).trim());
+      if (value == null || !value.isFinite || value <= 0) return null;
+      _durationCache[safePath] = (
+        size: stat.size,
+        mtimeMs: stat.modified.millisecondsSinceEpoch,
+        duration: value,
+      );
+      return value;
+    } catch (_) {
+      return null;
+    }
   }
 
   Map<String, dynamic> _enrich(Recording r, DateTime now) {

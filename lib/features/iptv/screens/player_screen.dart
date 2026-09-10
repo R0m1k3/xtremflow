@@ -61,6 +61,29 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _isMuted = false;
   bool _ignoreStatusUpdates = false;
 
+  /// Fin de la plage réellement navigable, en temps absolu.
+  ///
+  /// Un enregistrement est transcodé au fil de l'eau par FFmpeg : ce qui est
+  /// au-delà de ce point n'existe pas encore côté serveur. Sauter dedans
+  /// suppose de relancer l'encodeur à la position visée.
+  double _seekableEnd = 0;
+
+  /// Décalage du média courant par rapport au début du contenu : un
+  /// enregistrement rouvert à 45 min est transcodé *depuis* 45 min.
+  double _mediaOffset = 0;
+
+  /// Vitesse de lecture (hors direct).
+  double _rate = 1.0;
+
+  /// Un rechargement du flux à une nouvelle position est en cours : les
+  /// positions remontées par l'ancienne iframe ne doivent plus rien écraser.
+  bool _seekReloading = false;
+
+  /// Incrémenté à chaque (re)création de l'iframe : deux vues de plateforme
+  /// ne peuvent pas partager le même identifiant, et il faut un identifiant
+  /// neuf pour que Flutter reconstruise réellement l'iframe.
+  int _viewGeneration = 0;
+
   /// Reflète l'état plein écran du document. Le navigateur peut en sortir
   /// sans passer par notre bouton (touche Échap), d'où l'écoute de
   /// `fullscreenchange` plutôt qu'un simple booléen basculé au clic.
@@ -113,6 +136,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   /// tous les navigateurs visés.
   bool get _documentIsFullscreen => html.document.fullscreenElement != null;
 
+  /// Clé de reprise. Les enregistrements sont préfixés : leur identifiant est
+  /// un UUID stocké dans le même espace de noms que les identifiants VOD.
+  String get _positionKey => widget.streamType == StreamType.recording
+      ? 'rec_${widget.streamId}'
+      : widget.streamId;
+
+  /// La position peut-elle avoir un sens (barre de progression, reprise) ?
+  bool get _isSeekable => widget.streamType != StreamType.live;
+
   void _syncFullscreenState() {
     final value = _documentIsFullscreen;
     if (mounted && value != _isFullscreen) {
@@ -139,9 +171,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       }
 
       // Stable view ID for the instance to prevent iframe reload on rebuild
-      // (orientation change). Includes quality so a quality switch forces a
-      // fresh iframe.
-      _viewId = 'iptv-player-$currentStreamId-${_quality.value}-$_viewIdPrefix';
+      // (orientation change). La génération change à chaque appel : sans
+      // elle, relancer le flux à une autre position réutiliserait la même
+      // vue de plateforme et l'iframe ne serait jamais reconstruite.
+      _viewId =
+          'iptv-player-$currentStreamId-${_quality.value}-$_viewIdPrefix-'
+          '${_viewGeneration++}';
 
       final service = ref.read(xtreamServiceProvider(widget.playlist));
       String streamUrl = '';
@@ -166,7 +201,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           quality: _quality.value,
         );
       } else if (widget.streamType == StreamType.recording) {
-        streamUrl = '${service.backendBaseUrl}/api/recordings/stream/$currentStreamId/playlist.m3u8';
+        // FFmpeg transcode l'enregistrement séquentiellement : reprendre à
+        // 45 min sans le lui dire imposerait d'attendre qu'il y arrive.
+        // `?start=` lui fait démarrer l'encodage à la position demandée.
+        _mediaOffset = (startTimeOverride ?? 0) > 0
+            ? startTimeOverride!.floorToDouble()
+            : 0;
+        final base = '${service.backendBaseUrl}/api/recordings/stream/'
+            '$currentStreamId/playlist.m3u8';
+        streamUrl =
+            _mediaOffset > 0 ? '$base?start=${_mediaOffset.toInt()}' : base;
       }
 
       // Store URL for Lite Player
@@ -204,9 +248,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
       if (widget.streamType == StreamType.recording) {
         playerSrc += '&is_recording=true';
-      }
-
-      if (startTimeOverride != null) {
+        // Le média commence à l'offset : le lecteur ré-ajoute ce décalage
+        // pour exprimer position et recherches en temps absolu.
+        if (_mediaOffset > 0) playerSrc += '&offset=${_mediaOffset.toInt()}';
+      } else if (startTimeOverride != null && startTimeOverride > 0) {
         playerSrc += '&t=$startTimeOverride';
       }
 
@@ -230,12 +275,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         setState(() {
           _isInitialized = true;
           _isLoading = false;
+          _isPlaying = true;
+          _seekReloading = false;
+          // La nouvelle iframe repart d'une plage navigable vide, qui
+          // grandira au rythme du transcodage.
+          _seekableEnd = _mediaOffset;
+          if (_mediaOffset > 0) _currentPosition = _mediaOffset;
         });
 
         // Force unmute on load (after a short delay to ensure iframe is ready)
         Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) {
-            _sendMessage({'type': 'set_volume', 'value': 1.0});
+          if (!mounted) return;
+          _sendMessage({'type': 'set_volume', 'value': _isMuted ? 0.0 : 1.0});
+          if (_rate != 1.0) {
+            _sendMessage({'type': 'set_rate', 'value': _rate});
           }
         });
       }
@@ -258,28 +311,47 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
       final type = data['type'];
       if (type == 'playback_position') {
+        // Un rechargement à une autre position est en cours : l'ancienne
+        // iframe continue d'émettre quelques instants, ne pas la laisser
+        // ramener la barre en arrière.
+        if (_seekReloading) return;
+
         final currentTime = (data['currentTime'] as num).toDouble();
         final rawDuration = (data['duration'] as num).toDouble();
         final duration = rawDuration.isFinite ? rawDuration : 0.0;
+        final rawSeekable = data['seekableEnd'];
+        final seekableEnd =
+            rawSeekable is num ? rawSeekable.toDouble() : currentTime;
 
         // Only update position if user is NOT dragging the slider
-        if (!_isSeeking) {
-          setState(() {
+        setState(() {
+          if (!_isSeeking) {
             _currentPosition = currentTime;
             _totalDuration = duration > 0 ? duration : 1;
-          });
-        }
+          }
+          if (seekableEnd.isFinite && seekableEnd > 0) {
+            _seekableEnd = seekableEnd;
+          }
+        });
 
         // Update watch history if relevant. Jamais en live : la « position »
         // d'un flux continu n'a pas de sens et polluait le stockage avec une
         // entrée bidon par chaîne zappée.
         if (currentTime > 0 && widget.streamType != StreamType.live) {
           ref.read(playbackPositionsProvider.notifier).savePosition(
-                widget.streamId,
+                _positionKey,
                 currentTime,
                 duration,
               );
         }
+      } else if (type == 'seek_out_of_range') {
+        // Cible hors de la zone déjà transcodée : seul un redémarrage du
+        // flux à cet instant peut la servir.
+        final target = (data['value'] as num?)?.toDouble();
+        if (target != null) _restartAt(target);
+      } else if (type == 'playback_ended') {
+        setState(() => _isPlaying = false);
+        ref.read(playbackPositionsProvider.notifier).clearPosition(_positionKey);
       } else if (type == 'playback_status') {
         if (!_ignoreStatusUpdates) {
           setState(() => _isPlaying = data['status'] == 'playing');
@@ -345,6 +417,48 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
+  /// Recherche à un instant absolu du contenu.
+  ///
+  /// Le lecteur tranche lui-même : saut local s'il a la donnée, sinon il
+  /// répond `seek_out_of_range` et le flux est relancé à cet instant.
+  void _seekTo(double target) {
+    final clamped = target.clamp(0.0, _totalDuration);
+    setState(() => _currentPosition = clamped);
+    _sendMessage({'type': 'seek', 'value': clamped});
+    _onHover();
+  }
+
+  void _seekBy(double delta) => _seekTo(_currentPosition + delta);
+
+  /// Relance le flux à [target] : nouvelle session de transcodage côté
+  /// serveur, donc quelques secondes d'attente — réservé aux sauts que la
+  /// zone déjà transcodée ne couvre pas.
+  void _restartAt(double target) {
+    if (!_isSeekable || _seekReloading) return;
+    // Jamais tout à la fin : FFmpeg lancé au-delà de la dernière image
+    // n'encoderait rien et le lecteur n'aurait qu'une erreur à afficher.
+    final ceiling =
+        _totalDuration > 10 ? _totalDuration - 5 : _totalDuration;
+    final clamped = target.clamp(0.0, ceiling);
+    if (widget.streamType != StreamType.recording) {
+      // VOD/séries : le serveur ne sait pas démarrer ailleurs qu'au début,
+      // on se contente du bord de la zone disponible.
+      _sendMessage({'type': 'seek', 'value': _seekableEnd});
+      return;
+    }
+    setState(() {
+      _seekReloading = true;
+      _currentPosition = clamped;
+    });
+    _initializePlayer(startTimeOverride: clamped, isChannelSwitch: true);
+  }
+
+  void _setRate(double rate) {
+    setState(() => _rate = rate);
+    _sendMessage({'type': 'set_rate', 'value': rate});
+    _onHover();
+  }
+
   void _toggleFullscreen() {
     try {
       if (_documentIsFullscreen) {
@@ -379,6 +493,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     // current position, live restarts at the live edge.
     final resumeAt =
         widget.streamType == StreamType.live ? null : _currentPosition;
+    // Un enregistrement redémarre à cette position côté serveur : sa zone
+    // navigable repart de zéro.
     _initializePlayer(startTimeOverride: resumeAt, isChannelSwitch: true);
   }
 
@@ -408,17 +524,27 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
+  /// Sauts proposés par les raccourcis et les boutons.
+  static const _smallStep = 10.0;
+  static const _bigStep = 60.0;
+
+  /// Vitesses de lecture proposées hors direct.
+  static const _rates = <double>[0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+
   /// Keyboard / TV remote controls:
-  /// space-enter = play/pause, ←/→ = seek ±10s (VOD) or zap (live),
-  /// ↑/↓ = zap (live), M = mute, Esc = exit player.
+  /// space-enter-K = play/pause, ←/→ = seek ±10 s (VOD) or zap (live),
+  /// Maj+←/→ ou J/L = ±60 s, ↑/↓ = zap (live), 0-9 = saut en % du contenu,
+  /// M = mute, F = plein écran, +/- = vitesse, Esc = exit player.
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final isLive = widget.streamType == StreamType.live;
     final key = event.logicalKey;
+    final shift = HardwareKeyboard.instance.isShiftPressed;
 
     if (key == LogicalKeyboardKey.space ||
         key == LogicalKeyboardKey.enter ||
         key == LogicalKeyboardKey.select ||
+        key == LogicalKeyboardKey.keyK ||
         key == LogicalKeyboardKey.mediaPlayPause) {
       _togglePlayPause();
       _onHover();
@@ -433,28 +559,27 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       _onHover();
       return KeyEventResult.handled;
     }
+    if (key == LogicalKeyboardKey.keyF) {
+      _toggleFullscreen();
+      _onHover();
+      return KeyEventResult.handled;
+    }
     if (key == LogicalKeyboardKey.arrowLeft) {
       if (isLive) {
         _previousChannel();
+        _onHover();
       } else {
-        _sendMessage({
-          'type': 'seek',
-          'value': (_currentPosition - 10).clamp(0, _totalDuration),
-        });
+        _seekBy(shift ? -_bigStep : -_smallStep);
       }
-      _onHover();
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.arrowRight) {
       if (isLive) {
         _nextChannel();
+        _onHover();
       } else {
-        _sendMessage({
-          'type': 'seek',
-          'value': (_currentPosition + 10).clamp(0, _totalDuration),
-        });
+        _seekBy(shift ? _bigStep : _smallStep);
       }
-      _onHover();
       return KeyEventResult.handled;
     }
     if (isLive && key == LogicalKeyboardKey.arrowUp) {
@@ -467,7 +592,66 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       _onHover();
       return KeyEventResult.handled;
     }
+    if (!isLive) {
+      if (key == LogicalKeyboardKey.keyJ) {
+        _seekBy(-_bigStep);
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.keyL) {
+        _seekBy(_bigStep);
+        return KeyEventResult.handled;
+      }
+      // 0-9 : saut direct au dixième correspondant du contenu.
+      final decile = _decileFor(key);
+      if (decile != null) {
+        _seekTo(_totalDuration * decile / 10);
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.period) {
+        _stepRate(1);
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.comma) {
+        _stepRate(-1);
+        return KeyEventResult.handled;
+      }
+    }
     return KeyEventResult.ignored;
+  }
+
+  /// Touche 0-9 (rangée du haut ou pavé numérique) → dixième visé.
+  /// Table non `const` : `LogicalKeyboardKey` redéfinit `==`, ce qui interdit
+  /// une table constante.
+  static final Map<LogicalKeyboardKey, int> _digitKeys = {
+    LogicalKeyboardKey.digit0: 0,
+    LogicalKeyboardKey.digit1: 1,
+    LogicalKeyboardKey.digit2: 2,
+    LogicalKeyboardKey.digit3: 3,
+    LogicalKeyboardKey.digit4: 4,
+    LogicalKeyboardKey.digit5: 5,
+    LogicalKeyboardKey.digit6: 6,
+    LogicalKeyboardKey.digit7: 7,
+    LogicalKeyboardKey.digit8: 8,
+    LogicalKeyboardKey.digit9: 9,
+    LogicalKeyboardKey.numpad0: 0,
+    LogicalKeyboardKey.numpad1: 1,
+    LogicalKeyboardKey.numpad2: 2,
+    LogicalKeyboardKey.numpad3: 3,
+    LogicalKeyboardKey.numpad4: 4,
+    LogicalKeyboardKey.numpad5: 5,
+    LogicalKeyboardKey.numpad6: 6,
+    LogicalKeyboardKey.numpad7: 7,
+    LogicalKeyboardKey.numpad8: 8,
+    LogicalKeyboardKey.numpad9: 9,
+  };
+
+  int? _decileFor(LogicalKeyboardKey key) => _digitKeys[key];
+
+  void _stepRate(int direction) {
+    final index = _rates.indexOf(_rate);
+    final next = (index < 0 ? _rates.indexOf(1.0) : index) + direction;
+    if (next < 0 || next >= _rates.length) return;
+    _setRate(_rates[next]);
   }
 
   String _formatDuration(Duration d) {
@@ -748,9 +932,28 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
                       // Center Loading Indicator (only show when loading)
                       if (_isLoading)
-                        const Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.primary,
+                        Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const CircularProgressIndicator(
+                                color: AppColors.primary,
+                              ),
+                              // Un saut hors de la zone transcodée relance
+                              // l'encodeur : quelques secondes d'attente,
+                              // autant dire pourquoi.
+                              if (_seekReloading) ...[
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Reprise à '
+                                  '${_formatDuration(Duration(seconds: _currentPosition.toInt()))}…',
+                                  style: GoogleFonts.karla(
+                                    color: AppColors.onSurfaceVariant,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
 
@@ -787,6 +990,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                         activeTrackColor: AppColors.primary,
                                         inactiveTrackColor:
                                             AppColors.onSurface.withOpacity(0.2),
+                                        // Portion déjà transcodée : navigable
+                                        // instantanément, contrairement au
+                                        // reste qui redémarre l'encodeur.
+                                        secondaryActiveTrackColor:
+                                            AppColors.onSurface.withOpacity(0.4),
                                         thumbColor: AppColors.onSurface,
                                         thumbShape: const RoundSliderThumbShape(
                                           enabledThumbRadius: 8,
@@ -795,7 +1003,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                             AppColors.primary.withOpacity(0.2),
                                       ),
                                       child: Slider(
-                                        value: _currentPosition,
+                                        value: _currentPosition
+                                            .clamp(0.0, _totalDuration),
+                                        secondaryTrackValue: _seekableEnd > 0
+                                            ? _seekableEnd
+                                                .clamp(0.0, _totalDuration)
+                                            : null,
                                         min: 0,
                                         max: _totalDuration,
                                         onChanged: (val) => setState(
@@ -804,9 +1017,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                         onChangeStart: (_) =>
                                             setState(() => _isSeeking = true),
                                         onChangeEnd: (val) {
-                                          _sendMessage(
-                                            {'type': 'seek', 'value': val},
-                                          );
+                                          _seekTo(val);
                                           Future.delayed(
                                               const Duration(milliseconds: 500),
                                               () {
@@ -836,68 +1047,91 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               const SizedBox(height: 12),
 
                               // Buttons
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  _buildGlassIconButton(
-                                    icon: Icons.replay_10_rounded,
-                                    onTap: () => _sendMessage({
-                                      'type': 'seek',
-                                      'value': (_currentPosition - 10)
-                                          .clamp(0, _totalDuration),
-                                    }),
-                                    transparent: true,
-                                    tooltip: 'Reculer de 10 s',
-                                  ),
-                                  const SizedBox(width: 24),
-                                  _buildGlassIconButton(
-                                    icon: _isPlaying
-                                        ? Icons.pause_rounded
-                                        : Icons.play_arrow_rounded,
-                                    onTap: _togglePlayPause,
-                                    size: 56,
-                                    iconSize: 32,
-                                    tooltip: _isPlaying ? 'Pause' : 'Lecture',
-                                  ),
-                                  const SizedBox(width: 24),
-                                  _buildGlassIconButton(
-                                    icon: Icons.forward_10_rounded,
-                                    onTap: () => _sendMessage({
-                                      'type': 'seek',
-                                      'value': (_currentPosition + 10)
-                                          .clamp(0, _totalDuration),
-                                    }),
-                                    transparent: true,
-                                    tooltip: 'Avancer de 10 s',
-                                  ),
-                                  const Spacer(),
-                                  QualitySelectorButton(
-                                    current: _quality,
-                                    onSelected: _changeQuality,
-                                  ),
-                                  const SizedBox(width: 16),
-                                  _buildGlassIconButton(
-                                    icon: _isMuted
-                                        ? Icons.volume_off_rounded
-                                        : Icons.volume_up_rounded,
-                                    onTap: _toggleMute,
-                                    transparent: true,
-                                    tooltip: _isMuted
-                                        ? 'Activer le son'
-                                        : 'Couper le son',
-                                  ),
-                                  const SizedBox(width: 16),
-                                  _buildGlassIconButton(
-                                    icon: _isFullscreen
-                                        ? Icons.fullscreen_exit_rounded
-                                        : Icons.fullscreen_rounded,
-                                    onTap: _toggleFullscreen,
-                                    transparent: true,
-                                    tooltip: _isFullscreen
-                                        ? 'Quitter le plein écran'
-                                        : 'Plein écran',
-                                  ),
-                                ],
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  // Sous 720 px, les sauts de 60 s et le
+                                  // sélecteur de vitesse sortent de la barre
+                                  // plutôt que de la faire déborder.
+                                  final compact = constraints.maxWidth < 720;
+                                  return Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      if (!compact) ...[
+                                        _buildGlassIconButton(
+                                          icon: Icons.fast_rewind_rounded,
+                                          onTap: () => _seekBy(-_bigStep),
+                                          transparent: true,
+                                          tooltip: 'Reculer de 1 min',
+                                        ),
+                                        const SizedBox(width: 16),
+                                      ],
+                                      _buildGlassIconButton(
+                                        icon: Icons.replay_10_rounded,
+                                        onTap: () => _seekBy(-_smallStep),
+                                        transparent: true,
+                                        tooltip: 'Reculer de 10 s',
+                                      ),
+                                      const SizedBox(width: 24),
+                                      _buildGlassIconButton(
+                                        icon: _isPlaying
+                                            ? Icons.pause_rounded
+                                            : Icons.play_arrow_rounded,
+                                        onTap: _togglePlayPause,
+                                        size: 56,
+                                        iconSize: 32,
+                                        tooltip:
+                                            _isPlaying ? 'Pause' : 'Lecture',
+                                      ),
+                                      const SizedBox(width: 24),
+                                      _buildGlassIconButton(
+                                        icon: Icons.forward_10_rounded,
+                                        onTap: () => _seekBy(_smallStep),
+                                        transparent: true,
+                                        tooltip: 'Avancer de 10 s',
+                                      ),
+                                      if (!compact) ...[
+                                        const SizedBox(width: 16),
+                                        _buildGlassIconButton(
+                                          icon: Icons.fast_forward_rounded,
+                                          onTap: () => _seekBy(_bigStep),
+                                          transparent: true,
+                                          tooltip: 'Avancer de 1 min',
+                                        ),
+                                      ],
+                                      const Spacer(),
+                                      if (!compact) ...[
+                                        _buildRateSelector(),
+                                        const SizedBox(width: 16),
+                                      ],
+                                      QualitySelectorButton(
+                                        current: _quality,
+                                        onSelected: _changeQuality,
+                                      ),
+                                      const SizedBox(width: 16),
+                                      _buildGlassIconButton(
+                                        icon: _isMuted
+                                            ? Icons.volume_off_rounded
+                                            : Icons.volume_up_rounded,
+                                        onTap: _toggleMute,
+                                        transparent: true,
+                                        tooltip: _isMuted
+                                            ? 'Activer le son'
+                                            : 'Couper le son',
+                                      ),
+                                      const SizedBox(width: 16),
+                                      _buildGlassIconButton(
+                                        icon: _isFullscreen
+                                            ? Icons.fullscreen_exit_rounded
+                                            : Icons.fullscreen_rounded,
+                                        onTap: _toggleFullscreen,
+                                        transparent: true,
+                                        tooltip: _isFullscreen
+                                            ? 'Quitter le plein écran'
+                                            : 'Plein écran',
+                                      ),
+                                    ],
+                                  );
+                                },
                               ),
                             ],
                           ),
@@ -912,6 +1146,73 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       ),
       ),
     );
+  }
+
+  /// Sélecteur de vitesse de lecture — utile pour parcourir un
+  /// enregistrement long sans sauter à l'aveugle.
+  Widget _buildRateSelector() {
+    return Tooltip(
+      message: 'Vitesse de lecture',
+      child: PopupMenuButton<double>(
+        initialValue: _rate,
+        onSelected: _setRate,
+        color: AppColors.surfaceContainer,
+        tooltip: '',
+        itemBuilder: (context) => [
+          for (final rate in _rates)
+            PopupMenuItem<double>(
+              value: rate,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    rate == _rate
+                        ? Icons.check_rounded
+                        : Icons.speed_rounded,
+                    size: 16,
+                    color: rate == _rate
+                        ? AppColors.primary
+                        : AppColors.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _formatRate(rate),
+                    style: TextStyle(
+                      color: rate == _rate
+                          ? AppColors.primary
+                          : AppColors.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+        child: Container(
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.onSurface.withOpacity(0.15)),
+          ),
+          child: Text(
+            _formatRate(_rate),
+            style: GoogleFonts.karla(
+              color: _rate == 1.0 ? AppColors.onSurface : AppColors.primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// « 1× », « 1.5× » — sans décimale inutile.
+  static String _formatRate(double rate) {
+    final text = rate == rate.roundToDouble()
+        ? rate.toStringAsFixed(0)
+        : rate.toString();
+    return '$text×';
   }
 
   Widget _buildGlassIconButton({

@@ -7,6 +7,7 @@ import '../database/database.dart';
 import '../models/playlist_config.dart';
 import '../services/ffmpeg_session_manager.dart';
 import '../utils/log_redactor.dart';
+import 'recording_playlist.dart';
 
 /// Directory for temporary HLS segments
 final Directory _hlsTempDir =
@@ -632,6 +633,10 @@ Handler createRecordingStreamHandler(
 
   router.get('/<streamId>/playlist.m3u8',
       (Request request, String streamId) async {
+    if (!_isValidStreamId(streamId)) {
+      return Response.badRequest(body: 'Invalid request');
+    }
+
     final recording = db.getRecordingById(streamId);
     if (recording == null) {
       return Response.notFound('Recording not found');
@@ -661,7 +666,10 @@ Handler createRecordingStreamHandler(
     }
 
     final useNvidiaGpu = isGpuEnabled?.call() ?? _isNvidiaGpuEnabled();
-    final sessionId = 'rec_$streamId';
+    final start = parseRecordingStart(request.url.queryParameters['start']);
+    final offsetKey = recordingOffsetKey(start);
+    final sessionPrefix = 'rec_${streamId}_t';
+    final sessionId = 'rec_${streamId}_$offsetKey';
 
     final session = await sessionManager.getOrStart(
       id: sessionId,
@@ -670,6 +678,9 @@ Handler createRecordingStreamHandler(
       argsBuilder: (dir) => [
         '-hide_banner', '-loglevel', 'warning',
         if (useNvidiaGpu) ...['-hwaccel', 'cuda'],
+        // -ss AVANT -i : recherche rapide par index, sans décoder ce qui
+        // précède. La sortie repart de 0, le lecteur ré-ajoute l'offset.
+        if (start > 0) ...['-ss', '$start'],
         '-i', targetUrl,
         if (useNvidiaGpu) ...[
           '-c:v', 'h264_nvenc', '-preset', 'p4', '-tune', 'hq',
@@ -686,8 +697,13 @@ Handler createRecordingStreamHandler(
           '-g', '48', '-threads', '0',
         ],
         ..._audioArgs(withFilters: true),
+        // `event` et non `vod` : en VOD, hls.js considère la playlist comme
+        // définitive et ne la relit jamais. Il ne voyait donc que les
+        // quelques secondes déjà transcodées à l'ouverture — d'où une durée
+        // absurde et une barre de progression inutilisable. En `event`, la
+        // playlist est rechargée et la zone navigable grandit avec l'encodage.
         '-f', 'hls', '-hls_time', '4', '-hls_list_size', '0',
-        '-hls_playlist_type', 'vod', '-hls_allow_cache', '1',
+        '-hls_playlist_type', 'event', '-hls_allow_cache', '1',
         '-hls_flags', 'independent_segments', '-hls_segment_type', 'mpegts',
         '-hls_segment_filename', 'segment_%03d.ts', '-start_number', '0',
         'playlist.m3u8',
@@ -702,22 +718,46 @@ Handler createRecordingStreamHandler(
     }
 
     session.touch();
+    // Ménage des offsets abandonnés (aller-retours dans la barre de
+    // progression), une fois la nouvelle session confirmée démarrée.
+    sessionManager.killIdleSiblings(sessionPrefix, keep: sessionId);
+
+    // Les segments sont préfixés par l'offset pour rester rattachés à LEUR
+    // session : `segment_000.ts` d'une playlist à 0 s et d'une playlist à
+    // 45 min sont deux fichiers différents.
+    final playlist = await File('${session.dir.path}/playlist.m3u8')
+        .readAsString();
+
     return Response.ok(
-      File('${session.dir.path}/playlist.m3u8').openRead(),
+      rewriteRecordingPlaylist(playlist, offsetKey),
       headers: _hlsHeaders(),
     );
   });
 
-  router.get('/<streamId>/<segment>',
-      (Request request, String streamId, String segment) async {
-    if (segment.contains('..')) {
+  Response serveSegment(String streamId, String offsetKey, String segment) {
+    if (!_isValidStreamId(streamId) ||
+        parseRecordingOffsetKey(offsetKey) == null ||
+        segment.contains('..') ||
+        segment.contains('/')) {
       return Response.badRequest(body: 'Invalid request');
     }
-    final sessionId = 'rec_$streamId';
+    final sessionId = 'rec_${streamId}_$offsetKey';
     sessionManager.touch(sessionId);
     final file = File('${_hlsTempDir.path}/$sessionId/$segment');
     if (!file.existsSync()) return Response.notFound('Segment not found');
     return Response.ok(file.openRead(), headers: _segmentHeaders(maxAge: 3600));
+  }
+
+  router.get('/<streamId>/<offsetKey>/<segment>',
+      (Request request, String streamId, String offsetKey, String segment) {
+    return serveSegment(streamId, offsetKey, segment);
+  });
+
+  // Compat : playlist servie avant la mise en place des offsets, encore en
+  // cache dans un onglet ouvert.
+  router.get('/<streamId>/<segment>',
+      (Request request, String streamId, String segment) {
+    return serveSegment(streamId, recordingOffsetKey(0), segment);
   });
 
   return router.call;
