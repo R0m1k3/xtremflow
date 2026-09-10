@@ -681,21 +681,11 @@ Handler createRecordingStreamHandler(
     // (HEVC, MPEG-2…) justifient encore un ré-encodage.
     final videoCodec = await MediaProbe.videoCodec(targetUrl);
     final canCopyVideo = videoCodec == 'h264';
-    final useNvidiaGpu =
-        !canCopyVideo && (isGpuEnabled?.call() ?? _isNvidiaGpuEnabled());
 
-    if (!sessionManager.contains(sessionId)) {
-      print(
-        '[Recording] $sessionId : ${canCopyVideo ? 'copie vidéo' : 'ré-encodage'}'
-        ' (codec source : ${videoCodec ?? 'inconnu'})',
-      );
-    }
-
-    final session = await sessionManager.getOrStart(
-      id: sessionId,
-      isLive: false,
-      ffmpegPath: _getFFmpegPath(),
-      argsBuilder: (dir) => [
+    List<String> buildArgs({required bool copyVideo}) {
+      final useNvidiaGpu =
+          !copyVideo && (isGpuEnabled?.call() ?? _isNvidiaGpuEnabled());
+      return [
         '-hide_banner', '-loglevel', 'warning',
         if (useNvidiaGpu) ...['-hwaccel', 'cuda'],
         // -ss AVANT -i : recherche rapide par index, sans décoder ce qui
@@ -703,7 +693,7 @@ Handler createRecordingStreamHandler(
         // En copie, la position atteinte est l'image-clé qui précède.
         if (start > 0) ...['-ss', '$start'],
         '-i', targetUrl,
-        if (canCopyVideo) ...[
+        if (copyVideo) ...[
           '-c:v', 'copy',
         ] else if (useNvidiaGpu) ...[
           '-c:v', 'h264_nvenc', '-preset', 'p4', '-tune', 'hq',
@@ -730,18 +720,61 @@ Handler createRecordingStreamHandler(
         '-hls_flags', 'independent_segments', '-hls_segment_type', 'mpegts',
         '-hls_segment_filename', 'segment_%03d.ts', '-start_number', '0',
         'playlist.m3u8',
-      ],
-    );
+      ];
+    }
 
-    // Trois segments d'avance (~12 s) avant de rendre la main : c'est la
-    // marge qui manquait au démarrage. En copie vidéo elle est produite en
-    // une fraction de seconde, elle ne coûte donc que sur un ré-encodage.
-    final result = await sessionManager.waitForPlaylist(session, minSegments: 3);
-    if (!result.ready) {
+    /// Démarre (ou récupère) la session et attend qu'elle ait de l'avance.
+    ///
+    /// Trois segments avant de rendre la main : c'est la marge qui manquait
+    /// au démarrage, la playlist étant servie dès le premier segment. En
+    /// copie vidéo elle est produite en une fraction de seconde, elle ne
+    /// coûte donc que sur un ré-encodage.
+    Future<({FfmpegSession session, bool ready, String? error})> run(
+      bool copyVideo,
+    ) async {
+      if (!sessionManager.contains(sessionId)) {
+        print(
+          '[Recording] $sessionId : '
+          '${copyVideo ? 'copie vidéo' : 'ré-encodage'} '
+          '(codec source : ${videoCodec ?? 'inconnu'})',
+        );
+      }
+      final session = await sessionManager.getOrStart(
+        id: sessionId,
+        isLive: false,
+        ffmpegPath: _getFFmpegPath(),
+        argsBuilder: (dir) => buildArgs(copyVideo: copyVideo),
+      );
+      final outcome =
+          await sessionManager.waitForPlaylist(session, minSegments: 3);
+      return (
+        session: session,
+        ready: outcome.ready,
+        error: outcome.error,
+      );
+    }
+
+    var attempt = await run(canCopyVideo);
+
+    // La copie a échoué : certains conteneurs ou horodatages ne s'y prêtent
+    // pas. Plutôt qu'un écran d'erreur, on retombe sur le ré-encodage, qui
+    // était le seul chemin jusqu'ici.
+    if (!attempt.ready && canCopyVideo) {
+      print(
+        '[Recording] $sessionId : copie vidéo refusée (${attempt.error}) '
+        '— repli sur le ré-encodage',
+      );
+      sessionManager.killSession(sessionId);
+      attempt = await run(false);
+    }
+
+    if (!attempt.ready) {
       sessionManager.killSession(sessionId);
       return Response(502,
-          body: 'Recording transcoder failed: ${result.error}');
+          body: 'Recording transcoder failed: ${attempt.error}');
     }
+
+    final session = attempt.session;
 
     session.touch();
     // Ménage des offsets abandonnés (aller-retours dans la barre de
