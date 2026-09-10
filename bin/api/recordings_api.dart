@@ -6,6 +6,7 @@ import '../database/database.dart';
 import '../models/recording.dart';
 import '../models/user.dart';
 import '../services/recording_scheduler.dart';
+import '../utils/media_probe.dart';
 import '../utils/safe_path.dart';
 
 class RecordingsApi {
@@ -97,69 +98,22 @@ class RecordingsApi {
     );
   }
 
-  /// Binaire ffprobe : même logique de résolution que FFmpeg côté scheduler
-  /// (l'image Docker les installe tous deux dans `/usr/local/bin`).
-  static String _ffprobePath() {
-    final fromEnv = Platform.environment['FFPROBE_PATH'];
-    if (fromEnv != null && fromEnv.isNotEmpty) return fromEnv;
-    if (Platform.isLinux && File('/usr/local/bin/ffprobe').existsSync()) {
-      return '/usr/local/bin/ffprobe';
-    }
-    return 'ffprobe';
-  }
-
-  /// Durées mesurées par ffprobe, mémorisées tant que le fichier ne bouge pas.
-  /// Sans ce cache, chaque cycle de rafraîchissement (5 s pendant une capture)
-  /// relancerait un ffprobe par enregistrement.
-  static final Map<String, ({int size, int mtimeMs, double duration})>
-      _durationCache = {};
-
-  /// Durée du média en secondes, ou `null` si elle n'est pas mesurable
-  /// (ffprobe absent, fichier en cours d'écriture, conteneur sans durée).
+  /// Durée du média en secondes, ou `null` si elle n'est pas mesurable.
+  ///
+  /// Un enregistrement en cours grossit en permanence : le cache de
+  /// [MediaProbe] serait invalidé à chaque appel et ffprobe tournerait en
+  /// boucle. La durée programmée suffit tant que la capture n'est pas
+  /// terminée.
   Future<double?> _probeDuration(Recording r) async {
     final path = r.filePath;
-    // Un enregistrement en cours grossit en permanence : le cache serait
-    // invalidé à chaque appel et ffprobe tournerait en boucle. La durée
-    // programmée suffit tant que la capture n'est pas terminée.
     if (path == null || r.status != 'completed') return null;
 
+    // Anti path-traversal : la mesure doit rester dans le dossier des
+    // enregistrements, comme la lecture des logs.
     final safePath = SafePath.resolveWithin(recordingsDirPath, path);
     if (safePath == null) return null;
 
-    final file = File(safePath);
-    FileStat stat;
-    try {
-      stat = file.statSync();
-      if (stat.type == FileSystemEntityType.notFound) return null;
-    } catch (_) {
-      return null;
-    }
-
-    final cached = _durationCache[safePath];
-    if (cached != null &&
-        cached.size == stat.size &&
-        cached.mtimeMs == stat.modified.millisecondsSinceEpoch) {
-      return cached.duration;
-    }
-
-    try {
-      final result = await Process.run(_ffprobePath(), [
-        '-v', 'error',
-        '-show_entries', 'format=duration',
-        '-of', 'default=noprint_wrappers=1:nokey=1',
-        safePath,
-      ]);
-      final value = double.tryParse((result.stdout as String).trim());
-      if (value == null || !value.isFinite || value <= 0) return null;
-      _durationCache[safePath] = (
-        size: stat.size,
-        mtimeMs: stat.modified.millisecondsSinceEpoch,
-        duration: value,
-      );
-      return value;
-    } catch (_) {
-      return null;
-    }
+    return MediaProbe.duration(safePath);
   }
 
   Map<String, dynamic> _enrich(Recording r, DateTime now) {

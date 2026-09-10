@@ -143,22 +143,40 @@ class FfmpegSessionManager {
     }
   }
 
-  /// Waits until the session's playlist references at least one segment.
-  /// Fails fast when the process dies before producing output, returning
-  /// the recent stderr for diagnostics.
+  /// Waits until the session's playlist references at least [minSegments]
+  /// segments. Fails fast when the process dies before producing output,
+  /// returning the recent stderr for diagnostics.
+  ///
+  /// [minSegments] > 1 donne au lecteur une avance de démarrage : servir la
+  /// playlist dès le premier segment le fait partir avec 4 s de marge sur un
+  /// encodeur qui n'a pas fini — la moindre hésitation coupe la lecture. La
+  /// playlist déjà close (`#EXT-X-ENDLIST`) est renvoyée telle quelle, quel
+  /// que soit son nombre de segments : rien de plus n'arrivera.
   Future<({bool ready, String? error})> waitForPlaylist(
     FfmpegSession session, {
     Duration timeout = const Duration(seconds: 30),
+    int minSegments = 1,
   }) async {
     final playlistFile = File('${session.dir.path}/playlist.m3u8');
     final deadline = DateTime.now().add(timeout);
 
     while (DateTime.now().isBefore(deadline)) {
-      if (playlistFile.existsSync() &&
-          playlistFile.readAsStringSync().contains('.ts')) {
-        return (ready: true, error: null);
+      if (playlistFile.existsSync()) {
+        final content = playlistFile.readAsStringSync();
+        final segments = '.ts'.allMatches(content).length;
+        if (segments >= minSegments ||
+            (segments > 0 && content.contains('#EXT-X-ENDLIST'))) {
+          return (ready: true, error: null);
+        }
       }
       if (session.exited) {
+        // Un encodeur qui s'est terminé proprement en ayant produit moins de
+        // segments que demandé a simplement fini : c'est un succès.
+        if (session.exitCode == 0 &&
+            playlistFile.existsSync() &&
+            playlistFile.readAsStringSync().contains('.ts')) {
+          return (ready: true, error: null);
+        }
         return (
           ready: false,
           error: 'FFmpeg exited (${session.exitCode}): '
@@ -168,6 +186,11 @@ class FfmpegSessionManager {
       // 100 ms : à 500 ms, on ajoutait en moyenne un quart de seconde de
       // latence pure entre la disponibilité de la playlist et sa réponse.
       await Future.delayed(const Duration(milliseconds: 100));
+    }
+    // Le délai est écoulé : mieux vaut servir ce qui existe que rien.
+    if (playlistFile.existsSync() &&
+        playlistFile.readAsStringSync().contains('.ts')) {
+      return (ready: true, error: null);
     }
     return (ready: false, error: 'Timeout waiting for transcoder');
   }

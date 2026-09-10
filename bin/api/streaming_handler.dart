@@ -7,6 +7,7 @@ import '../database/database.dart';
 import '../models/playlist_config.dart';
 import '../services/ffmpeg_session_manager.dart';
 import '../utils/log_redactor.dart';
+import '../utils/media_probe.dart';
 import 'recording_playlist.dart';
 
 /// Directory for temporary HLS segments
@@ -665,11 +666,30 @@ Handler createRecordingStreamHandler(
           body: 'Physical recording file not found');
     }
 
-    final useNvidiaGpu = isGpuEnabled?.call() ?? _isNvidiaGpuEnabled();
     final start = parseRecordingStart(request.url.queryParameters['start']);
     final offsetKey = recordingOffsetKey(start);
     final sessionPrefix = 'rec_${streamId}_t';
     final sessionId = 'rec_${streamId}_$offsetKey';
+
+    // La capture est faite en `-c copy` : le fichier contient le codec
+    // d'origine de la chaîne, presque toujours du H.264 — directement
+    // lisible en HLS. Le ré-encoder tenait à peine le temps réel en 1080p,
+    // si bien que la lecture démarrait collée au front d'encodage et se
+    // coupait à la moindre hésitation. En copie, la segmentation va à la
+    // vitesse du disque : l'enregistrement devient navigable en quelques
+    // secondes. Seuls les codecs que le navigateur ne sait pas lire
+    // (HEVC, MPEG-2…) justifient encore un ré-encodage.
+    final videoCodec = await MediaProbe.videoCodec(targetUrl);
+    final canCopyVideo = videoCodec == 'h264';
+    final useNvidiaGpu =
+        !canCopyVideo && (isGpuEnabled?.call() ?? _isNvidiaGpuEnabled());
+
+    if (!sessionManager.contains(sessionId)) {
+      print(
+        '[Recording] $sessionId : ${canCopyVideo ? 'copie vidéo' : 'ré-encodage'}'
+        ' (codec source : ${videoCodec ?? 'inconnu'})',
+      );
+    }
 
     final session = await sessionManager.getOrStart(
       id: sessionId,
@@ -680,9 +700,12 @@ Handler createRecordingStreamHandler(
         if (useNvidiaGpu) ...['-hwaccel', 'cuda'],
         // -ss AVANT -i : recherche rapide par index, sans décoder ce qui
         // précède. La sortie repart de 0, le lecteur ré-ajoute l'offset.
+        // En copie, la position atteinte est l'image-clé qui précède.
         if (start > 0) ...['-ss', '$start'],
         '-i', targetUrl,
-        if (useNvidiaGpu) ...[
+        if (canCopyVideo) ...[
+          '-c:v', 'copy',
+        ] else if (useNvidiaGpu) ...[
           '-c:v', 'h264_nvenc', '-preset', 'p4', '-tune', 'hq',
           '-rc', 'cbr', '-b:v', '3000k', '-maxrate', '3500k',
           '-bufsize', '6000k',
@@ -710,7 +733,10 @@ Handler createRecordingStreamHandler(
       ],
     );
 
-    final result = await sessionManager.waitForPlaylist(session);
+    // Trois segments d'avance (~12 s) avant de rendre la main : c'est la
+    // marge qui manquait au démarrage. En copie vidéo elle est produite en
+    // une fraction de seconde, elle ne coûte donc que sur un ré-encodage.
+    final result = await sessionManager.waitForPlaylist(session, minSegments: 3);
     if (!result.ready) {
       sessionManager.killSession(sessionId);
       return Response(502,

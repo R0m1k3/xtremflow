@@ -96,35 +96,60 @@
                 playOverlay.style.display = 'none';
             }
 
-            var player = new XFPlayer({
-                video: video,
-                logPrefix: '[Player]',
-                onLoading: showLoading,
-                onReady: function () {
-                    hideLoading();
-                    playOverlay.style.display = 'none';
-                },
-                onError: showError,
-                onBlocked: function () {
-                    hideLoading();
-                    playOverlay.style.display = 'flex';
-                },
-                onProfileChange: function (name) {
-                    // Retour visuel discret : l'utilisateur comprend pourquoi
-                    // la latence augmente légèrement après des coupures.
-                    loadingHint.textContent =
-                        name === 'safe' ? 'Réseau instable — buffer maximal'
-                                        : 'Réseau instable — buffer élargi';
-                }
-            });
+            // Un enregistrement ou un film démarre une session FFmpeg côté
+            // serveur : le premier essai peut tomber pendant que l'encodeur
+            // se met en route. Le player mobile réessayait déjà seul ; ici
+            // l'utilisateur devait relancer la lecture à la main.
+            var retryCount = 0;
+            var maxRetries = 3;
+            var player = null;
+
+            function buildPlayer() {
+                if (player) { try { player.destroy(); } catch (e) {} }
+
+                player = new XFPlayer({
+                    video: video,
+                    logPrefix: '[Player]',
+                    onLoading: showLoading,
+                    onReady: function () {
+                        hideLoading();
+                        retryCount = 0;
+                        playOverlay.style.display = 'none';
+                    },
+                    onError: function (msg) {
+                        if (retryCount < maxRetries) {
+                            retryCount++;
+                            showLoading(
+                                'Préparation du flux ' + retryCount + '/' + maxRetries
+                            );
+                            setTimeout(buildPlayer, 1500);
+                        } else {
+                            showError(msg);
+                        }
+                    },
+                    onBlocked: function () {
+                        hideLoading();
+                        playOverlay.style.display = 'flex';
+                    },
+                    onProfileChange: function (name) {
+                        // Retour visuel discret : l'utilisateur comprend pourquoi
+                        // la latence augmente légèrement après des coupures.
+                        loadingHint.textContent =
+                            name === 'safe' ? 'Réseau instable — buffer maximal'
+                                            : 'Réseau instable — buffer élargi';
+                    }
+                });
+
+                player.start();
+                window.xfPlayer = player;
+            }
 
             playOverlay.addEventListener('click', function () {
                 video.play();
                 playOverlay.style.display = 'none';
             });
 
-            player.start();
-            window.xfPlayer = player;
+            buildPlayer();
         })();
     </script>
 </body>

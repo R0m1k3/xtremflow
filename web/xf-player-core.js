@@ -181,7 +181,18 @@
     this._destroyed = false;
     this._reportedTime = 0;
     this._hlsDuration = 0;
+
+    // Écouteurs posés par cette instance, retirés à la destruction : sans
+    // ça, une relance après échec laisserait l'ancienne instance réagir aux
+    // commandes du parent et republier des positions périmées.
+    this._listeners = [];
   }
+
+  /** addEventListener + mémorisation pour un retrait propre. */
+  XFPlayer.prototype._on = function (target, type, handler, options) {
+    target.addEventListener(type, handler, options);
+    this._listeners.push({ target: target, type: type, handler: handler });
+  };
 
   XFPlayer.prototype.log = function (m) {
     if (global.console && console.log) console.log(this.logPrefix + ' ' + m);
@@ -231,6 +242,8 @@
 
   XFPlayer.prototype._hlsConfig = function () {
     var prof = this.profile.hls;
+    var isLive = this.type === 'live';
+
     return {
       enableWorker: true,
       lowLatencyMode: false,
@@ -248,15 +261,39 @@
       startFragPrefetch: true,   // précharge le 1er fragment pendant le parse
       testBandwidth: false,      // pas de mesure préalable : on joue tout de suite
 
+      // ---- Début de lecture ----
+      // Un enregistrement (ou un film) est transcodé au fil de l'eau : sa
+      // playlist n'a pas encore d'`EXT-X-ENDLIST`, donc hls.js la considère
+      // comme du direct. Sans consigne explicite il démarre alors au « bord
+      // du direct », c'est-à-dire collé au front d'encodage : la lecture
+      // partait au milieu du programme et se coupait aussitôt, faute de
+      // segments d'avance. `0` = au début, comme attendu d'un contenu
+      // à la demande. En direct, -1 conserve le démarrage au bord du direct.
+      startPosition: isLive ? -1 : (this.startTime > 0 ? this.startTime : 0),
+
       // ---- Live ----
       liveSyncDurationCount: prof.liveSyncDurationCount,
-      liveMaxLatencyDurationCount: prof.liveMaxLatencyDurationCount,
-      maxLiveSyncPlaybackRate: 1.15,
+      // Hors direct, ces deux réglages doivent être neutralisés : ils
+      // accélèrent la lecture et finissent par forcer un saut en avant pour
+      // « rattraper » un direct qui n'existe pas.
+      // 86400 segments = hors d'atteinte, sans recourir à Infinity dont
+      // hls.js fait ensuite des multiplications.
+      liveMaxLatencyDurationCount: isLive
+        ? prof.liveMaxLatencyDurationCount
+        : 86400,
+      maxLiveSyncPlaybackRate: isLive ? 1.15 : 1,
 
       // ---- Robustesse ----
       nudgeOffset: 0.6,
       nudgeMaxRetries: 20,
       abrEwmaDefaultEstimate: 2000000,
+      // Hors direct, la première requête de playlist peut légitimement
+      // bloquer le temps que FFmpeg démarre et produise ses premiers
+      // segments. Le défaut de 10 s de hls.js transformait ce démarrage en
+      // « erreur de chargement » — il fallait relancer la lecture pour
+      // tomber sur une session déjà chaude.
+      manifestLoadingTimeOut: isLive ? 10000 : 45000,
+      levelLoadingTimeOut: isLive ? 10000 : 45000,
       manifestLoadingRetryDelay: 500,
       levelLoadingRetryDelay: 500,
       fragLoadingRetryDelay: 500,
@@ -520,26 +557,26 @@
     var self = this;
     var v = this.video;
 
-    v.addEventListener('loadedmetadata', function () {
+    this._on(v, 'loadedmetadata', function () {
       if (self.startTime > 0 && self.startTime < v.duration) {
         v.currentTime = self.startTime;
       }
     });
 
-    v.addEventListener('playing', function () {
+    this._on(v, 'playing', function () {
       self._started = true;
       self.onReady();
       self.send({ type: 'playback_status', status: 'playing' });
     });
 
-    v.addEventListener('pause', function () {
+    this._on(v, 'pause', function () {
       self.send({ type: 'playback_status', status: 'paused' });
     });
 
-    v.addEventListener('waiting', function () { self._noteStall(); });
-    v.addEventListener('stalled', function () { self._noteStall(); });
+    this._on(v, 'waiting', function () { self._noteStall(); });
+    this._on(v, 'stalled', function () { self._noteStall(); });
 
-    v.addEventListener('ended', function () {
+    this._on(v, 'ended', function () {
       self.send({
         type: 'playback_ended',
         duration: self._totalDuration()
@@ -550,7 +587,7 @@
     // portion pas encore navigable de la barre de progression. `progress`
     // se déclenche à chaque bloc reçu — bridé à 2 s, sinon chaque segment
     // provoquerait une reconstruction de l'interface Flutter.
-    v.addEventListener('progress', function () {
+    this._on(v, 'progress', function () {
       if (!self._started) return;
       var now = Date.now();
       if (now - (self._lastProgressSent || 0) < 2000) return;
@@ -558,16 +595,16 @@
       self._sendPosition();
     });
 
-    v.addEventListener('seeked', function () { self._sendPosition(); });
+    this._on(v, 'seeked', function () { self._sendPosition(); });
 
     // Remontée de position (5 s) — même contrat qu'avant.
     this._posTimer = setInterval(function () { self._reportPosition(); }, 5000);
 
     // Activité utilisateur → masquage auto des contrôles côté Flutter.
     function activity() { self.send({ type: 'user_activity' }); }
-    document.addEventListener('mousemove', activity, { passive: true });
-    document.addEventListener('touchstart', activity, { passive: true });
-    document.addEventListener('click', activity, { passive: true });
+    this._on(document, 'mousemove', activity, { passive: true });
+    this._on(document, 'touchstart', activity, { passive: true });
+    this._on(document, 'click', activity, { passive: true });
   };
 
   /** Fin de la plage réellement navigable, en temps média. */
@@ -668,7 +705,7 @@
 
   XFPlayer.prototype._wireParentMessages = function () {
     var self = this;
-    global.addEventListener('message', function (event) {
+    this._on(global, 'message', function (event) {
       // N'accepter que les commandes émises par notre propre origine
       // (le côté Flutter filtre déjà les messages entrants de la même façon).
       if (event.origin !== global.location.origin) return;
@@ -705,6 +742,10 @@
   XFPlayer.prototype.destroy = function () {
     this._destroyed = true;
     clearInterval(this._posTimer);
+    this._listeners.forEach(function (l) {
+      try { l.target.removeEventListener(l.type, l.handler); } catch (e) {}
+    });
+    this._listeners = [];
     try { if (this.hls) this.hls.destroy(); } catch (e) {}
     try {
       if (this.mpegts) {
