@@ -19,6 +19,9 @@ class XmltvEpgService {
     required this.sourceUrls,
     this.refreshInterval = const Duration(hours: 6),
     this.retention = const Duration(hours: 6),
+    this.horizon = const Duration(hours: 48),
+    this.retryBackoff = const Duration(minutes: 15),
+    this.downloadTimeout = const Duration(minutes: 5),
     http.Client? client,
   }) : _client = client ?? http.Client();
 
@@ -33,11 +36,32 @@ class XmltvEpgService {
   /// garder double la taille de l'index.
   final Duration retention;
 
+  /// Les programmes qui commencent au-delà de cet horizon sont écartés à
+  /// l'indexation.
+  ///
+  /// Un dump national couvre souvent sept jours pour un millier de chaînes ;
+  /// tout garder en mémoire dans le conteneur coûte des centaines de
+  /// mégaoctets pour un guide qui n'affiche que le programme courant et les
+  /// suivants.
+  final Duration horizon;
+
+  /// Délai minimal entre deux tentatives quand aucune source n'a répondu.
+  ///
+  /// Sans ce recul, une source morte était retéléchargée à chaque consultation
+  /// du guide — une requête sortante par chaîne affichée, soit exactement le
+  /// flot qu'un index est censé éviter.
+  final Duration retryBackoff;
+
+  /// Plafond de téléchargement d'un dump. Le guide est facultatif : mieux vaut
+  /// abandonner et servir le panneau que faire attendre l'utilisateur.
+  final Duration downloadTimeout;
+
   final http.Client _client;
 
   /// clé de chaîne normalisée → programmes triés par heure de début.
   Map<String, List<XmltvProgramme>> _index = {};
   DateTime? _indexedAt;
+  DateTime? _failedAt;
   Future<void>? _refreshInFlight;
 
   bool get hasData => _index.isNotEmpty;
@@ -70,6 +94,14 @@ class XmltvEpgService {
         ? null
         : DateTime.now().difference(_indexedAt!);
     if (age != null && age < refreshInterval) return Future.value();
+
+    final sinceFailure = _failedAt == null
+        ? null
+        : DateTime.now().difference(_failedAt!);
+    if (sinceFailure != null && sinceFailure < retryBackoff) {
+      return Future.value();
+    }
+
     return _refreshInFlight ??= _refresh().whenComplete(() {
       _refreshInFlight = null;
     });
@@ -101,19 +133,20 @@ class XmltvEpgService {
 
     if (ok == 0) {
       // Garder l'index précédent plutôt que de servir un guide vide.
+      _failedAt = DateTime.now();
       print('[XmltvEpg] aucune source disponible, index précédent conservé');
       return;
     }
 
     _index = merged;
     _indexedAt = DateTime.now();
+    _failedAt = null;
     print('[XmltvEpg] index prêt : ${merged.length} chaînes');
   }
 
   Future<String> _download(String url) async {
-    final response = await _client
-        .get(Uri.parse(url))
-        .timeout(const Duration(minutes: 5));
+    final response =
+        await _client.get(Uri.parse(url)).timeout(downloadTimeout);
     if (response.statusCode != 200) {
       throw HttpException('HTTP ${response.statusCode}');
     }
@@ -132,6 +165,7 @@ class XmltvEpgService {
 
   Map<String, List<XmltvProgramme>> _parse(String xml) {
     final cutoff = DateTime.now().toUtc().subtract(retention);
+    final limit = DateTime.now().toUtc().add(horizon);
     final byChannel = <String, List<XmltvProgramme>>{};
 
     // Alias : plusieurs dumps déclarent <channel id="X"> avec un
@@ -191,7 +225,8 @@ class XmltvEpgService {
             if (programmeChannel != null &&
                 start != null &&
                 stop != null &&
-                stop.isAfter(cutoff)) {
+                stop.isAfter(cutoff) &&
+                start.isBefore(limit)) {
               final key = normalizeKey(programmeChannel);
               if (key.isNotEmpty) {
                 byChannel.putIfAbsent(key, () => []).add(
