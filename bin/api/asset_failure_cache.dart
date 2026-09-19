@@ -1,3 +1,23 @@
+import 'package:shelf/shelf.dart';
+
+/// Réponse pour une image indisponible.
+///
+/// Statut 410 et non 404 : la `Cascade` du serveur retombe sur le handler
+/// suivant pour tout 404 et renvoie finalement celui du handler statique, sans
+/// notre `cache-control`. Un 410 s'arrête ici.
+///
+/// Un statut d'erreur plutôt qu'une image vide : le client affiche alors son
+/// propre repli (icône, initiale) au lieu d'une tuile blanche. Le `max-age`
+/// est essentiel : sans lui le navigateur redemande le logo à chaque
+/// affichage de la grille et le flot de requêtes mortes reprend aussitôt.
+Response missingImageResponse() => Response(
+      410,
+      headers: {
+        'cache-control': 'public, max-age=600',
+        'access-control-allow-origin': '*',
+      },
+    );
+
 /// Mémoire courte des hôtes d'images injoignables.
 ///
 /// POURQUOI : les URL de picons pointent chez l'hébergeur du revendeur, pas

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:shelf/shelf.dart';
 import 'package:http/http.dart' as http;
 import '../database/database.dart';
@@ -9,11 +8,6 @@ import '../middleware/auth_middleware.dart';
 import '../models/playlist_config.dart';
 import '../utils/log_redactor.dart';
 import 'asset_failure_cache.dart';
-
-/// PNG transparent 1×1, servi à la place d'un logo introuvable.
-final Uint8List _placeholderPixel = base64Decode(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
-);
 
 /// L'URL désigne-t-elle une image ou un logo ?
 ///
@@ -29,20 +23,6 @@ bool _isStaticAssetUrl(Uri url) =>
     url.path.endsWith('.ico') ||
     url.path.contains('/picons/') ||
     url.path.contains('/logos/');
-
-/// Réponse de repli pour une image indisponible.
-///
-/// Le `max-age` est essentiel : sans lui le navigateur redemande le logo à
-/// chaque affichage de la grille et le flot de requêtes mortes reprend
-/// immédiatement, coupure serveur ou pas.
-Response _placeholderImageResponse() => Response.ok(
-      _placeholderPixel,
-      headers: {
-        'content-type': 'image/png',
-        'cache-control': 'public, max-age=600',
-        'access-control-allow-origin': '*',
-      },
-    );
 
 /// Returns true when [host] must never be proxied (loopback, private LAN,
 /// link-local/cloud-metadata ranges) — SSRF protection for asset URLs that
@@ -182,11 +162,11 @@ class ProxyHandler {
         // Xtream providers often use separate CDN servers for picons/images
         final isStaticAsset = _isStaticAssetUrl(targetUrl);
 
-        // Hôte d'images déjà constaté mort : on sert le pixel tout de suite.
+        // Hôte d'images déjà constaté mort : on répond tout de suite.
         // Aucun appel sortant, aucune entrée de log — c'est précisément le
         // flot qu'on cherche à éteindre.
         if (isStaticAsset && _assetFailures.isDown(targetUrl.host)) {
-          return _placeholderImageResponse();
+          return missingImageResponse();
         }
 
         String? allowedHost;
@@ -292,7 +272,7 @@ class ProxyHandler {
 
           // Une image en erreur n'a rien à transmettre au navigateur : le
           // relais du 503 déclenchait un nouveau cycle de requêtes à chaque
-          // rendu. On sert le pixel, mis en cache, et on compte l'échec.
+          // rendu. On répond un 404 mis en cache, et on compte l'échec.
           if (isStaticAsset) {
             if (response.statusCode >= 400) {
               // Compté sur l'hôte demandé, pas sur la cible finale d'une
@@ -302,7 +282,7 @@ class ProxyHandler {
               // Le corps d'erreur doit être consommé, sinon la connexion
               // reste ouverte jusqu'au timeout.
               unawaited(response.stream.drain<void>().catchError((_) {}));
-              return _placeholderImageResponse();
+              return missingImageResponse();
             }
             _assetFailures.recordSuccess(targetUrl.host);
           }
@@ -338,10 +318,10 @@ class ProxyHandler {
           '${LogRedactor.redactUrl('$e')}',
         );
 
-        // Return transparent 1x1 pixel image fallback for images
+        // Image injoignable : 404 mis en cache plutôt qu'une erreur 500
         if (targetUrl != null && _isStaticAssetUrl(targetUrl)) {
           _assetFailures.recordFailure(targetUrl.host);
-          return _placeholderImageResponse();
+          return missingImageResponse();
         }
 
         return Response.internalServerError(

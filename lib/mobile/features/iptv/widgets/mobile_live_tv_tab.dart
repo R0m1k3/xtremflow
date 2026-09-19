@@ -5,6 +5,7 @@ import '../../../../features/iptv/providers/xtream_provider.dart';
 import '../../../../features/iptv/providers/settings_provider.dart';
 import '../../../../features/iptv/providers/favorites_provider.dart';
 import '../screens/mobile_player_screen.dart';
+import '../../../../core/api/channel_logo.dart';
 import '../../../../core/models/iptv_models.dart';
 import '../../../../core/models/playlist_config.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -349,10 +350,10 @@ class _MobileChannelTile extends ConsumerWidget {
     // Sans ce bouton, aucun moyen d'ajouter un favori : le filtre « Favoris »
     // de l'en-tête affichait toujours une liste vide.
     final isFav = ref.watch(favoritesProvider).contains(channel.streamId);
-    final iconUrl =
-        channel.streamIcon.isNotEmpty && channel.streamIcon.startsWith('http')
-            ? '/api/xtream/${channel.streamIcon}'
-            : null;
+    final iconUrl = channelLogoUrl(
+      streamIcon: channel.streamIcon,
+      name: channel.name,
+    );
 
     return GlassContainer.glass(
       borderRadius: 12,
@@ -372,16 +373,14 @@ class _MobileChannelTile extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 padding: const EdgeInsets.all(4),
-                child: iconUrl != null
-                    ? Image.network(
-                        iconUrl,
-                        fit: BoxFit.contain,
-                        cacheWidth: 120,
-                        filterQuality: FilterQuality.low,
-                        errorBuilder: (_, __, ___) =>
-                            const Icon(Icons.tv, color: AppColors.onSurface24),
-                      )
-                    : const Icon(Icons.tv, color: AppColors.onSurface24),
+                child: Image.network(
+                  iconUrl,
+                  fit: BoxFit.contain,
+                  cacheWidth: 120,
+                  filterQuality: FilterQuality.low,
+                  errorBuilder: (_, __, ___) =>
+                      const Icon(Icons.tv, color: AppColors.onSurface24),
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
