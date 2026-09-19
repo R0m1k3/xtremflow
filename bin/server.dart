@@ -18,7 +18,9 @@ import 'api/streaming_handler.dart';
 import 'api/proxy_handler.dart';
 import 'api/recordings_api.dart';
 import 'api/epg_api.dart';
+import 'api/logo_api.dart';
 import 'services/xmltv_epg_service.dart';
+import 'services/logo_catalog.dart';
 import 'api/season_passes_api.dart';
 import 'api/xtream_api_handler.dart';
 import 'middleware/auth_middleware.dart';
@@ -121,6 +123,9 @@ void main(List<String> args) async {
   final usersHandler = UsersHandler(db);
   final settingsHandler = SettingsHandler(db);
   final proxyHandler = ProxyHandler(getPlaylist, db);
+  // Logos de chaînes : URL du panneau d'abord, puis repli par nom sur le
+  // dépôt public tv-logos quand l'hébergeur de picons du revendeur tombe.
+  final logoApi = LogoApi(proxyHandler.handler, LogoCatalog());
   final recordingsApi = RecordingsApi(db, recordingScheduler);
   // Source XMLTV de repli. Vider EPG_XMLTV_URLS désactive tout appel sortant :
   // l'EPG se limite alors au panneau de l'abonné.
@@ -203,6 +208,14 @@ void main(List<String> args) async {
       const Pipeline()
           .addMiddleware(authMiddleware(db))
           .addHandler(recordingsRouter.call),
+    )
+    // Logos de chaînes avec repli (auth required ; le cookie de session
+    // accompagne les requêtes d'image du navigateur)
+    ..get(
+      '/api/logo',
+      const Pipeline()
+          .addMiddleware(authMiddleware(db))
+          .addHandler(logoApi.handle),
     )
     // EPG - guide TV (auth required)
     ..mount(

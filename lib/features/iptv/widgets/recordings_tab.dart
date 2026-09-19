@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/api/authed_http.dart';
 import '../../../core/api/recording_requests.dart';
+import '../../../core/api/channel_logo.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
@@ -368,25 +369,25 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                                     ),
                                     child: Row(
                                       children: [
-                                        ch.streamIcon.isNotEmpty
-                                            ? Image.network(
-                                                ch.streamIcon,
-                                                width: 24,
-                                                height: 16,
-                                                cacheWidth: 64,
-                                                fit: BoxFit.contain,
-                                                errorBuilder: (_, __, ___) =>
-                                                    const Icon(
-                                                  Icons.tv,
-                                                  color: AppColors.onSurface24,
-                                                  size: 16,
-                                                ),
-                                              )
-                                            : const Icon(
-                                                Icons.tv,
-                                                color: AppColors.onSurface24,
-                                                size: 16,
-                                              ),
+                                        // URL panneau brute auparavant : en
+                                        // http depuis une page https, le
+                                        // navigateur la bloquait.
+                                        Image.network(
+                                          channelLogoUrl(
+                                            streamIcon: ch.streamIcon,
+                                            name: ch.name,
+                                          ),
+                                          width: 24,
+                                          height: 16,
+                                          cacheWidth: 64,
+                                          fit: BoxFit.contain,
+                                          errorBuilder: (_, __, ___) =>
+                                              const Icon(
+                                            Icons.tv,
+                                            color: AppColors.onSurface24,
+                                            size: 16,
+                                          ),
+                                        ),
                                         const SizedBox(width: 10),
                                         Expanded(
                                           child: Text(

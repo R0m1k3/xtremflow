@@ -5,6 +5,7 @@ import '../providers/xtream_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/favorites_provider.dart';
 import '../screens/player_screen.dart';
+import '../../../core/api/channel_logo.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
@@ -412,25 +413,26 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                         ),
                         padding: const EdgeInsets.all(16),
                         child: Center(
-                          child: channel.streamIcon.isNotEmpty
-                              ? Image.network(
-                                  _getProxiedIconUrl(channel.streamIcon)!,
-                                  cacheWidth: 160,
-                                  filterQuality: FilterQuality.low,
-                                  errorBuilder: (_, __, ___) => Icon(
-                                    Icons.tv,
-                                    color: AppColors.onSurface.withOpacity(0.3),
-                                    size: 40,
-                                  ),
-                                )
-                              : Text(
-                                  channel.name.characters.first.toUpperCase(),
-                                  style: GoogleFonts.fraunces(
-                                    fontSize: 40,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.onSurface24,
-                                  ),
-                                ),
+                          // Toujours demandé au backend, même sans
+                          // stream_icon : il cherche alors un logo par nom.
+                          child: Image.network(
+                            channelLogoUrl(
+                              streamIcon: channel.streamIcon,
+                              name: channel.name,
+                            ),
+                            cacheWidth: 160,
+                            filterQuality: FilterQuality.low,
+                            errorBuilder: (_, __, ___) => Text(
+                              channel.name.isEmpty
+                                  ? '?'
+                                  : channel.name.characters.first.toUpperCase(),
+                              style: GoogleFonts.fraunces(
+                                fontSize: 40,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.onSurface24,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -597,14 +599,6 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
         );
       },
     );
-  }
-
-  String? _getProxiedIconUrl(String originalUrl) {
-    if (originalUrl.isEmpty) return null;
-    if (originalUrl.startsWith('http://')) {
-      return '/api/xtream/$originalUrl';
-    }
-    return originalUrl;
   }
 
   void _playChannel(Channel channel, List<Channel> contextList) {
