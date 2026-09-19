@@ -2,6 +2,14 @@
 
 ## Non publié
 
+### 🖼️ Logos des chaînes
+- **Plus d'acharnement sur un hébergeur de picons hors service** : quand la machine qui héberge les logos répond en erreur (maintenance, quota), le proxy sert désormais un pixel transparent mis en cache dix minutes au lieu de relayer le 503 au navigateur — qui redemandait chaque logo à chaque affichage de la grille. Au bout de trois échecs consécutifs, l'hôte est considéré hors service pendant cinq minutes et plus aucune requête ne sort. Le serveur tournant sur un seul isolate, ce flot de centaines de requêtes mortes passait devant les paquets vidéo et faisait saccader la lecture
+
+### 📺 Guide TV (EPG)
+- **Guide servi par le dump `xmltv.php` du panneau** : `player_api` réclamait un appel par chaîne, à plusieurs secondes pièce chez la plupart des revendeurs — une grille de trente chaînes mettait plus d'une minute à se remplir. Le dump du panneau couvre toutes les chaînes en une requête, réutilisée trois heures. L'interrogation chaîne par chaîne reste le repli quand le dump est absent ou ne couvre pas la chaîne, suivie de la source XMLTV externe
+- **Une source XMLTV morte n'est plus retéléchargée à chaque consultation** : après un échec, la source est laissée de côté quinze minutes
+- **Index XMLTV borné à 48 h** : un dump national couvre sept jours pour un millier de chaînes ; tout garder coûtait des centaines de mégaoctets au conteneur pour un guide qui n'affiche que le programme courant et les suivants
+
 ### ▶️ Lecture vidéo
 - **Fix du démarrage des enregistrements** : la lecture partait au milieu du programme et se coupait aussitôt, obligeant à relancer une deuxième fois. Une playlist encore en cours de transcodage n'a pas d'`EXT-X-ENDLIST` : hls.js la traite comme du direct et démarrait donc au « bord du direct », collé au front d'encodage, sans aucune avance de segments. `startPosition: 0` hors direct, plus la neutralisation du rattrapage de latence (qui accélérait la lecture puis forçait un saut en avant pour rejoindre un direct inexistant)
 - **Plus de ré-encodage inutile à la lecture d'un enregistrement** : la capture étant faite en copie, le fichier contient déjà du H.264 dans la quasi-totalité des cas. Il est désormais servi tel quel (`-c:v copy`, seul l'audio est converti en AAC) au lieu d'être ré-encodé à peine plus vite que le temps réel — la segmentation va maintenant à la vitesse du disque, l'enregistrement devient navigable en quelques secondes. Les codecs illisibles par le navigateur (HEVC, MPEG-2…) restent ré-encodés
@@ -15,6 +23,7 @@
 - **Latence live maîtrisée** : rattrapage du direct activé dans mpegts.js (profil rapide) — les micro-coupures ne font plus dériver la lecture derrière le direct
 - **Fix « Échec du chargement : vendor/mpegts.min.js »** : un échec de chargement d'une lib de lecture n'affiche plus un écran d'erreur définitif. Le chargement est retenté une fois en contournant le cache HTTP (une entrée tronquée condamnait le lecteur jusqu'au vidage manuel du cache), le résultat n'est mémorisé qu'en cas de succès (une promesse rejetée en cache rendait tout réessai impossible) et, si la lib reste introuvable, le live bascule automatiquement sur la route HLS équivalente. Le message affiché précise désormais la cause (HTTP 404, 429, réseau injoignable)
 - **Préchargement de la bonne lib** : les trois players préchargeaient hls.js en dur, soit 618 Ko téléchargés pour rien à chaque zap TV — où c'est mpegts.js qui sert — au détriment du flux et du chargement de mpegts.js. Le préchargement suit maintenant le flux réellement demandé (et ne charge rien sur Safari/iOS, qui lit le HLS nativement)
+- **Contre-pression sur le flux turbo** : le relais de FFmpeg vers le navigateur ne transmettait pas la pause du client à la source. Un lecteur plus lent que le flux — réseau domestique, onglet en arrière-plan — laissait FFmpeg produire à pleine vitesse pendant que le serveur empilait les paquets en mémoire : la lecture dérivait derrière le direct et saccadait
 - **Alerte au démarrage** : le serveur signale explicitement l'absence de `web/vendor/*.min.js` au lancement, au lieu de laisser le navigateur échouer sans explication
 
 ### 🧰 Qualité / Infra

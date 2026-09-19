@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
@@ -8,6 +7,7 @@ import '../models/playlist_config.dart';
 import '../services/ffmpeg_session_manager.dart';
 import '../utils/log_redactor.dart';
 import '../utils/media_probe.dart';
+import '../utils/stream_pipe.dart';
 import 'recording_playlist.dart';
 
 /// Directory for temporary HLS segments
@@ -430,22 +430,17 @@ Handler createLiveStreamHandler(
       }
     });
 
-    // Relayer stdout vers le client ; tuer FFmpeg dès que le client zappe
-    // ou ferme l'onglet (sinon les processus s'accumulent à chaque zap).
-    final controller = StreamController<List<int>>();
-    final subscription = process.stdout.listen(
-      controller.add,
-      onError: controller.addError,
-      onDone: controller.close,
+    // Relayer stdout vers le client en gardant la contre-pression, et tuer
+    // FFmpeg dès que le client zappe ou ferme l'onglet (sinon les processus
+    // s'accumulent à chaque zap).
+    final body = pipeWithBackpressure(
+      process.stdout,
+      onStop: () => process.kill(ProcessSignal.sigterm),
     );
-    controller.onCancel = () {
-      subscription.cancel();
-      process.kill(ProcessSignal.sigterm);
-    };
 
     return Response(
       200,
-      body: controller.stream,
+      body: body,
       headers: {
         'Content-Type': 'video/mp2t',
         'Cache-Control': 'no-store',

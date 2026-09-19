@@ -1,3 +1,5 @@
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:test/test.dart';
 import '../services/xmltv_epg_service.dart';
 
@@ -99,6 +101,67 @@ void main() {
       );
 
       expect(index, isEmpty);
+    });
+  });
+
+  group('ensureFresh', () {
+    test('ne retélécharge pas tant que l’index est frais', () async {
+      final now = DateTime.now().toUtc();
+      var calls = 0;
+      final service = XmltvEpgService(
+        sourceUrls: const ['http://dump.example/epg.xml'],
+        client: MockClient((_) async {
+          calls++;
+          return http.Response(
+            _fixture(now, now.add(const Duration(minutes: 30))),
+            200,
+          );
+        }),
+      );
+
+      await service.ensureFresh();
+      await service.ensureFresh();
+
+      expect(calls, 1);
+      expect(service.hasData, isTrue);
+    });
+
+    test('espace les tentatives après un échec', () async {
+      // Sans ce recul, une source morte était retéléchargée à chaque
+      // consultation du guide : une requête sortante par chaîne affichée.
+      var calls = 0;
+      final service = XmltvEpgService(
+        sourceUrls: const ['http://dump.example/epg.xml'],
+        retryBackoff: const Duration(minutes: 15),
+        client: MockClient((_) async {
+          calls++;
+          return http.Response('nope', 500);
+        }),
+      );
+
+      await service.ensureFresh();
+      await service.ensureFresh();
+      await service.ensureFresh();
+
+      expect(calls, 1);
+      expect(service.hasData, isFalse);
+    });
+  });
+
+  group('horizon', () {
+    test('écarte les programmes au-delà de l’horizon d’indexation', () {
+      // Un dump national couvre sept jours : tout garder ferait grossir
+      // l'index pour un guide qui n'affiche que le programme courant.
+      final service = XmltvEpgService(
+        sourceUrls: const [],
+        horizon: const Duration(hours: 48),
+      );
+      final far = DateTime.now().toUtc().add(const Duration(days: 5));
+
+      expect(
+        service.parseForTest(_fixture(far, far.add(const Duration(hours: 1)))),
+        isEmpty,
+      );
     });
   });
 }
