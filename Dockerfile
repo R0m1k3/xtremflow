@@ -1,7 +1,26 @@
 # Stage 1: Build Environment (Optimized for Docker Caching)
-FROM ghcr.io/cirruslabs/flutter:stable AS builder
+# SDK Flutter officiel, version épinglée — la même que la CI. L'image
+# ghcr.io/cirruslabs/flutter:stable n'est plus mise à jour : elle était
+# restée sur Flutter 3.44.0 / Dart 3.12.0 (mai 2026), loin derrière la
+# version stable réelle.
+FROM debian:stable-slim AS builder
 
-USER root
+ARG FLUTTER_VERSION=3.47.6
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    git \
+    unzip \
+    xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" \
+    | tar -xJ -C /opt \
+    && git config --global --add safe.directory /opt/flutter
+
+ENV PATH="/opt/flutter/bin:/opt/flutter/bin/cache/dart-sdk/bin:${PATH}"
+
 WORKDIR /app
 
 # Optimize DART VM Memory

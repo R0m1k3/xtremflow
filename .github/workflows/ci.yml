@@ -23,7 +23,7 @@ jobs:
           # fil du temps (une release Flutter peut casser la CI sans aucun
           # changement dans le dépôt). Le cache évite de retélécharger SDK et
           # dépendances pub à chaque run.
-          flutter-version: 3.38.4
+          flutter-version: 3.47.6
           channel: stable
           cache: true
       - run: flutter pub get
@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dart-lang/setup-dart@v1
         with:
-          sdk: 3.13.2
+          sdk: 3.13.5
       - run: dart pub get
       - run: dart analyze
       - run: dart test
