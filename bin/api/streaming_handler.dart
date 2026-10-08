@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../database/database.dart';
 import '../models/playlist_config.dart';
 import '../services/ffmpeg_session_manager.dart';
+import '../services/gpu_fallback.dart';
 import '../utils/log_redactor.dart';
 import '../utils/media_probe.dart';
 import '../utils/stream_pipe.dart';
@@ -16,6 +17,9 @@ final Directory _hlsTempDir =
 
 /// Global FFmpeg session registry (initialized in [initStreaming]).
 final FfmpegSessionManager sessionManager = FfmpegSessionManager(_hlsTempDir);
+
+/// Pannes GPU récentes, partagées par toutes les routes de transcodage.
+final GpuHealth _gpuHealth = GpuHealth();
 
 /// Helper to resolve FFmpeg path (SYSTEM PATH vs Portable)
 String _getFFmpegPath() {
@@ -181,6 +185,71 @@ Map<String, String> _segmentHeaders({int maxAge = 60}) => {
       'Cache-Control': 'max-age=$maxAge',
     };
 
+typedef _SessionAttempt = ({FfmpegSession? session, bool ready, String? error});
+
+/// Démarre (ou récupère) la session [id] et attend sa playlist.
+///
+/// Un `Process.start` qui échoue (serveur à court de processus ou de
+/// mémoire) devient un échec ordinaire au lieu d'une exception non
+/// rattrapée qui remontait en 500.
+Future<_SessionAttempt> _runSession({
+  required String id,
+  required bool isLive,
+  required List<String> Function(Directory dir) argsBuilder,
+  int minSegments = 1,
+}) async {
+  final FfmpegSession session;
+  try {
+    session = await sessionManager.getOrStart(
+      id: id,
+      isLive: isLive,
+      ffmpegPath: _getFFmpegPath(),
+      argsBuilder: argsBuilder,
+    );
+  } on ProcessException catch (e) {
+    return (session: null, ready: false, error: 'FFmpeg start failed: $e');
+  }
+  final outcome =
+      await sessionManager.waitForPlaylist(session, minSegments: minSegments);
+  return (session: session, ready: outcome.ready, error: outcome.error);
+}
+
+/// Comme [_runSession], avec repli sur le CPU si l'encodage GPU échoue.
+///
+/// Le repli garde le même identifiant de session : les requêtes de segments
+/// qui suivent tombent sur la session CPU sans que le lecteur s'en aperçoive.
+/// Une panne GPU fait aussi partir les sessions suivantes directement sur le
+/// CPU pendant le délai de [GpuHealth], au lieu d'échouer une à une.
+Future<_SessionAttempt> _runWithGpuFallback({
+  required String id,
+  required bool isLive,
+  required bool wantGpu,
+  required List<String> Function(bool gpu) buildArgs,
+  int minSegments = 1,
+}) async {
+  final gpu = wantGpu && _gpuHealth.available;
+  var attempt = await _runSession(
+    id: id,
+    isLive: isLive,
+    argsBuilder: (_) => buildArgs(gpu),
+    minSegments: minSegments,
+  );
+
+  if (!attempt.ready && gpu && isGpuFailure(attempt.error)) {
+    _gpuHealth.markFailed();
+    print('[GPU] $id : encodage GPU refusé '
+        '(${LogRedactor.redactUrl(attempt.error ?? '')}) — repli sur le CPU');
+    sessionManager.killSession(id);
+    attempt = await _runSession(
+      id: id,
+      isLive: isLive,
+      argsBuilder: (_) => buildArgs(false),
+      minSegments: minSegments,
+    );
+  }
+  return attempt;
+}
+
 // ==========================================
 // 1. LIVE TV HANDLER (FFmpeg HLS + direct TS proxy)
 // ==========================================
@@ -310,13 +379,13 @@ Handler createLiveStreamHandler(
       );
     }
 
-    final session = await sessionManager.getOrStart(
+    final result = await _runWithGpuFallback(
       id: sessionId,
       isLive: true,
-      ffmpegPath: _getFFmpegPath(),
-      argsBuilder: (dir) => [
+      wantGpu: useNvidiaGpu && quality != 'source',
+      buildArgs: (gpu) => [
         '-hide_banner', '-loglevel', 'warning',
-        if (useNvidiaGpu && quality != 'source') ...['-hwaccel', 'cuda'],
+        if (gpu) ...['-hwaccel', 'cuda'],
         '-headers', 'User-Agent: VLC/3.0.18 LibVLC/3.0.18\r\n',
         '-reconnect', '1', '-reconnect_streamed', '1',
         '-reconnect_at_eof', '1',
@@ -330,7 +399,7 @@ Handler createLiveStreamHandler(
         '-probesize', '1000000',
         '-analyzeduration', '1000000',
         '-i', targetUrl,
-        ..._liveVideoArgs(quality, useNvidiaGpu),
+        ..._liveVideoArgs(quality, gpu),
         ..._audioArgs(withFilters: false),
         // HLS sliding window: 10 x 2s segments (lower live latency than the
         // previous 20-segment window while still safe for iOS).
@@ -347,8 +416,8 @@ Handler createLiveStreamHandler(
       ],
     );
 
-    final result = await sessionManager.waitForPlaylist(session);
-    if (!result.ready) {
+    final session = result.session;
+    if (!result.ready || session == null) {
       sessionManager.killSession(sessionId);
       return Response(502, body: 'Live transcoder failed: ${result.error}');
     }
@@ -400,26 +469,34 @@ Handler createLiveStreamHandler(
       '[Live Turbo] $streamId: ${LogRedactor.redactUrl(targetUrl)}',
     );
 
-    final process = await Process.start(_getFFmpegPath(), [
-      '-hide_banner', '-loglevel', 'warning',
-      '-headers', 'User-Agent: VLC/3.0.18 LibVLC/3.0.18\r\n',
-      '-reconnect', '1', '-reconnect_streamed', '1',
-      '-reconnect_at_eof', '1',
-      '-reconnect_delay_max', '10',
-      '-rw_timeout', '30000000',
-      // Démarrage rapide : ne pas bufferiser l'analyse, sonde réduite.
-      '-fflags', 'nobuffer',
-      '-flags', 'low_delay',
-      '-probesize', '1000000',
-      '-analyzeduration', '1000000',
-      '-i', targetUrl,
-      '-c:v', 'copy',
-      '-c:a', 'aac', '-b:a', '160k', '-ac', '2', '-ar', '48000',
-      '-af', 'aresample=async=1',
-      // Pas de délai de mux : les paquets partent dès qu'ils existent.
-      '-muxdelay', '0', '-muxpreload', '0',
-      '-f', 'mpegts', 'pipe:1',
-    ]);
+    final Process process;
+    try {
+      process = await Process.start(_getFFmpegPath(), [
+        '-hide_banner', '-loglevel', 'warning',
+        '-headers', 'User-Agent: VLC/3.0.18 LibVLC/3.0.18\r\n',
+        '-reconnect', '1', '-reconnect_streamed', '1',
+        '-reconnect_at_eof', '1',
+        '-reconnect_delay_max', '10',
+        '-rw_timeout', '30000000',
+        // Démarrage rapide : ne pas bufferiser l'analyse, sonde réduite.
+        '-fflags', 'nobuffer',
+        '-flags', 'low_delay',
+        '-probesize', '1000000',
+        '-analyzeduration', '1000000',
+        '-i', targetUrl,
+        '-c:v', 'copy',
+        '-c:a', 'aac', '-b:a', '160k', '-ac', '2', '-ar', '48000',
+        '-af', 'aresample=async=1',
+        // Pas de délai de mux : les paquets partent dès qu'ils existent.
+        '-muxdelay', '0', '-muxpreload', '0',
+        '-f', 'mpegts', 'pipe:1',
+      ]);
+    } on ProcessException catch (e) {
+      // Serveur saturé (plus de processus ou de mémoire) : un 503 que le
+      // lecteur sait traiter, plutôt qu'une exception qui remonte en 500.
+      print('[Live Turbo] $streamId : FFmpeg n\'a pas démarré ($e)');
+      return Response(503, body: 'FFmpeg start failed');
+    }
 
     // Journaliser les erreurs FFmpeg (redactées) sans bloquer le flux.
     process.stderr.transform(const SystemEncoding().decoder).listen((line) {
@@ -535,13 +612,13 @@ Handler createVodStreamHandler(
       );
     }
 
-    final session = await sessionManager.getOrStart(
+    final result = await _runWithGpuFallback(
       id: sessionId,
       isLive: false,
-      ffmpegPath: _getFFmpegPath(),
-      argsBuilder: (dir) => [
+      wantGpu: useNvidiaGpu && quality != 'source',
+      buildArgs: (gpu) => [
         '-hide_banner', '-loglevel', 'warning',
-        if (useNvidiaGpu && quality != 'source') ...['-hwaccel', 'cuda'],
+        if (gpu) ...['-hwaccel', 'cuda'],
         '-headers', 'User-Agent: VLC/3.0.18 LibVLC/3.0.18\r\n',
         '-reconnect', '1',
         '-reconnect_at_eof', '1',
@@ -555,7 +632,7 @@ Handler createVodStreamHandler(
         '-analyzeduration', '2000000',
         '-probesize', '5000000',
         '-i', targetUrl,
-        ..._vodVideoArgs(quality, useNvidiaGpu),
+        ..._vodVideoArgs(quality, gpu),
         ..._audioArgs(withFilters: quality != 'source'),
         '-f', 'hls',
         '-hls_time', '4',
@@ -570,8 +647,8 @@ Handler createVodStreamHandler(
       ],
     );
 
-    final result = await sessionManager.waitForPlaylist(session);
-    if (!result.ready) {
+    final session = result.session;
+    if (!result.ready || session == null) {
       sessionManager.killSession(sessionId);
       return Response(502, body: 'VOD transcoder failed: ${result.error}');
     }
@@ -677,9 +754,8 @@ Handler createRecordingStreamHandler(
     final videoCodec = await MediaProbe.videoCodec(targetUrl);
     final canCopyVideo = videoCodec == 'h264';
 
-    List<String> buildArgs({required bool copyVideo}) {
-      final useNvidiaGpu =
-          !copyVideo && (isGpuEnabled?.call() ?? _isNvidiaGpuEnabled());
+    List<String> buildArgs({required bool copyVideo, required bool gpu}) {
+      final useNvidiaGpu = !copyVideo && gpu;
       return [
         '-hide_banner', '-loglevel', 'warning',
         if (useNvidiaGpu) ...['-hwaccel', 'cuda'],
@@ -724,9 +800,7 @@ Handler createRecordingStreamHandler(
     /// au démarrage, la playlist étant servie dès le premier segment. En
     /// copie vidéo elle est produite en une fraction de seconde, elle ne
     /// coûte donc que sur un ré-encodage.
-    Future<({FfmpegSession session, bool ready, String? error})> run(
-      bool copyVideo,
-    ) async {
+    Future<_SessionAttempt> run(bool copyVideo) {
       if (!sessionManager.contains(sessionId)) {
         print(
           '[Recording] $sessionId : '
@@ -734,18 +808,20 @@ Handler createRecordingStreamHandler(
           '(codec source : ${videoCodec ?? 'inconnu'})',
         );
       }
-      final session = await sessionManager.getOrStart(
+      if (copyVideo) {
+        return _runSession(
+          id: sessionId,
+          isLive: false,
+          argsBuilder: (_) => buildArgs(copyVideo: true, gpu: false),
+          minSegments: 3,
+        );
+      }
+      return _runWithGpuFallback(
         id: sessionId,
         isLive: false,
-        ffmpegPath: _getFFmpegPath(),
-        argsBuilder: (dir) => buildArgs(copyVideo: copyVideo),
-      );
-      final outcome =
-          await sessionManager.waitForPlaylist(session, minSegments: 3);
-      return (
-        session: session,
-        ready: outcome.ready,
-        error: outcome.error,
+        wantGpu: isGpuEnabled?.call() ?? _isNvidiaGpuEnabled(),
+        buildArgs: (gpu) => buildArgs(copyVideo: false, gpu: gpu),
+        minSegments: 3,
       );
     }
 
@@ -763,13 +839,12 @@ Handler createRecordingStreamHandler(
       attempt = await run(false);
     }
 
-    if (!attempt.ready) {
+    final session = attempt.session;
+    if (!attempt.ready || session == null) {
       sessionManager.killSession(sessionId);
       return Response(502,
           body: 'Recording transcoder failed: ${attempt.error}');
     }
-
-    final session = attempt.session;
 
     session.touch();
     // Ménage des offsets abandonnés (aller-retours dans la barre de

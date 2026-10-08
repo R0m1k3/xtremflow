@@ -55,6 +55,9 @@
 
   var ORDER = ['fast', 'balanced', 'safe'];
 
+  // Erreurs MPEG-TS tolérées sur 60 s avant de basculer sur HLS.
+  var MPEGTS_MAX_ERRORS = 3;
+
   // ------------------------------------------------------------------
   // Chargement paresseux des libs (aucune requête inutile)
   // ------------------------------------------------------------------
@@ -178,6 +181,7 @@
     this._started = false;
     this._stalls = 0;
     this._stallTimes = [];
+    this._mpegtsErrorTimes = [];
     this._destroyed = false;
     this._reportedTime = 0;
     this._hlsDuration = 0;
@@ -317,10 +321,15 @@
       self.hls = hls;
       global.hlsInstance = hls; // compat : code existant qui inspecte l'instance
 
+      // Faux tant que la première playlist n'a pas été obtenue : voir le
+      // traitement des erreurs réseau plus bas.
+      var manifestParsed = false;
+
       hls.loadSource(self.url);
       hls.attachMedia(self.video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, function () {
+        manifestParsed = true;
         // Démarrage immédiat : on ne sonde plus le buffer toutes les 200 ms.
         // Si le réseau ne suit pas, l'escalade de profil s'en chargera.
         self._attemptPlay();
@@ -337,6 +346,15 @@
         if (!d.fatal) return;
         self.log('Erreur HLS fatale : ' + d.details);
         if (d.type === Hls.ErrorTypes.NETWORK_ERROR) {
+          // Playlist jamais obtenue (transcodeur en échec → 502, serveur trop
+          // chargé → délai dépassé), après les relances internes de hls.js.
+          // `startLoad()` ne relance pas ce chargement-là : le lecteur
+          // restait muet sur un spinner infini. On remonte l'erreur pour que
+          // la page relance un lecteur neuf ou l'affiche.
+          if (!manifestParsed) {
+            self.onError('Flux indisponible : le serveur n\'a pas pu le préparer');
+            return;
+          }
           self._escalate('erreur réseau');
           hls.startLoad();
         } else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) {
@@ -446,6 +464,37 @@
     player.on(mpegts.Events.ERROR, function (type, detail) {
       self.log('Erreur MPEG-TS : ' + type + ' / ' + detail);
       if (self._destroyed) return;
+
+      // Chaque recréation relance un FFmpeg côté serveur : sur un serveur
+      // déjà saturé, recréer sans fin toutes les 1,2 s ne faisait
+      // qu'aggraver la charge. Au-delà de quelques échecs rapprochés, on
+      // passe par la route HLS, qui renvoie un vrai code d'erreur.
+      var now = Date.now();
+      self._mpegtsErrorTimes = self._mpegtsErrorTimes.filter(function (t) {
+        return now - t < 60000;
+      });
+      self._mpegtsErrorTimes.push(now);
+      if (self._mpegtsErrorTimes.length > MPEGTS_MAX_ERRORS) {
+        try {
+          player.unload();
+          player.detachMediaElement();
+          player.destroy();
+        } catch (e) {}
+        self.mpegts = null;
+
+        var hlsUrl = self._hlsEquivalent(self.url);
+        if (!hlsUrl) {
+          self.onError('Flux indisponible');
+          return;
+        }
+        self.log('Erreurs MPEG-TS répétées — bascule HLS');
+        self.onLoading('Ouverture du flux');
+        self.url = hlsUrl;
+        if (self._canPlayNativeHls()) self._playDirect(hlsUrl);
+        else self._startHls();
+        return;
+      }
+
       self._escalate('erreur MPEG-TS');
       // Recréation propre avec le nouveau profil.
       setTimeout(function () {
