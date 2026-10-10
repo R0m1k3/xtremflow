@@ -190,7 +190,74 @@
     // ça, une relance après échec laisserait l'ancienne instance réagir aux
     // commandes du parent et republier des positions périmées.
     this._listeners = [];
+
+    // Télémétrie des incidents (voir _report) : chaque freeze vécu par
+    // l'utilisateur finit dans les logs du serveur, avec sa cause.
+    this._t0 = Date.now();
+    this._session = Math.random().toString(36).slice(2, 8);
+    var idMatch = /\/api\/(?:live|vod|recordings\/stream)\/([^/?#.]+)/.exec(this.url || '');
+    this._channel = idMatch ? idMatch[1] : '';
+    this._stallSince = null;
+    this._stats = { stalls: 0, stallMs: 0, seeks: 0, errors: 0 };
+    this._lastPos = 0;
+    var self = this;
+    var userOnError = this.onError;
+    this.onError = function (msg) {
+      self._report('error_shown', { detail: String(msg) });
+      userOnError(msg);
+    };
   }
+
+  // ---------------- Télémétrie ----------------
+
+  /** Secondes d'avance dans le buffer à la position courante. */
+  XFPlayer.prototype._bufferAhead = function () {
+    var v = this.video;
+    try {
+      for (var i = 0; i < v.buffered.length; i++) {
+        if (v.buffered.start(i) <= v.currentTime + 0.5 &&
+            v.buffered.end(i) >= v.currentTime) {
+          return v.buffered.end(i) - v.currentTime;
+        }
+      }
+    } catch (e) {}
+    return 0;
+  };
+
+  /**
+   * Remonte un incident au serveur (`POST /api/player-log`, écrit dans les
+   * logs `[Player] …`). Jamais bloquant : erreurs ignorées, aucun envoi
+   * sans session.
+   */
+  XFPlayer.prototype._report = function (event, data) {
+    try {
+      var token = null;
+      try { token = global.localStorage.getItem('auth_token'); } catch (e) {}
+      if (!token || typeof fetch !== 'function') return;
+      var payload = {
+        event: event,
+        session: this._session,
+        ch: this._channel,
+        t: (Date.now() - this._t0) / 1000,
+        mode: this.hls ? 'hls' : (this.mpegts ? 'ts' : 'direct'),
+        profile: this.profile.name,
+        buffer: this._bufferAhead(),
+        pos: this.video.currentTime || 0
+      };
+      for (var k in data) {
+        if (Object.prototype.hasOwnProperty.call(data, k)) payload[k] = data[k];
+      }
+      fetch('/api/player-log', {
+        method: 'POST',
+        keepalive: true,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(payload)
+      }).catch(function () {});
+    } catch (e) {}
+  };
 
   /** addEventListener + mémorisation pour un retrait propre. */
   XFPlayer.prototype._on = function (target, type, handler, options) {
@@ -224,6 +291,7 @@
     var isLive = this.type === 'live';
 
     this.onLoading('Ouverture du flux');
+    this._report('start', {});
 
     // Safari / iOS : HLS natif = le chemin le plus rapide, aucune lib à charger.
     if (isHls && this._canPlayNativeHls()) {
@@ -345,6 +413,8 @@
       hls.on(Hls.Events.ERROR, function (e, d) {
         if (!d.fatal) return;
         self.log('Erreur HLS fatale : ' + d.details);
+        self._stats.errors++;
+        self._report('hls_error', { detail: d.type + '/' + d.details });
         if (d.type === Hls.ErrorTypes.NETWORK_ERROR) {
           // Playlist jamais obtenue (transcodeur en échec → 502, serveur trop
           // chargé → délai dépassé), après les relances internes de hls.js.
@@ -462,6 +532,7 @@
 
       self._audioFallbackDone = true;
       self.log('Aucune piste audio démuxée (codec non supporté) — bascule HLS');
+      self._report('fallback_hls', { detail: 'no_audio' });
       self.onLoading('Piste audio incompatible — réencodage');
 
       try {
@@ -479,6 +550,8 @@
     player.on(mpegts.Events.ERROR, function (type, detail) {
       self.log('Erreur MPEG-TS : ' + type + ' / ' + detail);
       if (self._destroyed) return;
+      self._stats.errors++;
+      self._report('mpegts_error', { detail: type + '/' + detail });
 
       // Chaque recréation relance un FFmpeg côté serveur : sur un serveur
       // déjà saturé, recréer sans fin toutes les 1,2 s ne faisait
@@ -503,6 +576,7 @@
           return;
         }
         self.log('Erreurs MPEG-TS répétées — bascule HLS');
+        self._report('fallback_hls', { detail: 'repeated_mpegts_errors' });
         self.onLoading('Ouverture du flux');
         self.url = hlsUrl;
         if (self._canPlayNativeHls()) self._playDirect(hlsUrl);
@@ -519,6 +593,7 @@
           player.detachMediaElement();
           player.destroy();
         } catch (e) {}
+        self._report('recreate', {});
         self._createMpegts(self._mpegtsIsLive);
       }, 1200);
     });
@@ -585,6 +660,7 @@
     var next = PROFILES[ORDER[idx + 1]];
     this.profile = next;
     this.log('Escalade buffer → ' + next.name + ' (' + reason + ')');
+    this._report('profile', { detail: reason });
     this.onProfileChange(next.name, reason);
 
     // HLS : les fenêtres de buffer sont modifiables à chaud, pas besoin de
@@ -628,6 +704,19 @@
     });
 
     this._on(v, 'playing', function () {
+      if (!self._started) {
+        self._report('first_frame', { ms: Date.now() - self._t0 });
+      }
+      if (self._stallSince !== null) {
+        var stallMs = Date.now() - self._stallSince;
+        self._stallSince = null;
+        // < 250 ms : imperceptible, ne pas noyer les logs.
+        if (stallMs >= 250) {
+          self._stats.stalls++;
+          self._stats.stallMs += stallMs;
+          self._report('stall', { ms: stallMs });
+        }
+      }
       self._started = true;
       self.onReady();
       self.send({ type: 'playback_status', status: 'playing' });
@@ -637,8 +726,35 @@
       self.send({ type: 'playback_status', status: 'paused' });
     });
 
-    this._on(v, 'waiting', function () { self._noteStall(); });
+    this._on(v, 'waiting', function () {
+      if (self._started && self._stallSince === null) {
+        self._stallSince = Date.now();
+      }
+      self._noteStall();
+    });
     this._on(v, 'stalled', function () { self._noteStall(); });
+
+    // Sauts (rattrapage du direct, recherche) : d'où, vers où.
+    this._on(v, 'timeupdate', function () {
+      if (!v.seeking) self._lastPos = v.currentTime;
+    });
+    this._on(v, 'seeking', function () {
+      if (!self._started) return;
+      self._stats.seeks++;
+      self._report('seek', { from: self._lastPos, to: v.currentTime });
+    });
+
+    // Bilan toutes les 60 s : nombre et durée cumulée des coupures.
+    this._beatTimer = setInterval(function () {
+      if (!self._started) return;
+      self._report('heartbeat', {
+        stalls: self._stats.stalls,
+        stallMs: self._stats.stallMs,
+        seeks: self._stats.seeks,
+        errors: self._stats.errors,
+        rate: v.playbackRate
+      });
+    }, 60000);
 
     this._on(v, 'ended', function () {
       self.send({
@@ -806,6 +922,7 @@
   XFPlayer.prototype.destroy = function () {
     this._destroyed = true;
     clearInterval(this._posTimer);
+    clearInterval(this._beatTimer);
     this._listeners.forEach(function (l) {
       try { l.target.removeEventListener(l.type, l.handler); } catch (e) {}
     });

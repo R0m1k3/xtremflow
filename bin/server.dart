@@ -29,6 +29,7 @@ import 'services/cleanup_service.dart';
 import 'services/recording_scheduler.dart';
 import 'utils/asset_versioning.dart';
 import 'api/upstream_probe.dart';
+import 'api/player_log.dart';
 
 void main(List<String> args) async {
   // Parse command line arguments
@@ -220,6 +221,14 @@ void main(List<String> args) async {
       const Pipeline()
           .addMiddleware(authMiddleware(db))
           .addHandler(logoApi.handle),
+    )
+    // Incidents de lecture remontés par le lecteur web (freezes, erreurs),
+    // écrits dans les logs pour le diagnostic.
+    ..post(
+      '/api/player-log',
+      const Pipeline()
+          .addMiddleware(authMiddleware(db))
+          .addHandler(handlePlayerLog),
     )
     // EPG - guide TV (auth required)
     ..mount(

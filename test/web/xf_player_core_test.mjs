@@ -101,6 +101,54 @@ test('live : le retard est résorbé en douceur (liveSync) plutôt que par sauts
   assert.ok(c.liveSyncMaxLatency <= c.liveBufferLatencyMaxLatency);
 });
 
+test('télémétrie : une coupure (waiting → playing) est remontée avec sa durée', async () => {
+  const sent = [];
+  const listeners = {};
+  const video = {
+    addEventListener(type, fn) { (listeners[type] ||= []).push(fn); },
+    removeEventListener() {},
+    canPlayType: () => '',
+    play: () => Promise.resolve(),
+    buffered: { length: 0 },
+    seekable: { length: 0 },
+    currentTime: 12,
+    playbackRate: 1,
+  };
+  const fire = (type) => (listeners[type] || []).forEach((fn) => fn());
+  const window = {
+    addEventListener() {}, removeEventListener() {},
+    console: { log() {} },
+    location: { origin: 'https://xf.test', href: 'https://xf.test/', search: '' },
+    parent: { postMessage() {} },
+    localStorage: { getItem: () => 'tok' },
+  };
+  let now = 1000;
+  const context = vm.createContext({
+    window,
+    location: window.location,
+    document: { addEventListener() {}, removeEventListener() {} },
+    URLSearchParams,
+    setInterval: () => 0,
+    clearInterval() {},
+    setTimeout,
+    Date: { now: () => now },
+    fetch: (url, opts) => { sent.push({ url, body: JSON.parse(opts.body) }); return Promise.resolve(); },
+  });
+  vm.runInContext(source, context);
+  const player = new window.XFPlayer({ video, url: '/api/live/554034/turbo.ts', type: 'live' });
+  player._wireVideoEvents();
+
+  fire('playing');            // premier affichage
+  now += 1000; fire('waiting');
+  now += 4200; fire('playing'); // reprise 4,2 s plus tard
+
+  const stall = sent.map((s) => s.body).find((b) => b.event === 'stall');
+  assert.ok(stall, 'aucun événement stall envoyé');
+  assert.equal(stall.ms, 4200);
+  assert.equal(stall.ch, '554034');
+  assert.equal(sent[0].url, '/api/player-log');
+});
+
 test('live : le buffer déjà lu est purgé (sinon QuotaExceeded en séance longue)', () => {
   const c = liveMpegtsConfig();
   assert.equal(c.autoCleanupSourceBuffer, true);
