@@ -53,6 +53,30 @@ void main() {
       expect(slots.countFor('acc'), 1);
     });
 
+    test('un flux encore regardé n\'est jamais coupé (pas de ping-pong entre deux lecteurs)', () {
+      slots.register(
+        id: 'watched',
+        account: 'acc',
+        release: () => released.add('watched'),
+        isActive: () => true,
+      );
+      expect(slots.makeRoom('acc', max: 1, keep: 'new'), isEmpty);
+      expect(released, isEmpty);
+      expect(slots.countFor('acc'), 1);
+    });
+
+    test('seuls les orphelins partent, même plus récents qu\'un flux regardé', () {
+      slots.register(
+        id: 'watched',
+        account: 'acc',
+        release: () => released.add('watched'),
+        isActive: () => true,
+      );
+      add('orphan', 'acc');
+      expect(slots.makeRoom('acc', max: 1, keep: 'new'), ['orphan']);
+      expect(released, ['orphan']);
+    });
+
     test('quota inconnu ou nul : rien n\'est coupé', () {
       add('a', 'acc');
       expect(slots.makeRoom('acc', max: 0, keep: 'new'), isEmpty);

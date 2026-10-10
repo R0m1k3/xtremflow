@@ -48,17 +48,31 @@ Future<void> _claimUpstream(PlaylistConfig playlist, String id) async {
   await Future<void>.delayed(const Duration(seconds: 1));
 }
 
+/// Délai sans consommation au-delà duquel un flux est tenu pour orphelin.
+///
+/// Un lecteur HLS redemande sa playlist toutes les 2 à 4 s ; un flux
+/// `turbo.ts` reçoit au moins une rafale toutes les ~7 s même sur un panneau
+/// qui livre par à-coups. 15 s laissent une marge à ces deux rythmes.
+const _viewerGrace = Duration(seconds: 15);
+
 /// Inscrit [process] comme connexion amont de [playlist] tant qu'il vit.
+///
+/// [lastActivity] : dernier signe de vie du spectateur ; la connexion n'est
+/// coupée pour en ouvrir une autre que s'il remonte à plus de
+/// [_viewerGrace].
 void _registerUpstream(
   PlaylistConfig playlist,
   String id,
   Process process, {
   required void Function() release,
+  required DateTime Function() lastActivity,
 }) {
   final token = _upstreamSlots.register(
     id: id,
     account: accountKeyOf(playlist),
     release: release,
+    isActive: () =>
+        DateTime.now().difference(lastActivity()) < _viewerGrace,
   );
   process.exitCode.then((_) => _upstreamSlots.unregister(id, token: token));
 }
@@ -274,6 +288,8 @@ Future<_SessionAttempt> _runSession({
       id,
       session.process,
       release: () => sessionManager.killSession(id),
+      // Touchée à chaque requête de playlist ou de segment.
+      lastActivity: () => session.lastAccess,
     );
   }
   final outcome =
@@ -580,11 +596,16 @@ Handler createLiveStreamHandler(
       return Response(503, body: 'FFmpeg start failed');
     }
 
+    // Dernier octet remis au client : un lecteur en vie en reçoit à chaque
+    // rafale ; un client parti (zap mal détecté derrière le proxy) n'en
+    // reçoit plus, la contre-pression bloquant FFmpeg.
+    var lastDelivered = DateTime.now();
     _registerUpstream(
       playlist,
       upstreamId,
       process,
       release: () => process.kill(ProcessSignal.sigterm),
+      lastActivity: () => lastDelivered,
     );
 
     // Journaliser les erreurs FFmpeg (redactées) sans bloquer le flux.
@@ -602,7 +623,10 @@ Handler createLiveStreamHandler(
     final body = pipeWithBackpressure(
       process.stdout,
       onStop: () => process.kill(ProcessSignal.sigterm),
-    );
+    ).map((chunk) {
+      lastDelivered = DateTime.now();
+      return chunk;
+    });
 
     return Response(
       200,

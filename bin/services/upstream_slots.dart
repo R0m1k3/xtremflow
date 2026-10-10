@@ -15,10 +15,18 @@ import '../models/playlist_config.dart';
 /// le panneau répondait `HTTP 551` ou ne répondait pas (timeout), d'où les
 /// films « indisponibles » et les zaps qui échouent.
 ///
-/// Règle : le dernier flux demandé gagne. Avant d'ouvrir une nouvelle
-/// connexion amont, on coupe les plus anciennes du même compte jusqu'à lui
-/// faire de la place. Les enregistrements n'y sont pas inscrits : ils ne
-/// sont jamais coupés.
+/// Règle : avant d'ouvrir une nouvelle connexion amont, on coupe les
+/// connexions ORPHELINES du même compte (plus personne ne les consomme),
+/// les plus anciennes d'abord, jusqu'à lui faire de la place.
+///
+/// Un flux encore regardé n'est jamais coupé. Une première version coupait
+/// sans distinction (« le dernier gagne ») : deux lecteurs ouverts sur un
+/// compte à une connexion se coupaient alors en boucle, chacun relançant
+/// aussitôt — plus aucune image nulle part (constaté en prod). Le second
+/// lecteur est désormais refusé par le panneau, comme avant, et le premier
+/// continue.
+///
+/// Les enregistrements n'y sont pas inscrits : ils ne sont jamais coupés.
 class UpstreamSlots {
   final DateTime Function() _now;
   final Map<String, _Slot> _slots = {};
@@ -31,13 +39,17 @@ class UpstreamSlots {
   /// Renvoie un jeton à repasser à [unregister] : une session relancée sous
   /// le même identifiant ne doit pas être désinscrite par la fin de
   /// l'ancien processus.
+  ///
+  /// [isActive] : vrai tant qu'un spectateur consomme le flux. Une
+  /// connexion active n'est jamais coupée par [makeRoom].
   int register({
     required String id,
     required String account,
     required void Function() release,
+    bool Function()? isActive,
   }) {
     final token = ++_nextToken;
-    _slots[id] = _Slot(token, account, _now(), release);
+    _slots[id] = _Slot(token, account, _now(), release, isActive);
     return token;
   }
 
@@ -60,14 +72,16 @@ class UpstreamSlots {
     if (max <= 0) return const [];
     final others = _slots.entries
         .where((e) => e.value.account == account && e.key != keep)
-        .toList()
-      ..sort((a, b) => a.value.since.compareTo(b.value.since));
+        .toList();
 
     final excess = others.length - (max - 1);
     if (excess <= 0) return const [];
 
+    final orphans = others.where((e) => !e.value.active).toList()
+      ..sort((a, b) => a.value.since.compareTo(b.value.since));
+
     final freed = <String>[];
-    for (final entry in others.take(excess)) {
+    for (final entry in orphans.take(excess)) {
       _slots.remove(entry.key);
       try {
         entry.value.release();
@@ -83,7 +97,16 @@ class _Slot {
   final String account;
   final DateTime since;
   final void Function() release;
-  _Slot(this.token, this.account, this.since, this.release);
+  final bool Function()? isActive;
+  _Slot(this.token, this.account, this.since, this.release, this.isActive);
+
+  bool get active {
+    try {
+      return isActive?.call() ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
 }
 
 /// Clé de compte : deux playlists sur les mêmes identifiants partagent le
