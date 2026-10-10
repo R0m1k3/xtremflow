@@ -93,12 +93,32 @@ for (const profile of ['fast', 'balanced', 'safe']) {
   });
 }
 
-test('live : le retard est résorbé en douceur (liveSync) plutôt que par sauts', () => {
+/** Réglages du régulateur de vitesse (exposés par le moteur). */
+function liveTuning() {
+  const window = {
+    addEventListener() {}, removeEventListener() {},
+    console: { log() {} },
+    location: { origin: 'https://xf.test', href: 'https://xf.test/', search: '' },
+    parent: { postMessage() {} },
+  };
+  vm.runInContext(source, vm.createContext({
+    window, location: window.location,
+    document: { addEventListener() {}, removeEventListener() {} },
+    URLSearchParams, setInterval: () => 0, clearInterval() {}, setTimeout,
+  }));
+  return window.XFPlayerLiveTuning;
+}
+
+test('live : un seul régulateur de vitesse (liveSync de mpegts.js désactivé)', () => {
+  // liveSync ne sait qu'accélérer et remet la vitesse à 1 sous sa cible :
+  // il annulerait le ralenti qui reconstitue la réserve.
   const c = liveMpegtsConfig();
-  assert.equal(c.liveSync, true);
-  assert.ok(c.liveSyncPlaybackRate > 1 && c.liveSyncPlaybackRate <= 1.2);
-  assert.ok(c.liveSyncTargetLatency < c.liveSyncMaxLatency);
-  assert.ok(c.liveSyncMaxLatency <= c.liveBufferLatencyMaxLatency);
+  assert.notEqual(c.liveSync, true);
+  const t = liveTuning();
+  assert.ok(t.slowRate < 1 && t.slowRate >= 0.95, 'ralenti audible au-delà');
+  assert.ok(t.fastRate > 1 && t.fastRate <= 1.15);
+  assert.ok(t.lowAhead < t.targetAhead && t.targetAhead < t.highAhead);
+  assert.ok(t.highAhead < c.liveBufferLatencyMaxLatency);
 });
 
 test('télémétrie : une coupure (waiting → playing) est remontée avec sa durée', async () => {
@@ -155,11 +175,60 @@ const PROVIDER_OUTAGE_S = 18;
 
 test('live : la réserve visée couvre un silence du panneau de ~18 s', () => {
   const c = liveMpegtsConfig();
-  // liveSync ramène le retard vers la cible : c'est la réserve en régime
-  // établi. Elle doit dépasser le silence mesuré.
-  assert.ok(c.liveSyncTargetLatency > PROVIDER_OUTAGE_S,
-    `cible ${c.liveSyncTargetLatency}s < silence mesuré ${PROVIDER_OUTAGE_S}s`);
+  const t = liveTuning();
+  // Le régulateur ramène l'avance vers la cible : c'est la réserve en
+  // régime établi. Elle doit dépasser le silence mesuré — et le ralenti
+  // doit se déclencher AVANT d'être passé sous ce seuil de sécurité.
+  assert.ok(t.targetAhead > PROVIDER_OUTAGE_S,
+    `cible ${t.targetAhead}s < silence mesuré ${PROVIDER_OUTAGE_S}s`);
+  assert.ok(t.lowAhead > PROVIDER_OUTAGE_S);
   assert.ok(c.liveBufferLatencyMinRemain > PROVIDER_OUTAGE_S);
+});
+
+test('régulateur : ralentit sous la réserve, accélère au-dessus, sans osciller', () => {
+  const listeners = {};
+  let ahead = 0;
+  const video = {
+    addEventListener(type, fn) { (listeners[type] ||= []).push(fn); },
+    removeEventListener() {},
+    canPlayType: () => '',
+    play: () => Promise.resolve(),
+    pause() {},
+    get buffered() { return { length: 1, start: () => 0, end: () => 100 + ahead }; },
+    seekable: { length: 0 },
+    currentTime: 100,
+    playbackRate: 1,
+    paused: false,
+    seeking: false,
+  };
+  const window = {
+    addEventListener() {}, removeEventListener() {},
+    console: { log() {} },
+    location: { origin: 'https://xf.test', href: 'https://xf.test/', search: '' },
+    parent: { postMessage() {} },
+  };
+  vm.runInContext(source, vm.createContext({
+    window, location: window.location,
+    document: { addEventListener() {}, removeEventListener() {} },
+    URLSearchParams, setInterval: () => 0, clearInterval() {}, setTimeout, Date,
+  }));
+  const t = window.XFPlayerLiveTuning;
+  const p = new window.XFPlayer({ video, url: '/api/live/1/turbo.ts', type: 'live' });
+  p.mpegts = {};
+  p._started = true;
+
+  ahead = 13; p._tuneRate();                       // session réelle : 13 s
+  assert.equal(video.playbackRate, t.slowRate);
+  ahead = t.lowAhead + 2; p._tuneRate();           // remonte, pas encore la cible
+  assert.equal(video.playbackRate, t.slowRate, 'repasse à 1 trop tôt : oscille');
+  ahead = t.targetAhead; p._tuneRate();
+  assert.equal(video.playbackRate, 1);
+  ahead = t.highAhead + 5; p._tuneRate();          // rafale de rattrapage
+  assert.equal(video.playbackRate, t.fastRate);
+  ahead = t.highAhead - 2; p._tuneRate();
+  assert.equal(video.playbackRate, t.fastRate, 'freine trop tôt : oscille');
+  ahead = t.targetAhead + 2; p._tuneRate();
+  assert.equal(video.playbackRate, 1);
 });
 
 test('live : la rafale de rattrapage après un silence ne fait pas sauter le programme', () => {
@@ -170,8 +239,8 @@ test('live : la rafale de rattrapage après un silence ne fait pas sauter le pro
   const c = liveMpegtsConfig();
   assert.ok(c.liveBufferLatencyMaxLatency >= 2 * observedPeakAhead - 10,
     `saut dès ${c.liveBufferLatencyMaxLatency}s d'avance : la rafale de rattrapage le déclenche`);
-  assert.ok(c.liveSyncMaxLatency < observedPeakAhead,
-    'liveSync doit déjà accélérer avant ce niveau');
+  assert.ok(liveTuning().highAhead < observedPeakAhead,
+    'le régulateur doit déjà accélérer avant ce niveau');
 });
 
 test('live : la vidéo déjà vue est purgée plus tôt, l\'avance étant plus grande', () => {

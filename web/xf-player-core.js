@@ -66,6 +66,24 @@
   // Au-delà, on relance quand même avec ce qu'on a.
   var REBUFFER_MAX_WAIT_MS = 15000;
 
+  // Régulateur de vitesse du direct MPEG-TS (voir _tuneRate).
+  //
+  // La réserve ne venait que de l'avance envoyée par le panneau au
+  // démarrage : 28 s une fois, 18 s une autre — et avec 13-20 s, un silence
+  // du panneau a fini en coupure de 5,5 s (télémétrie). Sous lowAhead, on
+  // lit à x0,97 (hauteur du son préservée) jusqu'à reconstituer targetAhead ;
+  // au-delà de highAhead (rafale de rattrapage du panneau), x1,1 jusqu'à
+  // settleHigh. Les seuils d'entrée et de sortie diffèrent : pas
+  // d'oscillation de vitesse.
+  var LIVE_TUNING = {
+    lowAhead: 20,
+    targetAhead: 25,
+    settleHigh: 28,
+    highAhead: 35,
+    slowRate: 0.97,
+    fastRate: 1.1
+  };
+
   // ------------------------------------------------------------------
   // Chargement paresseux des libs (aucune requête inutile)
   // ------------------------------------------------------------------
@@ -516,16 +534,15 @@
         // Saut seulement au-delà de 90 s : après un silence, le panneau
         // renvoie d'un coup tout le retard. Avec un seuil à 45 s, l'avance
         // le dépassait et le lecteur sautait 20 s de programme (2 fois en
-        // 1 min, mesuré). liveSync résorbe désormais cet excédent en douceur.
+        // 1 min, mesuré). Le régulateur de vitesse (_tuneRate) résorbe
+        // désormais cet excédent en douceur.
         liveBufferLatencyChasing: isLive,
         liveBufferLatencyMaxLatency: 90,
         liveBufferLatencyMinRemain: 25,
-        // Au-delà de 35 s de retard, accélérer légèrement (x1,1) jusqu'à
-        // revenir à 25 s : rattrapage invisible, sans saut ni coupure.
-        liveSync: isLive,
-        liveSyncMaxLatency: 35,
-        liveSyncTargetLatency: 25,
-        liveSyncPlaybackRate: 1.1,
+        // liveSync de mpegts.js désactivé : il ne sait qu'accélérer et remet
+        // la vitesse à 1 sous sa cible, ce qui annulerait le ralenti de
+        // _tuneRate qui reconstitue la réserve.
+        liveSync: false,
         // Purge du buffer déjà lu : sans elle, une longue séance finit par
         // saturer le SourceBuffer (QuotaExceededError → erreur MPEG-TS).
         // Avance jusqu'à 90 s : la vidéo déjà vue est purgée plus tôt pour
@@ -713,6 +730,36 @@
     this._holdTimer = setInterval(function () { self._checkHold(); }, 250);
   };
 
+  /**
+   * Ajuste la vitesse du direct MPEG-TS selon l'avance (voir LIVE_TUNING).
+   * Appelé chaque seconde ; sans effet en pause, en attente de réserve,
+   * hors direct ou en HLS.
+   */
+  XFPlayer.prototype._tuneRate = function () {
+    var v = this.video;
+    if (!this.mpegts || this.type !== 'live' || !this._started ||
+        this._holding || v.paused) {
+      return;
+    }
+    var ahead = this._bufferAhead();
+    var t = LIVE_TUNING;
+    var mode = this._rateMode || 'normal';
+    if (mode === 'slow' && ahead >= t.targetAhead) mode = 'normal';
+    else if (mode === 'fast' && ahead <= t.settleHigh) mode = 'normal';
+    else if (mode === 'normal' && ahead < t.lowAhead) mode = 'slow';
+    else if (mode === 'normal' && ahead > t.highAhead) mode = 'fast';
+    // Un saut de rattrapage peut faire passer directement d'un extrême à
+    // l'autre.
+    if (mode === 'slow' && ahead > t.highAhead) mode = 'fast';
+    if (mode === 'fast' && ahead < t.lowAhead) mode = 'slow';
+    this._rateMode = mode;
+
+    var rate = mode === 'slow' ? t.slowRate : (mode === 'fast' ? t.fastRate : 1);
+    if (v.playbackRate !== rate) {
+      try { v.playbackRate = rate; } catch (e) {}
+    }
+  };
+
   /** Relance la lecture dès que la réserve est reconstituée. */
   XFPlayer.prototype._checkHold = function () {
     if (!this._holding) return;
@@ -795,6 +842,9 @@
       self._stats.seeks++;
       self._report('seek', { from: self._lastPos, to: v.currentTime });
     });
+
+    // Régulateur de vitesse du direct (voir LIVE_TUNING).
+    this._rateTimer = setInterval(function () { self._tuneRate(); }, 1000);
 
     // Bilan toutes les 60 s : nombre et durée cumulée des coupures.
     this._beatTimer = setInterval(function () {
@@ -982,6 +1032,7 @@
     clearInterval(this._posTimer);
     clearInterval(this._beatTimer);
     clearInterval(this._holdTimer);
+    clearInterval(this._rateTimer);
     this._listeners.forEach(function (l) {
       try { l.target.removeEventListener(l.type, l.handler); } catch (e) {}
     });
@@ -998,4 +1049,5 @@
 
   global.XFPlayer = XFPlayer;
   global.XFPlayerProfiles = PROFILES;
+  global.XFPlayerLiveTuning = LIVE_TUNING;
 })(window);
