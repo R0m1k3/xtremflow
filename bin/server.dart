@@ -27,6 +27,7 @@ import 'middleware/auth_middleware.dart';
 import 'middleware/security_middleware.dart';
 import 'services/cleanup_service.dart';
 import 'services/recording_scheduler.dart';
+import 'utils/asset_versioning.dart';
 
 void main(List<String> args) async {
   // Parse command line arguments
@@ -293,14 +294,37 @@ void main(List<String> args) async {
     listDirectories: false,
   );
 
+  // Points d'entrée réécrits avec `?v=<empreinte>` sur leurs JS : voir
+  // asset_versioning.dart (un proxy qui cache les .js servait l'ancienne
+  // app et l'ancien lecteur après chaque déploiement).
+  final versionedEntryPoints = buildVersionedEntryPoints(webPath);
+  print('[Server] Assets versionnés : ${versionedEntryPoints.keys.join(', ')}');
+
   // Wrap static handler to enforce cache policies
   FutureOr<Response> staticHandler(Request request) async {
+    final path = request.url.path;
+
+    final versioned =
+        versionedEntryPoints[path.isEmpty ? 'index.html' : path];
+    if (versioned != null && request.method == 'GET') {
+      return Response.ok(
+        versioned,
+        headers: {
+          'Content-Type': path.endsWith('.js')
+              ? 'text/javascript; charset=utf-8'
+              : 'text/html; charset=utf-8',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      );
+    }
+
     final response = await baseStaticHandler(request);
 
     // Disable cache for entry points to ensure updates are seen immediately.
     // Vendored player libraries (hls.js/mpegts.js, ~750 KB) are pinned
     // versions: keep them cacheable or every player open re-downloads them.
-    final path = request.url.path;
     final isVendored = path.startsWith('vendor/');
     if (!isVendored &&
         (path.isEmpty ||
