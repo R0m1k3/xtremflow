@@ -124,13 +124,21 @@ int? parseMaxConnections(Object? json) {
 }
 
 /// Quota de connexions par compte, lu chez le fournisseur et mis en cache.
+///
+/// Ne fait JAMAIS attendre un flux : `player_api.php` met jusqu'à 4 s à
+/// répondre (mesuré en prod), délai qui s'ajoutait au démarrage du premier
+/// flux puis de chaque flux suivant l'expiration du cache. La valeur connue
+/// (même périmée), sinon [fallback], est rendue immédiatement ; la lecture
+/// chez le panneau se fait en arrière-plan. Sans risque : le quota ne sert
+/// qu'à décider quels flux ORPHELINS couper.
 class AccountLimits {
   final Duration ttl;
   final Future<int?> Function(PlaylistConfig) _fetch;
   final Map<String, ({int max, DateTime at})> _cache = {};
+  final Set<String> _refreshing = {};
 
-  /// Valeur retenue quand le panneau ne répond pas : un seul flux, le cas
-  /// de loin le plus courant chez les fournisseurs Xtream.
+  /// Valeur retenue tant que le panneau n'a pas répondu : un seul flux, le
+  /// cas de loin le plus courant chez les fournisseurs Xtream.
   static const fallback = 1;
 
   AccountLimits({
@@ -141,19 +149,20 @@ class AccountLimits {
   Future<int> maxFor(PlaylistConfig p) async {
     final key = accountKeyOf(p);
     final cached = _cache[key];
-    if (cached != null && DateTime.now().difference(cached.at) < ttl) {
-      return cached.max;
+    if (cached == null || DateTime.now().difference(cached.at) >= ttl) {
+      _refresh(key, p);
     }
-    int? value;
-    try {
-      value = await _fetch(p);
-    } catch (_) {
-      value = null;
-    }
-    // Un échec n'est pas mis en cache longtemps : on réessaiera au prochain
-    // flux plutôt que de rester 10 min sur une valeur devinée.
-    if (value != null) _cache[key] = (max: value, at: DateTime.now());
-    return value ?? fallback;
+    return cached?.max ?? fallback;
+  }
+
+  void _refresh(String key, PlaylistConfig p) {
+    if (!_refreshing.add(key)) return; // une seule lecture à la fois
+    Future<int?>.sync(() => _fetch(p))
+        .then<int?>((v) => v, onError: (Object _) => null)
+        .then((value) {
+      // Un échec n'est pas mis en cache : on réessaiera au prochain flux.
+      if (value != null) _cache[key] = (max: value, at: DateTime.now());
+    }).whenComplete(() => _refreshing.remove(key));
   }
 
   static Future<int?> _fetchFromPanel(PlaylistConfig p) async {

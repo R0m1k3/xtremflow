@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:test/test.dart';
+import '../models/playlist_config.dart';
 import '../services/upstream_slots.dart';
 
 void main() {
@@ -80,6 +83,51 @@ void main() {
     test('quota inconnu ou nul : rien n\'est coupé', () {
       add('a', 'acc');
       expect(slots.makeRoom('acc', max: 0, keep: 'new'), isEmpty);
+    });
+  });
+
+  group('AccountLimits', () {
+    PlaylistConfig playlist() => PlaylistConfig(
+          id: 'p',
+          name: 'n',
+          dns: 'http://panel.test',
+          username: 'u',
+          password: 'x',
+          createdAt: DateTime(2026),
+        );
+
+    test('ne fait jamais attendre un flux : repli immédiat, valeur réelle ensuite', () async {
+      final pending = Completer<int?>();
+      final limits = AccountLimits(fetch: (_) => pending.future);
+
+      // Le panneau répond lentement (4 s mesurées en prod) : le premier flux
+      // part tout de suite sur la valeur de repli.
+      expect(await limits.maxFor(playlist()), AccountLimits.fallback);
+
+      pending.complete(3);
+      await Future<void>.delayed(Duration.zero);
+      expect(await limits.maxFor(playlist()), 3);
+    });
+
+    test('valeur périmée servie pendant le rafraîchissement', () async {
+      var calls = 0;
+      final limits = AccountLimits(
+        ttl: Duration.zero,
+        fetch: (_) async => ++calls == 1 ? 2 : 5,
+      );
+      await limits.maxFor(playlist());
+      await Future<void>.delayed(Duration.zero);
+      // Périmée (ttl nul) : la valeur connue sort sans attendre la nouvelle.
+      expect(await limits.maxFor(playlist()), 2);
+      await Future<void>.delayed(Duration.zero);
+      expect(await limits.maxFor(playlist()), 5);
+    });
+
+    test('panneau en échec : repli, sans exception', () async {
+      final limits = AccountLimits(fetch: (_) async => throw Exception('down'));
+      expect(await limits.maxFor(playlist()), AccountLimits.fallback);
+      await Future<void>.delayed(Duration.zero);
+      expect(await limits.maxFor(playlist()), AccountLimits.fallback);
     });
   });
 
