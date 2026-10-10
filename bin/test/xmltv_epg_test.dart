@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:test/test.dart';
@@ -145,6 +147,70 @@ void main() {
 
       expect(calls, 1);
       expect(service.hasData, isFalse);
+    });
+  });
+
+  group('réactivité du serveur', () {
+    test('l’indexation ne gèle pas la boucle d’événements', () async {
+      // Le serveur n'a qu'un isolate : décoder et parser un dump de
+      // plusieurs milliers de chaînes dessus bloquait tout le reste pendant
+      // des secondes — y compris le relais `turbo.ts` des flux en cours,
+      // d'où des coupures systématiques au démarrage de la lecture.
+      final now = DateTime.now().toUtc();
+      String stamp(DateTime d) {
+        String two(int v) => v.toString().padLeft(2, '0');
+        return '${d.year}${two(d.month)}${two(d.day)}'
+            '${two(d.hour)}${two(d.minute)}${two(d.second)} +0000';
+      }
+
+      // Volume d'un vrai dump de panneau : ~7000 chaînes, résumés de
+      // plusieurs phrases.
+      final desc = 'Résumé du programme, avec assez de texte pour peser '
+          'comme un vrai guide. ' * 4;
+      final xml = StringBuffer('<?xml version="1.0"?><tv>');
+      for (var c = 0; c < 7000; c++) {
+        xml.write('<channel id="Chaine.$c.fr">'
+            '<display-name>FR - CHAINE $c</display-name></channel>');
+        for (var p = 0; p < 30; p++) {
+          final start = now.add(Duration(minutes: 30 * p));
+          final stop = start.add(const Duration(minutes: 30));
+          xml.write('<programme start="${stamp(start)}" '
+              'stop="${stamp(stop)}" channel="Chaine.$c.fr">'
+              '<title>Programme $p</title><desc>$desc</desc>'
+              '</programme>');
+        }
+      }
+      xml.write('</tv>');
+      final body = xml.toString();
+
+      final service = XmltvEpgService(
+        sourceUrls: const ['http://dump.example/epg.xml'],
+        client: MockClient((_) async => http.Response(body, 200)),
+      );
+
+      // Un « battement » toutes les 10 ms : le plus long écart observé est
+      // le temps pendant lequel la boucle d'événements est restée bloquée.
+      var last = DateTime.now();
+      var worstGap = Duration.zero;
+      final heartbeat = Timer.periodic(const Duration(milliseconds: 10), (_) {
+        final now = DateTime.now();
+        final gap = now.difference(last);
+        if (gap > worstGap) worstGap = gap;
+        last = now;
+      });
+
+      await service.ensureFresh();
+      heartbeat.cancel();
+      // Le dernier blocage n'est suivi d'aucun battement : le compter aussi.
+      final tail = DateTime.now().difference(last);
+      if (tail > worstGap) worstGap = tail;
+
+      expect(service.channelCount, greaterThanOrEqualTo(7000));
+      expect(
+        worstGap,
+        lessThan(const Duration(milliseconds: 250)),
+        reason: 'boucle d’événements gelée ${worstGap.inMilliseconds} ms',
+      );
     });
   });
 

@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:xml/xml_events.dart';
@@ -115,8 +117,7 @@ class XmltvEpgService {
 
     for (final url in sourceUrls) {
       try {
-        final body = await _download(url);
-        final parsed = _parse(body);
+        final parsed = await _downloadAndParse(url);
         // Première source servie gagne : les suivantes ne comblent que les
         // chaînes encore absentes.
         for (final entry in parsed.entries) {
@@ -144,26 +145,60 @@ class XmltvEpgService {
     print('[XmltvEpg] index prêt : ${merged.length} chaînes');
   }
 
-  Future<String> _download(String url) async {
+  /// Télécharge [url] puis l'indexe dans un isolate dédié.
+  ///
+  /// Le serveur n'a qu'une boucle d'événements : décompresser et parser un
+  /// dump de plusieurs milliers de chaînes dessus la gelait pendant des
+  /// secondes. Plus rien d'autre ne répondait — en particulier le relais
+  /// `turbo.ts`, qui cessait d'envoyer des octets au lecteur : la lecture
+  /// se coupait systématiquement au démarrage, au moment précis où l'écran
+  /// des chaînes demandait le guide.
+  Future<Map<String, List<XmltvProgramme>>> _downloadAndParse(
+    String url,
+  ) async {
     final response =
         await _client.get(Uri.parse(url)).timeout(downloadTimeout);
     if (response.statusCode != 200) {
       throw HttpException('HTTP ${response.statusCode}');
     }
 
-    List<int> bytes = response.bodyBytes;
+    // Variables locales : la fermeture envoyée à l'isolate ne doit pas
+    // capturer `this` (le client HTTP n'est pas transférable).
+    final bytes = response.bodyBytes;
+    final retention = this.retention;
+    final horizon = this.horizon;
+    return Isolate.run(
+      () => _decodeAndParse(bytes, retention: retention, horizon: horizon),
+    );
+  }
+
+  static Map<String, List<XmltvProgramme>> _decodeAndParse(
+    Uint8List raw, {
+    required Duration retention,
+    required Duration horizon,
+  }) {
+    List<int> bytes = raw;
     // Beaucoup de miroirs servent du .gz sans en-tête Content-Encoding : on
     // regarde le nombre magique plutôt que de se fier aux en-têtes.
     if (bytes.length > 2 && bytes[0] == 0x1f && bytes[1] == 0x8b) {
       bytes = gzip.decode(bytes);
     }
-    return utf8.decode(bytes, allowMalformed: true);
+    return _parse(
+      utf8.decode(bytes, allowMalformed: true),
+      retention: retention,
+      horizon: horizon,
+    );
   }
 
   /// Exposé pour les tests.
-  Map<String, List<XmltvProgramme>> parseForTest(String xml) => _parse(xml);
+  Map<String, List<XmltvProgramme>> parseForTest(String xml) =>
+      _parse(xml, retention: retention, horizon: horizon);
 
-  Map<String, List<XmltvProgramme>> _parse(String xml) {
+  static Map<String, List<XmltvProgramme>> _parse(
+    String xml, {
+    required Duration retention,
+    required Duration horizon,
+  }) {
     final cutoff = DateTime.now().toUtc().subtract(retention);
     final limit = DateTime.now().toUtc().add(horizon);
     final byChannel = <String, List<XmltvProgramme>>{};
