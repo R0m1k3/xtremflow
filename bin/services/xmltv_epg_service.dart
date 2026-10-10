@@ -82,9 +82,37 @@ class XmltvEpgService {
     String? displayName,
   }) async {
     await ensureFresh();
+    final direct = _lookup(channelId, displayName);
+    if (direct.isNotEmpty) return direct;
+
+    // Chaîne décalée sans guide propre (« TF1 +1 » absent des dumps) : le
+    // guide de la chaîne principale, une heure plus tard, est exact.
+    if (displayName != null && _plusOne.hasMatch(displayName)) {
+      final base = displayName.replaceAll(_plusOne, ' ');
+      final hits = _lookup(null, base);
+      return [
+        for (final p in hits)
+          XmltvProgramme(
+            title: p.title,
+            description: p.description,
+            start: p.start.add(const Duration(hours: 1)),
+            stop: p.stop.add(const Duration(hours: 1)),
+          ),
+      ];
+    }
+    return const [];
+  }
+
+  static final _plusOne = RegExp(r'\+\s*1(?![0-9])');
+
+  List<XmltvProgramme> _lookup(String? channelId, String? displayName) {
     final keys = [
       normalizeKey(channelId),
       if (displayName != null) ...nameKeys(displayName),
+      // Clés souples en dernier recours, dans leur propre espace de noms.
+      _looseIndexKey(looseKey(channelId)),
+      if (displayName != null)
+        _looseIndexKey(looseKey(cleanChannelName(displayName).name)),
     ];
     for (final key in keys) {
       if (key.isEmpty) continue;
@@ -92,6 +120,44 @@ class XmltvEpgService {
       if (hit != null && hit.isNotEmpty) return hit;
     }
     return const [];
+  }
+
+  static String _looseIndexKey(String loose) => loose.isEmpty ? '' : '~$loose';
+
+  /// Jetons sans valeur distinctive pour reconnaître une chaîne.
+  static const _looseNoise = {
+    'channel', 'tv', 'hd', 'fhd', 'uhd', 'sd', '4k', 'hevc',
+  };
+
+  /// Codes pays en fin d'identifiant XMLTV (`TF1.fr`, `RTS1.ch`).
+  static const _countryCodes = {
+    'fr', 'be', 'ch', 'lu', 'mc', 'ca', 'uk', 'us', 'es', 'it', 'de', 'pt',
+    'nl',
+  };
+
+  /// Clé « souple » : sans code pays final ni mots génériques
+  /// (« AB3.Channel.fr » et « AB3 » → `ab3`).
+  ///
+  /// Servie dans un espace de noms à part, consultée en tout dernier : elle
+  /// rattrape les variantes d'écriture sans fausser les correspondances
+  /// exactes.
+  static String looseKey(String? raw) {
+    if (raw == null) return '';
+    final folded = StringBuffer();
+    for (final rune in raw.toLowerCase().runes) {
+      final char = String.fromCharCode(rune);
+      folded.write(_accents[char] ?? char);
+    }
+    final tokens = folded
+        .toString()
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((t) => t.isNotEmpty)
+        .toList();
+    if (tokens.length > 1 && _countryCodes.contains(tokens.last)) {
+      tokens.removeLast();
+    }
+    tokens.removeWhere(_looseNoise.contains);
+    return tokens.join();
   }
 
   /// Préfixe pays des noms de panneau : `FR - `, `FR: `, `|FR| `, `[FR] `…
@@ -119,8 +185,24 @@ class XmltvEpgService {
   /// de TF1.
   static List<String> nameKeys(String name) {
     final keys = <String>[normalizeKey(name)];
+    final cleaned = cleanChannelName(name);
+    final country = cleaned.country;
+    final base = normalizeKey(cleaned.name);
+    if (base.isNotEmpty) {
+      keys.add(base);
+      keys.add('$base${country ?? 'fr'}');
+    }
+    return keys.where((k) => k.isNotEmpty).toSet().toList();
+  }
 
-    var cleaned = name;
+  /// Abréviations du panneau pour les chaînes publiques (« F3 ALPES »), là
+  /// où les dumps écrivent `France.3.-.Alpes.fr`.
+  static final _franceAbbrev = RegExp(r'^F\s?([2-5])\b', caseSensitive: false);
+
+  /// Nom de chaîne débarrassé du préfixe pays, des symboles et des
+  /// marqueurs de qualité ; [country] = code pays du préfixe, s'il y en a.
+  static ({String name, String? country}) cleanChannelName(String raw) {
+    var cleaned = raw;
     String? country;
     final prefix = _countryPrefix.firstMatch(cleaned);
     if (prefix != null) {
@@ -129,19 +211,19 @@ class XmltvEpgService {
     }
     // Symboles décoratifs (◉, ᴴᴰ, ★…) : tout ce qui n'est ni lettre, ni
     // chiffre, ni ponctuation utile.
-    cleaned = cleaned.replaceAll(RegExp(r'[^\p{L}\p{N}\s+.&\-()]', unicode: true), ' ').trim();
+    cleaned = cleaned
+        .replaceAll(RegExp(r'[^\p{L}\p{N}\s+.&\-()]', unicode: true), ' ')
+        .trim();
     String previous;
     do {
       previous = cleaned;
       cleaned = cleaned.replaceFirst(_qualitySuffix, '').trim();
     } while (cleaned != previous && cleaned.isNotEmpty);
-
-    final base = normalizeKey(cleaned);
-    if (base.isNotEmpty) {
-      keys.add(base);
-      keys.add('$base${country ?? 'fr'}');
-    }
-    return keys.where((k) => k.isNotEmpty).toSet().toList();
+    cleaned = cleaned.replaceFirstMapped(
+      _franceAbbrev,
+      (m) => 'France ${m[1]}',
+    );
+    return (name: cleaned, country: country);
   }
 
   /// Recharge l'index s'il est absent ou périmé. Les appels concurrents
@@ -323,6 +405,13 @@ class XmltvEpgService {
               final name = normalizeKey(raw);
               if (id.isNotEmpty && name.isNotEmpty && id != name) {
                 aliases.putIfAbsent(name, () => id);
+              }
+            }
+            // Clés souples (espace de noms « ~ ») : premier arrivé gagne.
+            if (id.isNotEmpty) {
+              for (final raw in [channelId, ...displayNames]) {
+                final loose = _looseIndexKey(looseKey(raw));
+                if (loose.isNotEmpty) aliases.putIfAbsent(loose, () => id);
               }
             }
             channelId = null;
