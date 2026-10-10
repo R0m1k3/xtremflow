@@ -191,7 +191,16 @@ class XtreamService {
     String quality = 'high',
   }) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
-    return '$_backendBaseUrl/api/vod/$streamId/$quality/playlist.m3u8';
+    // `ext` : le serveur demande le fichier au panneau sous son extension
+    // réelle — un `.mp4` réclamé en `.mkv` est refusé (HTTP 551).
+    return '$_backendBaseUrl/api/vod/$streamId/$quality/playlist.m3u8'
+        '${_extQuery(containerExtension, first: true)}';
+  }
+
+  String _extQuery(String ext, {required bool first}) {
+    final value = ext.trim().toLowerCase();
+    if (value.isEmpty) return '';
+    return '${first ? '?' : '&'}ext=${Uri.encodeQueryComponent(value)}';
   }
 
   /// Generate stream URL for series episodes
@@ -201,7 +210,8 @@ class XtreamService {
     String quality = 'high',
   }) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
-    return '$_backendBaseUrl/api/vod/$streamId/$quality/playlist.m3u8?type=series';
+    return '$_backendBaseUrl/api/vod/$streamId/$quality/playlist.m3u8?type=series'
+        '${_extQuery(containerExtension, first: false)}';
   }
 
   /// Authenticate and get server info

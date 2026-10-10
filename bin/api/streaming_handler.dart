@@ -99,6 +99,16 @@ String _sanitizeQuality(String? quality) {
 
 bool _isValidStreamId(String id) => RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(id);
 
+/// Extension de conteneur d'un film/épisode, validée (elle finit dans l'URL
+/// du panneau). `mkv` par défaut : c'était l'unique valeur jusqu'ici, les
+/// anciens clients qui n'envoient pas `ext` gardent leur comportement.
+String vodContainerExtension(String? ext) {
+  final value = ext?.toLowerCase();
+  return value != null && RegExp(r'^[a-z0-9]{2,5}$').hasMatch(value)
+      ? value
+      : 'mkv';
+}
+
 /// Video encoding args for the requested quality (live profile).
 List<String> _liveVideoArgs(String quality, bool gpu) {
   switch (quality) {
@@ -680,8 +690,11 @@ Handler createVodStreamHandler(
     final contentType = request.url.queryParameters['type'] ?? 'movie';
     final basePath = contentType == 'series' ? 'series' : 'movie';
 
+    // Extension réelle du fichier (`container_extension` du catalogue) : le
+    // panneau refuse un `.mkv` imposé à un film stocké en `.mp4`.
     final targetUrl =
-        '${playlist.dns}/$basePath/${playlist.username}/${playlist.password}/$streamId.mkv';
+        '${playlist.dns}/$basePath/${playlist.username}/${playlist.password}/'
+        '$streamId.${vodContainerExtension(request.url.queryParameters['ext'])}';
     final useNvidiaGpu = isGpuEnabled?.call() ?? _isNvidiaGpuEnabled();
     final sessionId = 'vod_${streamId}_$quality';
 
@@ -751,10 +764,15 @@ Handler createVodStreamHandler(
       (Request request, String streamId) async {
     final quality =
         _sanitizeQuality(request.url.queryParameters['quality']);
-    final query = request.url.queryParameters['type'] != null
-        ? '?type=${request.url.queryParameters['type']}'
-        : '';
-    return Response.found('/api/vod/$streamId/$quality/playlist.m3u8$query');
+    final params = request.url.queryParameters;
+    final query = Uri(queryParameters: {
+      if (params['type'] != null) 'type': params['type']!,
+      if (params['ext'] != null) 'ext': params['ext']!,
+    }).query;
+    return Response.found(
+      '/api/vod/$streamId/$quality/playlist.m3u8'
+      '${query.isEmpty ? '' : '?$query'}',
+    );
   });
 
   // Route: /api/vod/{streamId}/{quality}/{segment}
