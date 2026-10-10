@@ -9,7 +9,6 @@ import '../services/gpu_fallback.dart';
 import '../services/upstream_slots.dart';
 import '../utils/log_redactor.dart';
 import '../utils/media_probe.dart';
-import '../utils/stream_pipe.dart';
 import 'recording_playlist.dart';
 
 /// Directory for temporary HLS segments
@@ -441,6 +440,46 @@ Stream<List<int>> _resilientLiveBody(
   }
 }
 
+/// URL d'une chaîne chez le panneau, en HLS (`.m3u8`) ou en flux continu
+/// (`.ts`).
+String _liveSourceUrl(PlaylistConfig p, String streamId, {required bool hls}) =>
+    '${p.dns}/live/${p.username}/${p.password}/$streamId.${hls ? 'm3u8' : 'ts'}';
+
+/// Arguments d'entrée FFmpeg pour une chaîne du panneau.
+///
+/// POURQUOI le HLS d'abord : mesuré en prod (sonde admin), le panneau met
+/// 4,2 à 4,4 s à répondre la redirection d'un `.ts`, contre 0,2 à 1,3 s pour
+/// un `.m3u8` dont le premier segment arrive ensuite en 50 ms — un zap ~4×
+/// plus rapide. La playlist du panneau garde en plus ~60 s de segments :
+/// `-live_start_index -2` en récupère deux d'un coup, ce qui donne au
+/// lecteur une avance immédiate pour absorber les à-coups.
+///
+/// Pas de `-reconnect_at_eof` en HLS : chaque segment se termine par une
+/// fin de fichier, l'option provoquerait une reconnexion à chaque segment
+/// (leçon tirée de xtremobile, où elle causait gels et sauts).
+List<String> liveInputArgs(String url, {required bool hls}) => [
+      '-headers', 'User-Agent: VLC/3.0.18 LibVLC/3.0.18\r\n',
+      if (hls) ...[
+        '-reconnect', '1',
+        '-reconnect_on_network_error', '1',
+        '-reconnect_delay_max', '5',
+        '-live_start_index', '-2',
+      ] else ...[
+        '-reconnect', '1', '-reconnect_streamed', '1',
+        '-reconnect_at_eof', '1',
+        '-reconnect_delay_max', '10',
+      ],
+      // Abort reads stuck for 30s so a stalled upstream triggers the
+      // reconnect logic instead of wedging the process forever.
+      '-rw_timeout', '30000000',
+      // Démarrage rapide : sans borne, FFmpeg peut passer plusieurs
+      // secondes à sonder le flux avant d'écrire la première sortie.
+      '-fflags', 'nobuffer',
+      '-probesize', '1000000',
+      '-analyzeduration', '1000000',
+      '-i', url,
+    ];
+
 Handler createLiveStreamHandler(
   Future<PlaylistConfig?> Function(Request) getPlaylist, {
   bool Function()? isGpuEnabled,
@@ -458,18 +497,14 @@ Handler createLiveStreamHandler(
     final playlist = await getPlaylist(request);
     if (playlist == null) return Response.forbidden('No playlist');
 
-    final targetUrl =
-        '${playlist.dns}/live/${playlist.username}/${playlist.password}/$streamId.ts';
     final useNvidiaGpu = isGpuEnabled?.call() ?? _isNvidiaGpuEnabled();
     final sessionId = 'live_${streamId}_$quality';
 
     if (!sessionManager.contains(sessionId)) {
-      print(
-        '[Live HLS] Starting $sessionId: ${LogRedactor.redactUrl(targetUrl)}',
-      );
+      print('[Live HLS] Starting $sessionId');
     }
 
-    final result = await _runWithGpuFallback(
+    Future<_SessionAttempt> run({required bool hls}) => _runWithGpuFallback(
       id: sessionId,
       isLive: true,
       upstream: playlist,
@@ -477,19 +512,10 @@ Handler createLiveStreamHandler(
       buildArgs: (gpu) => [
         '-hide_banner', '-loglevel', 'warning',
         if (gpu) ...['-hwaccel', 'cuda'],
-        '-headers', 'User-Agent: VLC/3.0.18 LibVLC/3.0.18\r\n',
-        '-reconnect', '1', '-reconnect_streamed', '1',
-        '-reconnect_at_eof', '1',
-        '-reconnect_delay_max', '10',
-        // Abort reads stuck for 30s so a stalled upstream triggers the
-        // reconnect logic instead of wedging the process forever.
-        '-rw_timeout', '30000000',
-        // Démarrage rapide : sans borne, FFmpeg peut passer plusieurs
-        // secondes à sonder le flux avant d'écrire le premier segment.
-        '-fflags', 'nobuffer',
-        '-probesize', '1000000',
-        '-analyzeduration', '1000000',
-        '-i', targetUrl,
+        ...liveInputArgs(
+          _liveSourceUrl(playlist, streamId, hls: hls),
+          hls: hls,
+        ),
         ..._liveVideoArgs(quality, gpu),
         ..._audioArgs(withFilters: false),
         // HLS sliding window: 10 x 2s segments (lower live latency than the
@@ -506,6 +532,15 @@ Handler createLiveStreamHandler(
         'playlist.m3u8',
       ],
     );
+
+    var result = await run(hls: true);
+    if (!result.ready) {
+      // Panneau sans HLS pour cette chaîne (ou HLS en panne) : repli sur le
+      // flux continu, plus lent à ouvrir mais universel.
+      print('[Live HLS] $sessionId : HLS du panneau indisponible — repli .ts');
+      sessionManager.killSession(sessionId);
+      result = await run(hls: false);
+    }
 
     final session = result.session;
     if (!result.ready || session == null) {
@@ -554,79 +589,93 @@ Handler createLiveStreamHandler(
     final playlist = await getPlaylist(request);
     if (playlist == null) return Response.forbidden('No playlist');
 
-    final targetUrl =
-        '${playlist.dns}/live/${playlist.username}/${playlist.password}/$streamId.ts';
-    print(
-      '[Live Turbo] $streamId: ${LogRedactor.redactUrl(targetUrl)}',
-    );
+    print('[Live Turbo] $streamId');
 
     // Un identifiant par requête : deux onglets sur la même chaîne sont
     // deux connexions distinctes chez le fournisseur.
     final upstreamId = 'turbo_${streamId}_${++_turboCounter}';
     await _claimUpstream(playlist, upstreamId);
 
-    final Process process;
-    try {
-      process = await Process.start(_getFFmpegPath(), [
-        '-hide_banner', '-loglevel', 'warning',
-        '-headers', 'User-Agent: VLC/3.0.18 LibVLC/3.0.18\r\n',
-        '-reconnect', '1', '-reconnect_streamed', '1',
-        '-reconnect_at_eof', '1',
-        '-reconnect_delay_max', '10',
-        '-rw_timeout', '30000000',
-        // Démarrage rapide : ne pas bufferiser l'analyse, sonde réduite.
-        '-fflags', 'nobuffer',
-        '-flags', 'low_delay',
-        '-probesize', '1000000',
-        '-analyzeduration', '1000000',
-        '-i', targetUrl,
-        '-c:v', 'copy',
-        '-c:a', 'aac', '-b:a', '160k', '-ac', '2', '-ar', '48000',
-        '-af', 'aresample=async=1',
-        // Pas de délai de mux : les paquets partent dès qu'ils existent.
-        '-muxdelay', '0', '-muxpreload', '0',
-        '-f', 'mpegts', 'pipe:1',
-      ]);
-    } on ProcessException catch (e) {
-      // Serveur saturé (plus de processus ou de mémoire) : un 503 que le
-      // lecteur sait traiter, plutôt qu'une exception qui remonte en 500.
-      // `ProcessException` liste les arguments, donc l'URL `-i` du panneau.
-      print('[Live Turbo] $streamId : FFmpeg n\'a pas démarré '
-          '(${LogRedactor.redactUrl('$e')})');
-      return Response(503, body: 'FFmpeg start failed');
-    }
-
     // Dernier octet remis au client : un lecteur en vie en reçoit à chaque
     // rafale ; un client parti (zap mal détecté derrière le proxy) n'en
     // reçoit plus, la contre-pression bloquant FFmpeg.
     var lastDelivered = DateTime.now();
-    _registerUpstream(
-      playlist,
-      upstreamId,
-      process,
-      release: () => process.kill(ProcessSignal.sigterm),
-      lastActivity: () => lastDelivered,
-    );
 
-    // Journaliser les erreurs FFmpeg (redactées) sans bloquer le flux.
-    process.stderr.transform(const SystemEncoding().decoder).listen((line) {
-      final trimmed = line.trim();
-      if (trimmed.isNotEmpty) {
-        print('[Live Turbo] $streamId ffmpeg: '
-            '${LogRedactor.redactUrl(trimmed)}');
+    Future<Process?> start({required bool hls}) async {
+      final Process process;
+      try {
+        process = await Process.start(_getFFmpegPath(), [
+          '-hide_banner', '-loglevel', 'warning',
+          ...liveInputArgs(
+            _liveSourceUrl(playlist, streamId, hls: hls),
+            hls: hls,
+          ),
+          '-flags', 'low_delay',
+          '-c:v', 'copy',
+          '-c:a', 'aac', '-b:a', '160k', '-ac', '2', '-ar', '48000',
+          '-af', 'aresample=async=1',
+          // Pas de délai de mux : les paquets partent dès qu'ils existent.
+          '-muxdelay', '0', '-muxpreload', '0',
+          '-f', 'mpegts', 'pipe:1',
+        ]);
+      } on ProcessException catch (e) {
+        // `ProcessException` liste les arguments, donc l'URL `-i` du panneau.
+        print('[Live Turbo] $streamId : FFmpeg n\'a pas démarré '
+            '(${LogRedactor.redactUrl('$e')})');
+        return null;
       }
-    });
+      _registerUpstream(
+        playlist,
+        upstreamId,
+        process,
+        release: () => process.kill(ProcessSignal.sigterm),
+        lastActivity: () => lastDelivered,
+      );
+      // Journaliser les erreurs FFmpeg (redactées) sans bloquer le flux.
+      process.stderr.transform(const SystemEncoding().decoder).listen((line) {
+        final trimmed = line.trim();
+        if (trimmed.isNotEmpty) {
+          print('[Live Turbo] $streamId ffmpeg: '
+              '${LogRedactor.redactUrl(trimmed)}');
+        }
+      });
+      return process;
+    }
 
-    // Relayer stdout vers le client en gardant la contre-pression, et tuer
-    // FFmpeg dès que le client zappe ou ferme l'onglet (sinon les processus
-    // s'accumulent à chaque zap).
-    final body = pipeWithBackpressure(
-      process.stdout,
-      onStop: () => process.kill(ProcessSignal.sigterm),
-    ).map((chunk) {
-      lastDelivered = DateTime.now();
-      return chunk;
-    });
+    final first = await start(hls: true);
+    // Serveur saturé (plus de processus ou de mémoire) : un 503 que le
+    // lecteur sait traiter, plutôt qu'une exception qui remonte en 500.
+    if (first == null) return Response(503, body: 'FFmpeg start failed');
+
+    // Relais vers le client. Un générateur `async*` garde la contre-pression
+    // (`yield` attend tant que le client ne lit pas) et son `finally` tue
+    // FFmpeg dès que le client zappe ou ferme l'onglet.
+    //
+    // Si le HLS du panneau n'a livré aucun octet (format refusé pour cette
+    // chaîne, playlist vide), on rebascule sur le `.ts` dans la MÊME
+    // réponse : le lecteur ne voit qu'un démarrage un peu plus long.
+    Stream<List<int>> relay() async* {
+      Process? process = first;
+      var hls = true;
+      try {
+        while (process != null) {
+          var delivered = false;
+          await for (final chunk in process.stdout) {
+            delivered = true;
+            lastDelivered = DateTime.now();
+            yield chunk;
+          }
+          if (delivered || !hls) break;
+          print('[Live Turbo] $streamId : HLS du panneau muet — repli .ts');
+          hls = false;
+          process = await start(hls: false);
+        }
+      } finally {
+        process?.kill(ProcessSignal.sigterm);
+      }
+    }
+
+    final body = relay();
 
     return Response(
       200,
