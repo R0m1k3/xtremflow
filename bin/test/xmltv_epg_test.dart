@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -81,6 +82,52 @@ void main() {
     test('ne réduit pas un nom court à rien', () {
       expect(XmltvEpgService.nameKeys('M6'), contains('m6'));
       expect(XmltvEpgService.nameKeys('HD'), isNot(contains('')));
+    });
+  });
+
+  group('correspondances élargies (chaînes vides mesurées en prod)', () {
+    XmltvEpgService serviceWith(String dump) => XmltvEpgService(
+          sourceUrls: const ['http://ext/epg.xml'],
+          client: MockClient((_) async => http.Response.bytes(
+                // Octets UTF-8 : les ids réels portent des accents.
+                const Utf8Encoder().convert(dump),
+                200,
+              )),
+        );
+
+    String channel(String id, String name, String title, DateTime start) => '''
+  <channel id="$id"><display-name>$name</display-name></channel>
+  <programme start="${_stamp(start)}" stop="${_stamp(start.add(const Duration(hours: 1)))}" channel="$id"><title>$title</title></programme>''';
+
+    test('« F3 ALPES » du panneau trouve France.3.-.Alpes.fr', () async {
+      final now = DateTime.now().toUtc();
+      final svc = serviceWith('<tv>${channel('France.3.-.Alpes.fr', 'France 3 Alpes', 'JT Alpes', now)}</tv>');
+      final hits = await svc.programmesFor(null, displayName: 'FR - F3 ALPES HD');
+      expect(hits.single.title, 'JT Alpes');
+    });
+
+    test('« AB3 » trouve AB3.Channel.fr (clé souple)', () async {
+      final now = DateTime.now().toUtc();
+      final svc = serviceWith('<tv>${channel('AB3.Channel.fr', 'AB3 Channel', 'Série', now)}</tv>');
+      final hits = await svc.programmesFor('AB3.fr', displayName: 'FR - AB3 FHD');
+      expect(hits.single.title, 'Série');
+    });
+
+    test('« TF1 +1 » reprend le guide de TF1 décalé d\'une heure', () async {
+      final now = DateTime.now().toUtc();
+      final svc = serviceWith('<tv>${channel('TF1.fr', 'TF1', 'Le 13h', now)}</tv>');
+      final hits = await svc.programmesFor(null, displayName: 'FR - TF1 +1 FHD');
+      expect(hits.single.title, 'Le 13h');
+      expect(hits.single.start, now.add(const Duration(hours: 1)).copyWith(microsecond: 0, millisecond: 0));
+    });
+
+    test('une chaîne +1 qui a son propre guide le garde', () async {
+      final now = DateTime.now().toUtc();
+      final svc = serviceWith('<tv>'
+          '${channel('Boomerang.fr', 'Boomerang', 'Normal', now)}'
+          '${channel('Boomerang.+1.fr', 'Boomerang +1', 'Décalé', now)}</tv>');
+      final hits = await svc.programmesFor(null, displayName: 'FR - BOOMERANG +1');
+      expect(hits.single.title, 'Décalé');
     });
   });
 

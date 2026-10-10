@@ -37,7 +37,7 @@ Au premier démarrage, un compte `admin` est créé avec un **mot de passe aléa
 | `RECORDINGS_PATH` | `./data/recordings` | Dossier hôte des enregistrements |
 | `TZ` | `Europe/Paris` | Fuseau du conteneur (les enregistrements sont stockés en UTC) |
 | `MAX_CONCURRENT_RECORDINGS` | `2` | Enregistrements simultanés |
-| `EPG_XMLTV_URLS` | dump FR | Sources XMLTV de repli (vide = aucun appel sortant) |
+| `EPG_XMLTV_URLS` | dumps FR, CH, BE | Sources XMLTV de repli (vide = aucun appel sortant) |
 | `NVIDIA_GPU` | `false` | Transcodage NVENC |
 | `ADMIN_INITIAL_PASSWORD` | *(généré)* | Mot de passe initial du compte admin |
 | `MIN_FREE_DISK_MB` | `500` | Espace libre minimal pour démarrer une capture |

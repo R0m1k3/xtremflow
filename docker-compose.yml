@@ -27,7 +27,7 @@ services:
       # aucun programme couvrant l'instant présent. Vider la variable coupe
       # tout appel sortant : l'EPG se limite alors au panneau de l'abonné.
       # Plusieurs dumps se séparent par des virgules.
-      - EPG_XMLTV_URLS=${EPG_XMLTV_URLS-https://epgshare01.online/epgshare01/epg_ripper_FR1.xml.gz}
+      - EPG_XMLTV_URLS=${EPG_XMLTV_URLS-https://epgshare01.online/epgshare01/epg_ripper_FR1.xml.gz,https://epgshare01.online/epgshare01/epg_ripper_CH1.xml.gz,https://epgshare01.online/epgshare01/epg_ripper_BE2.xml.gz}
       # Accélération GPU NVIDIA pour le transcodage (NVENC) : true/false
       - NVIDIA_GPU=${NVIDIA_GPU:-false}
     restart: unless-stopped
