@@ -132,7 +132,9 @@ void main(List<String> args) async {
   // Source XMLTV de repli. Vider EPG_XMLTV_URLS désactive tout appel sortant :
   // l'EPG se limite alors au panneau de l'abonné.
   final xmltvUrls = (Platform.environment['EPG_XMLTV_URLS'] ??
-          'https://epgshare01.online/epgshare01/epg_ripper_FR1.xml.gz')
+          'https://epgshare01.online/epgshare01/epg_ripper_FR1.xml.gz,'
+          'https://epgshare01.online/epgshare01/epg_ripper_CH1.xml.gz,'
+          'https://epgshare01.online/epgshare01/epg_ripper_BE2.xml.gz')
       .split(',')
       .map((u) => u.trim())
       .where((u) => u.isNotEmpty)
