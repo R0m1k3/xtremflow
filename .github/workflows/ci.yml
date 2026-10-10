@@ -31,6 +31,9 @@ jobs:
       # fatal; errors and warnings still fail the build.
       - run: flutter analyze --no-fatal-infos
       - run: flutter test
+      # Moteur de lecture web (web/xf-player-core.js) : Node est préinstallé
+      # sur les runners ubuntu, aucune dépendance npm.
+      - run: node --test "test/web/*_test.mjs"
       - run: flutter build web --release
 
   backend:

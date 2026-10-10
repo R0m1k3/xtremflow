@@ -419,13 +419,28 @@
         // 64 Ko en profil « fast » contre 512 Ko auparavant.
         stashInitialSize: this.profile.mpegtsStash,
         maxStashSize: 30 * 1024 * 1024,
-        // Rattrapage du direct : sans lui, chaque micro-coupure fait dériver
-        // la lecture derrière le direct (latence qui s'accumule). Activé
-        // uniquement en profil « fast » — les profils élargis privilégient
-        // la stabilité du buffer.
-        liveBufferLatencyChasing: isLive && this.profile.name === 'fast',
-        liveBufferLatencyMaxLatency: 5,
-        liveBufferLatencyMinRemain: 1,
+        // POURQUOI ces seuils : les panneaux Xtream relaient le plus souvent
+        // une source HLS et livrent le flux par RAFALES (~6 s de contenu d'un
+        // coup, puis plusieurs secondes de silence total — mesuré en prod).
+        // L'ancien rattrapage (5 s max, 1 s de marge) sautait en avant à
+        // chaque rafale puis tombait à sec pendant le silence suivant :
+        // coupure toutes les 3-4 s et contenu sauté (12 sauts et 14 coupures
+        // en 30 s sur une chaîne FHD). La marge de 12 s couvre deux silences ;
+        // le saut ne sert plus qu'à borner un retard réellement accumulé.
+        liveBufferLatencyChasing: isLive,
+        liveBufferLatencyMaxLatency: 30,
+        liveBufferLatencyMinRemain: 12,
+        // Au-delà de 20 s de retard, accélérer légèrement (x1,1) jusqu'à
+        // revenir à 12 s : rattrapage invisible, sans saut ni coupure.
+        liveSync: isLive,
+        liveSyncMaxLatency: 20,
+        liveSyncTargetLatency: 12,
+        liveSyncPlaybackRate: 1.1,
+        // Purge du buffer déjà lu : sans elle, une longue séance finit par
+        // saturer le SourceBuffer (QuotaExceededError → erreur MPEG-TS).
+        autoCleanupSourceBuffer: true,
+        autoCleanupMaxBackwardDuration: 60,
+        autoCleanupMinBackwardDuration: 30,
         lazyLoad: false
       }
     );
