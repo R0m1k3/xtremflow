@@ -350,7 +350,10 @@ class EpgApi {
     if (response != null && response.statusCode == 200) {
       // Décodage dans un isolate : 7 Mo de JSON sur la boucle principale la
       // gelaient, et le relais turbo.ts cessait d'émettre pendant ce temps.
-      final body = response.body;
+      // UTF-8 explicite : sans charset annoncé, `response.body` peut décoder
+      // en latin-1 et abîmer les noms (« Chérie », « ◉ »), donc leur
+      // correspondance avec le guide.
+      final body = utf8.decode(response.bodyBytes, allowMalformed: true);
       try {
         (epgIds, names) = await Isolate.run(() => _parseChannelTable(body));
       } catch (e) {

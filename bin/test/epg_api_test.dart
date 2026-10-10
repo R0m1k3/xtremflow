@@ -249,11 +249,13 @@ void main() {
         if (url.path.endsWith('/xmltv.php')) return http.Response('<tv></tv>', 200);
         final action = url.queryParameters['action'] ?? '';
         if (action == 'get_live_streams') {
-          return http.Response(
-            jsonEncode([
+          // Octets UTF-8 et JSON sans charset annoncé, comme le panneau réel.
+          return http.Response.bytes(
+            utf8.encode(jsonEncode([
               {'stream_id': 1, 'name': 'FR - TF1 FHD ◉', 'epg_channel_id': ''},
-            ]),
+            ])),
             200,
+            headers: {'content-type': 'application/json'},
           );
         }
         throw http.ClientException('Connection closed', url);
