@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 import 'package:shelf/shelf.dart';
 import 'package:http/http.dart' as http;
 import '../models/playlist_config.dart';
@@ -97,10 +98,15 @@ class EpgApi {
       // Le dump du panneau passe devant : une requête couvre toutes les
       // chaînes, là où `player_api` en demande une par chaîne, à plusieurs
       // secondes pièce.
+      //
+      // Le dump externe passe ensuite AVANT l'interrogation chaîne par
+      // chaîne : il est déjà indexé en mémoire (réponse instantanée), alors
+      // que `player_api` coûte plusieurs secondes par chaîne et échouait en
+      // prod — ce qui laissait toute la grille sans guide.
       final sources = <(String, Future<List<Map<String, dynamic>>> Function())>[
         ('panel-xmltv', () => _panelProgrammes(playlist, channelId)),
-        ('xtream', () => _xtreamProgrammes(playlist, channelId)),
         ('xmltv', () => _xmltvProgrammes(playlist, channelId)),
+        ('xtream', () => _xtreamProgrammes(playlist, channelId)),
       ];
 
       var epgData = <String, dynamic>{
@@ -133,10 +139,13 @@ class EpgApi {
 
       final jsonStr = json.encode(epgData);
 
-      // Mettre en cache 30 minutes
+      // 30 min pour un guide trouvé ; 5 min seulement pour un guide vide,
+      // qui vient souvent d'une source momentanément indisponible et ne
+      // doit pas priver la chaîne de guide pendant une demi-heure.
       _cache[cacheKey] = _CacheEntry(
         data: jsonStr,
-        expiresAt: DateTime.now().add(const Duration(minutes: 30)),
+        expiresAt: DateTime.now()
+            .add(Duration(minutes: found ? 30 : 5)),
       );
 
       return Response.ok(
@@ -191,8 +200,19 @@ class EpgApi {
           '&password=${playlist.password}'
           '&action=$action&stream_id=$channelId';
 
-      final response =
-          await _http.get(Uri.parse(url)).timeout(const Duration(seconds: 60));
+      final http.Response response;
+      try {
+        response = await _http
+            .get(Uri.parse(url))
+            .timeout(const Duration(seconds: 20));
+      } catch (e) {
+        // Délai dépassé, connexion coupée… : une source parmi d'autres, pas
+        // une raison de répondre 500 (ce qui privait la chaîne des sources
+        // suivantes). L'exception recopie l'URL, identifiants compris.
+        print('[EpgApi] player_api $action indisponible pour $channelId : '
+            '${LogRedactor.redactUrl('$e')}');
+        continue;
+      }
       if (response.statusCode != 200) continue;
 
       Map<String, dynamic> parsed;
@@ -267,41 +287,85 @@ class EpgApi {
     }
   }
 
+  /// `stream_id` → (`epg_channel_id`, nom) depuis la réponse
+  /// `get_live_streams`.
+  static (Map<String, String>, Map<String, String>) _parseChannelTable(
+    String body,
+  ) {
+    final epgIds = <String, String>{};
+    final names = <String, String>{};
+    final decoded = json.decode(body);
+    if (decoded is List) {
+      for (final item in decoded) {
+        if (item is! Map) continue;
+        final streamId = item['stream_id']?.toString();
+        if (streamId == null || streamId.isEmpty) continue;
+        final epgId = item['epg_channel_id']?.toString();
+        if (epgId != null && epgId.isNotEmpty) epgIds[streamId] = epgId;
+        final name = item['name']?.toString();
+        if (name != null && name.isNotEmpty) names[streamId] = name;
+      }
+    }
+    return (epgIds, names);
+  }
+
+  /// Téléchargements de la table des chaînes en cours, par compte.
+  final Map<String, Future<_ChannelMap>> _channelMapsInFlight = {};
+
   /// Table des chaînes du compte, rafraîchie toutes les 6 heures.
-  Future<_ChannelMap> _channelMapFor(PlaylistConfig playlist) async {
+  ///
+  /// Les requêtes simultanées partagent un seul téléchargement : la grille
+  /// demande le guide de 30 chaînes d'un coup, et chacune déclenchait sinon
+  /// son propre `get_live_streams` (7 Mo en prod).
+  Future<_ChannelMap> _channelMapFor(PlaylistConfig playlist) {
     final key = '${playlist.dns}|${playlist.username}';
     final cached = _channelMaps[key];
     if (cached != null && DateTime.now().isBefore(cached.expiresAt)) {
-      return cached;
+      return Future.value(cached);
     }
+    return _channelMapsInFlight[key] ??=
+        _loadChannelMap(playlist, key).whenComplete(() {
+      _channelMapsInFlight.remove(key);
+    });
+  }
 
+  Future<_ChannelMap> _loadChannelMap(
+    PlaylistConfig playlist,
+    String key,
+  ) async {
     final url = '${playlist.dns}/player_api.php'
         '?username=${playlist.username}&password=${playlist.password}'
         '&action=get_live_streams';
-    final response =
-        await _http.get(Uri.parse(url)).timeout(const Duration(seconds: 90));
+    http.Response? response;
+    try {
+      response =
+          await _http.get(Uri.parse(url)).timeout(const Duration(seconds: 90));
+    } catch (e) {
+      print('[EpgApi] table des chaînes indisponible : '
+          '${LogRedactor.redactUrl('$e')}');
+    }
 
-    final epgIds = <String, String>{};
-    final names = <String, String>{};
-    if (response.statusCode == 200) {
-      final decoded = json.decode(response.body);
-      if (decoded is List) {
-        for (final item in decoded) {
-          if (item is! Map) continue;
-          final streamId = item['stream_id']?.toString();
-          if (streamId == null || streamId.isEmpty) continue;
-          final epgId = item['epg_channel_id']?.toString();
-          if (epgId != null && epgId.isNotEmpty) epgIds[streamId] = epgId;
-          final name = item['name']?.toString();
-          if (name != null && name.isNotEmpty) names[streamId] = name;
-        }
+    var epgIds = <String, String>{};
+    var names = <String, String>{};
+    if (response != null && response.statusCode == 200) {
+      // Décodage dans un isolate : 7 Mo de JSON sur la boucle principale la
+      // gelaient, et le relais turbo.ts cessait d'émettre pendant ce temps.
+      final body = response.body;
+      try {
+        (epgIds, names) = await Isolate.run(() => _parseChannelTable(body));
+      } catch (e) {
+        print('[EpgApi] table des chaînes illisible : ${e.runtimeType}');
       }
     }
 
+    // Une table vide (panneau en échec) n'est gardée que 2 minutes : la
+    // garder 6 h privait TOUTES les chaînes du repli XMLTV pendant 6 h.
     final map = _ChannelMap(
       epgIds: epgIds,
       names: names,
-      expiresAt: DateTime.now().add(const Duration(hours: 6)),
+      expiresAt: DateTime.now().add(
+        names.isEmpty ? const Duration(minutes: 2) : const Duration(hours: 6),
+      ),
     );
     _channelMaps[key] = map;
     return map;

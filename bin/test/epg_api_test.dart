@@ -217,5 +217,111 @@ void main() {
       expect(response.headers['X-Epg-Source'], 'xtream');
       expect(actions, contains('get_simple_data_table'));
     });
+
+    // Dump externe couvrant TF1, et panneau dont le xmltv.php est vide.
+    String externalDump() {
+      final now = DateTime.now().toUtc();
+      return xmltvDump(now, now.add(const Duration(hours: 1)))
+          .replaceAll('France2.fr', 'TF1.fr')
+          .replaceAll('FRANCE 2', 'TF1');
+    }
+
+    EpgApi apiWith(http.Client client) => EpgApi(
+          (_) async => playlist,
+          httpClient: client,
+          xmltv: XmltvEpgService(
+            sourceUrls: const ['http://ext.example/epg.xml'],
+            client: client,
+          ),
+          panelXmltvBuilder: (config) => XmltvEpgService(
+            sourceUrls: ['${config.dns}/xmltv.php'],
+            client: client,
+          ),
+        );
+
+    test('un panneau qui plante ne prive plus la chaîne du dump externe',
+        () async {
+      // Constaté en prod : chaque /api/epg répondait 500 en 4 s, le guide
+      // externe (qui couvrait pourtant la chaîne) n'étant jamais consulté.
+      final client = MockClient((request) async {
+        final url = request.url;
+        if (url.host == 'ext.example') return http.Response(externalDump(), 200);
+        if (url.path.endsWith('/xmltv.php')) return http.Response('<tv></tv>', 200);
+        final action = url.queryParameters['action'] ?? '';
+        if (action == 'get_live_streams') {
+          return http.Response(
+            jsonEncode([
+              {'stream_id': 1, 'name': 'FR - TF1 FHD ◉', 'epg_channel_id': ''},
+            ]),
+            200,
+          );
+        }
+        throw http.ClientException('Connection closed', url);
+      });
+
+      final response = await apiWith(client).handleGetEpg(requestFor('1'), '1');
+      final body = jsonDecode(await response.readAsString()) as Map;
+
+      expect(response.statusCode, 200);
+      expect(response.headers['X-Epg-Source'], 'xmltv');
+      expect((body['programmes'] as List).single['title'], 'Journal de 20h');
+    });
+
+    test('le dump externe passe avant l\'appel lent chaîne par chaîne',
+        () async {
+      final actions = <String>[];
+      final client = MockClient((request) async {
+        final url = request.url;
+        if (url.host == 'ext.example') return http.Response(externalDump(), 200);
+        if (url.path.endsWith('/xmltv.php')) return http.Response('<tv></tv>', 200);
+        final action = url.queryParameters['action'] ?? '';
+        actions.add(action);
+        if (action == 'get_live_streams') {
+          return http.Response(
+            jsonEncode([
+              {'stream_id': 1, 'name': 'TF1', 'epg_channel_id': 'TF1.fr'},
+            ]),
+            200,
+          );
+        }
+        return http.Response('{}', 200);
+      });
+
+      final response = await apiWith(client).handleGetEpg(requestFor('1'), '1');
+      expect(response.headers['X-Epg-Source'], 'xmltv');
+      expect(actions, isNot(contains('get_simple_data_table')));
+    });
+
+    test('la grille entière partage un seul téléchargement de la table',
+        () async {
+      // 30 tuiles demandent leur guide d'un coup : sans mutualisation, autant
+      // de `get_live_streams` (7 Mo en prod) partaient en parallèle.
+      var liveStreamsCalls = 0;
+      final client = MockClient((request) async {
+        final url = request.url;
+        if (url.host == 'ext.example') return http.Response(externalDump(), 200);
+        if (url.path.endsWith('/xmltv.php')) return http.Response('<tv></tv>', 200);
+        final action = url.queryParameters['action'] ?? '';
+        if (action == 'get_live_streams') {
+          liveStreamsCalls++;
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          return http.Response(
+            jsonEncode([
+              for (var i = 1; i <= 5; i++)
+                {'stream_id': i, 'name': 'TF1', 'epg_channel_id': 'TF1.fr'},
+            ]),
+            200,
+          );
+        }
+        return http.Response('{}', 200);
+      });
+
+      final api = apiWith(client);
+      final responses = await Future.wait([
+        for (var i = 1; i <= 5; i++) api.handleGetEpg(requestFor('$i'), '$i'),
+      ]);
+      expect(responses.every((r) => r.statusCode == 200), isTrue);
+      expect(liveStreamsCalls, 1);
+    });
   });
 }

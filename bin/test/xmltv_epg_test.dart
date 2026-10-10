@@ -28,6 +28,13 @@ String _fixture(DateTime start, DateTime stop) {
 ''';
 }
 
+String _stamp(DateTime d) {
+  final u = d.toUtc();
+  String two(int v) => v.toString().padLeft(2, '0');
+  return '${u.year}${two(u.month)}${two(u.day)}'
+      '${two(u.hour)}${two(u.minute)}${two(u.second)} +0000';
+}
+
 void main() {
   final service = XmltvEpgService(sourceUrls: const []);
 
@@ -48,6 +55,71 @@ void main() {
     test('rend une clé vide sur une entrée nulle ou sans caractère utile', () {
       expect(XmltvEpgService.normalizeKey(null), '');
       expect(XmltvEpgService.normalizeKey('...'), '');
+    });
+  });
+
+  group('nameKeys', () {
+    // Noms réels du panneau (prod) : 59 % des chaînes françaises n'ont pas
+    // d'epg_channel_id, seul leur nom permet de retrouver le guide.
+    test('retire le préfixe pays et les marqueurs de qualité', () {
+      expect(XmltvEpgService.nameKeys('FR - TF1 FHD ◉'), contains('tf1'));
+      expect(XmltvEpgService.nameKeys('FR - FRANCE 4 FHD'), contains('france4'));
+      expect(XmltvEpgService.nameKeys('|FR| M6 HD'), contains('m6'));
+      expect(XmltvEpgService.nameKeys('[FR] Arte UHD 4K'), contains('arte'));
+      expect(XmltvEpgService.nameKeys('FR: RMC Story HEVC'), contains('rmcstory'));
+    });
+
+    test('propose aussi la forme identifiant « nom.pays »', () {
+      // Les dumps publics identifient souvent la chaîne par `TF1.fr`.
+      expect(XmltvEpgService.nameKeys('FR - TF1 FHD'), contains('tf1fr'));
+    });
+
+    test('garde la variante décalée distincte de la chaîne principale', () {
+      expect(XmltvEpgService.nameKeys('FR - TF1 +1 FHD'), isNot(contains('tf1')));
+    });
+
+    test('ne réduit pas un nom court à rien', () {
+      expect(XmltvEpgService.nameKeys('M6'), contains('m6'));
+      expect(XmltvEpgService.nameKeys('HD'), isNot(contains('')));
+    });
+  });
+
+  group('programmesFor par nom', () {
+    test('trouve le guide d\'une chaîne sans epg_channel_id par son nom nettoyé',
+        () async {
+      final now = DateTime.now().toUtc();
+      String stamp(DateTime d) {
+        final u = d.toUtc();
+        String two(int v) => v.toString().padLeft(2, '0');
+        return '${u.year}${two(u.month)}${two(u.day)}'
+            '${two(u.hour)}${two(u.minute)}${two(u.second)} +0000';
+      }
+
+      final dump = '''
+<tv>
+  <channel id="TF1.fr"><display-name>TF1 HD</display-name><display-name>TF1</display-name></channel>
+  <programme start="${stamp(now)}" stop="${stamp(now.add(const Duration(hours: 1)))}" channel="TF1.fr">
+    <title>Le 13h</title>
+  </programme>
+</tv>
+''';
+      final svc = XmltvEpgService(
+        sourceUrls: const ['http://ext/epg.xml'],
+        client: MockClient((_) async => http.Response(dump, 200)),
+      );
+      final hits = await svc.programmesFor(null, displayName: 'FR - TF1 FHD ◉');
+      expect(hits.single.title, 'Le 13h');
+    });
+
+    test('indexe chaque display-name, pas seulement le premier', () {
+      final now = DateTime.now().toUtc();
+      final index = service.parseForTest('''
+<tv>
+  <channel id="x.fr"><display-name>Premier Nom</display-name><display-name>Second Nom</display-name></channel>
+  <programme start="${_stamp(now)}" stop="${_stamp(now.add(const Duration(hours: 1)))}" channel="x.fr"><title>T</title></programme>
+</tv>
+''');
+      expect(index[XmltvEpgService.normalizeKey('Second Nom')], isNotNull);
     });
   });
 

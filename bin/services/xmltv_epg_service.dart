@@ -82,13 +82,66 @@ class XmltvEpgService {
     String? displayName,
   }) async {
     await ensureFresh();
-    for (final candidate in [channelId, displayName]) {
-      final key = normalizeKey(candidate);
+    final keys = [
+      normalizeKey(channelId),
+      if (displayName != null) ...nameKeys(displayName),
+    ];
+    for (final key in keys) {
       if (key.isEmpty) continue;
       final hit = _index[key];
       if (hit != null && hit.isNotEmpty) return hit;
     }
     return const [];
+  }
+
+  /// Préfixe pays des noms de panneau : `FR - `, `FR: `, `|FR| `, `[FR] `…
+  static final _countryPrefix = RegExp(
+    r'^\s*[\|\[\(]?\s*([A-Za-z]{2,3})\s*[\|\]\)]?\s*[-:|]\s*|^\s*[\|\[\(]\s*([A-Za-z]{2,3})\s*[\|\]\)]\s*',
+  );
+
+  /// Marqueurs de qualité ou de source en fin de nom, sans rapport avec la
+  /// chaîne elle-même.
+  static final _qualitySuffix = RegExp(
+    r'(\s+|^)(fhd|uhd|hd|sd|hq|lq|4k|8k|hevc|h\.?265|h\.?264|1080p?|720p?|'
+    r'50fps|60fps|backup|raw|vip|multi|\(backup\)|\(multi\))\s*$',
+    caseSensitive: false,
+  );
+
+  /// Clés candidates pour retrouver une chaîne du panneau par son nom.
+  ///
+  /// POURQUOI : en prod, 59 % des chaînes françaises n'ont pas
+  /// d'`epg_channel_id`. Leur nom brut (« FR - TF1 FHD ◉ » → `frtf1fhd`) ne
+  /// correspond à aucune entrée XMLTV (`TF1.fr`, « TF1 »). On retire le
+  /// préfixe pays, les marqueurs de qualité et les symboles, puis on tente
+  /// aussi la forme `nom.pays` qu'utilisent les dumps publics.
+  ///
+  /// Le décalage horaire (« +1 ») est conservé : TF1 +1 n'a pas le guide
+  /// de TF1.
+  static List<String> nameKeys(String name) {
+    final keys = <String>[normalizeKey(name)];
+
+    var cleaned = name;
+    String? country;
+    final prefix = _countryPrefix.firstMatch(cleaned);
+    if (prefix != null) {
+      country = (prefix.group(1) ?? prefix.group(2))?.toLowerCase();
+      cleaned = cleaned.substring(prefix.end);
+    }
+    // Symboles décoratifs (◉, ᴴᴰ, ★…) : tout ce qui n'est ni lettre, ni
+    // chiffre, ni ponctuation utile.
+    cleaned = cleaned.replaceAll(RegExp(r'[^\p{L}\p{N}\s+.&\-()]', unicode: true), ' ').trim();
+    String previous;
+    do {
+      previous = cleaned;
+      cleaned = cleaned.replaceFirst(_qualitySuffix, '').trim();
+    } while (cleaned != previous && cleaned.isNotEmpty);
+
+    final base = normalizeKey(cleaned);
+    if (base.isNotEmpty) {
+      keys.add(base);
+      keys.add('$base${country ?? 'fr'}');
+    }
+    return keys.where((k) => k.isNotEmpty).toSet().toList();
   }
 
   /// Recharge l'index s'il est absent ou périmé. Les appels concurrents
@@ -212,10 +265,12 @@ class XmltvEpgService {
     final limit = DateTime.now().toUtc().add(horizon);
     final byChannel = <String, List<XmltvProgramme>>{};
 
-    // Alias : plusieurs dumps déclarent <channel id="X"> avec un
-    // <display-name> différent de l'identifiant. On indexe les deux pour
-    // maximiser les correspondances.
+    // Alias : plusieurs dumps déclarent <channel id="X"> avec un ou plusieurs
+    // <display-name> différents de l'identifiant (« TF1 HD », « TF1 »). On
+    // les indexe TOUS : seul le premier l'était, et c'était souvent la
+    // variante la moins proche du nom annoncé par le panneau.
     final aliases = <String, String>{};
+    final displayNames = <String>[];
 
     String? channelId;
     String? programmeChannel;
@@ -232,6 +287,7 @@ class XmltvEpgService {
           case 'channel':
             channelId = _attr(event, 'id');
             displayName.clear();
+            displayNames.clear();
           case 'programme':
             programmeChannel = _attr(event, 'channel');
             start = parseXmltvDate(_attr(event, 'start'));
@@ -254,15 +310,20 @@ class XmltvEpgService {
           case 'desc':
             desc.write(text);
           case 'display-name':
-            if (displayName.isEmpty) displayName.write(text);
+            displayName.write(text);
         }
       } else if (event is XmlEndElementEvent) {
         switch (event.name) {
+          case 'display-name':
+            displayNames.add(displayName.toString());
+            displayName.clear();
           case 'channel':
             final id = normalizeKey(channelId);
-            final name = normalizeKey(displayName.toString());
-            if (id.isNotEmpty && name.isNotEmpty && id != name) {
-              aliases[name] = id;
+            for (final raw in displayNames) {
+              final name = normalizeKey(raw);
+              if (id.isNotEmpty && name.isNotEmpty && id != name) {
+                aliases.putIfAbsent(name, () => id);
+              }
             }
             channelId = null;
           case 'programme':
