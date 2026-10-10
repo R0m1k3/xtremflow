@@ -162,6 +162,23 @@ test('live : la réserve visée couvre un silence du panneau de ~18 s', () => {
   assert.ok(c.liveBufferLatencyMinRemain > PROVIDER_OUTAGE_S);
 });
 
+test('live : la rafale de rattrapage après un silence ne fait pas sauter le programme', () => {
+  // Mesuré en prod : après un silence, le panneau renvoie d'un coup tout le
+  // retard ; l'avance a dépassé 45 s et le lecteur a sauté 2 fois de 20 s
+  // (programme perdu). Le retard doit se résorber en douceur (liveSync).
+  const observedPeakAhead = 45;
+  const c = liveMpegtsConfig();
+  assert.ok(c.liveBufferLatencyMaxLatency >= 2 * observedPeakAhead - 10,
+    `saut dès ${c.liveBufferLatencyMaxLatency}s d'avance : la rafale de rattrapage le déclenche`);
+  assert.ok(c.liveSyncMaxLatency < observedPeakAhead,
+    'liveSync doit déjà accélérer avant ce niveau');
+});
+
+test('live : la vidéo déjà vue est purgée plus tôt, l\'avance étant plus grande', () => {
+  const c = liveMpegtsConfig();
+  assert.ok(c.autoCleanupMaxBackwardDuration <= 30);
+});
+
 test('reprise après coupure : attendre une vraie réserve avant de relire', () => {
   const calls = [];
   const listeners = {};

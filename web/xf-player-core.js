@@ -512,8 +512,13 @@
         // l'avance que le panneau envoie au démarrage. On la garde : ~25 s
         // de retard sur le direct, en échange d'une lecture qui traverse ces
         // silences sans figer.
+        //
+        // Saut seulement au-delà de 90 s : après un silence, le panneau
+        // renvoie d'un coup tout le retard. Avec un seuil à 45 s, l'avance
+        // le dépassait et le lecteur sautait 20 s de programme (2 fois en
+        // 1 min, mesuré). liveSync résorbe désormais cet excédent en douceur.
         liveBufferLatencyChasing: isLive,
-        liveBufferLatencyMaxLatency: 45,
+        liveBufferLatencyMaxLatency: 90,
         liveBufferLatencyMinRemain: 25,
         // Au-delà de 35 s de retard, accélérer légèrement (x1,1) jusqu'à
         // revenir à 25 s : rattrapage invisible, sans saut ni coupure.
@@ -523,9 +528,11 @@
         liveSyncPlaybackRate: 1.1,
         // Purge du buffer déjà lu : sans elle, une longue séance finit par
         // saturer le SourceBuffer (QuotaExceededError → erreur MPEG-TS).
+        // Avance jusqu'à 90 s : la vidéo déjà vue est purgée plus tôt pour
+        // rester sous le quota du SourceBuffer (~150 Mo en vidéo sur Chrome).
         autoCleanupSourceBuffer: true,
-        autoCleanupMaxBackwardDuration: 60,
-        autoCleanupMinBackwardDuration: 30,
+        autoCleanupMaxBackwardDuration: 30,
+        autoCleanupMinBackwardDuration: 15,
         lazyLoad: false
       }
     );
