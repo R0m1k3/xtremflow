@@ -6,6 +6,8 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml_events.dart';
 
+import '../utils/log_redactor.dart';
+
 /// Guide TV construit à partir de dumps XMLTV publics.
 ///
 /// Beaucoup de panneaux Xtream servent un EPG figé depuis plusieurs jours, ou
@@ -116,6 +118,11 @@ class XmltvEpgService {
     var ok = 0;
 
     for (final url in sourceUrls) {
+      // La source peut être le `xmltv.php` du panneau, dont l'URL porte les
+      // identifiants de l'abonné en clair : ne jamais la journaliser telle
+      // quelle (elle finirait dans `docker logs`). Le texte de l'exception
+      // est masqué aussi, un `ClientException` recopiant l'URL demandée.
+      final safeUrl = LogRedactor.redactUrl(url);
       try {
         final parsed = await _downloadAndParse(url);
         // Première source servie gagne : les suivantes ne comblent que les
@@ -125,10 +132,12 @@ class XmltvEpgService {
         }
         ok++;
         print(
-          '[XmltvEpg] $url : ${parsed.length} chaînes indexées',
+          '[XmltvEpg] $safeUrl : ${parsed.length} chaînes indexées',
         );
       } catch (e) {
-        print('[XmltvEpg] $url : échec ($e)');
+        print(
+          '[XmltvEpg] $safeUrl : échec (${LogRedactor.redactUrl('$e')})',
+        );
       }
     }
 

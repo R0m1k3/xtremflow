@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../utils/log_redactor.dart';
+
 /// One running FFmpeg transcoding session (live, VOD or recording playback).
 class FfmpegSession {
   final String id;
@@ -121,7 +123,9 @@ class FfmpegSessionManager {
     process.stderr.transform(utf8.decoder).listen((data) {
       session.recentStderr.add(data);
       if (session.recentStderr.length > 20) session.recentStderr.removeAt(0);
-      print('[FFmpeg $id] $data');
+      // FFmpeg rappelle l'URL d'entrée (« Input #0 … from 'http://…' ») :
+      // masquer les identifiants Xtream avant de journaliser.
+      print('[FFmpeg $id] ${LogRedactor.redactUrl(data)}');
     });
 
     process.exitCode.then((code) {

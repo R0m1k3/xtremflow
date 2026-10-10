@@ -533,7 +533,12 @@ class RecordingScheduler {
       await _launchFfmpeg(active);
     } catch (e, st) {
       // Attraper TOUTES les exceptions pour éviter de crasher le serveur
-      print('[RecordingScheduler] ERREUR dans _startRecording: $e\n$st');
+      // `ProcessException` liste les arguments FFmpeg, URL de la source
+      // comprise : masquer les identifiants avant de journaliser.
+      print(
+        '[RecordingScheduler] ERREUR dans _startRecording: '
+        '${LogRedactor.redactUrl('$e')}\n$st',
+      );
       _db.updateRecordingStatus(
         recording.id,
         'failed',
@@ -662,7 +667,10 @@ class RecordingScheduler {
         try {
           await _launchFfmpeg(active);
         } catch (e) {
-          print('[RecordingScheduler] Relance impossible: $e');
+          print(
+            '[RecordingScheduler] Relance impossible: '
+            '${LogRedactor.redactUrl('$e')}',
+          );
           _active.remove(recording.id);
           await _finalize(
             active,

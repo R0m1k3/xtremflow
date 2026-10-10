@@ -257,7 +257,12 @@ class EpgApi {
           .map((p) => p.toJson(channelId))
           .toList();
     } catch (e) {
-      print('[EpgApi] source XMLTV indisponible pour $channelId : $e');
+      // L'exception peut recopier l'URL `player_api`/`xmltv.php`, identifiants
+      // compris.
+      print(
+        '[EpgApi] source XMLTV indisponible pour $channelId : '
+        '${LogRedactor.redactUrl('$e')}',
+      );
       return const [];
     }
   }

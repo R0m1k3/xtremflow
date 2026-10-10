@@ -307,7 +307,11 @@ Stream<List<int>> _resilientLiveBody(
         yield chunk;
       }
     } catch (e) {
-      print('[Live Proxy] $streamId : coupure amont ($e)');
+      // Un `ClientException` recopie l'URL amont, identifiants compris.
+      print(
+        '[Live Proxy] $streamId : coupure amont '
+        '(${LogRedactor.redactUrl('$e')})',
+      );
     } finally {
       upstream.client.close();
     }
@@ -494,7 +498,9 @@ Handler createLiveStreamHandler(
     } on ProcessException catch (e) {
       // Serveur saturé (plus de processus ou de mémoire) : un 503 que le
       // lecteur sait traiter, plutôt qu'une exception qui remonte en 500.
-      print('[Live Turbo] $streamId : FFmpeg n\'a pas démarré ($e)');
+      // `ProcessException` liste les arguments, donc l'URL `-i` du panneau.
+      print('[Live Turbo] $streamId : FFmpeg n\'a pas démarré '
+          '(${LogRedactor.redactUrl('$e')})');
       return Response(503, body: 'FFmpeg start failed');
     }
 
