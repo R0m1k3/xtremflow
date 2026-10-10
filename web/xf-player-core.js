@@ -58,6 +58,14 @@
   // Erreurs MPEG-TS tolérées sur 60 s avant de basculer sur HLS.
   var MPEGTS_MAX_ERRORS = 3;
 
+  // Après une coupure en direct, réserve à reconstituer avant de relire.
+  // Repartir dès la première seconde reçue transformait un silence du
+  // panneau en cascade de micro-coupures (6,3 s puis 1,7 s puis 2,0 s,
+  // mesuré) ; comme mpv (cache-pause), on attend une vraie réserve.
+  var REBUFFER_SECONDS = 4;
+  // Au-delà, on relance quand même avec ce qu'on a.
+  var REBUFFER_MAX_WAIT_MS = 15000;
+
   // ------------------------------------------------------------------
   // Chargement paresseux des libs (aucune requête inutile)
   // ------------------------------------------------------------------
@@ -497,14 +505,21 @@
         // coupure toutes les 3-4 s et contenu sauté (12 sauts et 14 coupures
         // en 30 s sur une chaîne FHD). La marge de 12 s couvre deux silences ;
         // le saut ne sert plus qu'à borner un retard réellement accumulé.
+        //
+        // 25 s et non plus 12 : la télémétrie a mesuré un silence du panneau
+        // de ~15-20 s sur une connexion restée ouverte, alors que le lecteur
+        // n'avait gardé que 11-16 s — il venait de « consommer » à x1,1
+        // l'avance que le panneau envoie au démarrage. On la garde : ~25 s
+        // de retard sur le direct, en échange d'une lecture qui traverse ces
+        // silences sans figer.
         liveBufferLatencyChasing: isLive,
-        liveBufferLatencyMaxLatency: 30,
-        liveBufferLatencyMinRemain: 12,
-        // Au-delà de 20 s de retard, accélérer légèrement (x1,1) jusqu'à
-        // revenir à 12 s : rattrapage invisible, sans saut ni coupure.
+        liveBufferLatencyMaxLatency: 45,
+        liveBufferLatencyMinRemain: 25,
+        // Au-delà de 35 s de retard, accélérer légèrement (x1,1) jusqu'à
+        // revenir à 25 s : rattrapage invisible, sans saut ni coupure.
         liveSync: isLive,
-        liveSyncMaxLatency: 20,
-        liveSyncTargetLatency: 12,
+        liveSyncMaxLatency: 35,
+        liveSyncTargetLatency: 25,
         liveSyncPlaybackRate: 1.1,
         // Purge du buffer déjà lu : sans elle, une longue séance finit par
         // saturer le SourceBuffer (QuotaExceededError → erreur MPEG-TS).
@@ -678,6 +693,32 @@
     // recréation du lecteur (déclenchée par le handler d'erreur).
   };
 
+  /**
+   * Direct MPEG-TS à sec : se mettre en pause jusqu'à [REBUFFER_SECONDS] de
+   * réserve (voir la constante). HLS gère déjà sa propre reprise.
+   */
+  XFPlayer.prototype._holdUntilBuffered = function () {
+    if (this._holding || !this.mpegts || this.type !== 'live') return;
+    var self = this;
+    this._holding = true;
+    this._holdSince = Date.now();
+    try { this.video.pause(); } catch (e) {}
+    this._holdTimer = setInterval(function () { self._checkHold(); }, 250);
+  };
+
+  /** Relance la lecture dès que la réserve est reconstituée. */
+  XFPlayer.prototype._checkHold = function () {
+    if (!this._holding) return;
+    if (this._destroyed) { clearInterval(this._holdTimer); return; }
+    var waited = Date.now() - this._holdSince;
+    if (this._bufferAhead() < REBUFFER_SECONDS && waited < REBUFFER_MAX_WAIT_MS) {
+      return;
+    }
+    clearInterval(this._holdTimer);
+    this._holding = false;
+    this._attemptPlay();
+  };
+
   XFPlayer.prototype._noteStall = function () {
     if (!this._started) return; // les attentes d'amorçage ne comptent pas
     var now = Date.now();
@@ -723,6 +764,9 @@
     });
 
     this._on(v, 'pause', function () {
+      // Pause posée par l'attente de réserve : pas une pause utilisateur,
+      // l'interface ne doit pas basculer sur « lecture ».
+      if (self._holding) return;
       self.send({ type: 'playback_status', status: 'paused' });
     });
 
@@ -731,6 +775,7 @@
         self._stallSince = Date.now();
       }
       self._noteStall();
+      if (self._started) self._holdUntilBuffered();
     });
     this._on(v, 'stalled', function () { self._noteStall(); });
 
@@ -897,6 +942,12 @@
           self._attemptPlay();
           break;
         case 'pause':
+          // Pause voulue par l'utilisateur : l'attente de réserve ne doit
+          // pas relancer la lecture derrière son dos.
+          if (self._holding) {
+            clearInterval(self._holdTimer);
+            self._holding = false;
+          }
           v.pause();
           break;
         case 'seek':
@@ -923,6 +974,7 @@
     this._destroyed = true;
     clearInterval(this._posTimer);
     clearInterval(this._beatTimer);
+    clearInterval(this._holdTimer);
     this._listeners.forEach(function (l) {
       try { l.target.removeEventListener(l.type, l.handler); } catch (e) {}
     });

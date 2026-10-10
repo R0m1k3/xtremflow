@@ -149,6 +149,65 @@ test('télémétrie : une coupure (waiting → playing) est remontée avec sa du
   assert.equal(sent[0].url, '/api/player-log');
 });
 
+// Freeze mesuré en prod (télémétrie) : le panneau s'est tu ~15-20 s sur une
+// connexion restée ouverte, alors que le lecteur n'avait gardé que 11-16 s.
+const PROVIDER_OUTAGE_S = 18;
+
+test('live : la réserve visée couvre un silence du panneau de ~18 s', () => {
+  const c = liveMpegtsConfig();
+  // liveSync ramène le retard vers la cible : c'est la réserve en régime
+  // établi. Elle doit dépasser le silence mesuré.
+  assert.ok(c.liveSyncTargetLatency > PROVIDER_OUTAGE_S,
+    `cible ${c.liveSyncTargetLatency}s < silence mesuré ${PROVIDER_OUTAGE_S}s`);
+  assert.ok(c.liveBufferLatencyMinRemain > PROVIDER_OUTAGE_S);
+});
+
+test('reprise après coupure : attendre une vraie réserve avant de relire', () => {
+  const calls = [];
+  const listeners = {};
+  let ahead = 0;
+  const video = {
+    addEventListener(type, fn) { (listeners[type] ||= []).push(fn); },
+    removeEventListener() {},
+    canPlayType: () => '',
+    play: () => { calls.push('play'); return Promise.resolve(); },
+    pause: () => { calls.push('pause'); },
+    get buffered() { return { length: 1, start: () => 0, end: () => 100 + ahead }; },
+    seekable: { length: 0 },
+    currentTime: 100,
+    playbackRate: 1,
+    seeking: false,
+  };
+  const fire = (type) => (listeners[type] || []).forEach((fn) => fn());
+  const window = {
+    addEventListener() {}, removeEventListener() {},
+    console: { log() {} },
+    location: { origin: 'https://xf.test', href: 'https://xf.test/', search: '' },
+    parent: { postMessage() {} },
+  };
+  const context = vm.createContext({
+    window, location: window.location,
+    document: { addEventListener() {}, removeEventListener() {} },
+    URLSearchParams, setInterval: () => 0, clearInterval() {}, setTimeout, Date,
+  });
+  vm.runInContext(source, context);
+  const player = new window.XFPlayer({ video, url: '/api/live/1/turbo.ts', type: 'live' });
+  player.mpegts = {}; // flux MPEG-TS en cours
+  player._wireVideoEvents();
+
+  fire('playing');
+  fire('waiting');            // le panneau se tait
+  assert.deepEqual(calls.slice(-1), ['pause'], 'le lecteur doit se mettre en attente');
+
+  ahead = 1;                  // 1 s arrive : trop peu, ne pas repartir
+  player._checkHold();
+  assert.ok(!calls.slice(1).includes('play'), 'reparti avec 1 s : recoupera aussitôt');
+
+  ahead = 5;                  // vraie réserve reconstituée
+  player._checkHold();
+  assert.equal(calls.at(-1), 'play');
+});
+
 test('live : le buffer déjà lu est purgé (sinon QuotaExceeded en séance longue)', () => {
   const c = liveMpegtsConfig();
   assert.equal(c.autoCleanupSourceBuffer, true);

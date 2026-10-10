@@ -141,6 +141,12 @@
 
             // Contrat historique du lite : mise en pause manuelle → overlay lecture.
             video.addEventListener('pause', function () {
+                // Pause technique : le lecteur attend que la réserve se
+                // reconstitue après une coupure, il repartira seul.
+                if (player && player._holding) {
+                    showLoading('Reconstitution de la réserve');
+                    return;
+                }
                 if (video.currentTime === 0 || video.paused) {
                     loading.style.display = 'none';
                     playOverlay.style.display = 'flex';
