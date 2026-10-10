@@ -28,6 +28,7 @@ import 'middleware/security_middleware.dart';
 import 'services/cleanup_service.dart';
 import 'services/recording_scheduler.dart';
 import 'utils/asset_versioning.dart';
+import 'api/upstream_probe.dart';
 
 void main(List<String> args) async {
   // Parse command line arguments
@@ -263,6 +264,29 @@ void main(List<String> args) async {
         }
 
         final result = await cleanupService.runCleanup();
+        return Response.ok(
+          jsonEncode(result),
+          headers: {'content-type': 'application/json'},
+        );
+      });
+
+      // GET /api/admin/upstream-probe?stream=<id> : chronomètre l'ouverture
+      // d'une chaîne chez le fournisseur en .ts et en .m3u8 (diagnostic du
+      // délai de zap ; aucun identifiant dans la réponse).
+      router.get('/upstream-probe', (Request req) async {
+        final user = req.context['user'] as User?;
+        if (user == null || !user.isAdmin) {
+          return Response.forbidden(
+            jsonEncode({'error': 'Admin access required'}),
+          );
+        }
+        final streamId = req.url.queryParameters['stream'] ?? '';
+        if (!RegExp(r'^[0-9]+$').hasMatch(streamId)) {
+          return Response.badRequest(body: 'stream=<id numérique> requis');
+        }
+        final playlist = await getPlaylist(req);
+        if (playlist == null) return Response.forbidden('No playlist');
+        final result = await probeUpstream(playlist, streamId);
         return Response.ok(
           jsonEncode(result),
           headers: {'content-type': 'application/json'},
