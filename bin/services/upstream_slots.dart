@@ -1,0 +1,151 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
+import '../models/playlist_config.dart';
+
+/// Connexions ouvertes vers le fournisseur Xtream, par compte.
+///
+/// POURQUOI : la plupart des abonnements n'autorisent qu'UNE connexion
+/// simultanée (`max_connections: "1"`, vérifié en prod). Or un FFmpeg de
+/// lecture survit au spectateur : 4 min pour un direct HLS, jusqu'à 15 min
+/// ou la fin du téléchargement pour un film, le temps de détecter la
+/// déconnexion pour `turbo.ts`. Le flux suivant tombait sur un slot occupé :
+/// le panneau répondait `HTTP 551` ou ne répondait pas (timeout), d'où les
+/// films « indisponibles » et les zaps qui échouent.
+///
+/// Règle : le dernier flux demandé gagne. Avant d'ouvrir une nouvelle
+/// connexion amont, on coupe les plus anciennes du même compte jusqu'à lui
+/// faire de la place. Les enregistrements n'y sont pas inscrits : ils ne
+/// sont jamais coupés.
+class UpstreamSlots {
+  final DateTime Function() _now;
+  final Map<String, _Slot> _slots = {};
+  int _nextToken = 0;
+
+  UpstreamSlots({DateTime Function()? now}) : _now = now ?? DateTime.now;
+
+  /// Inscrit la connexion [id] du compte [account]. [release] la coupe.
+  ///
+  /// Renvoie un jeton à repasser à [unregister] : une session relancée sous
+  /// le même identifiant ne doit pas être désinscrite par la fin de
+  /// l'ancien processus.
+  int register({
+    required String id,
+    required String account,
+    required void Function() release,
+  }) {
+    final token = ++_nextToken;
+    _slots[id] = _Slot(token, account, _now(), release);
+    return token;
+  }
+
+  void unregister(String id, {int? token}) {
+    final slot = _slots[id];
+    if (slot == null) return;
+    if (token != null && slot.token != token) return;
+    _slots.remove(id);
+  }
+
+  int countFor(String account) =>
+      _slots.values.where((s) => s.account == account).length;
+
+  /// Libère assez de connexions de [account] pour qu'une nouvelle tienne
+  /// sous [max]. [keep] (la session demandée) n'est jamais coupée.
+  ///
+  /// [max] <= 0 = quota inconnu : on ne coupe rien plutôt que de risquer
+  /// d'interrompre un autre spectateur.
+  List<String> makeRoom(String account, {required int max, required String keep}) {
+    if (max <= 0) return const [];
+    final others = _slots.entries
+        .where((e) => e.value.account == account && e.key != keep)
+        .toList()
+      ..sort((a, b) => a.value.since.compareTo(b.value.since));
+
+    final excess = others.length - (max - 1);
+    if (excess <= 0) return const [];
+
+    final freed = <String>[];
+    for (final entry in others.take(excess)) {
+      _slots.remove(entry.key);
+      try {
+        entry.value.release();
+      } catch (_) {}
+      freed.add(entry.key);
+    }
+    return freed;
+  }
+}
+
+class _Slot {
+  final int token;
+  final String account;
+  final DateTime since;
+  final void Function() release;
+  _Slot(this.token, this.account, this.since, this.release);
+}
+
+/// Clé de compte : deux playlists sur les mêmes identifiants partagent le
+/// même quota chez le fournisseur.
+String accountKeyOf(PlaylistConfig p) => '${p.dns}|${p.username}';
+
+/// `user_info.max_connections` d'une réponse `player_api.php`, ou null.
+int? parseMaxConnections(Object? json) {
+  if (json is! Map) return null;
+  final info = json['user_info'];
+  if (info is! Map) return null;
+  final raw = info['max_connections'];
+  final value = raw is int ? raw : int.tryParse('$raw');
+  return (value != null && value > 0) ? value : null;
+}
+
+/// Quota de connexions par compte, lu chez le fournisseur et mis en cache.
+class AccountLimits {
+  final Duration ttl;
+  final Future<int?> Function(PlaylistConfig) _fetch;
+  final Map<String, ({int max, DateTime at})> _cache = {};
+
+  /// Valeur retenue quand le panneau ne répond pas : un seul flux, le cas
+  /// de loin le plus courant chez les fournisseurs Xtream.
+  static const fallback = 1;
+
+  AccountLimits({
+    this.ttl = const Duration(minutes: 10),
+    Future<int?> Function(PlaylistConfig)? fetch,
+  }) : _fetch = fetch ?? _fetchFromPanel;
+
+  Future<int> maxFor(PlaylistConfig p) async {
+    final key = accountKeyOf(p);
+    final cached = _cache[key];
+    if (cached != null && DateTime.now().difference(cached.at) < ttl) {
+      return cached.max;
+    }
+    int? value;
+    try {
+      value = await _fetch(p);
+    } catch (_) {
+      value = null;
+    }
+    // Un échec n'est pas mis en cache longtemps : on réessaiera au prochain
+    // flux plutôt que de rester 10 min sur une valeur devinée.
+    if (value != null) _cache[key] = (max: value, at: DateTime.now());
+    return value ?? fallback;
+  }
+
+  static Future<int?> _fetchFromPanel(PlaylistConfig p) async {
+    final uri = Uri.parse('${p.dns}/player_api.php').replace(
+      queryParameters: {'username': p.username, 'password': p.password},
+    );
+    final client = http.Client();
+    try {
+      final response = await client.get(uri, headers: {
+        'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
+      }).timeout(const Duration(seconds: 5));
+      if (response.statusCode != 200) return null;
+      return parseMaxConnections(jsonDecode(response.body));
+    } finally {
+      client.close();
+    }
+  }
+}

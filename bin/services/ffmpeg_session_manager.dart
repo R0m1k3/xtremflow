@@ -74,6 +74,17 @@ class FfmpegSessionManager {
 
   bool contains(String id) => _sessions.containsKey(id);
 
+  /// Vrai si [getOrStart] lancerait un nouveau processus FFmpeg pour [id] —
+  /// donc une nouvelle connexion au fournisseur.
+  bool needsStart(String id, {required bool isLive}) {
+    final existing = _sessions[id];
+    if (existing == null) return true;
+    if (!existing.exited) return false;
+    // A VOD/recording transcode that finished cleanly is still fully
+    // playable from its segments — reuse it instead of re-transcoding.
+    return isLive || existing.exitCode != 0 || !_playlistComplete(existing);
+  }
+
   /// Returns the existing healthy session or starts a new FFmpeg process.
   ///
   /// [argsBuilder] receives the session working directory and returns the
@@ -86,17 +97,11 @@ class FfmpegSessionManager {
     required List<String> Function(Directory dir) argsBuilder,
   }) async {
     final existing = _sessions[id];
-    if (existing != null && !existing.exited) {
+    if (existing != null && !needsStart(id, isLive: isLive)) {
       existing.touch();
       return existing;
     }
     if (existing != null) {
-      // A VOD/recording transcode that finished cleanly is still fully
-      // playable from its segments — reuse it instead of re-transcoding.
-      if (!isLive && existing.exitCode == 0 && _playlistComplete(existing)) {
-        existing.touch();
-        return existing;
-      }
       // Process died: clean up before restarting
       killSession(id);
     }

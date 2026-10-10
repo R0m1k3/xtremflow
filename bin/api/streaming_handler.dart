@@ -6,6 +6,7 @@ import '../database/database.dart';
 import '../models/playlist_config.dart';
 import '../services/ffmpeg_session_manager.dart';
 import '../services/gpu_fallback.dart';
+import '../services/upstream_slots.dart';
 import '../utils/log_redactor.dart';
 import '../utils/media_probe.dart';
 import '../utils/stream_pipe.dart';
@@ -20,6 +21,47 @@ final FfmpegSessionManager sessionManager = FfmpegSessionManager(_hlsTempDir);
 
 /// Pannes GPU récentes, partagées par toutes les routes de transcodage.
 final GpuHealth _gpuHealth = GpuHealth();
+
+/// Connexions de lecture ouvertes chez le fournisseur, par compte.
+final UpstreamSlots _upstreamSlots = UpstreamSlots();
+
+/// Numérote les flux `turbo.ts` (un processus FFmpeg par requête).
+int _turboCounter = 0;
+
+/// Quota `max_connections` de chaque compte Xtream.
+final AccountLimits _accountLimits = AccountLimits();
+
+/// Fait de la place chez le fournisseur avant d'ouvrir la connexion [id].
+///
+/// Voir [UpstreamSlots] : sur un compte à une connexion, le flux précédent
+/// (souvent un FFmpeg orphelin que plus personne ne regarde) bloquait le
+/// suivant.
+Future<void> _claimUpstream(PlaylistConfig playlist, String id) async {
+  final max = await _accountLimits.maxFor(playlist);
+  final freed =
+      _upstreamSlots.makeRoom(accountKeyOf(playlist), max: max, keep: id);
+  if (freed.isEmpty) return;
+  print('[Upstream] $id : ${freed.join(', ')} coupé(s) '
+      '(quota fournisseur : $max connexion(s))');
+  // Laisser le panneau constater la fermeture : rouvrir aussitôt se fait
+  // refuser sur les comptes à une seule connexion.
+  await Future<void>.delayed(const Duration(seconds: 1));
+}
+
+/// Inscrit [process] comme connexion amont de [playlist] tant qu'il vit.
+void _registerUpstream(
+  PlaylistConfig playlist,
+  String id,
+  Process process, {
+  required void Function() release,
+}) {
+  final token = _upstreamSlots.register(
+    id: id,
+    account: accountKeyOf(playlist),
+    release: release,
+  );
+  process.exitCode.then((_) => _upstreamSlots.unregister(id, token: token));
+}
 
 /// Helper to resolve FFmpeg path (SYSTEM PATH vs Portable)
 String _getFFmpegPath() {
@@ -192,12 +234,19 @@ typedef _SessionAttempt = ({FfmpegSession? session, bool ready, String? error});
 /// Un `Process.start` qui échoue (serveur à court de processus ou de
 /// mémoire) devient un échec ordinaire au lieu d'une exception non
 /// rattrapée qui remontait en 500.
+///
+/// [upstream] : playlist dont la session ouvre une connexion chez le
+/// fournisseur (direct, film). Null pour un enregistrement, lu sur disque.
 Future<_SessionAttempt> _runSession({
   required String id,
   required bool isLive,
   required List<String> Function(Directory dir) argsBuilder,
   int minSegments = 1,
+  PlaylistConfig? upstream,
 }) async {
+  final starting = sessionManager.needsStart(id, isLive: isLive);
+  if (upstream != null && starting) await _claimUpstream(upstream, id);
+
   final FfmpegSession session;
   try {
     session = await sessionManager.getOrStart(
@@ -208,6 +257,14 @@ Future<_SessionAttempt> _runSession({
     );
   } on ProcessException catch (e) {
     return (session: null, ready: false, error: 'FFmpeg start failed: $e');
+  }
+  if (upstream != null && starting) {
+    _registerUpstream(
+      upstream,
+      id,
+      session.process,
+      release: () => sessionManager.killSession(id),
+    );
   }
   final outcome =
       await sessionManager.waitForPlaylist(session, minSegments: minSegments);
@@ -226,6 +283,7 @@ Future<_SessionAttempt> _runWithGpuFallback({
   required bool wantGpu,
   required List<String> Function(bool gpu) buildArgs,
   int minSegments = 1,
+  PlaylistConfig? upstream,
 }) async {
   final gpu = wantGpu && _gpuHealth.available;
   var attempt = await _runSession(
@@ -233,6 +291,7 @@ Future<_SessionAttempt> _runWithGpuFallback({
     isLive: isLive,
     argsBuilder: (_) => buildArgs(gpu),
     minSegments: minSegments,
+    upstream: upstream,
   );
 
   if (!attempt.ready && gpu && isGpuFailure(attempt.error)) {
@@ -245,6 +304,7 @@ Future<_SessionAttempt> _runWithGpuFallback({
       isLive: isLive,
       argsBuilder: (_) => buildArgs(false),
       minSegments: minSegments,
+      upstream: upstream,
     );
   }
   return attempt;
@@ -386,6 +446,7 @@ Handler createLiveStreamHandler(
     final result = await _runWithGpuFallback(
       id: sessionId,
       isLive: true,
+      upstream: playlist,
       wantGpu: useNvidiaGpu && quality != 'source',
       buildArgs: (gpu) => [
         '-hide_banner', '-loglevel', 'warning',
@@ -473,6 +534,11 @@ Handler createLiveStreamHandler(
       '[Live Turbo] $streamId: ${LogRedactor.redactUrl(targetUrl)}',
     );
 
+    // Un identifiant par requête : deux onglets sur la même chaîne sont
+    // deux connexions distinctes chez le fournisseur.
+    final upstreamId = 'turbo_${streamId}_${++_turboCounter}';
+    await _claimUpstream(playlist, upstreamId);
+
     final Process process;
     try {
       process = await Process.start(_getFFmpegPath(), [
@@ -503,6 +569,13 @@ Handler createLiveStreamHandler(
           '(${LogRedactor.redactUrl('$e')})');
       return Response(503, body: 'FFmpeg start failed');
     }
+
+    _registerUpstream(
+      playlist,
+      upstreamId,
+      process,
+      release: () => process.kill(ProcessSignal.sigterm),
+    );
 
     // Journaliser les erreurs FFmpeg (redactées) sans bloquer le flux.
     process.stderr.transform(const SystemEncoding().decoder).listen((line) {
@@ -621,6 +694,7 @@ Handler createVodStreamHandler(
     final result = await _runWithGpuFallback(
       id: sessionId,
       isLive: false,
+      upstream: playlist,
       wantGpu: useNvidiaGpu && quality != 'source',
       buildArgs: (gpu) => [
         '-hide_banner', '-loglevel', 'warning',
