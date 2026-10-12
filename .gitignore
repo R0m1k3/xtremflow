@@ -52,4 +52,7 @@ app.*.map.json
 # Les lockfiles pub sont versionnés : sans eux, chaque build Docker/CI
 # résout des versions différentes (builds non reproductibles).
 !pubspec.lock
+# Serveur Rust : lockfile versionné (build Docker en --locked).
+!Cargo.lock
+/server/target/
 .claude/settings.local.json

@@ -1,6 +1,6 @@
 # XtremFlow — Application Web IPTV
 
-Application IPTV auto-hébergée : frontend Flutter Web + serveur Dart natif, empaquetés dans une seule image Docker. Se connecte à un abonnement Xtream Codes et ajoute le magnétoscope (enregistrements planifiés, season passes), l'EPG avec repli XMLTV, et le transcodage FFmpeg à la demande.
+Application IPTV auto-hébergée : frontend Flutter Web + serveur Rust natif, empaquetés dans une seule image Docker. Se connecte à un abonnement Xtream Codes et ajoute le magnétoscope (enregistrements planifiés, season passes), l'EPG avec repli XMLTV, et le transcodage FFmpeg à la demande.
 
 ## Fonctionnalités
 
@@ -16,7 +16,7 @@ Application IPTV auto-hébergée : frontend Flutter Web + serveur Dart natif, em
 | Couche | Techno |
 |---|---|
 | Frontend | Flutter Web (Riverpod, GoRouter), players HTML (hls.js / mpegts.js vendorisés) |
-| Backend | Dart compilé en natif (`dart compile exe`), shelf |
+| Backend | Rust (tokio, axum, reqwest/rustls, rusqlite), binaire natif unique |
 | Base | SQLite côté serveur (`/app/data/xtremflow.db`) |
 | Capture/Transcodage | FFmpeg (build BtbN, NVENC inclus) |
 | Conteneur | Debian slim multi-stage, port **8089** |
@@ -52,25 +52,28 @@ flutter pub get
 flutter analyze && flutter test
 flutter run -d chrome        # nécessite le backend lancé pour les routes /api
 
-# Backend
-cd bin
-dart pub get
-dart analyze && dart test
-dart run server.dart --port 8089 --path ../build/web
+# Backend (Rust ≥ 1.98)
+cd server
+cargo test
+cargo clippy -- -D warnings
+XTREMFLOW_DB_PATH=./dev.db cargo run -- --port 8089 --path ../build/web
 ```
+
+`XTREMFLOW_DB_PATH` (défaut `/app/data/xtremflow.db`) et `RECORDINGS_DIR` (défaut `/app/recordings`) permettent de lancer le serveur hors conteneur. La base SQLite est compatible avec celle de l'ancien serveur Dart : schéma, migrations et formats de dates sont identiques, une base existante est reprise telle quelle.
 
 Le build Windows natif est documenté dans `BUILD.md`.
 
 ## Structure du projet
 
 ```
-bin/                    Serveur Dart
-├── server.dart         Point d'entrée, routage, arrêt gracieux
-├── api/                Handlers HTTP (auth, playlists, recordings, EPG, proxy…)
-├── services/           Scheduler d'enregistrement, sessions FFmpeg, XMLTV
-├── database/           SQLite (schéma, migrations)
-├── middleware/         Auth (session), sécurité (rate limit, honeypot, logs redactés)
-└── test/               Tests backend (dart test)
+server/                 Serveur Rust (crate xtremflow-server)
+└── src/
+    ├── main.rs         Démarrage, arrêt gracieux (SIGTERM : clôture des enregistrements)
+    ├── server.rs       Middlewares (logs masqués, sécurité, rate limit, CORS) et cascade de routage
+    ├── api/            Handlers HTTP (auth, playlists, recordings, EPG, proxy, streaming…)
+    ├── services/       Scheduler d'enregistrement, sessions FFmpeg, XMLTV, logos
+    ├── db.rs           SQLite (schéma, migrations)
+    └── util/           Masquage des identifiants, chemins sûrs, mots de passe, ffprobe
 
 lib/                    Frontend Flutter
 ├── core/               Modèles, thème, router, clients API

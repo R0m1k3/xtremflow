@@ -6,8 +6,7 @@
 .packages
 .pub-cache
 build/
-bin/.dart_tool
-bin/.packages
+server/target
 ios/
 android/
 windows/

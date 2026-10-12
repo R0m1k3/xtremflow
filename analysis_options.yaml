@@ -1,11 +1,5 @@
 include: package:flutter_lints/flutter.yaml
 
-analyzer:
-  exclude:
-    # bin/ is a standalone Dart package (server) with its own pubspec and
-    # analysis; it is analyzed by the backend CI job via `dart analyze`.
-    - bin/**
-
 linter:
   rules:
     - prefer_const_constructors

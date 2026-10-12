@@ -40,12 +40,18 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: bin
+        working-directory: server
     steps:
       - uses: actions/checkout@v4
-      - uses: dart-lang/setup-dart@v1
+      # Toolchain épinglée : la même que l'image Docker (rust:1.98.1).
+      - uses: dtolnay/rust-toolchain@master
         with:
-          sdk: 3.13.5
-      - run: dart pub get
-      - run: dart analyze
-      - run: dart test
+          toolchain: 1.98.1
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server
+      - run: cargo fmt --check
+      - run: cargo build --locked
+      - run: cargo test --locked
+      - run: cargo clippy --locked -- -D warnings

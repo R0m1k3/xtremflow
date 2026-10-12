@@ -11,10 +11,16 @@ Since you are currently using Docker, you likely don't have these installed on y
     *   Extract the zip file to `C:\src\flutter` (for example).
     *   Add `flutter/bin` to your **System PATH**.
 
-2.  **Verify Installation**
+2.  **Install Rust** (the server is written in Rust)
+    *   Download `rustup-init.exe` from [rustup.rs](https://rustup.rs) and accept the defaults
+        (it installs the MSVC toolchain; Visual Studio Build Tools with the "C++ build tools"
+        workload are required).
+
+3.  **Verify Installation**
     *   Open a new terminal.
     *   Run `flutter doctor`.
     *   Ensure it says "Flutter ... channel stable".
+    *   Run `cargo --version`.
 
 ## Building the App
 

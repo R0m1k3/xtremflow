@@ -1,0 +1,11 @@
+pub mod account;
+pub mod admin;
+pub mod epg;
+pub mod logo;
+pub mod player_log;
+pub mod proxy;
+pub mod recording_playlist;
+pub mod recordings;
+pub mod static_files;
+pub mod streaming;
+pub mod xtream_api;

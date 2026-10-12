@@ -17,10 +17,11 @@ if ($LASTEXITCODE -ne 0) { Write-Error "Flutter build failed"; exit 1 }
 Write-Host "📂 Copying Web Assets..."
 Copy-Item -Recurse "build\web" "dist\web"
 
-# 4. Compile Dart Server
+# 4. Compile Rust Server
 Write-Host "🔨 Compiling Backend Server..." -ForegroundColor Yellow
-dart compile exe bin/server.dart -o dist/xtremflow_server.exe
-if ($LASTEXITCODE -ne 0) { Write-Error "Dart compile failed"; exit 1 }
+cargo build --release --manifest-path server/Cargo.toml
+if ($LASTEXITCODE -ne 0) { Write-Error "Rust compile failed"; exit 1 }
+Copy-Item "server\target\release\xtremflow-server.exe" "dist\xtremflow_server.exe"
 
 # 5. Create Start Script
 Write-Host "📝 Creating Launcher Script..."

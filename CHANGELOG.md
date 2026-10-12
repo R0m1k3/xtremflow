@@ -2,6 +2,13 @@
 
 ## Non publié
 
+### 🦀 Serveur réécrit en Rust
+- **Le serveur Dart (`bin/`) est remplacé par un serveur Rust (`server/`)** : tokio + axum, reqwest/rustls, SQLite embarqué (rusqlite). Même API, mêmes routes, mêmes réponses : le front Flutter n'a pas changé. Le binaire est multi-thread (plus de boucle d'événements unique sur laquelle un gros JSON ou un dump XMLTV gelait les flux en cours) et pèse ~9 Mo
+- **Base reprise telle quelle** : schéma, migrations numérotées et formats de dates (`DateTime.toIso8601String()` de Dart) identiques ; sessions, playlists, enregistrements et season passes existants restent valides, les hachages SHA-256 historiques sont toujours migrés vers bcrypt à la connexion
+- **Comportement conservé** : cascade de routage (API → proxy Xtream → streaming → statique), anti-SSRF avec redirections revalidées, logs masqués, rate limits, honeypot, CORS, versionnage des assets, transcodage HLS/turbo.ts avec repli GPU→CPU, quotas de connexions fournisseur, reprise/relance/fusion des enregistrements, season passes, EPG (dump du panneau → XMLTV externe → `player_api`), logos de repli, arrêt gracieux sur SIGTERM (FFmpeg arrêté par SIGTERM, jamais SIGKILL d'emblée)
+- **Tests** : les tests backend Dart sont portés en Rust (`cargo test`, 132 tests) ; la CI exécute `cargo fmt --check`, `cargo test` et `cargo clippy -D warnings`
+- Le message d'erreur 502 d'un transcodage échoué est désormais masqué (l'erreur FFmpeg pouvait recopier l'URL du panneau avec les identifiants)
+
 ### 🖼️ Logos des chaînes
 - **Logos de repli quand l'hébergeur de picons tombe** : nouvelle route `/api/logo?src=…&name=…`. L'URL du panneau est tentée d'abord (via le proxy, mêmes protections anti-SSRF) ; en cas d'échec, le logo est cherché par nom de chaîne dans le dépôt public [`tv-logo/tv-logos`](https://github.com/tv-logo/tv-logos) — préfixe pays et suffixes de qualité ignorés, `Canal+` → `canal-plus`, repli sur la marque pour les canaux événementiels (`RMC SPORT LIVE 5` → logo RMC Sport). La liste des logos est mise en cache 24 h (l'API GitHub non authentifiée plafonne à 60 requêtes/h), les images en mémoire. Les chaînes sans `stream_icon` y gagnent aussi un logo
 - **Plus d'acharnement sur un hébergeur de picons hors service** : une image en erreur n'est plus relayée telle quelle au navigateur, qui la redemandait à chaque affichage de la grille. Réponse 410 mise en cache dix minutes (410 et non 404 : la `Cascade` du serveur rattrape les 404 et perdait l'en-tête de cache) ; au bout de trois échecs consécutifs, l'hôte est considéré hors service cinq minutes et plus aucune requête ne sort. Un statut d'erreur plutôt qu'un pixel transparent : le client affiche son propre repli au lieu d'une tuile vide

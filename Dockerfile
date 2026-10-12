@@ -31,11 +31,10 @@ ENV FLUTTER_NO_ANALYTICS=1
 RUN flutter config --enable-web && flutter precache --web
 
 # 2. Dependency Resolution (ONLY UPDATES IF PUBSPEC CHANGES)
-# Les lockfiles sont versionnés : le build résout exactement les versions
+# Le lockfile est versionné : le build résout exactement les versions
 # committées au lieu d'en chercher de nouvelles à chaque build.
 COPY pubspec.yaml pubspec.lock ./
-COPY bin/pubspec.yaml bin/pubspec.lock ./bin/
-RUN flutter pub get && cd bin && dart pub get
+RUN flutter pub get
 
 # 3. Source Code Copy (CHANGES OFTEN)
 # Everything except what's in .dockerignore (built-in protection)
@@ -48,18 +47,33 @@ RUN dart run build_runner build --delete-conflicting-outputs
 # This step MUST run if you modified any Dart file.
 RUN flutter build web --release --base-href="/" --no-tree-shake-icons --no-pub
 
-# 6. Native Server Compilation
-RUN cd bin && dart compile exe server.dart -o server
+# ============================================
+# Stage 2: Serveur Rust
+# ============================================
+# Bookworm (glibc 2.36) : le binaire tourne tel quel sur le runtime
+# debian:stable-slim, plus récent. Version épinglée comme le SDK Flutter.
+FROM rust:1.98.1-slim-bookworm AS server-builder
+
+WORKDIR /server
+
+# Dépendances compilées dans une couche à part : elles ne sont recompilées
+# que si Cargo.toml/Cargo.lock changent, pas à chaque modification du code.
+COPY server/Cargo.toml server/Cargo.lock ./
+RUN mkdir src && echo 'fn main() {}' > src/main.rs \
+    && cargo build --release --locked \
+    && rm -rf src target/release/xtremflow-server* target/release/deps/xtremflow_server*
+
+COPY server/src ./src
+RUN cargo build --release --locked
 
 # ============================================
-# Stage 2: Production Runtime
+# Stage 3: Production Runtime
 # ============================================
 FROM debian:stable-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     sqlite3 \
-    libsqlite3-dev \
     curl \
     wget \
     xz-utils \
@@ -81,7 +95,7 @@ RUN mkdir -p /app/data /app/web /app/recordings /tmp/xtremflow_streams \
     && chown -R xtremuser:xtremuser /app /tmp/xtremflow_streams
 
 COPY --from=builder /app/build/web /app/web
-COPY --from=builder /app/bin/server /app/server
+COPY --from=server-builder /server/target/release/xtremflow-server /app/server
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/server /app/entrypoint.sh
 
