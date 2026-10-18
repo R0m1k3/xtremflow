@@ -267,7 +267,10 @@ fn games(state: &SharedState, req: &Req, rule: &AutoRule) -> Resp {
             game_json(rule, g, taken)
         })
         .collect();
-    json(200, &json!({"rule": rule, "games": list}))
+    json(
+        200,
+        &json!({"rule": rule, "games": list, "diagnostic": state.nba.diagnostic(&rule.id)}),
+    )
 }
 
 async fn decision(state: &SharedState, req: &Req, rule: &AutoRule, game_id: &str) -> Resp {

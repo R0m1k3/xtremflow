@@ -269,6 +269,13 @@ pub fn plan_action(
             None => Action::Status(past_or(game, tipoff, now, "provisional")),
         };
     };
+    if live.programme.channel_id.is_empty() {
+        // Diffusé sur une beIN absente de la playlist : rien à capturer.
+        return match scheduled {
+            Some(_) => Action::Status("scheduled"),
+            None => Action::Status("confirmed"),
+        };
+    }
     let (start, end) = recording_window(rule, tipoff, &live.programme);
     if end <= now {
         return Action::Status("missed");
@@ -431,13 +438,63 @@ pub fn map_bein_broadcasts(
                 previously_shown: !b.live,
             }),
             None => {
-                if !unmapped.contains(&b.channel) {
+                // Affiché quand même : seul l'enregistrement exige un flux.
+                mapped.push(EpgProgramme {
+                    channel_id: String::new(),
+                    channel_label: b.channel.clone(),
+                    title: b.title.clone(),
+                    description: String::new(),
+                    start: b.start,
+                    end: b.end,
+                    is_live: b.live,
+                    previously_shown: !b.live,
+                });
+                if b.live && !unmapped.contains(&b.channel) {
                     unmapped.push(b.channel.clone());
                 }
             }
         }
     }
     (mapped, unmapped)
+}
+
+/// Flux IPTV à surveiller, avec leur libellé beIN : ceux choisis dans la
+/// règle, complétés par les beIN FR détectées dans la playlist pour les
+/// chaînes qu'aucun flux choisi ne couvre.
+///
+/// POURQUOI : une liste vide (détection ratée à la création) ou un flux
+/// renommé par le revendeur faisait ignorer tout le guide beIN.
+pub fn channel_labels(rule: &AutoRule, names: &[(String, String)]) -> Vec<(String, String)> {
+    let table: Vec<(String, String, String)> = names
+        .iter()
+        .map(|(id, name)| (id.clone(), name.clone(), String::new()))
+        .collect();
+    let detected = crate::services::bein_channels::detect(&table);
+    let mut labels: Vec<(String, String)> = Vec::new();
+    for id in &rule.channel_ids {
+        let label = detected
+            .iter()
+            .find(|c| &c.stream_id == id)
+            .map(|c| c.label.clone())
+            .or_else(|| {
+                names
+                    .iter()
+                    .find(|(sid, _)| sid == id)
+                    .map(|(_, n)| n.clone())
+            });
+        if let Some(label) = label {
+            labels.push((id.clone(), label));
+        }
+    }
+    for c in crate::services::bein_channels::preferred_fr(&detected) {
+        let covered = labels
+            .iter()
+            .any(|(_, l)| normalize(l) == normalize(&c.label));
+        if !covered {
+            labels.push((c.stream_id, c.label));
+        }
+    }
+    labels
 }
 
 /// Service : calendrier quotidien + réconciliation toutes les 30 minutes.
@@ -448,6 +505,8 @@ pub struct NbaAutoRecorder {
     timers: Mutex<Vec<JoinHandle<()>>>,
     /// Une réconciliation à la fois (timer et API peuvent se croiser).
     running: tokio::sync::Mutex<()>,
+    /// Dernier diagnostic par règle (affiché dans l'onglet).
+    diagnostics: Mutex<HashMap<String, Value>>,
 }
 
 impl NbaAutoRecorder {
@@ -458,6 +517,7 @@ impl NbaAutoRecorder {
             epg,
             timers: Mutex::new(Vec::new()),
             running: tokio::sync::Mutex::new(()),
+            diagnostics: Mutex::new(HashMap::new()),
         }
     }
 
@@ -556,51 +616,63 @@ impl NbaAutoRecorder {
             })
     }
 
-    /// Programmes EPG de toutes les chaînes surveillées par la règle.
-    async fn watched_programmes(
+    /// Dernier diagnostic de la règle : source, diffusions trouvées,
+    /// chaînes reliées ou absentes de la playlist.
+    pub fn diagnostic(&self, rule_id: &str) -> Option<Value> {
+        self.diagnostics.lock().unwrap().get(rule_id).cloned()
+    }
+
+    /// Diffusions à rapprocher des matchs : guide beIN d'abord (toutes les
+    /// beIN FR, reliées ou non à un flux), EPG IPTV en repli.
+    async fn collect_programmes(
         &self,
         rule: &AutoRule,
-        playlist: &PlaylistConfig,
-    ) -> Vec<EpgProgramme> {
-        // Libellé beIN de chaque flux surveillé (« beIN SPORTS 1 »).
-        let mut labels: Vec<(String, String)> = Vec::new();
-        for channel_id in &rule.channel_ids {
-            let label = self
-                .epg
-                .channel_name(playlist, channel_id)
-                .await
-                .map(|n| {
-                    crate::services::bein_channels::classify(channel_id, &n, "")
-                        .map(|c| c.label)
-                        .unwrap_or(n)
-                })
-                .unwrap_or_else(|| format!("Chaîne {channel_id}"));
-            labels.push((channel_id.clone(), label));
-        }
+        playlist: Option<&PlaylistConfig>,
+    ) -> (Vec<EpgProgramme>, Value) {
+        let names = match playlist {
+            Some(p) => self.epg.channel_names(p).await,
+            None => Vec::new(),
+        };
+        let labels = channel_labels(rule, &names);
+        let linked: Vec<&str> = labels.iter().map(|(_, l)| l.as_str()).collect();
 
-        // Source principale : le guide officiel beIN (≈ 8 jours, direct ou
-        // rediffusion explicites, chaîne exacte).
         if let Some(broadcasts) = bein_guide::fetch_nba(&self.http, BEIN_GUIDE_DAYS).await {
-            let (mapped, unmapped) = map_bein_broadcasts(&broadcasts, &labels);
-            if !unmapped.is_empty() {
+            let (progs, missing) = map_bein_broadcasts(&broadcasts, &labels);
+            if !missing.is_empty() {
                 println!(
-                    "[NBA] Chaînes beIN absentes de la règle : {}",
-                    unmapped.join(", ")
+                    "[NBA] beIN absentes de la playlist : {}",
+                    missing.join(", ")
                 );
             }
-            return mapped;
+            let diag = serde_json::json!({
+                "source": "bein",
+                "broadcasts": broadcasts.len(),
+                "live_broadcasts": broadcasts.iter().filter(|b| b.live).count(),
+                "linked_channels": linked,
+                "missing_channels": missing,
+                "playlist_channels": names.len(),
+            });
+            return (progs, diag);
         }
 
-        // Repli : l'EPG du panneau IPTV (≈ 48 h).
         let mut out = Vec::new();
-        for (channel_id, label) in &labels {
-            for v in self.epg.programmes(playlist, channel_id).await {
-                if let Some(p) = EpgProgramme::from_json(channel_id, label, &v) {
-                    out.push(p);
+        if let Some(p) = playlist {
+            for (channel_id, label) in &labels {
+                for v in self.epg.programmes(p, channel_id).await {
+                    if let Some(prog) = EpgProgramme::from_json(channel_id, label, &v) {
+                        out.push(prog);
+                    }
                 }
             }
         }
-        out
+        let diag = serde_json::json!({
+            "source": "iptv",
+            "broadcasts": out.len(),
+            "linked_channels": linked,
+            "missing_channels": [],
+            "playlist_channels": names.len(),
+        });
+        (out, diag)
     }
 
     /// Réconcilie calendrier, EPG et enregistrements d'une règle.
@@ -622,23 +694,24 @@ impl NbaAutoRecorder {
             now - Duration::hours(6),
             now + Duration::days(SCHEDULE_DAYS),
         );
+        let playlist = self.playlist_for(&rule.user_id);
         if games.is_empty() {
+            self.diagnostics.lock().unwrap().insert(
+                rule.id.clone(),
+                serde_json::json!({"games_in_calendar": 0, "at": utc_iso(now)}),
+            );
             return;
         }
-        let Some(playlist) = self.playlist_for(&rule.user_id) else {
-            println!("[NBA] Règle {} : aucune playlist", rule.id);
-            return;
-        };
         // L'EPG ne couvre que quelques jours : inutile de le charger pour
         // des matchs lointains seulement.
         let needs_epg = games.iter().any(|g| {
             DartDateTime::parse(&g.tipoff_utc)
                 .is_some_and(|t| t.to_utc() < now + Duration::days(BEIN_GUIDE_DAYS))
         });
-        let programmes = if needs_epg && !rule.channel_ids.is_empty() {
-            self.watched_programmes(rule, &playlist).await
+        let (programmes, mut diag) = if needs_epg {
+            self.collect_programmes(rule, playlist.as_ref()).await
         } else {
-            Vec::new()
+            (Vec::new(), serde_json::json!({"source": "none"}))
         };
         let tipoffs: HashMap<String, DateTime<Utc>> = games
             .iter()
@@ -648,6 +721,8 @@ impl NbaAutoRecorder {
             .collect();
 
         let mut created = 0;
+        let mut matched = 0;
+        let in_calendar = games.len();
         for game in games {
             let Some(&tipoff) = tipoffs.get(&game.game_id) else {
                 continue;
@@ -664,7 +739,9 @@ impl NbaAutoRecorder {
             let action = plan_action(rule, &game, tipoff, live.as_ref(), recording.as_ref(), now);
             let mut next = game.clone();
             if let Some(l) = &live {
-                next.channel_id = Some(l.programme.channel_id.clone());
+                matched += 1;
+                next.channel_id =
+                    (!l.programme.channel_id.is_empty()).then(|| l.programme.channel_id.clone());
                 next.channel_name = Some(l.programme.channel_label.clone());
                 next.epg_title = Some(l.programme.title.clone());
                 next.epg_start = Some(utc_iso(l.programme.start));
@@ -750,6 +827,16 @@ impl NbaAutoRecorder {
         if created > 0 {
             println!("[NBA] Règle {} : {created} match(s) programmé(s)", rule.id);
         }
+        if let Value::Object(m) = &mut diag {
+            m.insert("games_in_calendar".into(), in_calendar.into());
+            m.insert("matched_games".into(), matched.into());
+            m.insert("has_playlist".into(), playlist.is_some().into());
+            m.insert("at".into(), utc_iso(now).into());
+        }
+        self.diagnostics
+            .lock()
+            .unwrap()
+            .insert(rule.id.clone(), diag);
     }
 }
 
@@ -1084,13 +1171,63 @@ mod tests {
         ];
         let labels = vec![("101".to_string(), "beIN SPORTS 1".to_string())];
         let (progs, unmapped) = map_bein_broadcasts(&guide, &labels);
-        assert_eq!(progs.len(), 2);
-        assert!(progs.iter().all(|p| p.channel_id == "101"));
+        // Tout est gardé pour l'affichage ; le flux manque pour MAX 9.
+        assert_eq!(progs.len(), 3);
+        assert!(progs[..2].iter().all(|p| p.channel_id == "101"));
+        assert_eq!(progs[2].channel_id, "");
+        assert_eq!(progs[2].channel_label, "beIN SPORTS MAX 9");
         assert_eq!(unmapped, vec!["beIN SPORTS MAX 9".to_string()]);
         // Le direct est retenu ; la rediffusion du matin ne l'est pas.
-        let live = find_live_broadcast("LAL", "BOS", t(TIP), false, &progs).unwrap();
+        let live = find_live_broadcast("LAL", "BOS", t(TIP), false, &progs[..2]).unwrap();
         assert_eq!(live.programme.start, t("2026-10-22T02:30:00Z"));
-        assert!(find_live_broadcast("LAL", "BOS", t(TIP), false, &progs[1..]).is_none());
+        assert!(find_live_broadcast("LAL", "BOS", t(TIP), false, &progs[1..2]).is_none());
+        // Diffusion sur une beIN absente de la playlist : affichée, pas programmée.
+        let miami = find_live_broadcast("MIA", "UTAH", t(TIP), false, &progs).unwrap();
+        assert_eq!(miami.programme.channel_label, "beIN SPORTS MAX 9");
+        let mut g = game("accepted");
+        g.home_tri = "MIA".into();
+        g.away_tri = "UTAH".into();
+        assert_eq!(
+            plan_action(
+                &rule(),
+                &g,
+                t(TIP),
+                Some(&miami),
+                None,
+                t("2026-10-21T10:00:00Z")
+            ),
+            Action::Status("confirmed")
+        );
+    }
+
+    #[test]
+    fn chaines_bein_detectees_dans_la_playlist() {
+        let names: Vec<(String, String)> = [
+            ("10", "FR - BEIN SPORTS 1 HD"),
+            ("11", "FR - BEIN SPORTS 1 FHD"),
+            ("20", "FR| beIN SPORTS 2"),
+            ("30", "AR - BEIN SPORTS 3"),
+            ("40", "FR - TF1"),
+        ]
+        .iter()
+        .map(|(a, b)| (a.to_string(), b.to_string()))
+        .collect();
+        // Règle sans chaîne (détection ratée à la création) : tout est relié.
+        let mut r = rule();
+        r.channel_ids = vec![];
+        let labels = channel_labels(&r, &names);
+        assert_eq!(
+            labels,
+            vec![
+                ("11".to_string(), "beIN SPORTS 1".to_string()),
+                ("20".to_string(), "beIN SPORTS 2".to_string()),
+            ]
+        );
+        // Le flux choisi pour beIN 1 est gardé, beIN 2 complété.
+        r.channel_ids = vec!["10".into()];
+        let labels = channel_labels(&r, &names);
+        assert_eq!(labels[0], ("10".to_string(), "beIN SPORTS 1".to_string()));
+        assert_eq!(labels.len(), 2);
     }
 
     #[test]

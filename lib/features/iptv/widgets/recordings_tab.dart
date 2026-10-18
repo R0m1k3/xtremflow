@@ -1764,6 +1764,8 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
   bool _busy = false;
   String? _error;
   bool _showOffBein = false;
+  // Dernier diagnostic serveur : source, diffusions, chaînes reliées.
+  Map<String, dynamic>? _diag;
 
   @override
   void initState() {
@@ -1799,7 +1801,9 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
       if (!mounted) return;
       setState(() {
         _rule = rule;
-        _games = json.decode(g.body)['games'] as List;
+        final body = json.decode(g.body);
+        _games = body['games'] as List;
+        _diag = body['diagnostic'] as Map<String, dynamic>?;
         _isLoading = false;
       });
     } catch (e) {
@@ -1866,7 +1870,11 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
     if (!mounted) return;
     setState(() => _busy = false);
     if (r.statusCode == 200) {
-      setState(() => _games = json.decode(r.body)['games'] as List);
+      final body = json.decode(r.body);
+      setState(() {
+        _games = body['games'] as List;
+        _diag = body['diagnostic'] as Map<String, dynamic>?;
+      });
       notifyRecordingsChanged();
     } else {
       _snack('❌ ${r.body}');
@@ -2109,6 +2117,33 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
     };
   }
 
+  /// Résumé du dernier passage serveur, pour comprendre une liste vide.
+  String? _diagText() {
+    final d = _diag;
+    if (d == null) return null;
+    final parts = <String>[];
+    final calendar = d['games_in_calendar'];
+    if (calendar == 0) parts.add('Calendrier NBA vide ou injoignable');
+    if (d['source'] == 'bein') {
+      parts.add('${d['live_broadcasts'] ?? 0} direct(s) NBA au guide beIN');
+    } else if (d['source'] == 'iptv') {
+      parts.add('Guide beIN injoignable, repli sur le guide IPTV');
+    }
+    if (d['has_playlist'] == false) parts.add('aucune playlist IPTV');
+    final linked = (d['linked_channels'] as List?) ?? const [];
+    parts.add(
+      linked.isEmpty
+          ? 'aucune beIN trouvée dans la playlist'
+          : '${linked.length} beIN reliée(s) à la playlist',
+    );
+    final missing = (d['missing_channels'] as List?) ?? const [];
+    if (missing.isNotEmpty) parts.add('absentes : ${missing.join(', ')}');
+    if (d['matched_games'] != null) {
+      parts.add('${d['matched_games']} match(s) rapproché(s)');
+    }
+    return parts.join(' · ');
+  }
+
   /// Nuit de diffusion : un match à 02:30 appartient à la nuit de la veille.
   String _nightLabel(DateTime local) {
     final d = local.subtract(const Duration(hours: 12));
@@ -2186,11 +2221,12 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
     final tipoff = DateTime.parse(g['tipoff_utc']).toLocal();
     final (label, color) = _status(g);
     final channel = g['channel_name'] as String?;
-    // Pas annoncé en direct sur beIN : rien à enregistrer.
+    // Chaîne beIN reliée à un flux de la playlist : sinon pas d'enregistrement.
+    final recordable = g['channel_id'] != null;
     final locked =
         ['recorded', 'missed', 'not_on_bein'].contains(g['status']) ||
             tipoff.isBefore(DateTime.now()) ||
-            (channel == null && g['wanted'] != true);
+            (!recordable && g['wanted'] != true);
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -2229,7 +2265,8 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${_hhmm(tipoff)} · ${channel ?? 'pas annoncé sur beIN'}',
+              '${_hhmm(tipoff)} · ${channel ?? 'pas annoncé sur beIN'}'
+              '${channel != null && !recordable ? ' · absente de la playlist' : ''}',
               style: const TextStyle(
                 color: AppColors.onSurface54,
                 fontSize: 12,
@@ -2343,7 +2380,8 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
       return _emptyState(
         Icons.event_busy,
         'Aucun match NBA annoncé sur beIN Sports',
-        'Le programme beIN couvre environ 8 jours et est relu toutes les 30 min',
+        _diagText() ??
+            'Le programme beIN couvre environ 8 jours et est relu toutes les 30 min',
       );
     }
     // Liste aplatie : intertitre de nuit puis ses matchs.

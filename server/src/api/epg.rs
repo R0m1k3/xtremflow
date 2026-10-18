@@ -264,17 +264,14 @@ impl EpgApi {
         self.programmes_with_source(playlist, channel_id).await.0
     }
 
-    /// Nom de la chaîne dans la table du panneau (cache 6 h).
-    pub async fn channel_name(
-        &self,
-        playlist: &PlaylistConfig,
-        channel_id: &str,
-    ) -> Option<String> {
+    /// Toutes les chaînes du panneau : `(stream_id, nom)` (cache 6 h).
+    pub async fn channel_names(&self, playlist: &PlaylistConfig) -> Vec<(String, String)> {
         self.channel_map_for(playlist)
             .await
             .names
-            .get(channel_id)
-            .cloned()
+            .iter()
+            .map(|(id, name)| (id.clone(), name.clone()))
+            .collect()
     }
 
     async fn programmes_with_source(
