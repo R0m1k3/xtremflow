@@ -578,6 +578,7 @@ mod tests {
 
     fn playlist(base: &str) -> PlaylistConfig {
         PlaylistConfig {
+            id: String::new(),
             dns: base.to_string(),
             username: "u".into(),
             password: "p".into(),

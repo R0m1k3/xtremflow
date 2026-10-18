@@ -348,6 +348,53 @@ fn audio_args(with_filters: bool) -> Vec<String> {
     args
 }
 
+/// Ajoute `?playlist=<id>` à chaque URI de segment d'un m3u8.
+///
+/// POURQUOI : le lecteur résout les segments relativement au m3u8 et perd
+/// sa query ; sans elle, le segment serait cherché dans la session d'une
+/// autre IPTV (même `stream_id`).
+fn with_segment_query(m3u8: &str, playlist_id: &str) -> String {
+    let enc: String = url::form_urlencoded::byte_serialize(playlist_id.as_bytes()).collect();
+    m3u8.lines()
+        .map(|line| {
+            let t = line.trim();
+            if t.is_empty() || t.starts_with('#') {
+                line.to_string()
+            } else if t.contains('?') {
+                format!("{t}&playlist={enc}")
+            } else {
+                format!("{t}?playlist={enc}")
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n"
+}
+
+/// Playlist explicitement demandée par la requête (à propager aux segments).
+fn requested_playlist(req: &Req) -> Option<String> {
+    req.query_param("playlist").filter(|p| !p.trim().is_empty())
+}
+
+/// Étiquette de l'IPTV servie, pour séparer les sessions de deux playlists.
+fn playlist_tag(state: &AppState, req: &Req) -> String {
+    state
+        .get_playlist(req)
+        .map(|p| p.tag())
+        .unwrap_or_else(|| "default".into())
+}
+
+/// `?playlist=…` à recopier dans une redirection.
+fn playlist_suffix(req: &Req, first: bool) -> String {
+    match requested_playlist(req) {
+        Some(p) => {
+            let enc: String = url::form_urlencoded::byte_serialize(p.as_bytes()).collect();
+            format!("{}playlist={enc}", if first { '?' } else { '&' })
+        }
+        None => String::new(),
+    }
+}
+
 fn hls_headers(resp: Resp) -> Resp {
     http::with_headers(
         resp,
@@ -514,7 +561,13 @@ impl Streaming {
         attempt
     }
 
-    async fn serve_session_playlist(&self, id: &str, attempt: Attempt, label: &str) -> Resp {
+    async fn serve_session_playlist(
+        &self,
+        id: &str,
+        attempt: Attempt,
+        label: &str,
+        playlist_query: Option<&str>,
+    ) -> Resp {
         let session = match attempt.session {
             Some(s) if attempt.ready => s,
             _ => {
@@ -532,7 +585,13 @@ impl Streaming {
         };
         session.touch();
         match tokio::fs::read(session.playlist_path()).await {
-            Ok(bytes) => hls_headers(http::response(200, bytes)),
+            Ok(bytes) => {
+                let body = match playlist_query {
+                    Some(q) => with_segment_query(&String::from_utf8_lossy(&bytes), q).into_bytes(),
+                    None => bytes,
+                };
+                hls_headers(http::response(200, body))
+            }
             Err(_) => http::text(502, format!("{label} transcoder failed: playlist missing")),
         }
     }
@@ -554,7 +613,10 @@ impl Streaming {
             // relatives des segments se résolvent sous le chemin de qualité.
             [id, "playlist.m3u8"] => {
                 let quality = sanitize_quality(req.query_param("quality").as_deref());
-                http::redirect(&format!("/api/live/{id}/{quality}/playlist.m3u8"))
+                http::redirect(&format!(
+                    "/api/live/{id}/{quality}/playlist.m3u8{}",
+                    playlist_suffix(req, true)
+                ))
             }
             [id, "turbo.ts"] => self.turbo(state, req, id).await,
             [file] if file.len() > 3 && file.ends_with(".ts") => {
@@ -564,7 +626,11 @@ impl Streaming {
                 if !is_valid_stream_id(id) || segment.contains("..") {
                     return http::text(400, "Invalid request");
                 }
-                let session_id = format!("live_{id}_{}", sanitize_quality(Some(quality)));
+                let session_id = format!(
+                    "live_{}_{id}_{}",
+                    playlist_tag(state, req),
+                    sanitize_quality(Some(quality))
+                );
                 self.sessions.touch(&session_id);
                 serve_segment(&self.sessions.base_dir.join(&session_id).join(segment), 60).await
             }
@@ -590,7 +656,7 @@ impl Streaming {
             playlist.dns, playlist.username, playlist.password
         );
         let use_gpu = state.db.is_nvidia_gpu_enabled();
-        let session_id = format!("live_{stream_id}_{quality}");
+        let session_id = format!("live_{}_{stream_id}_{quality}", playlist.tag());
         if !self.sessions.contains(&session_id) {
             println!("[Live HLS] Starting {session_id}: {}", redact_url(&target));
         }
@@ -657,8 +723,13 @@ impl Streaming {
                 Some(&playlist),
             )
             .await;
-        self.serve_session_playlist(&session_id, attempt, "Live")
-            .await
+        self.serve_session_playlist(
+            &session_id,
+            attempt,
+            "Live",
+            requested_playlist(req).as_deref(),
+        )
+        .await
     }
 
     /// `/api/live/{id}/turbo.ts` — flux MPEG-TS continu pour mpegts.js : vidéo
@@ -925,6 +996,9 @@ impl Streaming {
                         query.append_pair(key, value);
                     }
                 }
+                if let Some(p) = requested_playlist(req) {
+                    query.append_pair("playlist", &p);
+                }
                 let query = query.finish();
                 let suffix = if query.is_empty() {
                     String::new()
@@ -937,7 +1011,11 @@ impl Streaming {
                 if !is_valid_stream_id(id) || segment.contains("..") {
                     return http::text(400, "Invalid request");
                 }
-                let session_id = format!("vod_{id}_{}", sanitize_quality(Some(quality)));
+                let session_id = format!(
+                    "vod_{}_{id}_{}",
+                    playlist_tag(state, req),
+                    sanitize_quality(Some(quality))
+                );
                 self.sessions.touch(&session_id);
                 serve_segment(
                     &self.sessions.base_dir.join(&session_id).join(segment),
@@ -983,7 +1061,7 @@ impl Streaming {
             vod_container_extension(params.get("ext").map(String::as_str))
         );
         let use_gpu = state.db.is_nvidia_gpu_enabled();
-        let session_id = format!("vod_{stream_id}_{quality}");
+        let session_id = format!("vod_{}_{stream_id}_{quality}", playlist.tag());
         if !self.sessions.contains(&session_id) {
             println!(
                 "[VOD] Starting {session_id} ({content_type}): {}",
@@ -1055,8 +1133,13 @@ impl Streaming {
                 Some(&playlist),
             )
             .await;
-        self.serve_session_playlist(&session_id, attempt, "VOD")
-            .await
+        self.serve_session_playlist(
+            &session_id,
+            attempt,
+            "VOD",
+            requested_playlist(req).as_deref(),
+        )
+        .await
     }
 
     // ==========================================
@@ -1314,6 +1397,10 @@ mod tests {
         assert_eq!(sanitize_quality(Some("bogus")), "high");
         assert_eq!(sanitize_quality(None), "high");
         assert_eq!(live_video_args("source", true), vec!["-c:v", "copy"]);
+        assert_eq!(
+            with_segment_query("#EXTM3U\n#EXTINF:4,\nseg_000.ts\nseg_001.ts?x=1\n", "ab-1"),
+            "#EXTM3U\n#EXTINF:4,\nseg_000.ts?playlist=ab-1\nseg_001.ts?x=1&playlist=ab-1\n"
+        );
         assert!(live_video_args("high", true).contains(&"h264_nvenc".to_string()));
         assert!(vod_video_args("low", false).contains(&"scale=-2:720".to_string()));
     }

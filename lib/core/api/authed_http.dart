@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:html' as html;
 import 'package:http/http.dart' as http;
 
@@ -23,9 +24,27 @@ class AuthedHttp {
     return (t != null && t.isNotEmpty) ? t : null;
   }
 
+  /// IPTV sélectionnée (persistée par `playlistPersistenceProvider`).
+  ///
+  /// Envoyée à chaque appel : sans elle le serveur prenait la playlist la
+  /// plus récente, et guide, enregistrements et Auto NBA visaient la
+  /// mauvaise IPTV quand plusieurs étaient configurées.
+  static String? get selectedPlaylistId {
+    try {
+      final stored = html.window.localStorage['selected_playlist'];
+      if (stored == null) return null;
+      final id = (jsonDecode(stored) as Map<String, dynamic>)['id'];
+      return (id is String && id.isNotEmpty) ? id : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Map<String, String> _headers([Map<String, String>? extra]) {
     final token = _token;
+    final playlistId = selectedPlaylistId;
     return {
+      if (playlistId != null) 'X-Playlist-Id': playlistId,
       if (extra != null) ...extra,
       if (token != null) 'Authorization': 'Bearer $token',
     };

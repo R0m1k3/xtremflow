@@ -197,7 +197,7 @@ async fn cors(state: &SharedState, req: Req) -> Resp {
             ),
             (
                 "access-control-allow-headers",
-                "Origin, Content-Type, Accept, Authorization, Range".into(),
+                "Origin, Content-Type, Accept, Authorization, Range, X-Playlist-Id".into(),
             ),
             (
                 "access-control-expose-headers",

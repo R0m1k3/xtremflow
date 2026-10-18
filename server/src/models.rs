@@ -70,6 +70,8 @@ impl Session {
 /// Configuration Xtream utilisée par les proxys et le streaming.
 #[derive(Clone, Debug)]
 pub struct PlaylistConfig {
+    /// Identifiant de la playlist en base (vide dans certains tests).
+    pub id: String,
     /// URL du serveur Xtream (sans `/` final).
     pub dns: String,
     pub username: String,
@@ -91,6 +93,8 @@ pub struct Recording {
     pub error_reason: Option<String>,
     /// Règle automatique à l'origine de l'enregistrement (None = manuel/season pass).
     pub source_rule_id: Option<String>,
+    /// IPTV de capture (None = lignes antérieures non rattachées).
+    pub playlist_id: Option<String>,
     pub created_at: DartDateTime,
     pub updated_at: DartDateTime,
 }
@@ -109,6 +113,7 @@ impl Recording {
         map.insert("file_path".into(), json!(self.file_path));
         map.insert("error_reason".into(), json!(self.error_reason));
         map.insert("source_rule_id".into(), json!(self.source_rule_id));
+        map.insert("playlist_id".into(), json!(self.playlist_id));
         map.insert("created_at".into(), json!(self.created_at.to_iso()));
         map.insert("updated_at".into(), json!(self.updated_at.to_iso()));
         map
@@ -141,6 +146,9 @@ pub struct AutoRule {
     pub team_filter: Vec<String>,
     /// Rétention en jours des fichiers créés par la règle ; None = illimitée.
     pub keep_days: Option<i64>,
+    /// IPTV de la règle : une règle NBA par playlist.
+    #[serde(default)]
+    pub playlist_id: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -185,4 +193,70 @@ pub struct ScheduledGame {
     pub home_tri: String,
     pub away_tri: String,
     pub tipoff_utc: chrono::DateTime<chrono::Utc>,
+}
+
+impl From<Playlist> for PlaylistConfig {
+    fn from(p: Playlist) -> Self {
+        Self {
+            id: p.id,
+            dns: p.server_url,
+            username: p.username,
+            password: p.password,
+        }
+    }
+}
+
+impl PlaylistConfig {
+    /// Fragment court et sûr pour les identifiants de session et de
+    /// dossier : deux IPTV peuvent avoir le même `stream_id`.
+    pub fn tag(&self) -> String {
+        let t: String = self
+            .id
+            .chars()
+            .filter(char::is_ascii_alphanumeric)
+            .take(12)
+            .collect();
+        if t.is_empty() { "default".into() } else { t }
+    }
+}
+
+/// URL de flux local liée à une IPTV : `/api/live/12.ts` →
+/// `/api/live/12.ts?playlist=<id>`. La capture FFmpeg (requête locale sans
+/// utilisateur) retrouve ainsi la bonne playlist.
+pub fn stream_url_for_playlist(url: &str, playlist_id: &str) -> String {
+    if playlist_id.is_empty() || !url.starts_with("/api/") || url.contains("playlist=") {
+        return url.to_string();
+    }
+    let enc: String = url::form_urlencoded::byte_serialize(playlist_id.as_bytes()).collect();
+    let sep = if url.contains('?') { '&' } else { '?' };
+    format!("{url}{sep}playlist={enc}")
+}
+
+#[cfg(test)]
+mod playlist_url_tests {
+    use super::stream_url_for_playlist;
+
+    #[test]
+    fn ajoute_la_playlist_aux_flux_locaux() {
+        assert_eq!(
+            stream_url_for_playlist("/api/live/12.ts", "ab"),
+            "/api/live/12.ts?playlist=ab"
+        );
+        assert_eq!(
+            stream_url_for_playlist("/api/live/12.ts?x=1", "ab"),
+            "/api/live/12.ts?x=1&playlist=ab"
+        );
+        assert_eq!(
+            stream_url_for_playlist("/api/live/12.ts?playlist=zz", "ab"),
+            "/api/live/12.ts?playlist=zz"
+        );
+        assert_eq!(
+            stream_url_for_playlist("http://x/12.ts", "ab"),
+            "http://x/12.ts"
+        );
+        assert_eq!(
+            stream_url_for_playlist("/api/live/12.ts", ""),
+            "/api/live/12.ts"
+        );
+    }
 }

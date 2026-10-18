@@ -652,7 +652,9 @@
   XFPlayer.prototype._hlsEquivalent = function (url) {
     var match = /^(.*\/api\/live\/)([^/?#]+)(?:\/turbo)?\.ts(\?.*)?$/.exec(url);
     if (!match) return null;
-    return match[1] + match[2] + '/source/playlist.m3u8';
+    // La query (dont ?playlist=<id>) est conservée : sans elle le serveur
+    // servirait la chaîne de même numéro sur une autre IPTV.
+    return match[1] + match[2] + '/source/playlist.m3u8' + (match[3] || '');
   };
 
   // ---------------- Lecture directe ----------------

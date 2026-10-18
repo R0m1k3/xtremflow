@@ -604,16 +604,14 @@ impl NbaAutoRecorder {
         }
     }
 
-    fn playlist_for(&self, user_id: &str) -> Option<PlaylistConfig> {
-        self.db
-            .get_playlists(user_id)
-            .into_iter()
-            .next()
-            .map(|p| PlaylistConfig {
-                dns: p.server_url,
-                username: p.username,
-                password: p.password,
-            })
+    /// IPTV de la règle ; à défaut (règle ancienne), la plus récente.
+    fn playlist_for(&self, rule: &AutoRule) -> Option<PlaylistConfig> {
+        rule.playlist_id
+            .as_deref()
+            .and_then(|id| self.db.get_playlist_by_id(id))
+            .filter(|p| p.user_id == rule.user_id)
+            .or_else(|| self.db.get_playlists(&rule.user_id).into_iter().next())
+            .map(PlaylistConfig::from)
     }
 
     /// Dernier diagnostic de la règle : source, diffusions trouvées,
@@ -694,7 +692,7 @@ impl NbaAutoRecorder {
             now - Duration::hours(6),
             now + Duration::days(SCHEDULE_DAYS),
         );
-        let playlist = self.playlist_for(&rule.user_id);
+        let playlist = self.playlist_for(rule);
         if games.is_empty() {
             self.diagnostics.lock().unwrap().insert(
                 rule.id.clone(),
@@ -793,16 +791,24 @@ impl NbaAutoRecorder {
                         next.conflict = true;
                     } else if let Some(l) = &live {
                         let channel = &l.programme.channel_id;
+                        let playlist_id =
+                            playlist.as_ref().map(|p| p.id.clone()).unwrap_or_default();
                         match self.db.create_recording(
                             &rule.user_id,
                             channel,
-                            &format!("/api/live/{channel}.ts"),
+                            &crate::models::stream_url_for_playlist(
+                                &format!("/api/live/{channel}.ts"),
+                                &playlist_id,
+                            ),
                             &recording_title(&game),
                             start,
                             end,
                         ) {
                             Ok(rec) => {
                                 self.db.set_recording_source(&rec.id, &rule.id);
+                                if !playlist_id.is_empty() {
+                                    self.db.set_recording_playlist(&rec.id, &playlist_id);
+                                }
                                 next.recording_id = Some(rec.id);
                                 next.status = "scheduled".into();
                                 created += 1;
@@ -932,6 +938,7 @@ mod tests {
             pad_after_min: 45,
             team_filter: vec![],
             keep_days: None,
+            playlist_id: None,
             created_at: String::new(),
             updated_at: String::new(),
         }
@@ -975,6 +982,7 @@ mod tests {
             file_path: None,
             error_reason: None,
             source_rule_id: Some("r".into()),
+            playlist_id: None,
             created_at: DartDateTime::parse(start).unwrap(),
             updated_at: DartDateTime::parse(start).unwrap(),
         }

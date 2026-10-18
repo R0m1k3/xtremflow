@@ -101,6 +101,10 @@ class XtreamService {
               options.headers['Authorization'] = 'Bearer $token';
             }
           }
+          final playlistId = _currentPlaylist?.id;
+          if (playlistId != null && playlistId.isNotEmpty) {
+            options.headers['X-Playlist-Id'] = playlistId;
+          }
           handler.next(options);
         },
       ),
@@ -115,7 +119,12 @@ class XtreamService {
   }) {
     return _dio.get(
       '$_backendBaseUrl/api/xtream-api',
-      queryParameters: params,
+      // `playlist` dans l'URL : le cache HTTP (clé = URL) ne mélange pas
+      // les réponses de deux IPTV.
+      queryParameters: {
+        ...params,
+        if (_playlistId != null) 'playlist': _playlistId!,
+      },
       options: options ?? Options(extra: _cacheOptions.toExtra()),
     );
   }
@@ -165,11 +174,27 @@ class XtreamService {
     _currentPlaylist = playlist;
   }
 
+  String? get _playlistId {
+    final id = _currentPlaylist?.id;
+    return (id == null || id.isEmpty) ? null : id;
+  }
+
+  /// Ajoute `playlist=<id>` : le serveur sert alors cette IPTV (lecteur,
+  /// hls.js et mpegts.js ne peuvent pas envoyer d'en-tête).
+  String _withPlaylist(String url) {
+    final id = _playlistId;
+    if (id == null) return url;
+    final sep = url.contains('?') ? '&' : '?';
+    return '$url${sep}playlist=${Uri.encodeQueryComponent(id)}';
+  }
+
   /// Generate stream URL for live TV (HLS)
   /// [quality]: source | high | medium | low (server-side FFmpeg preset)
   String getLiveStreamUrl(String streamId, {String quality = 'high'}) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
-    return '$_backendBaseUrl/api/live/$streamId/$quality/playlist.m3u8';
+    return _withPlaylist(
+      '$_backendBaseUrl/api/live/$streamId/$quality/playlist.m3u8',
+    );
   }
 
   /// Generate stream URL for live TV (Direct MPEG-TS)
@@ -180,7 +205,7 @@ class XtreamService {
     // Le proxy brut ($_backendBaseUrl/api/live/$streamId.ts) livrait l'audio
     // d'origine — AC-3/E-AC-3/MP2 que mpegts.js ne décode pas → chaînes
     // muettes. Il reste utilisé tel quel par le scheduler d'enregistrement.
-    return '$_backendBaseUrl/api/live/$streamId/turbo.ts';
+    return _withPlaylist('$_backendBaseUrl/api/live/$streamId/turbo.ts');
   }
 
   /// Generate stream URL for VOD (movies)
@@ -193,8 +218,10 @@ class XtreamService {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
     // `ext` : le serveur demande le fichier au panneau sous son extension
     // réelle — un `.mp4` réclamé en `.mkv` est refusé (HTTP 551).
-    return '$_backendBaseUrl/api/vod/$streamId/$quality/playlist.m3u8'
-        '${_extQuery(containerExtension, first: true)}';
+    return _withPlaylist(
+      '$_backendBaseUrl/api/vod/$streamId/$quality/playlist.m3u8'
+      '${_extQuery(containerExtension, first: true)}',
+    );
   }
 
   String _extQuery(String ext, {required bool first}) {
@@ -210,8 +237,10 @@ class XtreamService {
     String quality = 'high',
   }) {
     if (_currentPlaylist == null) throw Exception('No playlist configured');
-    return '$_backendBaseUrl/api/vod/$streamId/$quality/playlist.m3u8?type=series'
-        '${_extQuery(containerExtension, first: false)}';
+    return _withPlaylist(
+      '$_backendBaseUrl/api/vod/$streamId/$quality/playlist.m3u8?type=series'
+      '${_extQuery(containerExtension, first: false)}',
+    );
   }
 
   /// Authenticate and get server info
@@ -749,14 +778,18 @@ class XtreamService {
       await Future.delayed(_throttleDelay);
     }
 
-    final cached = _epgCache[streamId];
+    // Cache partagé entre instances : la clé inclut l'IPTV.
+    final cacheKey = '${_playlistId ?? ''}|$streamId';
+    final cached = _epgCache[cacheKey];
     if (cached != null && DateTime.now().isBefore(cached.expiresAt)) {
       return cached.programmes;
     }
 
     await _epgGate.acquire();
     try {
-      final response = await AuthedHttp.get(Uri.parse('/api/epg/$streamId'));
+      final response = await AuthedHttp.get(
+        Uri.parse(_withPlaylist('/api/epg/$streamId')),
+      );
       if (response.statusCode != 200) {
         debugPrint(
           '[XtreamService] EPG $streamId : HTTP ${response.statusCode}',
@@ -779,7 +812,7 @@ class XtreamService {
         if (result.length >= 8) break;
       }
 
-      _epgCache[streamId] = _EpgCacheEntry(
+      _epgCache[cacheKey] = _EpgCacheEntry(
         programmes: result,
         expiresAt: DateTime.now().add(_epgCacheTtl),
       );

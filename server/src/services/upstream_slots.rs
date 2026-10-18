@@ -357,6 +357,7 @@ mod tests {
 
     fn playlist() -> PlaylistConfig {
         PlaylistConfig {
+            id: String::new(),
             dns: "http://panel.test".into(),
             username: "u".into(),
             password: "x".into(),

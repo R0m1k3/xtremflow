@@ -30,7 +30,11 @@ pub async fn auto_rules(state: &SharedState, req: &Req, rest: &str) -> Resp {
     };
     let parts = segments(rest);
     if let ("GET" | "HEAD", []) = (req.method.as_str(), parts.as_slice()) {
-        let rules = state.db.get_auto_rules_for_user(&user.id);
+        // Une règle NBA par IPTV : celle de la playlist choisie.
+        let rules = match state.selected_playlist_id(req) {
+            Some(pid) => state.db.get_auto_rules_for_playlist(&user.id, &pid),
+            None => state.db.get_auto_rules_for_user(&user.id),
+        };
         return json(200, &json!(rules));
     }
     if let ("POST", []) = (req.method.as_str(), parts.as_slice()) {
@@ -144,12 +148,15 @@ async fn create(state: &SharedState, req: &Req, user: &User) -> Resp {
         Ok(b) => b,
         Err(r) => return r,
     };
-    if state
-        .db
-        .get_auto_rules_for_user(&user.id)
-        .iter()
-        .any(|r| r.kind == "nba")
-    {
+    let playlist_id = state
+        .get_playlist(req)
+        .map(|p| p.id)
+        .filter(|id| !id.is_empty());
+    let existing = match &playlist_id {
+        Some(pid) => state.db.get_auto_rules_for_playlist(&user.id, pid),
+        None => state.db.get_auto_rules_for_user(&user.id),
+    };
+    if existing.iter().any(|r| r.kind == "nba") {
         return json(409, &json!({"error": "La règle NBA existe déjà"}));
     }
     let mut rule = AutoRule {
@@ -164,6 +171,7 @@ async fn create(state: &SharedState, req: &Req, user: &User) -> Resp {
         pad_after_min: 45,
         team_filter: Vec::new(),
         keep_days: None,
+        playlist_id: playlist_id.clone(),
         created_at: String::new(),
         updated_at: String::new(),
     };

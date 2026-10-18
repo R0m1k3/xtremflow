@@ -454,8 +454,16 @@ impl RecordingScheduler {
             .unwrap_or("contains")
             .to_string();
 
-        // Playlist du PROPRIÉTAIRE du pass, résolue au moment du scan.
-        let playlists = self.db.get_playlists(&user_id);
+        // IPTV du pass ; à défaut (pass ancien), la plus récente du
+        // propriétaire, résolue au moment du scan.
+        let pass_playlist_id = field("playlist_id");
+        let playlists: Vec<crate::models::Playlist> = self
+            .db
+            .get_playlist_by_id(&pass_playlist_id)
+            .filter(|p| p.user_id == user_id)
+            .into_iter()
+            .chain(self.db.get_playlists(&user_id))
+            .collect();
         let Some(playlist) = playlists.first() else {
             println!(
                 "[SeasonPass] Aucune playlist pour le propriétaire du pass \"{show_title}\", scan ignoré"
@@ -544,9 +552,12 @@ impl RecordingScheduler {
                 break;
             }
 
-            self.db
+            let stream_url = crate::models::stream_url_for_playlist(&stream_url, &playlist.id);
+            let rec = self
+                .db
                 .create_recording(&user_id, &channel_id, &stream_url, &title, start, end)
                 .map_err(|e| e.to_string())?;
+            self.db.set_recording_playlist(&rec.id, &playlist.id);
             created += 1;
             println!(
                 "[SeasonPass] ✓ Planifié automatiquement: \"{title}\" le {}",
@@ -1272,6 +1283,7 @@ mod tests {
             file_path: None,
             error_reason: None,
             source_rule_id: None,
+            playlist_id: None,
             created_at: start,
             updated_at: start,
         }

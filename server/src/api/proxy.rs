@@ -157,11 +157,21 @@ const ALLOWED_RESPONSE_HEADERS: [&str; 6] = [
 ];
 const ALLOWED_REQUEST_HEADERS: [&str; 4] = ["user-agent", "accept", "range", "referer"];
 
+/// Query sans le paramètre `playlist` (les autres sont recopiés tels quels).
+fn without_playlist_param(query: &str) -> String {
+    query
+        .split('&')
+        .filter(|pair| !pair.is_empty() && pair.split('=').next() != Some("playlist"))
+        .collect::<Vec<_>>()
+        .join("&")
+}
+
 pub struct ProxyHandler {
     asset_failures: AssetFailureCache,
     /// Playlist servant à l'allowlist, mise en cache 5 minutes pour éviter
-    /// une requête SQL par segment.
-    playlist_cache: Mutex<Option<(PlaylistConfig, Instant)>>,
+    /// une requête SQL par segment. Clé : playlist demandée (vide = défaut),
+    /// pour que deux IPTV aient chacune leur allowlist.
+    playlist_cache: Mutex<std::collections::HashMap<String, (PlaylistConfig, Instant)>>,
 }
 
 enum ProxyError {
@@ -173,19 +183,26 @@ impl ProxyHandler {
     pub fn new() -> Self {
         Self {
             asset_failures: AssetFailureCache::new(3, Duration::from_secs(300)),
-            playlist_cache: Mutex::new(None),
+            playlist_cache: Mutex::new(std::collections::HashMap::new()),
         }
     }
 
     fn cached_playlist(&self, state: &AppState, req: &Req) -> Option<PlaylistConfig> {
-        if let Some((playlist, expiry)) = self.playlist_cache.lock().unwrap().as_ref()
+        let key = req
+            .query_param("playlist")
+            .filter(|p| !p.trim().is_empty())
+            .or_else(|| req.header("x-playlist-id").map(str::to_string))
+            .unwrap_or_default();
+        if let Some((playlist, expiry)) = self.playlist_cache.lock().unwrap().get(&key)
             && Instant::now() < *expiry
         {
             return Some(playlist.clone());
         }
         let playlist = state.get_playlist(req)?;
-        *self.playlist_cache.lock().unwrap() =
-            Some((playlist.clone(), Instant::now() + Duration::from_secs(300)));
+        self.playlist_cache.lock().unwrap().insert(
+            key,
+            (playlist.clone(), Instant::now() + Duration::from_secs(300)),
+        );
         Some(playlist)
     }
 
@@ -218,9 +235,11 @@ impl ProxyHandler {
             );
         }
         let mut full_url = api_path;
-        if !req.query.is_empty() {
+        // `playlist` choisit l'IPTV côté XtremFlow : ne pas l'envoyer au panneau.
+        let forwarded = without_playlist_param(&req.query);
+        if !forwarded.is_empty() {
             full_url.push(if full_url.contains('?') { '&' } else { '?' });
-            full_url.push_str(&req.query);
+            full_url.push_str(&forwarded);
         }
 
         let target = reqwest::Url::parse(&full_url).ok();

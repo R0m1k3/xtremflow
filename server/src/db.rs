@@ -67,6 +67,7 @@ fn recording_from_row(row: &Row) -> DbResult<Recording> {
         file_path: row.get("file_path")?,
         error_reason: row.get("error_reason")?,
         source_rule_id: row.get("source_rule_id")?,
+        playlist_id: row.get("playlist_id")?,
         created_at: parse_date(row.get("created_at")?),
         updated_at: parse_date(row.get("updated_at")?),
     })
@@ -98,6 +99,7 @@ fn auto_rule_from_row(row: &Row) -> DbResult<AutoRule> {
         pad_after_min: row.get("pad_after_min")?,
         team_filter: json_list(row.get("team_filter")?),
         keep_days: row.get("keep_days")?,
+        playlist_id: row.get("playlist_id")?,
         created_at: row
             .get::<_, Option<String>>("created_at")?
             .unwrap_or_default(),
@@ -191,6 +193,7 @@ impl AppDatabase {
         };
         db.create_tables()?;
         db.run_migrations()?;
+        db.attach_legacy_rows_to_playlists()?;
         println!("Database initialized: {path}");
         Ok(db)
     }
@@ -309,7 +312,6 @@ impl AppDatabase {
             CREATE INDEX IF NOT EXISTS idx_recordings_start ON tv_recordings(start_time);
             CREATE INDEX IF NOT EXISTS idx_season_passes_user ON season_passes(user_id);
             CREATE INDEX IF NOT EXISTS idx_auto_rules_user ON auto_rules(user_id);
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_auto_rules_user_kind ON auto_rules(user_id, kind);
             CREATE INDEX IF NOT EXISTS idx_nba_games_tipoff ON nba_games(rule_id, tipoff_utc);
             "#,
         )
@@ -332,7 +334,7 @@ impl AppDatabase {
             |r| r.get(0),
         )?;
 
-        let migrations: [(i64, &str, &str, &str); 3] = [
+        let migrations: [(i64, &str, &str, &str); 6] = [
             // v1 : colonne error_reason absente des bases d'avant son introduction.
             (1, "tv_recordings", "error_reason", "TEXT"),
             // v2 : mode de correspondance des season passes. 'contains' pour les
@@ -346,6 +348,10 @@ impl AppDatabase {
             ),
             // v3 : lien vers la règle automatique (badge « Auto NBA », sidecars).
             (3, "tv_recordings", "source_rule_id", "TEXT"),
+            // v4-v6 : IPTV de rattachement (plusieurs playlists par compte).
+            (4, "tv_recordings", "playlist_id", "TEXT"),
+            (5, "season_passes", "playlist_id", "TEXT"),
+            (6, "auto_rules", "playlist_id", "TEXT"),
         ];
         for (version, table, column, definition) in migrations {
             if version <= current {
@@ -372,6 +378,29 @@ impl AppDatabase {
             current = version;
             println!("[DB] Migration v{version} appliquée");
         }
+        Ok(())
+    }
+
+    /// Lignes antérieures au multi-IPTV : rattachées à la playlist la plus
+    /// récente de leur propriétaire, celle qu'elles utilisaient de fait.
+    /// Sans cela elles s'afficheraient sous toutes les playlists. Rejoué à
+    /// chaque démarrage, sans effet une fois tout rattaché.
+    fn attach_legacy_rows_to_playlists(&self) -> DbResult<()> {
+        let conn = self.lock();
+        for table in ["tv_recordings", "season_passes", "auto_rules"] {
+            conn.execute(
+                &format!(
+                    "UPDATE {table} SET playlist_id = (SELECT p.id FROM playlists p WHERE p.user_id = {table}.user_id ORDER BY p.created_at DESC LIMIT 1) WHERE playlist_id IS NULL"
+                ),
+                [],
+            )?;
+        }
+        // Une règle NBA par utilisateur ET par IPTV.
+        conn.execute_batch(
+            "DROP INDEX IF EXISTS idx_auto_rules_user_kind;
+             CREATE UNIQUE INDEX IF NOT EXISTS idx_auto_rules_user_kind_playlist
+               ON auto_rules(user_id, kind, IFNULL(playlist_id, ''));",
+        )?;
         Ok(())
     }
 
@@ -731,6 +760,7 @@ impl AppDatabase {
             file_path: None,
             error_reason: None,
             source_rule_id: None,
+            playlist_id: None,
             created_at: now,
             updated_at: now,
         })
@@ -909,6 +939,22 @@ impl AppDatabase {
         .next()
     }
     /// Marque un enregistrement comme créé par une règle automatique.
+    /// Rattache un enregistrement à l'IPTV qui le capture.
+    pub fn set_recording_playlist(&self, id: &str, playlist_id: &str) {
+        let _ = self.lock().execute(
+            "UPDATE tv_recordings SET playlist_id = ? WHERE id = ?",
+            params![playlist_id, id],
+        );
+    }
+
+    /// Rattache un season pass à son IPTV.
+    pub fn set_season_pass_playlist(&self, id: &str, playlist_id: &str) {
+        let _ = self.lock().execute(
+            "UPDATE season_passes SET playlist_id = ? WHERE id = ?",
+            params![playlist_id, id],
+        );
+    }
+
     pub fn set_recording_source(&self, id: &str, rule_id: &str) {
         let _ = self.lock().execute(
             "UPDATE tv_recordings SET source_rule_id = ? WHERE id = ?",
@@ -925,7 +971,7 @@ impl AppDatabase {
         rule.created_at = now.clone();
         rule.updated_at = now;
         self.lock().execute(
-            "INSERT INTO auto_rules (id, user_id, kind, enabled, default_decision, channel_ids, pad_before_min, pad_after_min, team_filter, keep_days, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO auto_rules (id, user_id, kind, enabled, default_decision, channel_ids, pad_before_min, pad_after_min, team_filter, keep_days, created_at, updated_at, playlist_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             params![
                 rule.id,
                 rule.user_id,
@@ -938,7 +984,8 @@ impl AppDatabase {
                 serde_json::to_string(&rule.team_filter).unwrap_or_else(|_| "[]".into()),
                 rule.keep_days,
                 rule.created_at,
-                rule.updated_at
+                rule.updated_at,
+                rule.playlist_id
             ],
         )?;
         Ok(rule)
@@ -985,6 +1032,14 @@ impl AppDatabase {
         self.query_auto_rules(
             "SELECT * FROM auto_rules WHERE user_id = ? ORDER BY created_at ASC",
             &[user_id],
+        )
+    }
+
+    /// Règles d'un utilisateur pour une IPTV donnée.
+    pub fn get_auto_rules_for_playlist(&self, user_id: &str, playlist_id: &str) -> Vec<AutoRule> {
+        self.query_auto_rules(
+            "SELECT * FROM auto_rules WHERE user_id = ? AND playlist_id = ? ORDER BY created_at ASC",
+            &[user_id, playlist_id],
         )
     }
 
@@ -1223,6 +1278,7 @@ mod tests {
             pad_after_min: 45,
             team_filter: vec![],
             keep_days: None,
+            playlist_id: None,
             created_at: String::new(),
             updated_at: String::new(),
         })
@@ -1324,6 +1380,37 @@ mod tests {
                 .as_deref(),
             Some(rule.id.as_str())
         );
+    }
+
+    #[test]
+    fn une_regle_nba_par_iptv_et_rattachement_des_anciennes_lignes() {
+        let (db, path) = temp_db();
+        let user = db.create_user("u", "x", false).unwrap();
+        // Ligne « ancienne » : règle sans playlist, créée avant les playlists.
+        let legacy = nba_rule(&db, &user.id);
+        let a = db
+            .create_playlist(&user.id, "A", "http://a", "u", "p", None)
+            .unwrap();
+        // Au redémarrage, l'ancienne règle est rattachée à la playlist A.
+        drop(db);
+        let db = AppDatabase::open(path.to_str().unwrap()).unwrap();
+        assert_eq!(
+            db.get_auto_rule(&legacy.id).unwrap().playlist_id.as_deref(),
+            Some(a.id.as_str())
+        );
+        let b = db
+            .create_playlist(&user.id, "B", "http://b", "u", "p", None)
+            .unwrap();
+        // Une seconde règle NBA est permise sur l'autre IPTV…
+        let mut on_b = legacy.clone();
+        on_b.playlist_id = Some(b.id.clone());
+        db.create_auto_rule(&on_b).unwrap();
+        assert_eq!(db.get_auto_rules_for_playlist(&user.id, &b.id).len(), 1);
+        assert_eq!(db.get_auto_rules_for_playlist(&user.id, &a.id).len(), 1);
+        // …mais pas deux sur la même.
+        assert!(is_unique_violation(
+            &db.create_auto_rule(&on_b).unwrap_err()
+        ));
     }
 
     #[test]

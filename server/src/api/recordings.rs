@@ -3,7 +3,7 @@
 
 use crate::dart_time::DartDateTime;
 use crate::http::{self, Req, Resp, json, segments};
-use crate::models::{Recording, User};
+use crate::models::{Recording, User, stream_url_for_playlist};
 use crate::services::recording_scheduler::{RecordingScheduler, recordings_dir_path};
 use crate::state::SharedState;
 use crate::util::{media_probe, safe_path};
@@ -58,10 +58,14 @@ async fn logs(state: &SharedState, req: &Req, id: &str) -> Resp {
 /// Liste les enregistrements de l'utilisateur (tous pour un admin),
 /// enrichis du suivi : taille, progression, relances, durée réelle.
 async fn list(state: &SharedState, req: &Req) -> Resp {
-    let recordings = match &req.user {
+    let mut recordings = match &req.user {
         Some(user) if !user.is_admin => state.db.get_user_recordings(&user.id),
         _ => state.db.get_all_recordings(),
     };
+    // Une IPTV choisie : seulement ses enregistrements.
+    if let Some(pid) = state.selected_playlist_id(req) {
+        recordings.retain(|r| r.playlist_id.as_deref().is_none_or(|p| p == pid));
+    }
     let now = Utc::now();
     let mut enriched = Vec::with_capacity(recordings.len());
     for r in &recordings {
@@ -184,11 +188,26 @@ fn create(state: &SharedState, req: &Req) -> Resp {
         );
     }
     let title = to_text(data.get("title")).unwrap_or_else(|| "Sans Titre".into());
+    // Capture sur l'IPTV choisie par le client (à défaut, la plus récente).
+    let playlist_id = state
+        .get_playlist(req)
+        .map(|p| p.id)
+        .filter(|id| !id.is_empty());
+    let stream_url = match &playlist_id {
+        Some(pid) => stream_url_for_playlist(&stream_url, pid),
+        None => stream_url,
+    };
     match state
         .db
         .create_recording(&user_id, &channel_id, &stream_url, &title, start, end)
     {
-        Ok(recording) => json(200, &Value::Object(recording.to_map())),
+        Ok(mut recording) => {
+            if let Some(pid) = &playlist_id {
+                state.db.set_recording_playlist(&recording.id, pid);
+                recording.playlist_id = Some(pid.clone());
+            }
+            json(200, &Value::Object(recording.to_map()))
+        }
         Err(e) => {
             println!("[RecordingsApi] Erreur à la création: {e}");
             json(500, &json!({"error": "Erreur lors de la programmation"}))
@@ -261,11 +280,18 @@ pub fn season_passes(state: &SharedState, req: &Req, rest: &str) -> Resp {
             let Some(user) = &req.user else {
                 return json(401, &json!({"error": "Authentification requise"}));
             };
-            let passes = if user.is_admin {
+            let mut passes = if user.is_admin {
                 state.db.get_all_season_passes()
             } else {
                 state.db.get_season_passes_for_user(&user.id)
             };
+            if let Some(pid) = state.selected_playlist_id(req) {
+                passes.retain(|p| {
+                    p.get("playlist_id")
+                        .and_then(Value::as_str)
+                        .is_none_or(|v| v == pid)
+                });
+            }
             json(
                 200,
                 &Value::Array(passes.into_iter().map(Value::Object).collect()),
@@ -349,11 +375,28 @@ fn create_pass(state: &SharedState, req: &Req) -> Resp {
             &json!({"error": "Un Season Pass identique existe déjà"}),
         );
     }
+    let playlist_id = state
+        .get_playlist(req)
+        .map(|p| p.id)
+        .filter(|id| !id.is_empty());
+    let stream_url = match &playlist_id {
+        Some(pid) => stream_url_for_playlist(&stream_url, pid),
+        None => stream_url,
+    };
     match state
         .db
         .create_season_pass(&user.id, &show_title, &channel_id, &stream_url, match_mode)
     {
-        Ok(pass) => {
+        Ok(mut pass) => {
+            if let Some(pid) = &playlist_id {
+                let id = pass
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string();
+                state.db.set_season_pass_playlist(&id, pid);
+                pass.insert("playlist_id".into(), Value::from(pid.clone()));
+            }
             println!("[SeasonPass] Créé: \"{show_title}\" sur chaîne {channel_id}");
             json(201, &Value::Object(pass))
         }
