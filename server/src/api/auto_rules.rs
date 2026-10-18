@@ -14,7 +14,7 @@
 use crate::http::{self, Req, Resp, json, segments};
 use crate::models::{AutoRule, NbaGame, User};
 use crate::services::recording_scheduler::recordings_dir_path;
-use crate::services::{bein_channels, nba_artwork};
+use crate::services::{bein_channels, nba_artwork, nba_autorec};
 use crate::state::SharedState;
 use chrono::{Duration, Utc};
 use serde_json::{Map, Value, json};
@@ -157,7 +157,8 @@ async fn create(state: &SharedState, req: &Req, user: &User) -> Resp {
         user_id: user.id.clone(),
         kind: "nba".into(),
         enabled: true,
-        default_decision: "auto".into(),
+        // Plus de programmation automatique : seul un oui enregistre.
+        default_decision: "ask".into(),
         channel_ids: Vec::new(),
         pad_before_min: 5,
         pad_after_min: 45,
@@ -224,7 +225,7 @@ async fn update(state: &SharedState, req: &Req, mut rule: AutoRule) -> Resp {
     json(200, &json!(rule))
 }
 
-fn game_json(rule: &AutoRule, g: &NbaGame) -> Value {
+fn game_json(rule: &AutoRule, g: &NbaGame, slot_taken_by: Option<String>) -> Value {
     let rule_id = &rule.id;
     let mut v = json!(g);
     if let Value::Object(map) = &mut v {
@@ -235,15 +236,11 @@ fn game_json(rule: &AutoRule, g: &NbaGame) -> Value {
                 g.game_id
             )),
         );
-        // Oui / non effectif (décision, mode de la règle, filtre d'équipes).
-        map.insert(
-            "wanted".into(),
-            json!(crate::services::nba_autorec::wants(rule, g)),
-        );
-        map.insert(
-            "title".into(),
-            json!(crate::services::nba_autorec::recording_title(g)),
-        );
+        // Choisi par l'utilisateur : seul un oui explicite enregistre.
+        map.insert("wanted".into(), json!(nba_autorec::wants(g)));
+        // Un seul flux IPTV : ce qui occupe déjà le créneau, s'il est pris.
+        map.insert("slot_taken_by".into(), json!(slot_taken_by));
+        map.insert("title".into(), json!(nba_autorec::recording_title(g)));
     }
     v
 }
@@ -255,15 +252,20 @@ fn games(state: &SharedState, req: &Req, rule: &AutoRule) -> Resp {
         .unwrap_or(21)
         .clamp(1, 60);
     let now = Utc::now();
-    let list: Vec<Value> = state
-        .db
-        .get_nba_games(
-            &rule.id,
-            now - Duration::hours(6),
-            now + Duration::days(days),
-        )
+    let all = state.db.get_nba_games(
+        &rule.id,
+        now - Duration::hours(6),
+        now + Duration::days(days),
+    );
+    let pending = state.db.get_pending_recordings();
+    let list: Vec<Value> = all
         .iter()
-        .map(|g| game_json(rule, g))
+        .map(|g| {
+            let taken = (!nba_autorec::wants(g))
+                .then(|| nba_autorec::slot_taken_by(rule, g, &all, &pending))
+                .flatten();
+            game_json(rule, g, taken)
+        })
         .collect();
     json(200, &json!({"rule": rule, "games": list}))
 }
@@ -282,6 +284,29 @@ async fn decision(state: &SharedState, req: &Req, rule: &AutoRule, game_id: &str
             );
         }
     };
+    // Un seul flux IPTV à la fois : refuser un oui sur un créneau occupé.
+    if decision == "accepted" {
+        let Some(game) = state.db.get_nba_game(&rule.id, game_id) else {
+            return json(404, &json!({"error": "Match non trouvé"}));
+        };
+        let now = Utc::now();
+        let all =
+            state
+                .db
+                .get_nba_games(&rule.id, now - Duration::hours(6), now + Duration::days(60));
+        let pending = state.db.get_pending_recordings();
+        if let Some(taken) = nba_autorec::slot_taken_by(rule, &game, &all, &pending) {
+            return json(
+                409,
+                &json!({
+                    "error": format!(
+                        "Créneau déjà pris par « {taken} » : un seul enregistrement à la fois"
+                    ),
+                    "slot_taken_by": taken,
+                }),
+            );
+        }
+    }
     if !state.db.set_nba_decision(&rule.id, game_id, decision) {
         return json(404, &json!({"error": "Match non trouvé"}));
     }
@@ -293,7 +318,7 @@ async fn decision(state: &SharedState, req: &Req, rule: &AutoRule, game_id: &str
     )
     .await;
     match state.db.get_nba_game(&rule.id, game_id) {
-        Some(g) => json(200, &game_json(rule, &g)),
+        Some(g) => json(200, &game_json(rule, &g, None)),
         None => json(404, &json!({"error": "Match non trouvé"})),
     }
 }

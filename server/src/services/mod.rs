@@ -1,4 +1,5 @@
 pub mod bein_channels;
+pub mod bein_guide;
 pub mod cleanup;
 pub mod ffmpeg_sessions;
 pub mod gpu_fallback;

@@ -17,6 +17,7 @@ use crate::api::epg::EpgApi;
 use crate::dart_time::{DartDateTime, utc_iso};
 use crate::db::AppDatabase;
 use crate::models::{AutoRule, NbaGame, PlaylistConfig, Recording};
+use crate::services::bein_guide;
 use crate::services::nba_artwork;
 use crate::services::nba_schedule;
 use crate::services::nba_teams::{self, Team, normalize};
@@ -178,39 +179,11 @@ pub fn find_live_broadcast(
         })
 }
 
-/// Le match passe-t-il le filtre d'équipes de la règle (vide = tous) ?
-pub fn passes_team_filter(rule: &AutoRule, home: &str, away: &str) -> bool {
-    if rule.team_filter.is_empty() {
-        return true;
-    }
-    let keys = |abbr: &str| -> Vec<String> {
-        match nba_teams::by_abbr(abbr) {
-            Some(t) => vec![
-                normalize(t.abbr),
-                normalize(t.nickname),
-                normalize(&t.full_name()),
-                normalize(t.city),
-            ],
-            None => vec![normalize(abbr)],
-        }
-    };
-    let game_keys: Vec<String> = keys(home).into_iter().chain(keys(away)).collect();
-    rule.team_filter
-        .iter()
-        .map(|f| normalize(f))
-        .any(|f| game_keys.contains(&f))
-}
-
-/// L'utilisateur veut-il ce match ?
-pub fn wants(rule: &AutoRule, game: &NbaGame) -> bool {
-    match game.decision.as_str() {
-        "accepted" => true,
-        "refused" => false,
-        _ => {
-            rule.default_decision == "auto"
-                && passes_team_filter(rule, &game.home_tri, &game.away_tri)
-        }
-    }
+/// L'utilisateur a-t-il choisi ce match ? Rien n'est enregistré sans son
+/// oui explicite : aucune programmation automatique, quels que soient les
+/// anciens réglages de la règle (`default_decision`, `team_filter`).
+pub fn wants(game: &NbaGame) -> bool {
+    game.decision == "accepted"
 }
 
 /// Fenêtre d'enregistrement : marge avant, au moins `MIN_GAME_MINUTES`
@@ -281,7 +254,7 @@ pub fn plan_action(
         }
     }
     let scheduled = recording.filter(|r| r.status == "scheduled");
-    if !wants(rule, game) {
+    if !wants(game) {
         return match scheduled {
             Some(_) => Action::Cancel,
             None if live.is_some() => Action::Status("confirmed"),
@@ -333,13 +306,66 @@ fn past_or(
     }
 }
 
-/// Créneaux simultanés déjà pris sur [start, end].
-fn overlapping(recordings: &[Recording], start: DateTime<Utc>, end: DateTime<Utc>) -> usize {
+/// Enregistrement en attente ou en cours qui chevauche [start, end].
+///
+/// POURQUOI : l'abonnement IPTV n'autorise qu'un flux à la fois ; deux
+/// captures simultanées échoueraient toutes les deux.
+fn overlapping(
+    recordings: &[Recording],
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+) -> Option<&Recording> {
     recordings
         .iter()
         .filter(|r| matches!(r.status.as_str(), "scheduled" | "recording"))
-        .filter(|r| r.start_utc() < end && r.end_utc() > start)
-        .count()
+        .find(|r| r.start_utc() < end && r.end_utc() > start)
+}
+
+fn parse_utc(raw: Option<&str>) -> Option<DateTime<Utc>> {
+    raw.and_then(DartDateTime::parse).map(DartDateTime::to_utc)
+}
+
+/// Fenêtre d'enregistrement prévisible d'un match : créneau EPG s'il est
+/// connu, sinon coup d'envoi + durée minimale ; marges de la règle autour.
+pub fn expected_window(rule: &AutoRule, game: &NbaGame) -> Option<(DateTime<Utc>, DateTime<Utc>)> {
+    let tipoff = parse_utc(Some(&game.tipoff_utc))?;
+    let min_end = tipoff + Duration::minutes(MIN_GAME_MINUTES);
+    let (start, end) = match (
+        parse_utc(game.epg_start.as_deref()),
+        parse_utc(game.epg_end.as_deref()),
+    ) {
+        (Some(s), Some(e)) => (s.min(tipoff), e.max(min_end)),
+        _ => (tipoff, min_end),
+    };
+    Some((
+        start - Duration::minutes(rule.pad_before_min.max(0)),
+        end + Duration::minutes(rule.pad_after_min.max(0)),
+    ))
+}
+
+/// Un seul flux IPTV à la fois : titre de ce qui occupe déjà le créneau du
+/// match (autre match choisi, ou autre enregistrement en attente / en cours).
+pub fn slot_taken_by(
+    rule: &AutoRule,
+    game: &NbaGame,
+    games: &[NbaGame],
+    recordings: &[Recording],
+) -> Option<String> {
+    let (start, end) = expected_window(rule, game)?;
+    let chosen = games
+        .iter()
+        .filter(|o| o.game_id != game.game_id && wants(o))
+        .find(|o| expected_window(rule, o).is_some_and(|(s, e)| s < end && e > start));
+    if let Some(other) = chosen {
+        return Some(recording_title(other));
+    }
+    let own = game.recording_id.as_deref();
+    let others: Vec<Recording> = recordings
+        .iter()
+        .filter(|r| Some(r.id.as_str()) != own)
+        .cloned()
+        .collect();
+    overlapping(&others, start, end).map(|r| r.title.clone())
 }
 
 /// Règle en pause : supprime ses enregistrements encore planifiés (le
@@ -378,29 +404,58 @@ pub fn suspend_rule(db: &AppDatabase, rule: &AutoRule) {
     }
 }
 
+/// Jours de guide beIN demandés (le site publie environ 8 jours).
+const BEIN_GUIDE_DAYS: i64 = 10;
+
+/// Diffusions du guide beIN → programmes des flux IPTV surveillés, par
+/// libellé de chaîne (« beIN SPORTS MAX 4 » ↔ « FR| beIN SPORTS MAX 4 FHD »).
+/// Second élément : chaînes beIN du guide sans flux correspondant.
+pub fn map_bein_broadcasts(
+    broadcasts: &[bein_guide::BeinBroadcast],
+    labels: &[(String, String)],
+) -> (Vec<EpgProgramme>, Vec<String>) {
+    let mut mapped = Vec::new();
+    let mut unmapped: Vec<String> = Vec::new();
+    for b in broadcasts {
+        let key = normalize(&b.channel);
+        match labels.iter().find(|(_, label)| normalize(label) == key) {
+            Some((stream_id, label)) => mapped.push(EpgProgramme {
+                channel_id: stream_id.clone(),
+                channel_label: label.clone(),
+                title: b.title.clone(),
+                description: String::new(),
+                start: b.start,
+                end: b.end,
+                is_live: b.live,
+                // beIN dit explicitement ce qui n'est pas du direct.
+                previously_shown: !b.live,
+            }),
+            None => {
+                if !unmapped.contains(&b.channel) {
+                    unmapped.push(b.channel.clone());
+                }
+            }
+        }
+    }
+    (mapped, unmapped)
+}
+
 /// Service : calendrier quotidien + réconciliation toutes les 30 minutes.
 pub struct NbaAutoRecorder {
     db: Arc<AppDatabase>,
     http: reqwest::Client,
     epg: EpgApi,
-    scheduler: Arc<RecordingScheduler>,
     timers: Mutex<Vec<JoinHandle<()>>>,
     /// Une réconciliation à la fois (timer et API peuvent se croiser).
     running: tokio::sync::Mutex<()>,
 }
 
 impl NbaAutoRecorder {
-    pub fn new(
-        db: Arc<AppDatabase>,
-        http: reqwest::Client,
-        epg: EpgApi,
-        scheduler: Arc<RecordingScheduler>,
-    ) -> Self {
+    pub fn new(db: Arc<AppDatabase>, http: reqwest::Client, epg: EpgApi) -> Self {
         Self {
             db,
             http,
             epg,
-            scheduler,
             timers: Mutex::new(Vec::new()),
             running: tokio::sync::Mutex::new(()),
         }
@@ -507,7 +562,8 @@ impl NbaAutoRecorder {
         rule: &AutoRule,
         playlist: &PlaylistConfig,
     ) -> Vec<EpgProgramme> {
-        let mut out = Vec::new();
+        // Libellé beIN de chaque flux surveillé (« beIN SPORTS 1 »).
+        let mut labels: Vec<(String, String)> = Vec::new();
         for channel_id in &rule.channel_ids {
             let label = self
                 .epg
@@ -519,8 +575,27 @@ impl NbaAutoRecorder {
                         .unwrap_or(n)
                 })
                 .unwrap_or_else(|| format!("Chaîne {channel_id}"));
+            labels.push((channel_id.clone(), label));
+        }
+
+        // Source principale : le guide officiel beIN (≈ 8 jours, direct ou
+        // rediffusion explicites, chaîne exacte).
+        if let Some(broadcasts) = bein_guide::fetch_nba(&self.http, BEIN_GUIDE_DAYS).await {
+            let (mapped, unmapped) = map_bein_broadcasts(&broadcasts, &labels);
+            if !unmapped.is_empty() {
+                println!(
+                    "[NBA] Chaînes beIN absentes de la règle : {}",
+                    unmapped.join(", ")
+                );
+            }
+            return mapped;
+        }
+
+        // Repli : l'EPG du panneau IPTV (≈ 48 h).
+        let mut out = Vec::new();
+        for (channel_id, label) in &labels {
             for v in self.epg.programmes(playlist, channel_id).await {
-                if let Some(p) = EpgProgramme::from_json(channel_id, &label, &v) {
+                if let Some(p) = EpgProgramme::from_json(channel_id, label, &v) {
                     out.push(p);
                 }
             }
@@ -557,7 +632,8 @@ impl NbaAutoRecorder {
         // L'EPG ne couvre que quelques jours : inutile de le charger pour
         // des matchs lointains seulement.
         let needs_epg = games.iter().any(|g| {
-            DartDateTime::parse(&g.tipoff_utc).is_some_and(|t| t.to_utc() < now + Duration::days(4))
+            DartDateTime::parse(&g.tipoff_utc)
+                .is_some_and(|t| t.to_utc() < now + Duration::days(BEIN_GUIDE_DAYS))
         });
         let programmes = if needs_epg && !rule.channel_ids.is_empty() {
             self.watched_programmes(rule, &playlist).await
@@ -594,6 +670,18 @@ impl NbaAutoRecorder {
                 next.epg_start = Some(utc_iso(l.programme.start));
                 next.epg_end = Some(utc_iso(l.programme.end));
                 next.confidence = Some(l.confidence);
+            } else if !programmes.is_empty()
+                && tipoff < now + Duration::days(BEIN_GUIDE_DAYS)
+                && recording.is_none()
+            {
+                // Le guide couvre ce match et ne l'annonce plus en direct :
+                // oublier la chaîne d'un passage précédent.
+                next.channel_id = None;
+                next.channel_name = None;
+                next.epg_title = None;
+                next.epg_start = None;
+                next.epg_end = None;
+                next.confidence = None;
             }
             next.conflict = false;
             match action {
@@ -621,8 +709,9 @@ impl NbaAutoRecorder {
                         self.db.delete_recording(&rec.id);
                         next.recording_id = None;
                     }
-                    let busy = overlapping(&self.db.get_pending_recordings(), start, end);
-                    if self.scheduler.max_concurrent > 0 && busy >= self.scheduler.max_concurrent {
+                    // Un seul flux IPTV : tout chevauchement bloque.
+                    let pending = self.db.get_pending_recordings();
+                    if overlapping(&pending, start, end).is_some() {
                         next.status = "confirmed".into();
                         next.conflict = true;
                     } else if let Some(l) = &live {
@@ -883,7 +972,7 @@ mod tests {
             confidence: 90,
         };
         let now = t("2026-10-21T10:00:00Z");
-        let action = plan_action(&rule(), &game("auto"), t(TIP), Some(&b), None, now);
+        let action = plan_action(&rule(), &game("accepted"), t(TIP), Some(&b), None, now);
         // Début : 02:15 - 5 min ; fin : max(04:00, 02:30 + 2h30) + 45 min.
         assert_eq!(
             action,
@@ -920,28 +1009,159 @@ mod tests {
         );
     }
 
+    /// Rapprochement réel (réseau) : `cargo test croisement_reel -- --ignored --nocapture`.
+    #[tokio::test]
+    #[ignore]
+    async fn croisement_reel_guide_bein_calendrier_nba() {
+        let http = reqwest::Client::new();
+        let guide = bein_guide::fetch_nba(&http, BEIN_GUIDE_DAYS).await.unwrap();
+        let labels: Vec<(String, String)> = guide
+            .iter()
+            .map(|b| (b.channel.clone(), b.channel.clone()))
+            .collect();
+        let (progs, _) = map_bein_broadcasts(&guide, &labels);
+        let first = (Utc::now() - Duration::days(1)).date_naive();
+        let games = nba_schedule::fetch_days(&http, first, 10).await;
+        let mut found = 0;
+        for g in &games {
+            let nearby = games.iter().any(|o| {
+                o.game_id != g.game_id && (o.tipoff_utc - g.tipoff_utc).num_minutes().abs() < 60
+            });
+            if let Some(l) =
+                find_live_broadcast(&g.home_tri, &g.away_tri, g.tipoff_utc, nearby, &progs)
+            {
+                found += 1;
+                println!(
+                    "{} {} @ {} → {} {} ({})",
+                    g.tipoff_utc,
+                    g.away,
+                    g.home,
+                    l.programme.channel_label,
+                    l.programme.start,
+                    l.confidence
+                );
+            }
+        }
+        println!(
+            "{found} match(s) en direct sur beIN / {} au calendrier",
+            games.len()
+        );
+        assert!(found > 0);
+    }
+
     #[test]
-    fn mode_validation_et_filtre_d_equipes() {
+    fn guide_bein_vers_flux_iptv_et_direct_seulement() {
+        let b =
+            |ch: &str, title: &str, start: &str, end: &str, live: bool| bein_guide::BeinBroadcast {
+                channel: ch.into(),
+                title: title.into(),
+                start: t(start),
+                end: t(end),
+                live,
+            };
+        let guide = vec![
+            b(
+                "beIN SPORTS 1",
+                "Basket-ball : NBA - Los Angeles Lakers / Boston Celtics",
+                "2026-10-22T02:30:00Z",
+                "2026-10-22T05:00:00Z",
+                true,
+            ),
+            b(
+                "beIN SPORTS 1",
+                "Basket-ball : NBA - Los Angeles Lakers / Boston Celtics",
+                "2026-10-22T09:00:00Z",
+                "2026-10-22T10:45:00Z",
+                false,
+            ),
+            b(
+                "beIN SPORTS MAX 9",
+                "Basket-ball : NBA - Miami Heat / Utah Jazz",
+                "2026-10-22T02:30:00Z",
+                "2026-10-22T05:00:00Z",
+                true,
+            ),
+        ];
+        let labels = vec![("101".to_string(), "beIN SPORTS 1".to_string())];
+        let (progs, unmapped) = map_bein_broadcasts(&guide, &labels);
+        assert_eq!(progs.len(), 2);
+        assert!(progs.iter().all(|p| p.channel_id == "101"));
+        assert_eq!(unmapped, vec!["beIN SPORTS MAX 9".to_string()]);
+        // Le direct est retenu ; la rediffusion du matin ne l'est pas.
+        let live = find_live_broadcast("LAL", "BOS", t(TIP), false, &progs).unwrap();
+        assert_eq!(live.programme.start, t("2026-10-22T02:30:00Z"));
+        assert!(find_live_broadcast("LAL", "BOS", t(TIP), false, &progs[1..]).is_none());
+    }
+
+    #[test]
+    fn un_seul_enregistrement_par_creneau() {
+        let r = rule();
+        let mut chosen = game("accepted");
+        chosen.game_id = "a".into();
+        // Coup d'envoi 1 h plus tard : chevauche (fenêtre de 2 h 30 + marges).
+        let mut later = game("auto");
+        later.game_id = "b".into();
+        later.home_tri = "GS".into();
+        later.away_tri = "PHX".into();
+        later.tipoff_utc = "2026-10-22T03:30:00.000Z".into();
+        let games = vec![chosen.clone(), later.clone()];
+        assert_eq!(
+            slot_taken_by(&r, &later, &games, &[]).as_deref(),
+            Some("NBA - Celtics @ Lakers")
+        );
+        // Le lendemain soir : libre.
+        later.tipoff_utc = "2026-10-23T02:30:00.000Z".into();
+        let games = vec![chosen.clone(), later.clone()];
+        assert_eq!(slot_taken_by(&r, &later, &games, &[]), None);
+        // Un autre enregistrement (manuel) sur le créneau bloque aussi.
+        let manual = rec(
+            "9",
+            "scheduled",
+            "2026-10-23T03:00:00Z",
+            "2026-10-23T04:00:00Z",
+        );
+        assert!(slot_taken_by(&r, &later, &[later.clone()], &[manual]).is_some());
+        // Son propre enregistrement ne compte pas.
+        let mut own = rec(
+            "1",
+            "scheduled",
+            "2026-10-23T02:25:00Z",
+            "2026-10-23T05:45:00Z",
+        );
+        own.id = "own".into();
+        later.recording_id = Some("own".into());
+        assert_eq!(slot_taken_by(&r, &later, &[later.clone()], &[own]), None);
+    }
+
+    #[test]
+    fn rien_n_est_enregistre_sans_un_oui() {
         let b = LiveBroadcast {
             programme: prog("1", "NBA", "2026-10-22T02:30:00Z", "2026-10-22T05:00:00Z"),
             confidence: 90,
         };
         let now = t("2026-10-21T10:00:00Z");
-        let mut ask = rule();
-        ask.default_decision = "ask".into();
+        // Même une ancienne règle en mode 'auto' ne programme rien seule.
+        let mut legacy = rule();
+        legacy.default_decision = "auto".into();
         assert_eq!(
-            plan_action(&ask, &game("auto"), t(TIP), Some(&b), None, now),
+            plan_action(&legacy, &game("auto"), t(TIP), Some(&b), None, now),
             Action::Status("confirmed")
         );
         assert!(matches!(
-            plan_action(&ask, &game("accepted"), t(TIP), Some(&b), None, now),
+            plan_action(&legacy, &game("accepted"), t(TIP), Some(&b), None, now),
             Action::Create { .. }
         ));
-        let mut only_knicks = rule();
-        only_knicks.team_filter = vec!["Knicks".into()];
-        assert!(!wants(&only_knicks, &game("auto")));
-        only_knicks.team_filter = vec!["celtics".into()];
-        assert!(wants(&only_knicks, &game("auto")));
+        // Un enregistrement programmé sans choix explicite est annulé.
+        let r = rec(
+            "1",
+            "scheduled",
+            "2026-10-22T02:10:00Z",
+            "2026-10-22T05:45:00Z",
+        );
+        assert_eq!(
+            plan_action(&legacy, &game("auto"), t(TIP), Some(&b), Some(&r), now),
+            Action::Cancel
+        );
     }
 
     #[test]
@@ -958,7 +1178,14 @@ mod tests {
             "2026-10-22T05:45:00Z",
         );
         assert_eq!(
-            plan_action(&rule(), &game("auto"), t(TIP), Some(&b), Some(&same), now),
+            plan_action(
+                &rule(),
+                &game("accepted"),
+                t(TIP),
+                Some(&b),
+                Some(&same),
+                now
+            ),
             Action::Status("scheduled")
         );
         let moved = rec(
@@ -968,7 +1195,14 @@ mod tests {
             "2026-10-22T05:45:00Z",
         );
         assert!(matches!(
-            plan_action(&rule(), &game("auto"), t(TIP), Some(&b), Some(&moved), now),
+            plan_action(
+                &rule(),
+                &game("accepted"),
+                t(TIP),
+                Some(&b),
+                Some(&moved),
+                now
+            ),
             Action::Realign { .. }
         ));
         let other = rec(
@@ -978,7 +1212,14 @@ mod tests {
             "2026-10-22T05:45:00Z",
         );
         assert!(matches!(
-            plan_action(&rule(), &game("auto"), t(TIP), Some(&b), Some(&other), now),
+            plan_action(
+                &rule(),
+                &game("accepted"),
+                t(TIP),
+                Some(&b),
+                Some(&other),
+                now
+            ),
             Action::Recreate { .. }
         ));
     }

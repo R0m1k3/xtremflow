@@ -1875,24 +1875,33 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
 
   Future<void> _decide(Map<String, dynamic> game, bool yes) async {
     final id = _rule?['id'];
-    if (id == null) return;
-    final r = await AuthedHttp.post(
-      Uri.parse('/api/auto-rules/$id/games/${game['game_id']}/decision'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({'decision': yes ? 'accepted' : 'refused'}),
-    );
-    if (!mounted) return;
-    if (r.statusCode == 200) {
-      final updated = json.decode(r.body);
-      setState(() {
-        _games = [
-          for (final g in _games)
-            g['game_id'] == updated['game_id'] ? updated : g,
-        ];
-      });
-      notifyRecordingsChanged();
-    } else {
-      _snack('❌ ${r.body}');
+    if (id == null || _busy) return;
+    // Tous les boutons sont figés pendant la requête : pas de double clic ni
+    // de second choix sur le même créneau avant la réponse.
+    setState(() => _busy = true);
+    try {
+      final r = await AuthedHttp.post(
+        Uri.parse('/api/auto-rules/$id/games/${game['game_id']}/decision'),
+        headers: {'Content-Type': 'application/json'},
+        // Retirer son choix remet le match en attente : rien n'est
+        // enregistré sans un oui explicite.
+        body: json.encode({'decision': yes ? 'accepted' : 'auto'}),
+      );
+      if (!mounted) return;
+      if (r.statusCode == 200) {
+        notifyRecordingsChanged();
+      } else {
+        String message = r.body;
+        try {
+          message = json.decode(r.body)['error'] ?? r.body;
+        } catch (_) {}
+        _snack('❌ $message');
+      }
+      // Relire toute la liste : le serveur recalcule « Créneau pris » pour
+      // les autres matchs du créneau, qui deviennent inactifs.
+      await _load();
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -1913,14 +1922,10 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
     final selected = <String>{
       for (final c in (rule['channel_ids'] as List)) c.toString(),
     };
-    var askFirst = rule['default_decision'] == 'ask';
     final beforeCtrl =
         TextEditingController(text: '${rule['pad_before_min'] ?? 5}');
     final afterCtrl =
         TextEditingController(text: '${rule['pad_after_min'] ?? 45}');
-    final teamsCtrl = TextEditingController(
-      text: (rule['team_filter'] as List).join(', '),
-    );
     final keepCtrl = TextEditingController(
       text: rule['keep_days'] == null ? '' : '${rule['keep_days']}',
     );
@@ -1951,7 +1956,8 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
                   ),
                 ),
                 value: selected.contains(c['stream_id'].toString()),
-                activeThumbColor: AppColors.primaryContainer,
+                activeThumbColor: AppColors.primary,
+                trackColor: _switchTrack,
                 onChanged: (v) => setDialog(() {
                   final id = c['stream_id'].toString();
                   v ? selected.add(id) : selected.remove(id);
@@ -1976,29 +1982,6 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        'Demander avant chaque match',
-                        style: GoogleFonts.fraunces(
-                          color: AppColors.onSurface,
-                          fontSize: 14,
-                        ),
-                      ),
-                      subtitle: Text(
-                        askFirst
-                            ? "Rien n'est enregistré sans votre oui"
-                            : 'Tout est enregistré, vous pouvez refuser',
-                        style: const TextStyle(
-                          color: AppColors.onSurface54,
-                          fontSize: 12,
-                        ),
-                      ),
-                      value: askFirst,
-                      activeThumbColor: AppColors.primaryContainer,
-                      onChanged: (v) => setDialog(() => askFirst = v),
-                    ),
-                    const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
@@ -2017,11 +2000,6 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
                           ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 8),
-                    _underlineField(
-                      teamsCtrl,
-                      'Équipes suivies (vide = toutes, ex: Lakers, Celtics)',
                     ),
                     const SizedBox(height: 8),
                     _underlineField(
@@ -2079,16 +2057,10 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
                   Navigator.pop(ctx);
                   final keep = int.tryParse(keepCtrl.text.trim());
                   _updateRule({
-                    'default_decision': askFirst ? 'ask' : 'auto',
                     'channel_ids': selected.toList(),
                     'pad_before_min':
                         int.tryParse(beforeCtrl.text.trim()) ?? 5,
                     'pad_after_min': int.tryParse(afterCtrl.text.trim()) ?? 45,
-                    'team_filter': teamsCtrl.text
-                        .split(',')
-                        .map((t) => t.trim())
-                        .where((t) => t.isNotEmpty)
-                        .toList(),
                     'keep_days': (keep != null && keep > 0) ? keep : null,
                   });
                 },
@@ -2127,10 +2099,6 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
 
   (String, Color) _status(Map<String, dynamic> g) {
     if (g['conflict'] == true) return ('Conflit', AppColors.warning);
-    if (g['decision'] == 'refused' &&
-        !['recorded', 'missed'].contains(g['status'])) {
-      return ('Refusé', AppColors.onSurface38);
-    }
     return switch (g['status']) {
       'scheduled' => ('Programmé', AppColors.primaryContainer),
       'confirmed' => ('Confirmé', AppColors.tertiary),
@@ -2149,6 +2117,53 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
 
   String _hhmm(DateTime d) =>
       '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+
+  /// Piste lisible quel que soit l'état (même rendu que l'interrupteur de
+  /// thème des Réglages) : sans elle, curseur et piste orange se confondent.
+  static final _switchTrack = WidgetStateProperty.resolveWith<Color>(
+    (states) => states.contains(WidgetState.selected)
+        ? AppColors.primary.withOpacity(0.5)
+        : AppColors.surfaceContainerHigh,
+  );
+
+  /// Choix explicite par match : rien n'est enregistré sans ce bouton.
+  Widget _choiceButton(Map<String, dynamic> g, bool locked) {
+    const compact = VisualDensity.compact;
+    if (g['wanted'] == true) {
+      return Tooltip(
+        message: locked ? 'Choisi' : 'Cliquer pour ne plus enregistrer',
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.secondaryContainer,
+            foregroundColor: AppColors.onSecondaryContainer,
+            visualDensity: compact,
+          ),
+          icon: const Icon(Icons.check, size: 16),
+          label: const Text('Choisi'),
+          onPressed: (locked || _busy) ? null : () => _decide(g, false),
+        ),
+      );
+    }
+    final taken = g['slot_taken_by'] as String?;
+    if (taken != null) {
+      return Tooltip(
+        message: 'Créneau déjà pris par « $taken » : un seul enregistrement '
+            'à la fois',
+        child: OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(visualDensity: compact),
+          icon: const Icon(Icons.block, size: 16),
+          label: const Text('Créneau pris'),
+          onPressed: null,
+        ),
+      );
+    }
+    return OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(visualDensity: compact),
+      icon: const Icon(Icons.fiber_manual_record, size: 16),
+      label: const Text('Enregistrer'),
+      onPressed: (locked || _busy) ? null : () => _decide(g, true),
+    );
+  }
 
   Widget _pill(String label, Color color) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -2170,10 +2185,12 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
   Widget _gameCard(Map<String, dynamic> g) {
     final tipoff = DateTime.parse(g['tipoff_utc']).toLocal();
     final (label, color) = _status(g);
+    final channel = g['channel_name'] as String?;
+    // Pas annoncé en direct sur beIN : rien à enregistrer.
     final locked =
         ['recorded', 'missed', 'not_on_bein'].contains(g['status']) ||
-            tipoff.isBefore(DateTime.now());
-    final channel = g['channel_name'] as String?;
+            tipoff.isBefore(DateTime.now()) ||
+            (channel == null && g['wanted'] != true);
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -2212,7 +2229,7 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${_hhmm(tipoff)} · ${channel ?? 'chaîne confirmée ~48 h avant'}',
+              '${_hhmm(tipoff)} · ${channel ?? 'pas annoncé sur beIN'}',
               style: const TextStyle(
                 color: AppColors.onSurface54,
                 fontSize: 12,
@@ -2233,16 +2250,7 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
           children: [
             _pill(label, color),
             const SizedBox(width: 8),
-            Tooltip(
-              message: g['wanted'] == true
-                  ? 'Sera enregistré — désactiver pour refuser'
-                  : 'Ne sera pas enregistré — activer pour accepter',
-              child: Switch(
-                value: g['wanted'] == true,
-                activeThumbColor: AppColors.primaryContainer,
-                onChanged: locked ? null : (v) => _decide(g, v),
-              ),
-            ),
+            _choiceButton(g, locked),
           ],
         ),
       ),
@@ -2308,7 +2316,7 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
       return _emptyState(
         Icons.sports_basketball,
         'Auto NBA désactivé',
-        'Enregistre chaque match NBA diffusé en direct sur beIN Sports FR, '
+        'Choisissez les matchs NBA à enregistrer en direct sur beIN Sports FR, '
             'sans les rediffusions.',
         action: ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
@@ -2322,13 +2330,20 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
       );
     }
     final visible = _games
-        .where((g) => _showOffBein || g['status'] != 'not_on_bein')
+        // Par défaut, seuls les matchs annoncés en direct sur une beIN FR
+        // (ou déjà choisis) : le reste du calendrier NBA n'est pas diffusé.
+        .where(
+          (g) =>
+              _showOffBein ||
+              g['channel_name'] != null ||
+              g['wanted'] == true,
+        )
         .toList();
     if (visible.isEmpty) {
       return _emptyState(
         Icons.event_busy,
-        'Aucun match à venir',
-        'Le calendrier NBA est rechargé toutes les 12 h',
+        'Aucun match NBA annoncé sur beIN Sports',
+        'Le programme beIN couvre environ 8 jours et est relu toutes les 30 min',
       );
     }
     // Liste aplatie : intertitre de nuit puis ses matchs.
@@ -2388,7 +2403,8 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
                       : 'Auto NBA en pause',
                   child: Switch(
                     value: rule['enabled'] == true,
-                    activeThumbColor: AppColors.primaryContainer,
+                    activeThumbColor: AppColors.primary,
+                    trackColor: _switchTrack,
                     onChanged: (v) => _updateRule({'enabled': v}),
                   ),
                 ),
@@ -2439,10 +2455,12 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Seule la diffusion qui démarre avec le match est '
-                    'enregistrée : les rediffusions sont ignorées. La chaîne '
-                    'est confirmée par le guide TV environ 48 h avant ; vous '
-                    'pouvez refuser un match à tout moment avant son début.',
+                    'Matchs NBA diffusés en direct sur beIN Sports FR, '
+                    "d'après le programme officiel beIN (~8 jours). Rien n'est "
+                    'enregistré sans votre choix : cliquez sur « Enregistrer ». '
+                    'Les rediffusions sont ignorées. Un seul '
+                    "enregistrement à la fois : le flux IPTV ne permet qu'une "
+                    'lecture.',
                     style: GoogleFonts.fraunces(
                       color: AppColors.secondaryFixed,
                       fontSize: 12,

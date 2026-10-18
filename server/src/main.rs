@@ -129,12 +129,7 @@ async fn main() {
     let epg = EpgApi::new(xmltv, http.clone(), default_panel_xmltv(http.clone()));
 
     // Enregistrement automatique des matchs NBA en direct sur beIN Sports FR.
-    let nba = Arc::new(NbaAutoRecorder::new(
-        db.clone(),
-        http.clone(),
-        epg.clone(),
-        scheduler.clone(),
-    ));
+    let nba = Arc::new(NbaAutoRecorder::new(db.clone(), http.clone(), epg.clone()));
     nba.start();
 
     // Purge des temporaires. Jamais le dossier temporaire système en
