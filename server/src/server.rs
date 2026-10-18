@@ -1,7 +1,9 @@
 //! Point d'entrée HTTP : middlewares puis cascade API → proxy Xtream →
 //! streaming → fichiers statiques, à l'identique de l'ancien serveur.
 
-use crate::api::{account, admin, logo, player_log, recordings, static_files, xtream_api};
+use crate::api::{
+    account, admin, auto_rules, logo, player_log, recordings, static_files, xtream_api,
+};
 use crate::dart_time::now_local_iso;
 use crate::http::{self, Req, Resp, client_ip, extract_token, is_miss, mounted, socket_ip};
 use crate::state::SharedState;
@@ -321,6 +323,10 @@ async fn api_router(state: &SharedState, req: &Req) -> Resp {
             }
             _ => http::not_found(),
         };
+    }
+    if let Some(rest) = mounted(path, "api/auto-rules") {
+        let req = authed!(state, req);
+        return auto_rules::auto_rules(state, &req, rest).await;
     }
     if let Some(rest) = mounted(path, "api/season-passes") {
         let req = authed!(state, req);

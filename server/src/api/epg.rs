@@ -236,11 +236,58 @@ impl EpgApi {
             );
         }
 
+        let (programmes, source, found) = self.programmes_with_source(&playlist, channel_id).await;
+
+        let body = json!({"channel_id": channel_id, "programmes": programmes}).to_string();
+        // 30 min pour un guide trouvé ; 5 min pour un guide vide, qui vient
+        // souvent d'une source momentanément indisponible.
+        let ttl = Duration::from_secs(if found { 30 * 60 } else { 5 * 60 });
+        self.inner
+            .cache
+            .lock()
+            .unwrap()
+            .insert(cache_key, (body.clone(), Instant::now() + ttl));
+
+        http::with_headers(
+            http::response(200, body),
+            &[
+                ("content-type", "application/json"),
+                ("x-cache", "MISS"),
+                ("x-epg-source", source),
+            ],
+        )
+    }
+
+    /// Programmes en cours et à venir d'une chaîne, toutes sources
+    /// confondues (même cascade que `GET /api/epg`, sans le cache HTTP).
+    pub async fn programmes(&self, playlist: &PlaylistConfig, channel_id: &str) -> Vec<Value> {
+        self.programmes_with_source(playlist, channel_id).await.0
+    }
+
+    /// Nom de la chaîne dans la table du panneau (cache 6 h).
+    pub async fn channel_name(
+        &self,
+        playlist: &PlaylistConfig,
+        channel_id: &str,
+    ) -> Option<String> {
+        self.channel_map_for(playlist)
+            .await
+            .names
+            .get(channel_id)
+            .cloned()
+    }
+
+    async fn programmes_with_source(
+        &self,
+        playlist: &PlaylistConfig,
+        channel_id: &str,
+    ) -> (Vec<Value>, &'static str, bool) {
+        let playlist = playlist.clone();
         // Sources par ordre de préférence. On s'arrête à la première qui
         // contient un programme en cours ou à venir ; à défaut, la première
         // non vide sert de repli.
         let mut programmes: Vec<Value> = Vec::new();
-        let mut source = "xtream";
+        let mut source: &'static str = "xtream";
         let mut found = false;
         for name in ["panel-xmltv", "xmltv", "xtream"] {
             let candidate = match name {
@@ -264,25 +311,7 @@ impl EpgApi {
                 break;
             }
         }
-
-        let body = json!({"channel_id": channel_id, "programmes": programmes}).to_string();
-        // 30 min pour un guide trouvé ; 5 min pour un guide vide, qui vient
-        // souvent d'une source momentanément indisponible.
-        let ttl = Duration::from_secs(if found { 30 * 60 } else { 5 * 60 });
-        self.inner
-            .cache
-            .lock()
-            .unwrap()
-            .insert(cache_key, (body.clone(), Instant::now() + ttl));
-
-        http::with_headers(
-            http::response(200, body),
-            &[
-                ("content-type", "application/json"),
-                ("x-cache", "MISS"),
-                ("x-epg-source", source),
-            ],
-        )
+        (programmes, source, found)
     }
 
     async fn panel_programmes(&self, playlist: &PlaylistConfig, channel_id: &str) -> Vec<Value> {

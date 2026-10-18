@@ -21,6 +21,7 @@ use crate::server::RateLimiter;
 use crate::services::cleanup::CleanupService;
 use crate::services::ffmpeg_sessions::FfmpegSessionManager;
 use crate::services::logo_catalog::LogoCatalog;
+use crate::services::nba_autorec::NbaAutoRecorder;
 use crate::services::recording_scheduler::RecordingScheduler;
 use crate::services::xmltv::{XmltvConfig, XmltvEpgService};
 use crate::state::AppState;
@@ -127,6 +128,15 @@ async fn main() {
     });
     let epg = EpgApi::new(xmltv, http.clone(), default_panel_xmltv(http.clone()));
 
+    // Enregistrement automatique des matchs NBA en direct sur beIN Sports FR.
+    let nba = Arc::new(NbaAutoRecorder::new(
+        db.clone(),
+        http.clone(),
+        epg.clone(),
+        scheduler.clone(),
+    ));
+    nba.start();
+
     // Purge des temporaires. Jamais le dossier temporaire système en
     // récursif : il contient les sessions HLS.
     let cleanup = Arc::new(CleanupService::new());
@@ -166,6 +176,7 @@ async fn main() {
         http: http.clone(),
         http_manual,
         scheduler: scheduler.clone(),
+        nba,
         streaming,
         proxy: ProxyHandler::new(),
         epg,

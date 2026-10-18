@@ -919,6 +919,23 @@ impl RecordingScheduler {
             error_reason,
             false,
         );
+        // Matchs NBA automatiques : vignettes Plex/Jellyfin, .nfo et pochette
+        // intégrée au MKV.
+        if status == "completed"
+            && active.recording.source_rule_id.is_some()
+            && file_has_data(Some(&active.file_path))
+            && let Some(game) = self.db.get_nba_game_by_recording(&active.recording.id)
+        {
+            crate::services::nba_artwork::finish_recording(
+                &self.http,
+                Path::new(&recordings_dir_path()),
+                &game,
+                Path::new(&active.file_path),
+                &active.recording.title,
+                &resolve_ffmpeg_path(),
+            )
+            .await;
+        }
     }
 
     /// Recolle les parties issues des relances dans le fichier principal.
@@ -1072,6 +1089,16 @@ impl RecordingScheduler {
             }
             paths.push(part);
         }
+        // Annexes Plex/Jellyfin des matchs NBA (vignettes, .nfo, remux en cours).
+        for extra in crate::services::nba_artwork::sidecar_paths(Path::new(file_path)) {
+            if extra.exists() {
+                paths.push(extra.to_string_lossy().into_owned());
+            }
+        }
+        let remux = Path::new(file_path).with_extension("cover.mkv");
+        if remux.exists() {
+            paths.push(remux.to_string_lossy().into_owned());
+        }
         paths
     }
 
@@ -1140,6 +1167,9 @@ impl RecordingScheduler {
 /// Nom de fichier unique et sûr. Le fragment d'id garantit l'unicité : deux
 /// utilisateurs enregistrant le même programme s'écrasaient (FFmpeg -y).
 fn file_name_for(recording: &Recording) -> String {
+    if recording.source_rule_id.is_some() {
+        return readable_file_name(recording);
+    }
     // Un caractère hors BMP comptait double (UTF-16) dans l'ancien serveur :
     // même nom de fichier, pour que la reprise retrouve ses parties.
     let mut safe_title = String::new();
@@ -1154,6 +1184,26 @@ fn file_name_for(recording: &Recording) -> String {
     let date = date.split('.').next().unwrap_or("");
     let fragment: String = recording.id.chars().take(8).collect();
     format!("{safe_title}_{date}_{fragment}.mkv")
+}
+
+/// Nom lisible pour Plex/Jellyfin (enregistrements automatiques) :
+/// « NBA - Celtics @ Lakers (2026-10-22) 01234567.mkv ». Seuls les
+/// caractères interdits sous Windows/Linux sont remplacés ; le fragment d'id
+/// garde l'unicité.
+fn readable_file_name(recording: &Recording) -> String {
+    let title: String = recording
+        .title
+        .chars()
+        .map(|c| match c {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '-',
+            c if c.is_control() => ' ',
+            c => c,
+        })
+        .collect();
+    let date = DartDateTime::local_from_utc(recording.start_utc()).to_iso();
+    let date = date.get(..10).unwrap_or("");
+    let fragment: String = recording.id.chars().take(8).collect();
+    format!("{} ({date}) {fragment}.mkv", title.trim())
 }
 
 /// Chemin de la n-ième partie (la partie 1 étant le fichier principal).
@@ -1221,9 +1271,21 @@ mod tests {
             status: "scheduled".into(),
             file_path: None,
             error_reason: None,
+            source_rule_id: None,
             created_at: start,
             updated_at: start,
         }
+    }
+
+    #[test]
+    fn nom_lisible_pour_les_enregistrements_automatiques() {
+        let mut r = recording("NBA - Celtics @ Lakers");
+        r.source_rule_id = Some("rule".into());
+        let name = file_name_for(&r);
+        assert!(name.starts_with("NBA - Celtics @ Lakers ("), "{name}");
+        assert!(name.ends_with(") 01234567.mkv"), "{name}");
+        r.title = "A/B: C?".into();
+        assert!(file_name_for(&r).starts_with("A-B- C- ("));
     }
 
     #[test]

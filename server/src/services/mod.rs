@@ -1,7 +1,12 @@
+pub mod bein_channels;
 pub mod cleanup;
 pub mod ffmpeg_sessions;
 pub mod gpu_fallback;
 pub mod logo_catalog;
+pub mod nba_artwork;
+pub mod nba_autorec;
+pub mod nba_schedule;
+pub mod nba_teams;
 pub mod recording_decision;
 pub mod recording_scheduler;
 pub mod upstream_slots;

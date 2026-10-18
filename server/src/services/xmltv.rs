@@ -31,16 +31,32 @@ use crate::util::log_redactor::redact_url;
 pub type XmltvIndex = HashMap<String, Arc<Vec<XmltvProgramme>>>;
 
 /// Un programme du guide, horaires en UTC.
-#[derive(Clone, Debug, PartialEq)]
+///
+/// Les indicateurs (`is_new`, `is_live`, `is_premiere`, `previously_shown`)
+/// reprennent les éléments vides XMLTV `<new/>`, `<live/>`, `<premiere/>` et
+/// `<previously-shown/>` : ils servent à distinguer un direct d'une
+/// rediffusion. Leur absence ne prouve rien — beaucoup de dumps ne les
+/// renseignent jamais.
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct XmltvProgramme {
     pub title: String,
     pub description: String,
     pub start: DateTime<Utc>,
     pub stop: DateTime<Utc>,
+    /// `<sub-title>` (souvent l'affiche du match ou le titre d'épisode).
+    pub sub_title: Option<String>,
+    /// `<category>`, dans l'ordre du dump (l'élément peut se répéter).
+    pub categories: Vec<String>,
+    pub is_new: bool,
+    pub is_live: bool,
+    pub is_premiere: bool,
+    pub previously_shown: bool,
 }
 
 impl XmltvProgramme {
-    /// Forme JSON servie par l'API EPG (mêmes clés que le guide du panneau).
+    /// Forme JSON servie par l'API EPG (mêmes clés que le guide du panneau,
+    /// plus les métadonnées XMLTV — absentes du guide du panneau, donc à lire
+    /// comme facultatives côté client).
     pub fn to_json(&self, channel_id: &str) -> serde_json::Value {
         serde_json::json!({
             "title": self.title,
@@ -48,8 +64,29 @@ impl XmltvProgramme {
             "start": utc_iso(self.start),
             "end": utc_iso(self.stop),
             "channel_id": channel_id,
+            "sub_title": self.sub_title,
+            "categories": self.categories,
+            "is_new": self.is_new,
+            "is_live": self.is_live,
+            "is_premiere": self.is_premiere,
+            "previously_shown": self.previously_shown,
         })
     }
+}
+
+/// Horizon d'indexation par défaut, en heures.
+const DEFAULT_HORIZON_HOURS: u64 = 48;
+/// Bornes de `EPG_HORIZON_HOURS` : en dessous de 12 h le guide se vide en
+/// cours de soirée, au-delà de 14 jours aucun dump ne publie de programmes.
+const MIN_HORIZON_HOURS: u64 = 12;
+const MAX_HORIZON_HOURS: u64 = 336;
+
+/// Horizon en heures lu depuis la valeur brute de `EPG_HORIZON_HOURS` :
+/// défaut si absente ou illisible, ramenée dans les bornes sinon.
+fn horizon_hours(raw: Option<&str>) -> u64 {
+    raw.and_then(|v| v.trim().parse::<u64>().ok())
+        .unwrap_or(DEFAULT_HORIZON_HOURS)
+        .clamp(MIN_HORIZON_HOURS, MAX_HORIZON_HOURS)
 }
 
 /// Réglages du service.
@@ -90,12 +127,16 @@ pub struct XmltvConfig {
 impl XmltvConfig {
     /// Réglages par défaut : rafraîchissement 6 h, rétention 6 h, horizon
     /// 48 h, recul 15 min après échec, téléchargement plafonné à 5 min.
+    ///
+    /// L'horizon se règle avec `EPG_HORIZON_HOURS` (12 à 336 h) : voir plus
+    /// loin les matchs à enregistrer coûte de la mémoire d'index.
     pub fn new(source_urls: Vec<String>) -> Self {
+        let horizon = horizon_hours(std::env::var("EPG_HORIZON_HOURS").ok().as_deref());
         Self {
             source_urls,
             refresh_interval: Duration::from_secs(6 * 3600),
             retention: Duration::from_secs(6 * 3600),
-            horizon: Duration::from_secs(48 * 3600),
+            horizon: Duration::from_secs(horizon * 3600),
             retry_backoff: Duration::from_secs(15 * 60),
             download_timeout: Duration::from_secs(5 * 60),
         }
@@ -324,10 +365,9 @@ impl XmltvEpgService {
                 .map(|hits| {
                     hits.iter()
                         .map(|p| XmltvProgramme {
-                            title: p.title.clone(),
-                            description: p.description.clone(),
                             start: p.start + hour,
                             stop: p.stop + hour,
+                            ..p.clone()
                         })
                         .collect()
                 })
@@ -739,7 +779,21 @@ fn decode_and_parse(
 enum TextTag {
     Title,
     Desc,
+    SubTitle,
+    Category,
     DisplayName,
+}
+
+/// Métadonnées XMLTV d'un `<programme>` en cours de lecture.
+#[derive(Default)]
+struct ProgrammeMeta {
+    sub_title: String,
+    category: String,
+    categories: Vec<String>,
+    is_new: bool,
+    is_live: bool,
+    is_premiere: bool,
+    previously_shown: bool,
 }
 
 /// Valeur d'un attribut (entités décodées), ou chaîne vide s'il est absent.
@@ -848,6 +902,7 @@ fn parse(xml: &str, retention: Duration, horizon: Duration) -> Result<XmltvIndex
     let mut current_tag: Option<TextTag> = None;
     let mut title = String::new();
     let mut desc = String::new();
+    let mut meta = ProgrammeMeta::default();
     let mut display_name = String::new();
     // Les programmes d'une chaîne se suivent : mémoriser la dernière clé
     // évite de renormaliser le même identifiant des milliers de fois.
@@ -882,10 +937,23 @@ fn parse(xml: &str, retention: Duration, horizon: Duration) -> Result<XmltvIndex
                         stop = XmltvEpgService::parse_xmltv_date(Some(&attr(e, b"stop")));
                         title.clear();
                         desc.clear();
+                        meta = ProgrammeMeta::default();
                     }
                     b"title" => current_tag = Some(TextTag::Title),
                     b"desc" => current_tag = Some(TextTag::Desc),
+                    b"sub-title" => current_tag = Some(TextTag::SubTitle),
+                    b"category" => {
+                        meta.category.clear();
+                        current_tag = Some(TextTag::Category);
+                    }
                     b"display-name" => current_tag = Some(TextTag::DisplayName),
+                    // Indicateurs : vides en principe (`<new/>`), mais
+                    // `<premiere>` porte parfois un texte et `<previously-shown>`
+                    // des attributs — seule la présence compte.
+                    b"new" => meta.is_new = true,
+                    b"live" => meta.is_live = true,
+                    b"premiere" => meta.is_premiere = true,
+                    b"previously-shown" => meta.previously_shown = true,
                     _ => {}
                 }
                 if matches!(event, Event::Empty(_)) {
@@ -899,6 +967,8 @@ fn parse(xml: &str, retention: Duration, horizon: Duration) -> Result<XmltvIndex
                     match tag {
                         TextTag::Title => title.push_str(&text),
                         TextTag::Desc => desc.push_str(&text),
+                        TextTag::SubTitle => meta.sub_title.push_str(&text),
+                        TextTag::Category => meta.category.push_str(&text),
                         TextTag::DisplayName => display_name.push_str(&text),
                     }
                 }
@@ -909,6 +979,8 @@ fn parse(xml: &str, retention: Duration, horizon: Duration) -> Result<XmltvIndex
                     match tag {
                         TextTag::Title => title.push_str(&text),
                         TextTag::Desc => desc.push_str(&text),
+                        TextTag::SubTitle => meta.sub_title.push_str(&text),
+                        TextTag::Category => meta.category.push_str(&text),
                         TextTag::DisplayName => display_name.push_str(&text),
                     }
                 }
@@ -917,6 +989,13 @@ fn parse(xml: &str, retention: Duration, horizon: Duration) -> Result<XmltvIndex
                 match e.name().as_ref() {
                     b"display-name" => {
                         display_names.push(std::mem::take(&mut display_name));
+                    }
+                    b"category" => {
+                        let category = dart_trim(&meta.category);
+                        if !category.is_empty() {
+                            meta.categories.push(category.to_string());
+                        }
+                        meta.category.clear();
                     }
                     b"channel" => {
                         let id = XmltvEpgService::normalize_key(channel_id.as_deref());
@@ -954,11 +1033,20 @@ fn parse(xml: &str, retention: Duration, horizon: Duration) -> Result<XmltvIndex
                                 }
                             };
                             if !key.is_empty() {
+                                let meta = std::mem::take(&mut meta);
+                                let sub_title = dart_trim(&meta.sub_title);
                                 by_channel.entry(key).or_default().push(XmltvProgramme {
                                     title: dart_trim(&title).to_string(),
                                     description: dart_trim(&desc).to_string(),
                                     start: s,
                                     stop: e,
+                                    sub_title: (!sub_title.is_empty())
+                                        .then(|| sub_title.to_string()),
+                                    categories: meta.categories,
+                                    is_new: meta.is_new,
+                                    is_live: meta.is_live,
+                                    is_premiere: meta.is_premiere,
+                                    previously_shown: meta.previously_shown,
                                 });
                             }
                         }
@@ -1356,6 +1444,7 @@ mod tests {
             description: "D".into(),
             start: Utc.with_ymd_and_hms(2026, 8, 11, 18, 0, 0).unwrap(),
             stop: Utc.with_ymd_and_hms(2026, 8, 11, 19, 0, 0).unwrap(),
+            ..Default::default()
         };
         assert_eq!(
             p.to_json("42"),
@@ -1365,8 +1454,37 @@ mod tests {
                 "start": "2026-08-11T18:00:00.000Z",
                 "end": "2026-08-11T19:00:00.000Z",
                 "channel_id": "42",
+                "sub_title": null,
+                "categories": [],
+                "is_new": false,
+                "is_live": false,
+                "is_premiere": false,
+                "previously_shown": false,
             })
         );
+    }
+
+    #[test]
+    fn to_json_expose_les_metadonnees_xmltv() {
+        let p = XmltvProgramme {
+            title: "NBA".into(),
+            sub_title: Some("Lakers - Celtics".into()),
+            categories: vec!["Sport".into(), "Basket-ball".into()],
+            is_live: true,
+            is_new: true,
+            ..Default::default()
+        };
+        let json = p.to_json("beinsports1.fr");
+        assert_eq!(json["sub_title"], "Lakers - Celtics");
+        assert_eq!(
+            json["categories"],
+            serde_json::json!(["Sport", "Basket-ball"])
+        );
+        assert_eq!(json["is_live"], true);
+        assert_eq!(json["is_new"], true);
+        assert_eq!(json["is_premiere"], false);
+        assert_eq!(json["previously_shown"], false);
+        assert_eq!(json["title"], "NBA");
     }
 
     // --- ensureFresh ---
@@ -1533,6 +1651,146 @@ mod tests {
             svc.parse_for_test(&fixture(far, far + TimeDelta::hours(1)))
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn horizon_lu_depuis_l_environnement_borne() {
+        assert_eq!(horizon_hours(None), 48);
+        assert_eq!(horizon_hours(Some("")), 48);
+        assert_eq!(horizon_hours(Some("abc")), 48);
+        assert_eq!(horizon_hours(Some("-5")), 48);
+        assert_eq!(horizon_hours(Some(" 168 ")), 168);
+        assert_eq!(horizon_hours(Some("1")), 12);
+        assert_eq!(horizon_hours(Some("12")), 12);
+        assert_eq!(horizon_hours(Some("336")), 336);
+        assert_eq!(horizon_hours(Some("9999")), 336);
+    }
+
+    #[test]
+    fn horizon_long_garde_les_matchs_a_une_semaine() {
+        let mut config = XmltvConfig::new(vec![]);
+        config.horizon = Duration::from_secs(horizon_hours(Some("168")) * 3600);
+        let svc = Svc::new(config, reqwest::Client::new());
+        let far = Utc::now() + TimeDelta::days(5);
+        assert!(
+            !svc.parse_for_test(&fixture(far, far + TimeDelta::hours(1)))
+                .is_empty()
+        );
+    }
+
+    // --- métadonnées XMLTV (direct / rediffusion) ---
+
+    /// Deux matchs sur beIN : un direct balisé en éléments vides, une
+    /// rediffusion balisée en paires ouvrante/fermante (`<new></new>`), avec
+    /// attributs et texte là où certains dumps en mettent.
+    fn metadata_fixture(start: DateTime<Utc>) -> String {
+        let s = |h: i64| stamp(start + TimeDelta::hours(h));
+        format!(
+            r#"<?xml version="1.0" encoding="utf-8" ?>
+<tv>
+  <channel id="beINSports1.fr"><display-name>beIN SPORTS 1</display-name></channel>
+  <programme start="{}" stop="{}" channel="beINSports1.fr">
+    <title lang="fr">NBA</title>
+    <sub-title lang="fr">Los Angeles Lakers - Boston Celtics</sub-title>
+    <desc lang="fr">Saison régulière</desc>
+    <category lang="fr">Sport</category>
+    <category lang="en"> Basketball </category>
+    <category lang="fr"/>
+    <new/>
+    <live/>
+    <premiere/>
+  </programme>
+  <programme start="{}" stop="{}" channel="beINSports1.fr">
+    <title lang="fr">NBA</title>
+    <sub-title lang="fr"><![CDATA[Lakers &amp; Celtics]]></sub-title>
+    <category lang="fr">Sport &amp; Basket</category>
+    <new></new>
+    <live></live>
+    <premiere lang="fr">Première diffusion</premiere>
+    <previously-shown start="20261017020000 +0000" channel="beINSports1.fr"></previously-shown>
+  </programme>
+  <programme start="{}" stop="{}" channel="beINSports1.fr">
+    <title lang="fr">Rediffusion</title>
+    <sub-title/>
+    <previously-shown start="20261017020000 +0000"/>
+  </programme>
+</tv>
+"#,
+            s(0),
+            s(2),
+            s(2),
+            s(4),
+            s(4),
+            s(6)
+        )
+    }
+
+    fn bein_programmes(start: DateTime<Utc>) -> Vec<XmltvProgramme> {
+        let index = offline_service().parse_for_test(&metadata_fixture(start));
+        let key = Svc::normalize_key(Some("beINSports1.fr"));
+        index.get(&key).expect("chaîne indexée").as_ref().clone()
+    }
+
+    #[test]
+    fn lit_sous_titre_categories_et_indicateurs_en_elements_vides() {
+        let start = now_s() + TimeDelta::hours(1);
+        let programmes = bein_programmes(start);
+        assert_eq!(programmes.len(), 3);
+        let live = &programmes[0];
+        assert_eq!(live.title, "NBA");
+        assert_eq!(live.description, "Saison régulière");
+        assert_eq!(
+            live.sub_title.as_deref(),
+            Some("Los Angeles Lakers - Boston Celtics")
+        );
+        // Catégorie vide écartée, espaces retirés, ordre conservé.
+        assert_eq!(live.categories, vec!["Sport", "Basketball"]);
+        assert!(live.is_new);
+        assert!(live.is_live);
+        assert!(live.is_premiere);
+        assert!(!live.previously_shown);
+    }
+
+    #[test]
+    fn lit_les_indicateurs_en_paires_ouvrante_fermante() {
+        let start = now_s() + TimeDelta::hours(1);
+        let programmes = bein_programmes(start);
+        let paired = &programmes[1];
+        assert_eq!(paired.sub_title.as_deref(), Some("Lakers &amp; Celtics"));
+        assert_eq!(paired.categories, vec!["Sport & Basket"]);
+        assert!(paired.is_new);
+        assert!(paired.is_live);
+        assert!(paired.is_premiere);
+        assert!(paired.previously_shown);
+        // Le texte de <premiere> ne déborde ni sur le titre ni sur la
+        // description.
+        assert_eq!(paired.title, "NBA");
+        assert_eq!(paired.description, "");
+    }
+
+    #[test]
+    fn indicateurs_remis_a_zero_entre_programmes() {
+        let start = now_s() + TimeDelta::hours(1);
+        let programmes = bein_programmes(start);
+        let rerun = &programmes[2];
+        assert_eq!(rerun.title, "Rediffusion");
+        assert_eq!(rerun.sub_title, None);
+        assert!(rerun.categories.is_empty());
+        assert!(!rerun.is_new);
+        assert!(!rerun.is_live);
+        assert!(!rerun.is_premiere);
+        assert!(rerun.previously_shown);
+    }
+
+    #[tokio::test]
+    async fn decalage_plus_un_garde_les_metadonnees() {
+        let start = now_s() + TimeDelta::hours(1);
+        let (svc, _) = service_with(metadata_fixture(start)).await;
+        let shifted = svc.programmes_for(None, Some("beIN SPORTS 1 +1")).await;
+        assert_eq!(shifted.len(), 3);
+        assert_eq!(shifted[0].start, start + TimeDelta::hours(1));
+        assert!(shifted[0].is_live);
+        assert_eq!(shifted[0].categories, vec!["Sport", "Basketball"]);
     }
 
     // --- journalisation (xmltv_epg_log_redaction_test.dart) ---

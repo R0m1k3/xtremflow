@@ -1,5 +1,6 @@
 pub mod account;
 pub mod admin;
+pub mod auto_rules;
 pub mod epg;
 pub mod logo;
 pub mod player_log;

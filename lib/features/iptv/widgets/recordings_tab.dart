@@ -17,8 +17,9 @@ import '../screens/player_screen.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  ENTRÉE — Onglet "Enregistrements"
-//  Trois vues : Guide TV (programmer depuis l'EPG), Enregistrements (liste),
-//  Season Passes (enregistrements récurrents). _EpgGuideView et
+//  Quatre vues : Guide TV (programmer depuis l'EPG), Enregistrements (liste),
+//  Season Passes (enregistrements récurrents), Auto NBA (matchs en direct
+//  sur beIN Sports FR). _EpgGuideView et
 //  _SeasonPassesView existaient déjà mais n'étaient plus instanciés depuis
 //  une refonte : les fonctions étaient codées mais inaccessibles.
 // ═══════════════════════════════════════════════════════════════════════════
@@ -40,7 +41,7 @@ class _RecordingsTabState extends State<RecordingsTab>
     super.initState();
     // Ouvrir sur la liste des enregistrements (onglet du milieu), l'usage le
     // plus fréquent ; le guide sert à en programmer de nouveaux.
-    _tabController = TabController(length: 3, vsync: this, initialIndex: 1);
+    _tabController = TabController(length: 4, vsync: this, initialIndex: 1);
   }
 
   @override
@@ -95,6 +96,10 @@ class _RecordingsTabState extends State<RecordingsTab>
                       icon: Icon(Icons.repeat, size: 18),
                       text: 'Season Passes',
                     ),
+                    Tab(
+                      icon: Icon(Icons.sports_basketball, size: 18),
+                      text: 'Auto NBA',
+                    ),
                   ],
                 ),
               ],
@@ -107,6 +112,7 @@ class _RecordingsTabState extends State<RecordingsTab>
                 _EpgGuideView(playlist: widget.playlist),
                 _RecordingsListView(playlist: widget.playlist),
                 const _SeasonPassesView(),
+                const _AutoNbaView(),
               ],
             ),
           ),
@@ -1306,6 +1312,33 @@ class _RecordingsListViewState extends ConsumerState<_RecordingsListView> {
                                   trailing: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
+                                      if (rec['source_rule_id'] != null) ...[
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.tertiary
+                                                .withOpacity(0.15),
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            border: Border.all(
+                                              color: AppColors.tertiary
+                                                  .withOpacity(0.4),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'Auto NBA',
+                                            style: TextStyle(
+                                              color: AppColors.tertiary,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                      ],
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 10,
@@ -1688,6 +1721,739 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
                         },
                       ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ONGLET 4 — AUTO NBA
+//  Règle serveur `/api/auto-rules` : enregistre chaque match NBA diffusé EN
+//  DIRECT sur les beIN Sports françaises (jamais les rediffusions). Le
+//  calendrier NBA donne les matchs des semaines à l'avance ; l'EPG confirme
+//  la chaîne ~48 h avant. Chaque match peut être accepté ou refusé d'avance.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const _jours = ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'];
+const _mois = [
+  'janv.',
+  'févr.',
+  'mars',
+  'avr.',
+  'mai',
+  'juin',
+  'juil.',
+  'août',
+  'sept.',
+  'oct.',
+  'nov.',
+  'déc.',
+];
+
+class _AutoNbaView extends StatefulWidget {
+  const _AutoNbaView();
+  @override
+  State<_AutoNbaView> createState() => _AutoNbaViewState();
+}
+
+class _AutoNbaViewState extends State<_AutoNbaView> {
+  Map<String, dynamic>? _rule;
+  List<dynamic> _games = [];
+  bool _isLoading = true;
+  bool _busy = false;
+  String? _error;
+  bool _showOffBein = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _isLoading = _rule == null;
+      _error = null;
+    });
+    try {
+      final r = await AuthedHttp.get(Uri.parse('/api/auto-rules'));
+      if (r.statusCode != 200) throw Exception('HTTP ${r.statusCode}');
+      final rules = (json.decode(r.body) as List)
+          .where((x) => x['kind'] == 'nba')
+          .toList();
+      if (rules.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _rule = null;
+          _games = [];
+          _isLoading = false;
+        });
+        return;
+      }
+      final rule = rules.first as Map<String, dynamic>;
+      final g = await AuthedHttp.get(
+        Uri.parse('/api/auto-rules/${rule['id']}/games?days=21'),
+      );
+      if (g.statusCode != 200) throw Exception('HTTP ${g.statusCode}');
+      if (!mounted) return;
+      setState(() {
+        _rule = rule;
+        _games = json.decode(g.body)['games'] as List;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = '$e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _snack(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  Future<void> _createRule() async {
+    setState(() => _busy = true);
+    final r = await AuthedHttp.post(
+      Uri.parse('/api/auto-rules'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({}),
+    );
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (r.statusCode == 201) {
+      final channels = (json.decode(r.body)['channel_ids'] as List).length;
+      _snack('✅ Auto NBA activé · $channels chaîne(s) beIN Sports FR');
+      await _load();
+      // Le calendrier se charge en tâche de fond côté serveur.
+      Future.delayed(const Duration(seconds: 8), () {
+        if (mounted) _load();
+      });
+    } else {
+      _snack('❌ ${r.body}');
+    }
+  }
+
+  Future<void> _updateRule(Map<String, dynamic> changes) async {
+    final id = _rule?['id'];
+    if (id == null) return;
+    final r = await AuthedHttp.put(
+      Uri.parse('/api/auto-rules/$id'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(changes),
+    );
+    if (!mounted) return;
+    if (r.statusCode == 200) {
+      setState(() => _rule = json.decode(r.body) as Map<String, dynamic>);
+      // La réconciliation tourne en tâche de fond : relire peu après.
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) _load();
+      });
+    } else {
+      _snack('❌ ${r.body}');
+    }
+  }
+
+  Future<void> _refreshNow() async {
+    final id = _rule?['id'];
+    if (id == null) return;
+    setState(() => _busy = true);
+    final r = await AuthedHttp.post(Uri.parse('/api/auto-rules/$id/refresh'));
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (r.statusCode == 200) {
+      setState(() => _games = json.decode(r.body)['games'] as List);
+      notifyRecordingsChanged();
+    } else {
+      _snack('❌ ${r.body}');
+    }
+  }
+
+  Future<void> _decide(Map<String, dynamic> game, bool yes) async {
+    final id = _rule?['id'];
+    if (id == null) return;
+    final r = await AuthedHttp.post(
+      Uri.parse('/api/auto-rules/$id/games/${game['game_id']}/decision'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'decision': yes ? 'accepted' : 'refused'}),
+    );
+    if (!mounted) return;
+    if (r.statusCode == 200) {
+      final updated = json.decode(r.body);
+      setState(() {
+        _games = [
+          for (final g in _games)
+            g['game_id'] == updated['game_id'] ? updated : g,
+        ];
+      });
+      notifyRecordingsChanged();
+    } else {
+      _snack('❌ ${r.body}');
+    }
+  }
+
+  // ── Réglages ────────────────────────────────────────────────────────────
+
+  Future<void> _showSettings() async {
+    final rule = _rule;
+    if (rule == null) return;
+    List<dynamic> channels = [];
+    final r = await AuthedHttp.get(
+      Uri.parse('/api/auto-rules/${rule['id']}/channels'),
+    );
+    if (r.statusCode == 200) {
+      channels = json.decode(r.body)['channels'] as List;
+    }
+    if (!mounted) return;
+
+    final selected = <String>{
+      for (final c in (rule['channel_ids'] as List)) c.toString(),
+    };
+    var askFirst = rule['default_decision'] == 'ask';
+    final beforeCtrl =
+        TextEditingController(text: '${rule['pad_before_min'] ?? 5}');
+    final afterCtrl =
+        TextEditingController(text: '${rule['pad_after_min'] ?? 45}');
+    final teamsCtrl = TextEditingController(
+      text: (rule['team_filter'] as List).join(', '),
+    );
+    final keepCtrl = TextEditingController(
+      text: rule['keep_days'] == null ? '' : '${rule['keep_days']}',
+    );
+    // Françaises d'abord ; les autres restent sélectionnables en cas
+    // d'erreur de détection.
+    final fr = channels.where((c) => c['is_fr'] == true).toList();
+    final others = channels.where((c) => c['is_fr'] != true).toList();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) {
+          Widget channelRow(dynamic c) => SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  c['label'] ?? c['name'],
+                  style: GoogleFonts.fraunces(
+                    color: AppColors.onSurface,
+                    fontSize: 13,
+                  ),
+                ),
+                subtitle: Text(
+                  c['name'] ?? '',
+                  style: const TextStyle(
+                    color: AppColors.onSurface38,
+                    fontSize: 11,
+                  ),
+                ),
+                value: selected.contains(c['stream_id'].toString()),
+                activeThumbColor: AppColors.primaryContainer,
+                onChanged: (v) => setDialog(() {
+                  final id = c['stream_id'].toString();
+                  v ? selected.add(id) : selected.remove(id);
+                }),
+              );
+          return AlertDialog(
+            backgroundColor: AppColors.surfaceContainer,
+            title: Row(
+              children: [
+                const Icon(Icons.sports_basketball, color: AppColors.secondary),
+                const SizedBox(width: 8),
+                Text(
+                  'Réglages Auto NBA',
+                  style: GoogleFonts.fraunces(color: AppColors.onSurface),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 460,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        'Demander avant chaque match',
+                        style: GoogleFonts.fraunces(
+                          color: AppColors.onSurface,
+                          fontSize: 14,
+                        ),
+                      ),
+                      subtitle: Text(
+                        askFirst
+                            ? "Rien n'est enregistré sans votre oui"
+                            : 'Tout est enregistré, vous pouvez refuser',
+                        style: const TextStyle(
+                          color: AppColors.onSurface54,
+                          fontSize: 12,
+                        ),
+                      ),
+                      value: askFirst,
+                      activeThumbColor: AppColors.primaryContainer,
+                      onChanged: (v) => setDialog(() => askFirst = v),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _underlineField(
+                            beforeCtrl,
+                            'Marge avant (min)',
+                            number: true,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _underlineField(
+                            afterCtrl,
+                            'Marge après (min)',
+                            number: true,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _underlineField(
+                      teamsCtrl,
+                      'Équipes suivies (vide = toutes, ex: Lakers, Celtics)',
+                    ),
+                    const SizedBox(height: 8),
+                    _underlineField(
+                      keepCtrl,
+                      'Garder les matchs (jours, vide = toujours)',
+                      number: true,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Chaînes beIN Sports françaises',
+                      style: GoogleFonts.fraunces(
+                        color: AppColors.onSurface54,
+                        fontSize: 13,
+                      ),
+                    ),
+                    if (fr.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Aucune beIN Sports FR détectée dans la playlist',
+                          style: TextStyle(
+                            color: AppColors.warning,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ...fr.map(channelRow),
+                    if (others.isNotEmpty)
+                      ExpansionTile(
+                        tilePadding: EdgeInsets.zero,
+                        title: Text(
+                          'Autres beIN (${others.length})',
+                          style: GoogleFonts.fraunces(
+                            color: AppColors.onSurface54,
+                            fontSize: 13,
+                          ),
+                        ),
+                        children: others.map(channelRow).toList(),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Annuler'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.secondaryContainer,
+                  foregroundColor: AppColors.onSecondaryContainer,
+                ),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  final keep = int.tryParse(keepCtrl.text.trim());
+                  _updateRule({
+                    'default_decision': askFirst ? 'ask' : 'auto',
+                    'channel_ids': selected.toList(),
+                    'pad_before_min':
+                        int.tryParse(beforeCtrl.text.trim()) ?? 5,
+                    'pad_after_min': int.tryParse(afterCtrl.text.trim()) ?? 45,
+                    'team_filter': teamsCtrl.text
+                        .split(',')
+                        .map((t) => t.trim())
+                        .where((t) => t.isNotEmpty)
+                        .toList(),
+                    'keep_days': (keep != null && keep > 0) ? keep : null,
+                  });
+                },
+                child: const Text('Enregistrer'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _underlineField(
+    TextEditingController c,
+    String label, {
+    bool number = false,
+  }) {
+    return TextField(
+      controller: c,
+      keyboardType: number ? TextInputType.number : TextInputType.text,
+      style: const TextStyle(color: AppColors.onSurface),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: AppColors.onSurface54, fontSize: 12),
+        enabledBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: AppColors.onSurface24),
+        ),
+        focusedBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: AppColors.secondary),
+        ),
+      ),
+    );
+  }
+
+  // ── Présentation ────────────────────────────────────────────────────────
+
+  (String, Color) _status(Map<String, dynamic> g) {
+    if (g['conflict'] == true) return ('Conflit', AppColors.warning);
+    if (g['decision'] == 'refused' &&
+        !['recorded', 'missed'].contains(g['status'])) {
+      return ('Refusé', AppColors.onSurface38);
+    }
+    return switch (g['status']) {
+      'scheduled' => ('Programmé', AppColors.primaryContainer),
+      'confirmed' => ('Confirmé', AppColors.tertiary),
+      'recorded' => ('Enregistré', AppColors.success),
+      'missed' => ('Manqué', AppColors.warning),
+      'not_on_bein' => ('Pas sur beIN', AppColors.onSurface38),
+      _ => ('Prévu', AppColors.onSurface38),
+    };
+  }
+
+  /// Nuit de diffusion : un match à 02:30 appartient à la nuit de la veille.
+  String _nightLabel(DateTime local) {
+    final d = local.subtract(const Duration(hours: 12));
+    return 'Nuit du ${_jours[d.weekday - 1]} ${d.day} ${_mois[d.month - 1]}';
+  }
+
+  String _hhmm(DateTime d) =>
+      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+
+  Widget _pill(String label, Color color) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withOpacity(0.4)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.bold,
+            fontSize: 11,
+          ),
+        ),
+      );
+
+  Widget _gameCard(Map<String, dynamic> g) {
+    final tipoff = DateTime.parse(g['tipoff_utc']).toLocal();
+    final (label, color) = _status(g);
+    final locked =
+        ['recorded', 'missed', 'not_on_bein'].contains(g['status']) ||
+            tipoff.isBefore(DateTime.now());
+    final channel = g['channel_name'] as String?;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: AppColors.onSurface.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.onSurface.withOpacity(0.1)),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            g['artwork_url'],
+            width: 128,
+            height: 72,
+            cacheWidth: 256,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => const SizedBox(
+              width: 128,
+              height: 72,
+              child: Icon(
+                Icons.sports_basketball,
+                color: AppColors.onSurface24,
+              ),
+            ),
+          ),
+        ),
+        title: Text(
+          '${g['away']} @ ${g['home']}',
+          style: GoogleFonts.fraunces(
+            color: AppColors.onSurface,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${_hhmm(tipoff)} · ${channel ?? 'chaîne confirmée ~48 h avant'}',
+              style: const TextStyle(
+                color: AppColors.onSurface54,
+                fontSize: 12,
+              ),
+            ),
+            if (g['epg_title'] != null)
+              Text(
+                'Guide : ${g['epg_title']}',
+                style: const TextStyle(
+                  color: AppColors.onSurface38,
+                  fontSize: 11,
+                ),
+              ),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _pill(label, color),
+            const SizedBox(width: 8),
+            Tooltip(
+              message: g['wanted'] == true
+                  ? 'Sera enregistré — désactiver pour refuser'
+                  : 'Ne sera pas enregistré — activer pour accepter',
+              child: Switch(
+                value: g['wanted'] == true,
+                activeThumbColor: AppColors.primaryContainer,
+                onChanged: locked ? null : (v) => _decide(g, v),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyState(
+    IconData icon,
+    String title,
+    String subtitle, {
+    Widget? action,
+  }) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 64, color: AppColors.glassLevel1Border),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: GoogleFonts.fraunces(
+              color: AppColors.onSurface38,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: GoogleFonts.fraunces(
+              color: AppColors.onSurface24,
+              fontSize: 12,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          if (action != null) ...[const SizedBox(height: 16), action],
+        ],
+      ),
+    );
+  }
+
+  Widget _body() {
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Impossible de charger les matchs NBA',
+              style: TextStyle(color: AppColors.live),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Réessayer'),
+              onPressed: _load,
+            ),
+          ],
+        ),
+      );
+    }
+    if (_rule == null) {
+      return _emptyState(
+        Icons.sports_basketball,
+        'Auto NBA désactivé',
+        'Enregistre chaque match NBA diffusé en direct sur beIN Sports FR, '
+            'sans les rediffusions.',
+        action: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.secondaryContainer,
+            foregroundColor: AppColors.onSecondaryContainer,
+          ),
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text('Activer'),
+          onPressed: _busy ? null : _createRule,
+        ),
+      );
+    }
+    final visible = _games
+        .where((g) => _showOffBein || g['status'] != 'not_on_bein')
+        .toList();
+    if (visible.isEmpty) {
+      return _emptyState(
+        Icons.event_busy,
+        'Aucun match à venir',
+        'Le calendrier NBA est rechargé toutes les 12 h',
+      );
+    }
+    // Liste aplatie : intertitre de nuit puis ses matchs.
+    final items = <Object>[];
+    String? night;
+    for (final g in visible) {
+      final label = _nightLabel(DateTime.parse(g['tipoff_utc']).toLocal());
+      if (label != night) {
+        items.add(label);
+        night = label;
+      }
+      items.add(g);
+    }
+    return ListView.builder(
+      itemCount: items.length,
+      itemBuilder: (ctx, i) {
+        final item = items[i];
+        if (item is String) {
+          return Padding(
+            padding: EdgeInsets.only(top: i == 0 ? 0 : 12, bottom: 8),
+            child: Text(
+              item,
+              style: GoogleFonts.fraunces(
+                color: AppColors.onSurface54,
+                fontSize: 13,
+              ),
+            ),
+          );
+        }
+        return _gameCard(item as Map<String, dynamic>);
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rule = _rule;
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Matchs NBA en direct sur beIN Sports FR',
+                  style: GoogleFonts.fraunces(
+                    color: AppColors.onSurface54,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              if (rule != null) ...[
+                Tooltip(
+                  message: rule['enabled'] == true
+                      ? 'Auto NBA actif'
+                      : 'Auto NBA en pause',
+                  child: Switch(
+                    value: rule['enabled'] == true,
+                    activeThumbColor: AppColors.primaryContainer,
+                    onChanged: (v) => _updateRule({'enabled': v}),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    _showOffBein ? Icons.visibility : Icons.visibility_off,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                  tooltip: _showOffBein
+                      ? 'Masquer les matchs hors beIN'
+                      : 'Afficher les matchs hors beIN',
+                  onPressed: () => setState(() => _showOffBein = !_showOffBein),
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.refresh,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                  tooltip: 'Rafraîchir maintenant',
+                  onPressed: _busy ? null : _refreshNow,
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.tune,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                  tooltip: 'Réglages',
+                  onPressed: _showSettings,
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.secondary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.secondary.withOpacity(0.2)),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.info_outline,
+                  color: AppColors.secondary,
+                  size: 18,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Seule la diffusion qui démarre avec le match est '
+                    'enregistrée : les rediffusions sont ignorées. La chaîne '
+                    'est confirmée par le guide TV environ 48 h avant ; vous '
+                    'pouvez refuser un match à tout moment avant son début.',
+                    style: GoogleFonts.fraunces(
+                      color: AppColors.secondaryFixed,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(child: _body()),
         ],
       ),
     );

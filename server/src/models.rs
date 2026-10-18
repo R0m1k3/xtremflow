@@ -89,6 +89,8 @@ pub struct Recording {
     pub status: String,
     pub file_path: Option<String>,
     pub error_reason: Option<String>,
+    /// Règle automatique à l'origine de l'enregistrement (None = manuel/season pass).
+    pub source_rule_id: Option<String>,
     pub created_at: DartDateTime,
     pub updated_at: DartDateTime,
 }
@@ -106,6 +108,7 @@ impl Recording {
         map.insert("status".into(), json!(self.status));
         map.insert("file_path".into(), json!(self.file_path));
         map.insert("error_reason".into(), json!(self.error_reason));
+        map.insert("source_rule_id".into(), json!(self.source_rule_id));
         map.insert("created_at".into(), json!(self.created_at.to_iso()));
         map.insert("updated_at".into(), json!(self.updated_at.to_iso()));
         map
@@ -118,4 +121,68 @@ impl Recording {
     pub fn end_utc(&self) -> chrono::DateTime<chrono::Utc> {
         self.end_time.to_utc()
     }
+}
+
+/// Règle d'enregistrement automatique (aujourd'hui : NBA sur beIN Sports FR).
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct AutoRule {
+    pub id: String,
+    pub user_id: String,
+    /// Type de règle ; seul 'nba' existe pour l'instant.
+    pub kind: String,
+    pub enabled: bool,
+    /// 'auto' : programmé sans validation (veto possible) ; 'ask' : attend un oui.
+    pub default_decision: String,
+    /// stream_ids des chaînes surveillées (beIN Sports FR retenus).
+    pub channel_ids: Vec<String>,
+    pub pad_before_min: i64,
+    pub pad_after_min: i64,
+    /// Noms d'équipes à suivre ; vide = toutes.
+    pub team_filter: Vec<String>,
+    /// Rétention en jours des fichiers créés par la règle ; None = illimitée.
+    pub keep_days: Option<i64>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Un match NBA connu d'une règle, de l'annonce au calendrier jusqu'au fichier.
+#[derive(Clone, Debug, serde::Serialize, PartialEq)]
+pub struct NbaGame {
+    pub game_id: String,
+    pub rule_id: String,
+    pub home: String,
+    pub away: String,
+    pub home_id: String,
+    pub away_id: String,
+    pub home_tri: String,
+    pub away_tri: String,
+    /// Coup d'envoi officiel, ISO UTC.
+    pub tipoff_utc: String,
+    /// provisional | confirmed | scheduled | recorded | missed | not_on_bein
+    pub status: String,
+    /// auto | accepted | refused
+    pub decision: String,
+    pub channel_id: Option<String>,
+    pub channel_name: Option<String>,
+    pub epg_title: Option<String>,
+    pub epg_start: Option<String>,
+    pub epg_end: Option<String>,
+    pub recording_id: Option<String>,
+    pub confidence: Option<i64>,
+    /// Pas de créneau d'enregistrement libre (MAX_CONCURRENT_RECORDINGS).
+    pub conflict: bool,
+    pub updated_at: String,
+}
+
+/// Match tel que publié par le calendrier officiel (avant toute décision).
+#[derive(Clone, Debug, PartialEq)]
+pub struct ScheduledGame {
+    pub game_id: String,
+    pub home: String,
+    pub away: String,
+    pub home_id: String,
+    pub away_id: String,
+    pub home_tri: String,
+    pub away_tri: String,
+    pub tipoff_utc: chrono::DateTime<chrono::Utc>,
 }

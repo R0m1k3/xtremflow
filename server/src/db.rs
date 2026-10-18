@@ -5,7 +5,7 @@
 //! démarrage du serveur Rust.
 
 use crate::dart_time::{DartDateTime, now_local_iso, utc_iso};
-use crate::models::{Playlist, Recording, Session, User};
+use crate::models::{AutoRule, NbaGame, Playlist, Recording, ScheduledGame, Session, User};
 use crate::util::password;
 use chrono::{DateTime, Duration, Utc};
 use regex::Regex;
@@ -66,8 +66,62 @@ fn recording_from_row(row: &Row) -> DbResult<Recording> {
             .unwrap_or_else(|| "scheduled".into()),
         file_path: row.get("file_path")?,
         error_reason: row.get("error_reason")?,
+        source_rule_id: row.get("source_rule_id")?,
         created_at: parse_date(row.get("created_at")?),
         updated_at: parse_date(row.get("updated_at")?),
+    })
+}
+
+fn json_list(raw: Option<String>) -> Vec<String> {
+    raw.and_then(|r| serde_json::from_str(&r).ok())
+        .unwrap_or_default()
+}
+
+fn auto_rule_from_row(row: &Row) -> DbResult<AutoRule> {
+    Ok(AutoRule {
+        id: row.get("id")?,
+        user_id: row.get("user_id")?,
+        kind: row.get("kind")?,
+        enabled: row.get::<_, i64>("enabled")? == 1,
+        default_decision: row.get("default_decision")?,
+        channel_ids: json_list(row.get("channel_ids")?),
+        pad_before_min: row.get("pad_before_min")?,
+        pad_after_min: row.get("pad_after_min")?,
+        team_filter: json_list(row.get("team_filter")?),
+        keep_days: row.get("keep_days")?,
+        created_at: row
+            .get::<_, Option<String>>("created_at")?
+            .unwrap_or_default(),
+        updated_at: row
+            .get::<_, Option<String>>("updated_at")?
+            .unwrap_or_default(),
+    })
+}
+
+fn nba_game_from_row(row: &Row) -> DbResult<NbaGame> {
+    Ok(NbaGame {
+        game_id: row.get("game_id")?,
+        rule_id: row.get("rule_id")?,
+        home: row.get("home")?,
+        away: row.get("away")?,
+        home_id: row.get("home_id")?,
+        away_id: row.get("away_id")?,
+        home_tri: row.get("home_tri")?,
+        away_tri: row.get("away_tri")?,
+        tipoff_utc: row.get("tipoff_utc")?,
+        status: row.get("status")?,
+        decision: row.get("decision")?,
+        channel_id: row.get("channel_id")?,
+        channel_name: row.get("channel_name")?,
+        epg_title: row.get("epg_title")?,
+        epg_start: row.get("epg_start")?,
+        epg_end: row.get("epg_end")?,
+        recording_id: row.get("recording_id")?,
+        confidence: row.get("confidence")?,
+        conflict: row.get::<_, i64>("conflict")? == 1,
+        updated_at: row
+            .get::<_, Option<String>>("updated_at")?
+            .unwrap_or_default(),
     })
 }
 
@@ -199,6 +253,45 @@ impl AppDatabase {
               created_at TEXT DEFAULT CURRENT_TIMESTAMP,
               FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             );
+            CREATE TABLE IF NOT EXISTS auto_rules (
+              id TEXT PRIMARY KEY,
+              user_id TEXT NOT NULL,
+              kind TEXT NOT NULL DEFAULT 'nba',
+              enabled INTEGER NOT NULL DEFAULT 1,
+              default_decision TEXT NOT NULL DEFAULT 'auto',
+              channel_ids TEXT NOT NULL DEFAULT '[]',
+              pad_before_min INTEGER NOT NULL DEFAULT 5,
+              pad_after_min INTEGER NOT NULL DEFAULT 45,
+              team_filter TEXT NOT NULL DEFAULT '[]',
+              keep_days INTEGER,
+              created_at TEXT,
+              updated_at TEXT,
+              FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+            CREATE TABLE IF NOT EXISTS nba_games (
+              game_id TEXT NOT NULL,
+              rule_id TEXT NOT NULL,
+              home TEXT NOT NULL DEFAULT '',
+              away TEXT NOT NULL DEFAULT '',
+              home_id TEXT NOT NULL DEFAULT '',
+              away_id TEXT NOT NULL DEFAULT '',
+              home_tri TEXT NOT NULL DEFAULT '',
+              away_tri TEXT NOT NULL DEFAULT '',
+              tipoff_utc TEXT NOT NULL,
+              status TEXT NOT NULL DEFAULT 'provisional',
+              decision TEXT NOT NULL DEFAULT 'auto',
+              channel_id TEXT,
+              channel_name TEXT,
+              epg_title TEXT,
+              epg_start TEXT,
+              epg_end TEXT,
+              recording_id TEXT,
+              confidence INTEGER,
+              conflict INTEGER NOT NULL DEFAULT 0,
+              updated_at TEXT,
+              PRIMARY KEY (game_id, rule_id),
+              FOREIGN KEY (rule_id) REFERENCES auto_rules(id) ON DELETE CASCADE
+            );
             CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
             CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
             CREATE INDEX IF NOT EXISTS idx_playlists_user ON playlists(user_id);
@@ -206,6 +299,8 @@ impl AppDatabase {
             CREATE INDEX IF NOT EXISTS idx_recordings_user ON tv_recordings(user_id);
             CREATE INDEX IF NOT EXISTS idx_recordings_start ON tv_recordings(start_time);
             CREATE INDEX IF NOT EXISTS idx_season_passes_user ON season_passes(user_id);
+            CREATE INDEX IF NOT EXISTS idx_auto_rules_user ON auto_rules(user_id);
+            CREATE INDEX IF NOT EXISTS idx_nba_games_tipoff ON nba_games(rule_id, tipoff_utc);
             "#,
         )
     }
@@ -227,7 +322,7 @@ impl AppDatabase {
             |r| r.get(0),
         )?;
 
-        let migrations: [(i64, &str, &str, &str); 2] = [
+        let migrations: [(i64, &str, &str, &str); 3] = [
             // v1 : colonne error_reason absente des bases d'avant son introduction.
             (1, "tv_recordings", "error_reason", "TEXT"),
             // v2 : mode de correspondance des season passes. 'contains' pour les
@@ -239,6 +334,8 @@ impl AppDatabase {
                 "match_mode",
                 "TEXT NOT NULL DEFAULT 'contains'",
             ),
+            // v3 : lien vers la règle automatique (badge « Auto NBA », sidecars).
+            (3, "tv_recordings", "source_rule_id", "TEXT"),
         ];
         for (version, table, column, definition) in migrations {
             if version <= current {
@@ -623,6 +720,7 @@ impl AppDatabase {
             status: "scheduled".into(),
             file_path: None,
             error_reason: None,
+            source_rule_id: None,
             created_at: now,
             updated_at: now,
         })
@@ -800,6 +898,205 @@ impl AppDatabase {
         .into_iter()
         .next()
     }
+    /// Marque un enregistrement comme créé par une règle automatique.
+    pub fn set_recording_source(&self, id: &str, rule_id: &str) {
+        let _ = self.lock().execute(
+            "UPDATE tv_recordings SET source_rule_id = ? WHERE id = ?",
+            params![rule_id, id],
+        );
+    }
+
+    // ==================== Règles automatiques ====================
+
+    pub fn create_auto_rule(&self, rule: &AutoRule) -> DbResult<AutoRule> {
+        let mut rule = rule.clone();
+        rule.id = uuid::Uuid::new_v4().to_string();
+        let now = utc_iso(Utc::now());
+        rule.created_at = now.clone();
+        rule.updated_at = now;
+        self.lock().execute(
+            "INSERT INTO auto_rules (id, user_id, kind, enabled, default_decision, channel_ids, pad_before_min, pad_after_min, team_filter, keep_days, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            params![
+                rule.id,
+                rule.user_id,
+                rule.kind,
+                rule.enabled as i64,
+                rule.default_decision,
+                serde_json::to_string(&rule.channel_ids).unwrap_or_else(|_| "[]".into()),
+                rule.pad_before_min,
+                rule.pad_after_min,
+                serde_json::to_string(&rule.team_filter).unwrap_or_else(|_| "[]".into()),
+                rule.keep_days,
+                rule.created_at,
+                rule.updated_at
+            ],
+        )?;
+        Ok(rule)
+    }
+
+    /// Réécrit les réglages modifiables d'une règle (id et propriétaire fixes).
+    pub fn update_auto_rule(&self, rule: &AutoRule) -> DbResult<()> {
+        self.lock().execute(
+            "UPDATE auto_rules SET enabled = ?, default_decision = ?, channel_ids = ?, pad_before_min = ?, pad_after_min = ?, team_filter = ?, keep_days = ?, updated_at = ? WHERE id = ?",
+            params![
+                rule.enabled as i64,
+                rule.default_decision,
+                serde_json::to_string(&rule.channel_ids).unwrap_or_else(|_| "[]".into()),
+                rule.pad_before_min,
+                rule.pad_after_min,
+                serde_json::to_string(&rule.team_filter).unwrap_or_else(|_| "[]".into()),
+                rule.keep_days,
+                utc_iso(Utc::now()),
+                rule.id
+            ],
+        )?;
+        Ok(())
+    }
+
+    fn query_auto_rules(&self, sql: &str, args: &[&str]) -> Vec<AutoRule> {
+        let conn = self.lock();
+        let Ok(mut stmt) = conn.prepare(sql) else {
+            return Vec::new();
+        };
+        stmt.query_map(rusqlite::params_from_iter(args.iter()), auto_rule_from_row)
+            .map(|rows| rows.filter_map(Result::ok).collect())
+            .unwrap_or_default()
+    }
+
+    /// Règles actives (pour le scheduler).
+    pub fn get_enabled_auto_rules(&self) -> Vec<AutoRule> {
+        self.query_auto_rules(
+            "SELECT * FROM auto_rules WHERE enabled = 1 ORDER BY created_at ASC",
+            &[],
+        )
+    }
+
+    pub fn get_auto_rules_for_user(&self, user_id: &str) -> Vec<AutoRule> {
+        self.query_auto_rules(
+            "SELECT * FROM auto_rules WHERE user_id = ? ORDER BY created_at ASC",
+            &[user_id],
+        )
+    }
+
+    pub fn get_auto_rule(&self, id: &str) -> Option<AutoRule> {
+        self.query_auto_rules("SELECT * FROM auto_rules WHERE id = ?", &[id])
+            .into_iter()
+            .next()
+    }
+
+    /// Supprime la règle et ses matchs suivis (cascade). Les enregistrements
+    /// déjà créés restent : ils appartiennent à l'utilisateur.
+    pub fn delete_auto_rule(&self, id: &str) {
+        let _ = self
+            .lock()
+            .execute("DELETE FROM auto_rules WHERE id = ?", [id]);
+    }
+
+    // ==================== Matchs NBA suivis ====================
+
+    /// Ajoute un match du calendrier, ou met à jour équipes et coup d'envoi
+    /// d'un match déjà connu sans toucher à la décision de l'utilisateur ni
+    /// à l'état de programmation.
+    pub fn upsert_scheduled_game(&self, rule_id: &str, g: &ScheduledGame) -> DbResult<()> {
+        self.lock().execute(
+            "INSERT INTO nba_games (game_id, rule_id, home, away, home_id, away_id, home_tri, away_tri, tipoff_utc, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(game_id, rule_id) DO UPDATE SET
+               home = excluded.home, away = excluded.away,
+               home_id = excluded.home_id, away_id = excluded.away_id,
+               home_tri = excluded.home_tri, away_tri = excluded.away_tri,
+               tipoff_utc = excluded.tipoff_utc, updated_at = excluded.updated_at",
+            params![
+                g.game_id,
+                rule_id,
+                g.home,
+                g.away,
+                g.home_id,
+                g.away_id,
+                g.home_tri,
+                g.away_tri,
+                utc_iso(g.tipoff_utc),
+                utc_iso(Utc::now())
+            ],
+        )?;
+        Ok(())
+    }
+
+    fn query_nba_games(&self, sql: &str, args: &[&str]) -> Vec<NbaGame> {
+        let conn = self.lock();
+        let Ok(mut stmt) = conn.prepare(sql) else {
+            return Vec::new();
+        };
+        stmt.query_map(rusqlite::params_from_iter(args.iter()), nba_game_from_row)
+            .map(|rows| rows.filter_map(Result::ok).collect())
+            .unwrap_or_default()
+    }
+
+    /// Matchs d'une règle dont le coup d'envoi tombe dans [from, to].
+    pub fn get_nba_games(
+        &self,
+        rule_id: &str,
+        from: DateTime<Utc>,
+        to: DateTime<Utc>,
+    ) -> Vec<NbaGame> {
+        self.query_nba_games(
+            "SELECT * FROM nba_games WHERE rule_id = ? AND tipoff_utc BETWEEN ? AND ? ORDER BY tipoff_utc ASC",
+            &[rule_id, &utc_iso(from), &utc_iso(to)],
+        )
+    }
+
+    pub fn get_nba_game(&self, rule_id: &str, game_id: &str) -> Option<NbaGame> {
+        self.query_nba_games(
+            "SELECT * FROM nba_games WHERE rule_id = ? AND game_id = ?",
+            &[rule_id, game_id],
+        )
+        .into_iter()
+        .next()
+    }
+
+    pub fn get_nba_game_by_recording(&self, recording_id: &str) -> Option<NbaGame> {
+        self.query_nba_games(
+            "SELECT * FROM nba_games WHERE recording_id = ? LIMIT 1",
+            &[recording_id],
+        )
+        .into_iter()
+        .next()
+    }
+
+    /// Réécrit l'état de réconciliation d'un match (statut, chaîne, EPG,
+    /// enregistrement lié). La décision a sa propre fonction.
+    pub fn update_nba_game_state(&self, g: &NbaGame) -> DbResult<()> {
+        self.lock().execute(
+            "UPDATE nba_games SET status = ?, channel_id = ?, channel_name = ?, epg_title = ?, epg_start = ?, epg_end = ?, recording_id = ?, confidence = ?, conflict = ?, updated_at = ? WHERE rule_id = ? AND game_id = ?",
+            params![
+                g.status,
+                g.channel_id,
+                g.channel_name,
+                g.epg_title,
+                g.epg_start,
+                g.epg_end,
+                g.recording_id,
+                g.confidence,
+                g.conflict as i64,
+                utc_iso(Utc::now()),
+                g.rule_id,
+                g.game_id
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Oui / non de l'utilisateur sur un match : 'accepted', 'refused' ou
+    /// 'auto' (revenir au comportement par défaut de la règle).
+    pub fn set_nba_decision(&self, rule_id: &str, game_id: &str, decision: &str) -> bool {
+        self.lock()
+            .execute(
+                "UPDATE nba_games SET decision = ?, updated_at = ? WHERE rule_id = ? AND game_id = ?",
+                params![decision, utc_iso(Utc::now()), rule_id, game_id],
+            )
+            .map(|n| n > 0)
+            .unwrap_or(false)
+    }
 }
 
 #[cfg(test)]
@@ -902,6 +1199,118 @@ mod tests {
         db.update_user_settings(&user.id, r#"{"enable_nvidia_gpu": true}"#)
             .unwrap();
         assert!(db.is_nvidia_gpu_enabled());
+    }
+
+    fn nba_rule(db: &AppDatabase, user_id: &str) -> AutoRule {
+        db.create_auto_rule(&AutoRule {
+            id: String::new(),
+            user_id: user_id.into(),
+            kind: "nba".into(),
+            enabled: true,
+            default_decision: "auto".into(),
+            channel_ids: vec!["101".into(), "102".into()],
+            pad_before_min: 5,
+            pad_after_min: 45,
+            team_filter: vec![],
+            keep_days: None,
+            created_at: String::new(),
+            updated_at: String::new(),
+        })
+        .unwrap()
+    }
+
+    fn game(id: &str, tipoff: &str) -> ScheduledGame {
+        ScheduledGame {
+            game_id: id.into(),
+            home: "Los Angeles Lakers".into(),
+            away: "Boston Celtics".into(),
+            home_id: "1610612747".into(),
+            away_id: "1610612738".into(),
+            home_tri: "LAL".into(),
+            away_tri: "BOS".into(),
+            tipoff_utc: DartDateTime::parse(tipoff).unwrap().to_utc(),
+        }
+    }
+
+    #[test]
+    fn regle_auto_aller_retour() {
+        let (db, _path) = temp_db();
+        let user = db.create_user("u", "x", false).unwrap();
+        let mut rule = nba_rule(&db, &user.id);
+        assert_eq!(db.get_enabled_auto_rules().len(), 1);
+        rule.enabled = false;
+        rule.team_filter = vec!["Lakers".into()];
+        db.update_auto_rule(&rule).unwrap();
+        let back = db.get_auto_rule(&rule.id).unwrap();
+        assert!(!back.enabled);
+        assert_eq!(back.team_filter, vec!["Lakers".to_string()]);
+        assert_eq!(back.channel_ids, vec!["101".to_string(), "102".to_string()]);
+        assert!(db.get_enabled_auto_rules().is_empty());
+    }
+
+    #[test]
+    fn upsert_du_calendrier_preserve_la_decision() {
+        let (db, _path) = temp_db();
+        let user = db.create_user("u", "x", false).unwrap();
+        let rule = nba_rule(&db, &user.id);
+        db.upsert_scheduled_game(&rule.id, &game("0022600001", "2026-10-21T23:30:00Z"))
+            .unwrap();
+        assert!(db.set_nba_decision(&rule.id, "0022600001", "refused"));
+        // Le calendrier décale le match d'une heure : la décision reste.
+        db.upsert_scheduled_game(&rule.id, &game("0022600001", "2026-10-22T00:30:00Z"))
+            .unwrap();
+        let g = db.get_nba_game(&rule.id, "0022600001").unwrap();
+        assert_eq!(g.decision, "refused");
+        assert_eq!(g.status, "provisional");
+        assert_eq!(g.tipoff_utc, "2026-10-22T00:30:00.000Z");
+        let from = DartDateTime::parse("2026-10-21T00:00:00Z")
+            .unwrap()
+            .to_utc();
+        assert_eq!(
+            db.get_nba_games(&rule.id, from, from + Duration::days(2))
+                .len(),
+            1
+        );
+        // Supprimer la règle supprime ses matchs suivis.
+        db.delete_auto_rule(&rule.id);
+        assert!(db.get_nba_game(&rule.id, "0022600001").is_none());
+    }
+
+    #[test]
+    fn etat_de_match_et_lien_enregistrement() {
+        let (db, _path) = temp_db();
+        let user = db.create_user("u", "x", false).unwrap();
+        let rule = nba_rule(&db, &user.id);
+        db.upsert_scheduled_game(&rule.id, &game("g1", "2026-10-21T23:30:00Z"))
+            .unwrap();
+        let now = Utc::now();
+        let rec = db
+            .create_recording(
+                &user.id,
+                "101",
+                "/api/live/101.ts",
+                "NBA",
+                now,
+                now + Duration::hours(3),
+            )
+            .unwrap();
+        db.set_recording_source(&rec.id, &rule.id);
+        let mut g = db.get_nba_game(&rule.id, "g1").unwrap();
+        g.status = "scheduled".into();
+        g.recording_id = Some(rec.id.clone());
+        g.channel_name = Some("beIN SPORTS 1".into());
+        g.conflict = true;
+        db.update_nba_game_state(&g).unwrap();
+        let back = db.get_nba_game_by_recording(&rec.id).unwrap();
+        assert_eq!(back.status, "scheduled");
+        assert!(back.conflict);
+        assert_eq!(
+            db.get_recording_by_id(&rec.id)
+                .unwrap()
+                .source_rule_id
+                .as_deref(),
+            Some(rule.id.as_str())
+        );
     }
 
     #[test]

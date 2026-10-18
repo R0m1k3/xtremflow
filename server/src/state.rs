@@ -9,6 +9,7 @@ use crate::models::PlaylistConfig;
 use crate::server::RateLimiter;
 use crate::services::cleanup::CleanupService;
 use crate::services::logo_catalog::LogoCatalog;
+use crate::services::nba_autorec::NbaAutoRecorder;
 use crate::services::recording_scheduler::RecordingScheduler;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -23,6 +24,7 @@ pub struct AppState {
     /// Client HTTP sans suivi des redirections (revalidées à la main).
     pub http_manual: reqwest::Client,
     pub scheduler: Arc<RecordingScheduler>,
+    pub nba: Arc<NbaAutoRecorder>,
     pub streaming: Arc<Streaming>,
     pub proxy: ProxyHandler,
     pub epg: EpgApi,
