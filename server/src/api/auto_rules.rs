@@ -181,6 +181,11 @@ async fn create(state: &SharedState, req: &Req, user: &User) -> Resp {
     }
     let rule = match state.db.create_auto_rule(&rule) {
         Ok(r) => r,
+        // Activation concurrente (deux onglets, relance) : l'index unique
+        // (user_id, kind) a tranché.
+        Err(e) if crate::db::is_unique_violation(&e) => {
+            return json(409, &json!({"error": "La règle NBA existe déjà"}));
+        }
         Err(e) => return json(500, &json!({"error": format!("Création impossible : {e}")})),
     };
     // Calendrier et première réconciliation en tâche de fond (≈ 20 requêtes).

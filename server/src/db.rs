@@ -72,6 +72,15 @@ fn recording_from_row(row: &Row) -> DbResult<Recording> {
     })
 }
 
+/// Violation d'une contrainte d'unicité (ex. deuxième règle NBA concurrente).
+pub fn is_unique_violation(e: &rusqlite::Error) -> bool {
+    matches!(
+        e,
+        rusqlite::Error::SqliteFailure(f, _)
+            if f.extended_code == rusqlite::ffi::SQLITE_CONSTRAINT_UNIQUE
+    )
+}
+
 fn json_list(raw: Option<String>) -> Vec<String> {
     raw.and_then(|r| serde_json::from_str(&r).ok())
         .unwrap_or_default()
@@ -300,6 +309,7 @@ impl AppDatabase {
             CREATE INDEX IF NOT EXISTS idx_recordings_start ON tv_recordings(start_time);
             CREATE INDEX IF NOT EXISTS idx_season_passes_user ON season_passes(user_id);
             CREATE INDEX IF NOT EXISTS idx_auto_rules_user ON auto_rules(user_id);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_auto_rules_user_kind ON auto_rules(user_id, kind);
             CREATE INDEX IF NOT EXISTS idx_nba_games_tipoff ON nba_games(rule_id, tipoff_utc);
             "#,
         )
@@ -1238,6 +1248,9 @@ mod tests {
         let user = db.create_user("u", "x", false).unwrap();
         let mut rule = nba_rule(&db, &user.id);
         assert_eq!(db.get_enabled_auto_rules().len(), 1);
+        // Une seule règle NBA par utilisateur, garantie par la base.
+        let dup = db.create_auto_rule(&rule).unwrap_err();
+        assert!(is_unique_violation(&dup), "{dup:?}");
         rule.enabled = false;
         rule.team_filter = vec!["Lakers".into()];
         db.update_auto_rule(&rule).unwrap();

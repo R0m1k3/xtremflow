@@ -342,6 +342,42 @@ fn overlapping(recordings: &[Recording], start: DateTime<Utc>, end: DateTime<Utc
         .count()
 }
 
+/// Règle en pause : supprime ses enregistrements encore planifiés (le
+/// planificateur les capturerait sinon) et remet les matchs à l'état
+/// « confirmé » ou « prévu ». Un enregistrement déjà en cours n'est pas coupé.
+pub fn suspend_rule(db: &AppDatabase, rule: &AutoRule) {
+    let now = Utc::now();
+    let games = db.get_nba_games(
+        &rule.id,
+        now - Duration::hours(6),
+        now + Duration::days(SCHEDULE_DAYS * 3),
+    );
+    for game in games {
+        let Some(rec_id) = game.recording_id.as_deref() else {
+            continue;
+        };
+        let scheduled = db
+            .get_recording_by_id(rec_id)
+            .is_none_or(|r| r.status == "scheduled");
+        if !scheduled {
+            continue;
+        }
+        db.delete_recording(rec_id);
+        let mut next = game.clone();
+        next.recording_id = None;
+        next.conflict = false;
+        next.status = if game.channel_id.is_some() {
+            "confirmed"
+        } else {
+            "provisional"
+        }
+        .into();
+        if let Err(e) = db.update_nba_game_state(&next) {
+            println!("[NBA] Match {} non remis en attente : {e}", game.game_id);
+        }
+    }
+}
+
 /// Service : calendrier quotidien + réconciliation toutes les 30 minutes.
 pub struct NbaAutoRecorder {
     db: Arc<AppDatabase>,
@@ -495,6 +531,16 @@ impl NbaAutoRecorder {
     /// Réconcilie calendrier, EPG et enregistrements d'une règle.
     pub async fn reconcile(&self, rule: &AutoRule) {
         let _guard = self.running.lock().await;
+        // État relu en base : l'appelant peut tenir une copie antérieure à
+        // une mise en pause.
+        let Some(rule) = self.db.get_auto_rule(&rule.id) else {
+            return;
+        };
+        let rule = &rule;
+        if !rule.enabled {
+            suspend_rule(&self.db, rule);
+            return;
+        }
         let now = Utc::now();
         let games = self.db.get_nba_games(
             &rule.id,
@@ -621,6 +667,65 @@ impl NbaAutoRecorder {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mise_en_pause_supprime_les_enregistrements_planifies() {
+        let path = std::env::temp_dir().join(format!("xf-nba-{}.db", uuid::Uuid::new_v4()));
+        let db = AppDatabase::open(path.to_str().unwrap()).unwrap();
+        let user = db.create_user("u", "x", false).unwrap();
+        let mut r = rule();
+        r.user_id = user.id.clone();
+        let r = db.create_auto_rule(&r).unwrap();
+        let soon = Utc::now() + Duration::hours(10);
+        for id in ["planned", "live"] {
+            db.upsert_scheduled_game(
+                &r.id,
+                &crate::models::ScheduledGame {
+                    game_id: id.into(),
+                    home: "Los Angeles Lakers".into(),
+                    away: "Boston Celtics".into(),
+                    home_id: "13".into(),
+                    away_id: "2".into(),
+                    home_tri: "LAL".into(),
+                    away_tri: "BOS".into(),
+                    tipoff_utc: soon,
+                },
+            )
+            .unwrap();
+            let rec = db
+                .create_recording(
+                    &user.id,
+                    "1",
+                    "/api/live/1.ts",
+                    id,
+                    soon,
+                    soon + Duration::hours(3),
+                )
+                .unwrap();
+            if id == "live" {
+                db.update_recording_status(&rec.id, "recording", None, None, false);
+            }
+            let mut g = db.get_nba_game(&r.id, id).unwrap();
+            g.recording_id = Some(rec.id);
+            g.channel_id = Some("1".into());
+            g.status = "scheduled".into();
+            db.update_nba_game_state(&g).unwrap();
+        }
+
+        suspend_rule(&db, &r);
+
+        let planned = db.get_nba_game(&r.id, "planned").unwrap();
+        assert_eq!(planned.recording_id, None);
+        assert_eq!(planned.status, "confirmed");
+        // L'enregistrement en cours reste, lié à son match.
+        let live = db.get_nba_game(&r.id, "live").unwrap();
+        let live_rec = db
+            .get_recording_by_id(live.recording_id.as_deref().unwrap())
+            .unwrap();
+        assert_eq!(live_rec.status, "recording");
+        assert_eq!(db.get_pending_recordings().len(), 1);
+        let _ = std::fs::remove_file(path);
+    }
 
     fn t(s: &str) -> DateTime<Utc> {
         DartDateTime::parse(s).unwrap().to_utc()
