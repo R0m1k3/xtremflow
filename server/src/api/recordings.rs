@@ -62,9 +62,11 @@ async fn list(state: &SharedState, req: &Req) -> Resp {
         Some(user) if !user.is_admin => state.db.get_user_recordings(&user.id),
         _ => state.db.get_all_recordings(),
     };
-    // Une IPTV choisie : seulement ses enregistrements.
-    if let Some(pid) = state.selected_playlist_id(req) {
-        recordings.retain(|r| r.playlist_id.as_deref().is_none_or(|p| p == pid));
+    // Chaque IPTV n'affiche que ses propres enregistrements. Une ligne sans
+    // playlist n'appartient à aucune : la rattacher au démarrage est le
+    // travail de `attach_legacy_rows_to_playlists`, pas l'afficher partout.
+    if let Some(pid) = state.scoped_playlist_id(req) {
+        recordings.retain(|r| r.playlist_id.as_deref() == Some(pid.as_str()));
     }
     let now = Utc::now();
     let mut enriched = Vec::with_capacity(recordings.len());
@@ -188,11 +190,9 @@ fn create(state: &SharedState, req: &Req) -> Resp {
         );
     }
     let title = to_text(data.get("title")).unwrap_or_else(|| "Sans Titre".into());
-    // Capture sur l'IPTV choisie par le client (à défaut, la plus récente).
-    let playlist_id = state
-        .get_playlist(req)
-        .map(|p| p.id)
-        .filter(|id| !id.is_empty());
+    // Capture sur l'IPTV choisie par le client (à défaut, la plus récente) —
+    // la même que celle sous laquelle la liste s'affichera.
+    let playlist_id = state.scoped_playlist_id(req);
     let stream_url = match &playlist_id {
         Some(pid) => stream_url_for_playlist(&stream_url, pid),
         None => stream_url,
@@ -285,11 +285,11 @@ pub fn season_passes(state: &SharedState, req: &Req, rest: &str) -> Resp {
             } else {
                 state.db.get_season_passes_for_user(&user.id)
             };
-            if let Some(pid) = state.selected_playlist_id(req) {
+            // Comme les enregistrements : un season pass appartient à une
+            // seule IPTV, et une ligne sans playlist à aucune.
+            if let Some(pid) = state.scoped_playlist_id(req) {
                 passes.retain(|p| {
-                    p.get("playlist_id")
-                        .and_then(Value::as_str)
-                        .is_none_or(|v| v == pid)
+                    p.get("playlist_id").and_then(Value::as_str) == Some(pid.as_str())
                 });
             }
             json(
@@ -375,10 +375,7 @@ fn create_pass(state: &SharedState, req: &Req) -> Resp {
             &json!({"error": "Un Season Pass identique existe déjà"}),
         );
     }
-    let playlist_id = state
-        .get_playlist(req)
-        .map(|p| p.id)
-        .filter(|id| !id.is_empty());
+    let playlist_id = state.scoped_playlist_id(req);
     let stream_url = match &playlist_id {
         Some(pid) => stream_url_for_playlist(&stream_url, pid),
         None => stream_url,

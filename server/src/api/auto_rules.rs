@@ -30,8 +30,10 @@ pub async fn auto_rules(state: &SharedState, req: &Req, rest: &str) -> Resp {
     };
     let parts = segments(rest);
     if let ("GET" | "HEAD", []) = (req.method.as_str(), parts.as_slice()) {
-        // Une règle NBA par IPTV : celle de la playlist choisie.
-        let rules = match state.selected_playlist_id(req) {
+        // Une règle NBA par IPTV : celle de la playlist courante, résolue
+        // comme à la création. Le repli sur toutes les règles du compte
+        // montrait la règle d'une IPTV sous les autres.
+        let rules = match state.scoped_playlist_id(req) {
             Some(pid) => state.db.get_auto_rules_for_playlist(&user.id, &pid),
             None => state.db.get_auto_rules_for_user(&user.id),
         };
@@ -148,10 +150,7 @@ async fn create(state: &SharedState, req: &Req, user: &User) -> Resp {
         Ok(b) => b,
         Err(r) => return r,
     };
-    let playlist_id = state
-        .get_playlist(req)
-        .map(|p| p.id)
-        .filter(|id| !id.is_empty());
+    let playlist_id = state.scoped_playlist_id(req);
     let existing = match &playlist_id {
         Some(pid) => state.db.get_auto_rules_for_playlist(&user.id, pid),
         None => state.db.get_auto_rules_for_user(&user.id),

@@ -37,18 +37,22 @@ pub struct AppState {
 }
 
 impl AppState {
-    /// Playlist explicitement choisie par le client (en-tête ou paramètre),
-    /// si l'utilisateur y a droit. Sert à filtrer les listes par IPTV ; sans
-    /// choix explicite (anciens clients), rien n'est filtré.
-    pub fn selected_playlist_id(&self, req: &Req) -> Option<String> {
-        let requested = req
-            .query_param("playlist")
-            .filter(|p| !p.trim().is_empty())
-            .or_else(|| req.header("x-playlist-id").map(str::to_string))?;
-        let requested = requested.trim().to_string();
+    /// IPTV de rattachement des listes (enregistrements, season passes,
+    /// règles automatiques).
+    ///
+    /// Résolue exactement comme à l'écriture, via [`Self::get_playlist`] :
+    /// le choix explicite du client s'il est recevable, sinon la playlist la
+    /// plus récente. Les deux côtés doivent répondre la même chose, sinon une
+    /// ligne écrite sous la playlist de repli reste visible sous toutes les
+    /// autres — c'est ce que faisait la lecture quand l'en-tête manquait, en
+    /// ne filtrant alors rien du tout.
+    ///
+    /// `None` signifie « ce compte n'a aucune playlist », pas « ne filtre
+    /// pas ».
+    pub fn scoped_playlist_id(&self, req: &Req) -> Option<String> {
         self.get_playlist(req)
             .map(|p| p.id)
-            .filter(|id| *id == requested)
+            .filter(|id| !id.is_empty())
     }
 
     /// Playlist Xtream de la requête.
