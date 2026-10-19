@@ -72,21 +72,34 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/dashboard',
-        builder: (context, state) {
-          final playlist = ref.watch(selectedPlaylistProvider);
-          if (playlist == null) {
-            return const Scaffold(
-              body: ThemedLoading(),
-            );
-          }
+        // Le `ref` du routeur ne doit pas surveiller la playlist : un
+        // `ref.watch` ici rend `routerProvider` dépendant de
+        // `selectedPlaylistProvider`, si bien que changer d'IPTV depuis le
+        // tableau de bord recréait le GoRouter, reparti de `/login` puis
+        // redirigé vers `/playlists`. Le `Consumer` limite la reconstruction
+        // à cette seule route.
+        builder: (context, state) => Consumer(
+          builder: (context, ref, _) {
+            final playlist = ref.watch(selectedPlaylistProvider);
+            if (playlist == null) {
+              return const Scaffold(
+                body: ThemedLoading(),
+              );
+            }
 
-          // Adaptive layout without forcing a router rebuild on every pixel change
-          final isMobile = MediaQuery.sizeOf(context).width < 768;
-          if (isMobile) {
-            return MobileDashboardScreen(playlist: playlist);
-          }
-          return DashboardScreen(playlist: playlist);
-        },
+            // Une clé par IPTV : les onglets chargent leur catalogue dans
+            // `initState` et ignorent un changement de `playlist`. Sans elle,
+            // le tableau de bord garderait le contenu de l'IPTV précédente.
+            final key = ValueKey(playlist.id);
+
+            // Adaptive layout without forcing a router rebuild on every pixel change
+            final isMobile = MediaQuery.sizeOf(context).width < 768;
+            if (isMobile) {
+              return MobileDashboardScreen(key: key, playlist: playlist);
+            }
+            return DashboardScreen(key: key, playlist: playlist);
+          },
+        ),
       ),
       GoRoute(
         path: '/admin',
