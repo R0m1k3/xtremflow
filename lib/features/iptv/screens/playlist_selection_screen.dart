@@ -163,9 +163,7 @@ class PlaylistSelectionScreen extends ConsumerWidget {
                           child: _PlaylistCard(
                             playlist: playlist,
                             onTap: () {
-                              ref
-                                  .read(selectedPlaylistProvider.notifier)
-                                  .state = playlist;
+                              selectPlaylist(ref, playlist);
                               context.go('/dashboard');
                             },
                           ),

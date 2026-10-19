@@ -57,14 +57,35 @@ final selectedPlaylistProvider = StateProvider<PlaylistConfig?>((ref) {
   return null;
 });
 
+/// Écrit l'IPTV courante là où `AuthedHttp` la relit pour poser l'en-tête
+/// `X-Playlist-Id`.
+void persistSelectedPlaylist(PlaylistConfig? playlist) {
+  if (playlist != null) {
+    html.window.localStorage['selected_playlist'] =
+        jsonEncode(playlist.toJson());
+  } else {
+    html.window.localStorage.remove('selected_playlist');
+  }
+}
+
+/// Choisit l'IPTV courante et la persiste dans le même temps.
+///
+/// Écrire par le seul `playlistPersistenceProvider` ne suffit pas : son
+/// `ref.listen` n'existe qu'une fois `activeXtreamServiceProvider` lu, c'est
+/// à dire une fois le tableau de bord construit. Le tout premier choix d'une
+/// session partait donc sans être écrit, `AuthedHttp` n'envoyait aucun
+/// en-tête, et le serveur repliait sur la playlist la plus récente — les deux
+/// IPTV retombaient alors sur la même, d'où une seule règle Auto NBA pour
+/// les deux.
+void selectPlaylist(WidgetRef ref, PlaylistConfig playlist) {
+  persistSelectedPlaylist(playlist);
+  ref.read(selectedPlaylistProvider.notifier).state = playlist;
+}
+
 // Listener to save selected playlist
 final playlistPersistenceProvider = Provider<void>((ref) {
   ref.listen(selectedPlaylistProvider, (previous, next) {
-    if (next != null) {
-      html.window.localStorage['selected_playlist'] = jsonEncode(next.toJson());
-    } else {
-      html.window.localStorage.remove('selected_playlist');
-    }
+    persistSelectedPlaylist(next);
   });
 });
 

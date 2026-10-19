@@ -108,9 +108,9 @@ class MobilePlaylistSelectionScreen extends ConsumerWidget {
                 return _MobilePlaylistCard(
                   playlist: playlist,
                   onTap: () {
-                    // Update provider which will be persisted
-                    ref.read(selectedPlaylistProvider.notifier).state =
-                        playlist;
+                    // Choix + persistance dans le même geste : l'en-tête
+                    // X-Playlist-Id doit partir dès la première requête.
+                    selectPlaylist(ref, playlist);
                     // Navigate without extra (it will be picked up from provider)
                     context.go('/dashboard');
                   },
