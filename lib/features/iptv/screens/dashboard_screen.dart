@@ -10,6 +10,7 @@ import '../widgets/movies_tab.dart';
 import '../widgets/series_tab.dart';
 import '../widgets/settings_tab.dart';
 import '../widgets/recordings_tab.dart';
+import '../widgets/playlist_selector_button.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
@@ -200,6 +201,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   }),
 
                   const Spacer(),
+
+                  // IPTV active, nommée et changeable sur place.
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: PlaylistSelectorButton(current: widget.playlist),
+                  ),
 
                   // Profil : nom d'utilisateur + déconnexion. L'avatar était
                   // un bouton mort (onTap vide) — aucune déconnexion possible

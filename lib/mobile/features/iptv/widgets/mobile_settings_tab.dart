@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../features/auth/providers/auth_provider.dart';
 import '../../../../features/iptv/providers/settings_provider.dart';
+import '../../../../features/iptv/providers/xtream_provider.dart';
 import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 
@@ -364,6 +365,9 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
           _SettingsButton(
             icon: Icons.playlist_play,
             label: 'Change Playlist',
+            // L'IPTV active, pour savoir d'où viennent guide, enregistrements
+            // et Auto NBA avant d'en changer.
+            value: ref.watch(selectedPlaylistProvider)?.name,
             onTap: () => context.go('/playlists'),
           ),
           const SizedBox(height: 32),
@@ -461,12 +465,16 @@ class _FilterInput extends StatelessWidget {
 class _SettingsButton extends StatelessWidget {
   final IconData icon;
   final String label;
+
+  /// Valeur courante de ce réglage, affichée sous le libellé.
+  final String? value;
   final VoidCallback onTap;
 
   const _SettingsButton({
     required this.icon,
     required this.label,
     required this.onTap,
+    this.value,
   });
 
   @override
@@ -484,12 +492,27 @@ class _SettingsButton extends StatelessWidget {
           children: [
             Icon(icon, color: AppColors.onSurface),
             const SizedBox(width: 16),
-            Text(
-              label,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                color: AppColors.onSurface,
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.onSurface,
+                  ),
+                ),
+                if (value != null)
+                  Text(
+                    value!,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.karla(
+                      color: AppColors.textTertiary,
+                      fontSize: 11,
+                    ),
+                  ),
+              ],
             ),
             const Spacer(),
             const Icon(Icons.chevron_right, color: AppColors.onSurfaceVariant),

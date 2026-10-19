@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:html' as html; // For reloading
 import '../../auth/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/xtream_provider.dart';
 import 'streaming_settings_tab.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../core/theme/app_colors.dart';
@@ -431,6 +432,16 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             title: Text(
               'Changer de Playlist',
               style: GoogleFonts.karla(color: AppColors.onSurface),
+            ),
+            // L'IPTV active, pour savoir d'où viennent guide, enregistrements
+            // et Auto NBA avant d'en changer.
+            subtitle: Text(
+              ref.watch(selectedPlaylistProvider)?.name ?? 'Aucune',
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.karla(
+                color: AppColors.textTertiary,
+                fontSize: 11,
+              ),
             ),
             trailing: const Icon(Icons.chevron_right, color: AppColors.onSurfaceVariant),
             onTap: () => context.go('/playlists'),
