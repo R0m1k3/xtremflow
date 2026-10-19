@@ -24,12 +24,30 @@ class AuthedHttp {
     return (t != null && t.isNotEmpty) ? t : null;
   }
 
-  /// IPTV sélectionnée (persistée par `playlistPersistenceProvider`).
+  /// IPTV active, posée de façon synchrone par l'écran de sélection et le
+  /// tableau de bord (voir [usePlaylist]).
   ///
-  /// Envoyée à chaque appel : sans elle le serveur prenait la playlist la
-  /// plus récente, et guide, enregistrements et Auto NBA visaient la
-  /// mauvaise IPTV quand plusieurs étaient configurées.
+  /// POURQUOI : `localStorage['selected_playlist']` n'est écrit que par un
+  /// écouteur Riverpod enregistré tardivement ; après un changement d'IPTV
+  /// il restait périmé, le serveur retombait sur la playlist par défaut et
+  /// les deux IPTV partageaient la même règle Auto NBA et les mêmes
+  /// enregistrements.
+  static String? _currentPlaylistId;
+
+  /// Déclare l'IPTV active et la persiste immédiatement.
+  static void usePlaylist(String id, {Map<String, dynamic>? json}) {
+    if (id.isEmpty) return;
+    _currentPlaylistId = id;
+    if (json != null) {
+      try {
+        html.window.localStorage['selected_playlist'] = jsonEncode(json);
+      } catch (_) {}
+    }
+  }
+
+  /// IPTV envoyée au serveur : celle déclarée, sinon la dernière persistée.
   static String? get selectedPlaylistId {
+    if (_currentPlaylistId != null) return _currentPlaylistId;
     try {
       final stored = html.window.localStorage['selected_playlist'];
       if (stored == null) return null;

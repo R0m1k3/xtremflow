@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/api/authed_http.dart';
 import '../../../../core/models/playlist_config.dart';
 import '../../../widgets/mobile_scaffold.dart';
 import '../../../theme/mobile_theme.dart';
@@ -26,6 +27,8 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Toutes les requêtes /api/* de ce tableau de bord visent cette IPTV.
+    AuthedHttp.usePlaylist(widget.playlist.id, json: widget.playlist.toJson());
     return Theme(
       data: MobileTheme.darkTheme,
       child: MobileScaffold(

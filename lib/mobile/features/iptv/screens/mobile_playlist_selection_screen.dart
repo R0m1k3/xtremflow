@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../features/iptv/providers/xtream_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/playlist_api_service.dart';
+import '../../../../core/api/authed_http.dart';
 import '../../../../core/models/playlist_config.dart';
 import '../../../../features/auth/providers/auth_provider.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -108,6 +109,7 @@ class MobilePlaylistSelectionScreen extends ConsumerWidget {
                 return _MobilePlaylistCard(
                   playlist: playlist,
                   onTap: () {
+                    AuthedHttp.usePlaylist(playlist.id, json: playlist.toJson());
                     // Choix + persistance dans le même geste : l'en-tête
                     // X-Playlist-Id doit partir dès la première requête.
                     selectPlaylist(ref, playlist);

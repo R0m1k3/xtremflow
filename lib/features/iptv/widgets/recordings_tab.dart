@@ -52,6 +52,8 @@ class _RecordingsTabState extends State<RecordingsTab>
 
   @override
   Widget build(BuildContext context) {
+    // Guide, enregistrements, season passes et Auto NBA visent cette IPTV.
+    AuthedHttp.usePlaylist(widget.playlist.id);
     return Container(
       color: Colors.black,
       child: Column(
@@ -112,7 +114,7 @@ class _RecordingsTabState extends State<RecordingsTab>
                 _EpgGuideView(playlist: widget.playlist),
                 _RecordingsListView(playlist: widget.playlist),
                 const _SeasonPassesView(),
-                const _AutoNbaView(),
+                _AutoNbaView(playlist: widget.playlist),
               ],
             ),
           ),
@@ -1752,7 +1754,9 @@ const _mois = [
 ];
 
 class _AutoNbaView extends StatefulWidget {
-  const _AutoNbaView();
+  /// IPTV dont la règle est affichée et qui capture les matchs choisis.
+  final PlaylistConfig playlist;
+  const _AutoNbaView({required this.playlist});
   @override
   State<_AutoNbaView> createState() => _AutoNbaViewState();
 }
@@ -1771,6 +1775,21 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _AutoNbaView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Autre IPTV : autre règle, autres matchs choisis.
+    if (oldWidget.playlist.id != widget.playlist.id) {
+      AuthedHttp.usePlaylist(widget.playlist.id);
+      setState(() {
+        _rule = null;
+        _games = [];
+        _diag = null;
+      });
+      _load();
+    }
   }
 
   Future<void> _load() async {
@@ -2427,7 +2446,8 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
             children: [
               Expanded(
                 child: Text(
-                  'Matchs NBA en direct sur beIN Sports FR',
+                  'Matchs NBA en direct sur beIN Sports FR · '
+                  'enregistrés sur « ${widget.playlist.name} »',
                   style: GoogleFonts.fraunces(
                     color: AppColors.onSurface54,
                     fontSize: 13,

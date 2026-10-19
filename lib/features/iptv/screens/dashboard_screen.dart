@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/api/authed_http.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/glass_container.dart';
@@ -43,6 +44,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Toutes les requêtes /api/* de ce tableau de bord visent cette IPTV.
+    AuthedHttp.usePlaylist(widget.playlist.id, json: widget.playlist.toJson());
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/services/playlist_api_service.dart';
+import '../../../core/api/authed_http.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
@@ -163,6 +164,10 @@ class PlaylistSelectionScreen extends ConsumerWidget {
                           child: _PlaylistCard(
                             playlist: playlist,
                             onTap: () {
+                              AuthedHttp.usePlaylist(
+                                playlist.id,
+                                json: playlist.toJson(),
+                              );
                               selectPlaylist(ref, playlist);
                               context.go('/dashboard');
                             },
