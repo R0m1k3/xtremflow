@@ -288,9 +288,8 @@ pub fn season_passes(state: &SharedState, req: &Req, rest: &str) -> Resp {
             // Comme les enregistrements : un season pass appartient à une
             // seule IPTV, et une ligne sans playlist à aucune.
             if let Some(pid) = state.scoped_playlist_id(req) {
-                passes.retain(|p| {
-                    p.get("playlist_id").and_then(Value::as_str) == Some(pid.as_str())
-                });
+                passes
+                    .retain(|p| p.get("playlist_id").and_then(Value::as_str) == Some(pid.as_str()));
             }
             json(
                 200,
