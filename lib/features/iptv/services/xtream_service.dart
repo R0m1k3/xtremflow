@@ -333,12 +333,31 @@ class XtreamService {
     }
   }
 
+  /// Met le catalogue en cache, en cédant la place plutôt qu'en saturant.
+  ///
+  /// Un catalogue pèse plusieurs mégaoctets et il y en a un par IPTV : à deux
+  /// playlists, le quota du navigateur était atteint. L'erreur était avalée
+  /// ici, mais le stockage restait plein — et toute autre écriture échouait
+  /// à son tour, à commencer par celle de l'IPTV sélectionnée, bien plus
+  /// importante que ce cache. On purge donc les catalogues des autres IPTV
+  /// avant de réessayer, puis on renonce : ils se rechargent depuis le
+  /// serveur, le choix d'IPTV, lui, ne se devine pas.
   void _saveToLocalCache(String key, Map<String, dynamic> data) {
     if (!kIsWeb) return;
+    final storageKey = 'xtream_cache_${_currentPlaylist?.id}_$key';
+    final jsonStr = jsonEncode(data);
     try {
-      final jsonStr = jsonEncode(data);
-      html.window.localStorage['xtream_cache_${_currentPlaylist?.id}_$key'] =
-          jsonStr;
+      html.window.localStorage[storageKey] = jsonStr;
+      return;
+    } catch (_) {}
+    try {
+      final stale = html.window.localStorage.keys
+          .where((k) => k.startsWith('xtream_cache_') && k != storageKey)
+          .toList();
+      for (final k in stale) {
+        html.window.localStorage.remove(k);
+      }
+      html.window.localStorage[storageKey] = jsonStr;
     } catch (e) {
       debugPrint('Error saving to local cache ($key): $e');
     }

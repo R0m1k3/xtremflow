@@ -57,14 +57,48 @@ final selectedPlaylistProvider = StateProvider<PlaylistConfig?>((ref) {
   return null;
 });
 
+/// Préfixe des caches de catalogue (chaînes, films, séries) par IPTV.
+const xtreamCachePrefix = 'xtream_cache_';
+
+/// Vide les caches de catalogue pour rendre de la place.
+///
+/// Ces caches pèsent plusieurs mégaoctets par IPTV et saturent le quota du
+/// navigateur ; ils se reconstruisent au prochain chargement.
+void clearXtreamCaches() {
+  final keys = html.window.localStorage.keys
+      .where((k) => k.startsWith(xtreamCachePrefix))
+      .toList();
+  for (final key in keys) {
+    html.window.localStorage.remove(key);
+  }
+}
+
 /// Écrit l'IPTV courante là où `AuthedHttp` la relit pour poser l'en-tête
 /// `X-Playlist-Id`.
+///
+/// Quota saturé, `setItem` lève : les caches de catalogue remplissent le
+/// stockage et faisaient échouer cette écriture-ci, minuscule mais décisive.
+/// L'entrée restait sur l'IPTV précédente, l'en-tête désignait la mauvaise
+/// playlist, et les deux IPTV retombaient sur la même. Le catalogue cède donc
+/// la place, et un échec résiduel ne doit jamais empêcher le changement
+/// d'IPTV.
 void persistSelectedPlaylist(PlaylistConfig? playlist) {
-  if (playlist != null) {
-    html.window.localStorage['selected_playlist'] =
-        jsonEncode(playlist.toJson());
-  } else {
-    html.window.localStorage.remove('selected_playlist');
+  if (playlist == null) {
+    try {
+      html.window.localStorage.remove('selected_playlist');
+    } catch (_) {}
+    return;
+  }
+  final value = jsonEncode(playlist.toJson());
+  try {
+    html.window.localStorage['selected_playlist'] = value;
+  } catch (_) {
+    try {
+      clearXtreamCaches();
+      html.window.localStorage['selected_playlist'] = value;
+    } catch (e) {
+      debugPrint('Impossible de persister l\'IPTV choisie: $e');
+    }
   }
 }
 
