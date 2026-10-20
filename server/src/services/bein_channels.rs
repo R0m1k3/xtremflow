@@ -6,12 +6,9 @@
 //! les chaînes françaises, une seule fois par chaîne logique (beIN SPORTS 1,
 //! 2, 3, MAX 4…), dans la meilleure qualité disponible.
 
-use crate::models::PlaylistConfig;
 use crate::services::nba_teams::normalize;
 use regex::Regex;
 use serde::Serialize;
-use serde_json::Value;
-use std::collections::HashMap;
 use std::sync::LazyLock;
 
 /// Une chaîne beIN trouvée dans la liste du panneau.
@@ -143,20 +140,30 @@ pub fn classify(stream_id: &str, name: &str, category: &str) -> Option<BeinChann
         (None, None) => ("bein-sports".to_string(), "beIN SPORTS".to_string()),
     };
 
-    let prefix = COUNTRY_PREFIX
-        .captures(name)
-        .and_then(|c| c.get(1))
-        .map(|m| m.as_str().to_ascii_lowercase());
-    // Le préfixe du nom fait foi ; sinon les mots du nom (hors « bein sports
-    // N ») puis ceux de la catégorie.
+    let country_prefix = |text: &str| {
+        COUNTRY_PREFIX
+            .captures(text)
+            .and_then(|c| c.get(1))
+            .map(|m| m.as_str().to_ascii_lowercase())
+    };
+    // Ordre de confiance : préfixe pays du nom, puis préfixe pays de la
+    // catégorie, puis mots du nom (hors « bein sports N »), puis mots de la
+    // catégorie. Le préfixe de catégorie passe avant les mots du nom : vu en
+    // prod, « BEIN SPORTS 1 FR ULTRA FHD » rangée en « |AR| BEIN SPORTS 4K »
+    // est refusée par le panneau (HTTP 407) — ce n'est pas la beIN française.
     let rest_of_name = BEIN.replace(&norm, " ");
     let name_words = words(&rest_of_name);
     let cat_words = words(category);
     let is_marked = |list: &[&str], ws: &[String]| ws.iter().any(|w| list.contains(&w.as_str()));
-    let is_fr = match prefix.as_deref() {
-        Some(p) if FRENCH.contains(&p) => true,
-        Some(p) if FOREIGN.contains(&p) => false,
-        _ => {
+    let explicit = |p: Option<String>| match p.as_deref() {
+        Some(p) if FRENCH.contains(&p) => Some(true),
+        Some(p) if FOREIGN.contains(&p) => Some(false),
+        _ => None,
+    };
+    let is_fr = match explicit(country_prefix(name)).or_else(|| explicit(country_prefix(category)))
+    {
+        Some(v) => v,
+        None => {
             if is_marked(FOREIGN, &name_words) {
                 false
             } else if is_marked(FRENCH, &name_words) {
@@ -215,67 +222,6 @@ pub fn preferred_fr(detected: &[BeinChannel]) -> Vec<BeinChannel> {
         .collect()
 }
 
-/// `(stream_id, nom, catégorie)` de toutes les chaînes live du panneau.
-pub async fn fetch_live_table(
-    client: &reqwest::Client,
-    playlist: &PlaylistConfig,
-) -> Vec<(String, String, String)> {
-    let api = |action: &str| {
-        format!(
-            "{}/player_api.php?username={}&password={}&action={action}",
-            playlist.dns, playlist.username, playlist.password
-        )
-    };
-    let get = |url: String| async move {
-        let r = client
-            .get(&url)
-            .timeout(std::time::Duration::from_secs(90))
-            .send()
-            .await
-            .ok()?;
-        let body = r.bytes().await.ok()?;
-        tokio::task::spawn_blocking(move || serde_json::from_slice::<Value>(&body).ok())
-            .await
-            .ok()
-            .flatten()
-    };
-    let as_text = |v: Option<&Value>| match v {
-        Some(Value::String(s)) => s.clone(),
-        Some(Value::Null) | None => String::new(),
-        Some(other) => other.to_string(),
-    };
-    let categories: HashMap<String, String> = get(api("get_live_categories"))
-        .await
-        .and_then(|v| v.as_array().cloned())
-        .unwrap_or_default()
-        .iter()
-        .map(|c| {
-            (
-                as_text(c.get("category_id")),
-                as_text(c.get("category_name")),
-            )
-        })
-        .collect();
-    get(api("get_live_streams"))
-        .await
-        .and_then(|v| v.as_array().cloned())
-        .unwrap_or_default()
-        .iter()
-        .filter_map(|s| {
-            let id = as_text(s.get("stream_id"));
-            let name = as_text(s.get("name"));
-            if id.is_empty() || name.is_empty() {
-                return None;
-            }
-            let cat = categories
-                .get(&as_text(s.get("category_id")))
-                .cloned()
-                .unwrap_or_default();
-            Some((id, name, cat))
-        })
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -309,6 +255,36 @@ mod tests {
         assert!(!c("US: beIN Sports", "USA SPORTS").unwrap().is_fr);
         // Aucune indication de pays : on ne devine pas.
         assert!(!c("beIN SPORTS 1", "SPORTS").unwrap().is_fr);
+        // Vu en prod : « FR » dans le nom, mais rangée dans une catégorie
+        // arabe hors abonnement — le panneau refuse le flux (HTTP 407).
+        assert!(
+            !c("BEIN SPORTS 1 FR ULTRA FHD", "|AR| BEIN SPORTS 4K")
+                .unwrap()
+                .is_fr
+        );
+    }
+
+    #[test]
+    fn une_categorie_etrangere_ne_prend_pas_le_pas_sur_la_vraie_fr() {
+        // Ordre et IDs de la playlist de prod : la fausse FR (550403) gagnait
+        // l'égalité de qualité face à la vraie FHD (554021).
+        let items: Vec<(String, String, String)> = [
+            (
+                "550403",
+                "BEIN SPORTS 1 FR ULTRA FHD",
+                "|AR| BEIN SPORTS 4K",
+            ),
+            ("554021", "FR - BEIN SPORTS 1 FHD", "FR| SPORTS"),
+            ("543395", "FR - BEIN SPORTS 1", "FR| SPORTS"),
+        ]
+        .iter()
+        .map(|(id, n, cat)| (id.to_string(), n.to_string(), cat.to_string()))
+        .collect();
+        let preferred: Vec<String> = preferred_fr(&detect(&items))
+            .into_iter()
+            .map(|c| c.stream_id)
+            .collect();
+        assert_eq!(preferred, ["554021"]);
     }
 
     #[test]

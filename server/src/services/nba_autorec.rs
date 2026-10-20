@@ -464,24 +464,33 @@ pub fn map_bein_broadcasts(
 ///
 /// POURQUOI : une liste vide (détection ratée à la création) ou un flux
 /// renommé par le revendeur faisait ignorer tout le guide beIN.
-pub fn channel_labels(rule: &AutoRule, names: &[(String, String)]) -> Vec<(String, String)> {
-    let table: Vec<(String, String, String)> = names
-        .iter()
-        .map(|(id, name)| (id.clone(), name.clone(), String::new()))
-        .collect();
-    let detected = crate::services::bein_channels::detect(&table);
+///
+/// [names] : `(stream_id, nom, catégorie)` de la playlist. Un flux choisi
+/// reconnu comme beIN étrangère (nom ou catégorie) est ignoré : le guide
+/// beIN FR ne décrit pas ses programmes, et le panneau peut le refuser
+/// (vu en prod : « BEIN SPORTS 1 FR ULTRA FHD » en « |AR| BEIN SPORTS 4K »,
+/// HTTP 407 sur tout un match).
+pub fn channel_labels(
+    rule: &AutoRule,
+    names: &[(String, String, String)],
+) -> Vec<(String, String)> {
+    let detected = crate::services::bein_channels::detect(names);
     let mut labels: Vec<(String, String)> = Vec::new();
     for id in &rule.channel_ids {
-        let label = detected
-            .iter()
-            .find(|c| &c.stream_id == id)
-            .map(|c| c.label.clone())
-            .or_else(|| {
-                names
-                    .iter()
-                    .find(|(sid, _)| sid == id)
-                    .map(|(_, n)| n.clone())
-            });
+        let label = match detected.iter().find(|c| &c.stream_id == id) {
+            Some(c) if !c.is_fr => {
+                println!(
+                    "[NBA] Flux {id} ignoré : « {} » n'est pas une beIN française ({})",
+                    c.name, c.category
+                );
+                None
+            }
+            Some(c) => Some(c.label.clone()),
+            None => names
+                .iter()
+                .find(|(sid, _, _)| sid == id)
+                .map(|(_, n, _)| n.clone()),
+        };
         if let Some(label) = label {
             labels.push((id.clone(), label));
         }
@@ -628,7 +637,7 @@ impl NbaAutoRecorder {
         playlist: Option<&PlaylistConfig>,
     ) -> (Vec<EpgProgramme>, Value) {
         let names = match playlist {
-            Some(p) => self.epg.channel_names(p).await,
+            Some(p) => self.epg.channel_table(p).await,
             None => Vec::new(),
         };
         let labels = channel_labels(rule, &names);
@@ -1210,7 +1219,7 @@ mod tests {
 
     #[test]
     fn chaines_bein_detectees_dans_la_playlist() {
-        let names: Vec<(String, String)> = [
+        let names: Vec<(String, String, String)> = [
             ("10", "FR - BEIN SPORTS 1 HD"),
             ("11", "FR - BEIN SPORTS 1 FHD"),
             ("20", "FR| beIN SPORTS 2"),
@@ -1218,7 +1227,7 @@ mod tests {
             ("40", "FR - TF1"),
         ]
         .iter()
-        .map(|(a, b)| (a.to_string(), b.to_string()))
+        .map(|(a, b)| (a.to_string(), b.to_string(), String::new()))
         .collect();
         // Règle sans chaîne (détection ratée à la création) : tout est relié.
         let mut r = rule();
@@ -1236,6 +1245,30 @@ mod tests {
         let labels = channel_labels(&r, &names);
         assert_eq!(labels[0], ("10".to_string(), "beIN SPORTS 1".to_string()));
         assert_eq!(labels.len(), 2);
+    }
+
+    #[test]
+    fn un_flux_choisi_d_une_categorie_etrangere_est_remplace() {
+        // Vu en prod : la règle visait 550403, « FR » dans le nom mais rangée
+        // en « |AR| BEIN SPORTS 4K », hors abonnement (HTTP 407 à chaque
+        // tentative). Le guide beIN FR ne décrit pas cette chaîne.
+        let names: Vec<(String, String, String)> = [
+            (
+                "550403",
+                "BEIN SPORTS 1 FR ULTRA FHD",
+                "|AR| BEIN SPORTS 4K",
+            ),
+            ("554021", "FR - BEIN SPORTS 1 FHD", "FR| SPORTS"),
+        ]
+        .iter()
+        .map(|(a, b, c)| (a.to_string(), b.to_string(), c.to_string()))
+        .collect();
+        let mut r = rule();
+        r.channel_ids = vec!["550403".into()];
+        assert_eq!(
+            channel_labels(&r, &names),
+            vec![("554021".to_string(), "beIN SPORTS 1".to_string())]
+        );
     }
 
     #[test]

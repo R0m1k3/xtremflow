@@ -29,6 +29,10 @@ pub type PanelXmltvBuilder = Arc<dyn Fn(&PlaylistConfig) -> XmltvEpgService + Se
 struct ChannelMap {
     epg_ids: HashMap<String, String>,
     names: HashMap<String, String>,
+    /// `stream_id` → `category_id` (le nom de catégorie est dans [categories]).
+    category_ids: HashMap<String, String>,
+    /// `category_id` → nom (« |AR| BEIN SPORTS 4K »).
+    categories: HashMap<String, String>,
     expires_at: Option<Instant>,
 }
 
@@ -79,10 +83,19 @@ fn value_to_string(v: &Value) -> Option<String> {
     }
 }
 
-/// `stream_id` → (`epg_channel_id`, nom) depuis `get_live_streams`.
-fn parse_channel_table(body: &[u8]) -> (HashMap<String, String>, HashMap<String, String>) {
+/// Tables par `stream_id` tirées de `get_live_streams`.
+#[derive(Default)]
+struct ChannelTable {
+    epg_ids: HashMap<String, String>,
+    names: HashMap<String, String>,
+    category_ids: HashMap<String, String>,
+}
+
+/// `stream_id` → `epg_channel_id`, nom et `category_id`.
+fn parse_channel_table(body: &[u8]) -> ChannelTable {
     let mut epg_ids = HashMap::new();
     let mut names = HashMap::new();
+    let mut category_ids = HashMap::new();
     // UTF-8 explicite : sans charset annoncé, un décodage latin-1 abîmait
     // les noms (« Chérie », « ◉ ») et donc leur correspondance au guide.
     let text = String::from_utf8_lossy(body);
@@ -100,6 +113,11 @@ fn parse_channel_table(body: &[u8]) -> (HashMap<String, String>, HashMap<String,
             {
                 epg_ids.insert(stream_id.clone(), epg_id);
             }
+            if let Some(cat) = item.get("category_id").and_then(value_to_string)
+                && !cat.is_empty()
+            {
+                category_ids.insert(stream_id.clone(), cat);
+            }
             if let Some(name) = item.get("name").and_then(value_to_string)
                 && !name.is_empty()
             {
@@ -107,7 +125,27 @@ fn parse_channel_table(body: &[u8]) -> (HashMap<String, String>, HashMap<String,
             }
         }
     }
-    (epg_ids, names)
+    ChannelTable {
+        epg_ids,
+        names,
+        category_ids,
+    }
+}
+
+/// `category_id` → nom depuis `get_live_categories`.
+fn parse_categories(body: &[u8]) -> HashMap<String, String> {
+    let text = String::from_utf8_lossy(body);
+    let Ok(Value::Array(items)) = serde_json::from_str::<Value>(&text) else {
+        return HashMap::new();
+    };
+    items
+        .iter()
+        .filter_map(|c| {
+            let id = c.get("category_id").and_then(value_to_string)?;
+            let name = c.get("category_name").and_then(value_to_string)?;
+            Some((id, name))
+        })
+        .collect()
 }
 
 /// Epoch (secondes, texte ou entier) → ISO-8601 UTC.
@@ -265,12 +303,21 @@ impl EpgApi {
     }
 
     /// Toutes les chaînes du panneau : `(stream_id, nom)` (cache 6 h).
-    pub async fn channel_names(&self, playlist: &PlaylistConfig) -> Vec<(String, String)> {
-        self.channel_map_for(playlist)
-            .await
-            .names
+    /// `(stream_id, nom, catégorie)` des chaînes live de la playlist.
+    /// Catégorie vide si le panneau ne l'a pas fournie.
+    pub async fn channel_table(&self, playlist: &PlaylistConfig) -> Vec<(String, String, String)> {
+        let map = self.channel_map_for(playlist).await;
+        map.names
             .iter()
-            .map(|(id, name)| (id.clone(), name.clone()))
+            .map(|(id, name)| {
+                let category = map
+                    .category_ids
+                    .get(id)
+                    .and_then(|c| map.categories.get(c))
+                    .cloned()
+                    .unwrap_or_default();
+                (id.clone(), name.clone(), category)
+            })
             .collect()
     }
 
@@ -461,13 +508,13 @@ async fn load_channel_map(client: &reqwest::Client, playlist: &PlaylistConfig) -
         let status = response.status().as_u16();
         Ok::<_, reqwest::Error>((status, response.bytes().await?))
     };
-    let (mut epg_ids, mut names) = (HashMap::new(), HashMap::new());
+    let mut table = ChannelTable::default();
     match tokio::time::timeout(Duration::from_secs(90), fetch).await {
         Ok(Ok((200, body))) => {
             // Décodage hors du runtime : 7 Mo de JSON gelaient sinon le relais
             // des flux en cours.
             match tokio::task::spawn_blocking(move || parse_channel_table(&body)).await {
-                Ok(parsed) => (epg_ids, names) = parsed,
+                Ok(parsed) => table = parsed,
                 Err(e) => println!("[EpgApi] table des chaînes illisible : {e}"),
             }
         }
@@ -480,17 +527,51 @@ async fn load_channel_map(client: &reqwest::Client, playlist: &PlaylistConfig) -
             "[EpgApi] table des chaînes indisponible : TimeoutException after 0:01:30.000000"
         ),
     }
+    // Catégories (quelques Ko) : elles disent le pays d'un flux quand son nom
+    // ment (« BEIN SPORTS 1 FR ULTRA FHD » rangée en « |AR| BEIN SPORTS 4K »).
+    let categories = if table.names.is_empty() {
+        HashMap::new()
+    } else {
+        load_categories(client, playlist).await
+    };
     // Une table vide (panneau en échec) n'est gardée que 2 minutes : la
     // garder 6 h privait TOUTES les chaînes du repli XMLTV pendant 6 h.
-    let ttl = if names.is_empty() {
+    let ttl = if table.names.is_empty() {
         Duration::from_secs(120)
     } else {
         Duration::from_secs(6 * 3600)
     };
     ChannelMap {
-        epg_ids,
-        names,
+        epg_ids: table.epg_ids,
+        names: table.names,
+        category_ids: table.category_ids,
+        categories,
         expires_at: Some(Instant::now() + ttl),
+    }
+}
+
+async fn load_categories(
+    client: &reqwest::Client,
+    playlist: &PlaylistConfig,
+) -> HashMap<String, String> {
+    let url = format!(
+        "{}/player_api.php?username={}&password={}&action=get_live_categories",
+        playlist.dns, playlist.username, playlist.password
+    );
+    let fetch = async { client.get(&url).send().await?.bytes().await };
+    match tokio::time::timeout(Duration::from_secs(30), fetch).await {
+        Ok(Ok(body)) => parse_categories(&body),
+        Ok(Err(e)) => {
+            println!(
+                "[EpgApi] catégories indisponibles : {}",
+                redact_url(&format!("{e:?}"))
+            );
+            HashMap::new()
+        }
+        Err(_) => {
+            println!("[EpgApi] catégories indisponibles : délai dépassé");
+            HashMap::new()
+        }
     }
 }
 
@@ -634,7 +715,28 @@ mod tests {
         assert_eq!(resp.headers()["x-epg-source"], "panel-xmltv");
         let body = body_json(resp).await;
         assert_eq!(body["programmes"][0]["title"], "Journal de 20h");
-        assert_eq!(*actions.lock().unwrap(), vec!["get_live_streams"]);
+        // Table des chaînes + catégories, une fois par compte : aucun appel
+        // par chaîne.
+        assert_eq!(
+            *actions.lock().unwrap(),
+            vec!["get_live_streams", "get_live_categories"]
+        );
+    }
+
+    #[test]
+    fn table_des_chaines_avec_categories() {
+        let table = parse_channel_table(
+            json!([{"stream_id": 550403, "name": "BEIN SPORTS 1 FR ULTRA FHD", "category_id": "789"}])
+                .to_string()
+                .as_bytes(),
+        );
+        assert_eq!(table.category_ids["550403"], "789");
+        let cats = parse_categories(
+            json!([{"category_id": "789", "category_name": "|AR| BEIN SPORTS 4K", "parent_id": 0}])
+                .to_string()
+                .as_bytes(),
+        );
+        assert_eq!(cats["789"], "|AR| BEIN SPORTS 4K");
     }
 
     #[tokio::test]

@@ -181,7 +181,7 @@ async fn create(state: &SharedState, req: &Req, user: &User) -> Resp {
     if !body.contains_key("channel_ids")
         && let Some(playlist) = state.get_playlist(req)
     {
-        let table = bein_channels::fetch_live_table(&state.http, &playlist).await;
+        let table = state.epg.channel_table(&playlist).await;
         rule.channel_ids = bein_channels::preferred_fr(&bein_channels::detect(&table))
             .into_iter()
             .map(|c| c.stream_id)
@@ -370,7 +370,7 @@ async fn channels(state: &SharedState, req: &Req, rule: &AutoRule) -> Resp {
     let Some(playlist) = state.get_playlist(req) else {
         return json(403, &json!({"error": "Playlist non trouvée"}));
     };
-    let table = bein_channels::fetch_live_table(&state.http, &playlist).await;
+    let table = state.epg.channel_table(&playlist).await;
     let detected = bein_channels::detect(&table);
     let list: Vec<Value> = detected
         .iter()
