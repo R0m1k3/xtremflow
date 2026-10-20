@@ -903,14 +903,24 @@ impl Streaming {
             redact_url(&target)
         );
 
+        // Compte à une connexion : un FFmpeg de lecture orphelin (spectateur
+        // parti, session pas encore expirée) garde le slot et le panneau
+        // refuse l'enregistrement. On coupe les orphelins comme les autres
+        // routes ; un flux encore regardé n'est jamais coupé.
+        self.claim_upstream(&playlist, &format!("direct_{stream_id}"))
+            .await;
+
         // Première connexion hors du générateur : elle seule décide du code
         // de réponse.
         let client = state.http.clone();
         let Some(first) = open_live_upstream(&client, &target).await else {
+            println!("[Live Proxy] {stream_id} : fournisseur injoignable");
             return http::text(502, "Upstream connection failed");
         };
         let status = first.status().as_u16();
         if status != 200 {
+            // FFmpeg ne journalise que « 4XX » : le code exact n'est qu'ici.
+            println!("[Live Proxy] {stream_id} : refusé par le fournisseur (HTTP {status})");
             return http::text(status, "Upstream refused");
         }
 
@@ -954,8 +964,9 @@ impl Streaming {
                     tokio::time::sleep(Duration::from_secs(1)).await;
                     match open_live_upstream(&client, &target).await {
                         Some(r) if r.status().as_u16() == 200 => next = Some(r),
-                        _ => println!(
-                            "[Live Proxy] {id} : reconnexion {attempt}/{LIVE_PROXY_MAX_RETRIES} échouée"
+                        other => println!(
+                            "[Live Proxy] {id} : reconnexion {attempt}/{LIVE_PROXY_MAX_RETRIES} échouée ({})",
+                            other.map_or("injoignable".to_string(), |r| format!("HTTP {}", r.status().as_u16()))
                         ),
                     }
                 }

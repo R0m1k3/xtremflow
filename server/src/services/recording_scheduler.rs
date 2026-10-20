@@ -7,8 +7,8 @@ use crate::dart_time::{DartDateTime, display_local, now_display};
 use crate::db::AppDatabase;
 use crate::models::Recording;
 use crate::services::recording_decision::{
-    MAX_FFMPEG_ATTEMPTS, OrphanAction, PostExitAction, RecordingAction, capture_duration,
-    decide_orphan_action, decide_post_exit_action, decide_recording_action, ffmpeg_retry_delay,
+    OrphanAction, PostExitAction, RecordingAction, capture_duration, decide_orphan_action,
+    decide_post_exit_action, decide_recording_action, ffmpeg_retry_delay,
 };
 use crate::util::b64;
 use crate::util::log_redactor::redact_url;
@@ -828,7 +828,7 @@ impl RecordingScheduler {
             return;
         }
 
-        // Une capture qui a tenu longtemps repart d'un quota de relances neuf.
+        // Une capture qui a tenu longtemps repart du délai de relance minimal.
         let (lasted, has_data) = {
             let state = active.state.lock().unwrap();
             (
@@ -836,21 +836,11 @@ impl RecordingScheduler {
                 active_has_data(&active.file_path, &state.extra_parts),
             )
         };
-        let consecutive = {
-            let mut state = active.state.lock().unwrap();
-            if lasted > Duration::from_secs(120) && has_data {
-                state.consecutive_failures = 0;
-            }
-            state.consecutive_failures
-        };
+        if lasted > Duration::from_secs(120) && has_data {
+            active.state.lock().unwrap().consecutive_failures = 0;
+        }
 
-        match decide_post_exit_action(
-            Utc::now(),
-            recording.end_utc(),
-            exit_code,
-            consecutive,
-            has_data,
-        ) {
+        match decide_post_exit_action(Utc::now(), recording.end_utc(), exit_code, has_data) {
             PostExitAction::Retry => {
                 let failures = {
                     let mut state = active.state.lock().unwrap();
@@ -860,10 +850,9 @@ impl RecordingScheduler {
                 };
                 let delay = ffmpeg_retry_delay(failures);
                 let message = format!(
-                    "FFmpeg s'est arrêté (code {exit_code}) après {}s, avant la fin prévue — relance dans {}s (tentative {failures}/{})",
+                    "FFmpeg s'est arrêté (code {exit_code}) après {}s, avant la fin prévue — relance dans {}s (échec consécutif n°{failures})",
                     lasted.as_secs(),
                     delay.as_secs(),
-                    MAX_FFMPEG_ATTEMPTS - 1
                 );
                 println!("[RecordingScheduler] {}: {message}", recording.title);
                 active.log(&format!("\n[{}] {message}", now_display()));

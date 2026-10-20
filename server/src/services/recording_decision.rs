@@ -74,22 +74,22 @@ pub enum PostExitAction {
     Fail,
 }
 
-/// Échecs FFmpeg consécutifs tolérés avant d'abandonner un enregistrement
-/// dont la fenêtre est encore ouverte. Le compteur est remis à zéro dès
-/// qu'un lancement a duré assez longtemps pour être considéré sain.
-pub const MAX_FFMPEG_ATTEMPTS: u32 = 30;
-
 /// FFmpeg rend la main dès que la source se tarit : sur un flux IPTV, une
 /// coupure amont à mi-parcours ne doit pas condamner l'heure restante.
+///
+/// Aucun plafond d'échecs : tant que la fenêtre est ouverte, on relance
+/// (au rythme de [ffmpeg_retry_delay]). Sur un compte à une connexion, le
+/// panneau refuse le flux tant qu'un autre lecteur l'occupe ; abandonner
+/// au bout de quelques minutes faisait perdre tout le match (constaté en
+/// prod : 30 refus en 13 min, 3 h 20 de match perdues).
 pub fn decide_post_exit_action(
     now: DateTime<Utc>,
     end: DateTime<Utc>,
     exit_code: i32,
-    consecutive_failures: u32,
     has_file: bool,
 ) -> PostExitAction {
     let remaining = end - now;
-    if remaining > Duration::seconds(60) && consecutive_failures + 1 < MAX_FFMPEG_ATTEMPTS {
+    if remaining > Duration::seconds(60) {
         return PostExitAction::Retry;
     }
     // `255` est le code renvoyé par FFmpeg quand on l'interrompt proprement.
@@ -189,27 +189,29 @@ mod tests {
         let n = now();
         let m40 = n + Duration::minutes(40);
         assert_eq!(
-            decide_post_exit_action(n, m40, 1, 0, true),
+            decide_post_exit_action(n, m40, 1, true),
             PostExitAction::Retry
         );
         assert_eq!(
-            decide_post_exit_action(n, m40, 0, 2, true),
+            decide_post_exit_action(n, m40, 0, true),
+            PostExitAction::Retry
+        );
+        // Compte IPTV à une connexion occupé pendant 13 min : les refus en
+        // série ne doivent pas faire abandonner les heures restantes.
+        assert_eq!(
+            decide_post_exit_action(n, m40, 8, false),
             PostExitAction::Retry
         );
         assert_eq!(
-            decide_post_exit_action(n, m40, 1, MAX_FFMPEG_ATTEMPTS - 1, true),
+            decide_post_exit_action(n, n, 0, true),
             PostExitAction::Complete
         );
         assert_eq!(
-            decide_post_exit_action(n, n, 0, 0, true),
+            decide_post_exit_action(n, n, 1, true),
             PostExitAction::Complete
         );
         assert_eq!(
-            decide_post_exit_action(n, n, 1, 0, true),
-            PostExitAction::Complete
-        );
-        assert_eq!(
-            decide_post_exit_action(n, n, 1, 0, false),
+            decide_post_exit_action(n, n, 1, false),
             PostExitAction::Fail
         );
     }
