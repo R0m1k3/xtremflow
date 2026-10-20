@@ -1768,6 +1768,10 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
   bool _busy = false;
   String? _error;
   bool _showOffBein = false;
+  // Liste des chaînes en cours de chargement avant l'ouverture des réglages :
+  // sans ce verrou, chaque clic ouvrait un dialogue de plus, et enregistrer
+  // celui du dessus découvrait l'ancienne sélection en dessous.
+  bool _openingSettings = false;
   // Dernier diagnostic serveur : source, diffusions, chaînes reliées.
   Map<String, dynamic>? _diag;
 
@@ -1936,13 +1940,18 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
 
   Future<void> _showSettings() async {
     final rule = _rule;
-    if (rule == null) return;
+    if (rule == null || _openingSettings) return;
+    setState(() => _openingSettings = true);
     List<dynamic> channels = [];
-    final r = await AuthedHttp.get(
-      Uri.parse('/api/auto-rules/${rule['id']}/channels'),
-    );
-    if (r.statusCode == 200) {
-      channels = json.decode(r.body)['channels'] as List;
+    try {
+      final r = await AuthedHttp.get(
+        Uri.parse('/api/auto-rules/${rule['id']}/channels'),
+      );
+      if (r.statusCode == 200) {
+        channels = json.decode(r.body)['channels'] as List;
+      }
+    } finally {
+      if (mounted) setState(() => _openingSettings = false);
     }
     if (!mounted) return;
 
@@ -2485,12 +2494,21 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
                   onPressed: _busy ? null : _refreshNow,
                 ),
                 IconButton(
-                  icon: const Icon(
-                    Icons.tune,
-                    color: AppColors.onSurfaceVariant,
-                  ),
+                  icon: _openingSettings
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.onSurface,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.tune,
+                          color: AppColors.onSurfaceVariant,
+                        ),
                   tooltip: 'Réglages',
-                  onPressed: _showSettings,
+                  onPressed: _openingSettings ? null : _showSettings,
                 ),
               ],
             ],
