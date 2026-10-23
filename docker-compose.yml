@@ -30,6 +30,10 @@ services:
       - EPG_XMLTV_URLS=${EPG_XMLTV_URLS-https://epgshare01.online/epgshare01/epg_ripper_FR1.xml.gz,https://epgshare01.online/epgshare01/epg_ripper_CH1.xml.gz,https://epgshare01.online/epgshare01/epg_ripper_BE2.xml.gz}
       # Accélération GPU NVIDIA pour le transcodage (NVENC) : true/false
       - NVIDIA_GPU=${NVIDIA_GPU:-false}
+      # UID/GID du serveur, à aligner sur le propriétaire du dossier
+      # d'enregistrement (Unraid : 99/100). Vides = utilisateur interne.
+      - PUID=${PUID:-}
+      - PGID=${PGID:-}
     restart: unless-stopped
 
 volumes:

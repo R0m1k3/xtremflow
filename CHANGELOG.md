@@ -51,6 +51,7 @@
 - **Confirmation avant suppression** d'un enregistrement, et messages d'erreur avec bouton « Réessayer » (chaînes, enregistrements) au lieu d'exceptions brutes
 
 ### 🔧 Fiabilité des enregistrements
+- **Droits du dossier d'enregistrement compatibles Plex (Unraid)** : l'entrypoint faisait `chmod -R 770` sur le dossier à chaque démarrage, ce qui ôtait la lecture à Plex ; rendre la lecture à Plex retirait l'écriture au conteneur, et chaque capture échouait avec « Erreur FFmpeg code 243 » (`EACCES`) sans même de log. Nouvelles variables `PUID`/`PGID` (Unraid : `99`/`100`) et `UMASK` (`002`) ; les droits ne sont plus qu'ajoutés, jamais retirés. Le serveur vérifie que le dossier est inscriptible avant de lancer FFmpeg et l'écrit en clair, et les codes de sortie FFmpeg courants sont traduits (243 → permission refusée)
 - **Fuseaux horaires unifiés** : le backend exige des dates ISO-8601 avec fuseau (400 sinon) et stocke tout en UTC ; le frontend passe par un helper unique `postRecording()` — fini les enregistrements décalés de 1-2 h selon l'écran utilisé
 - **Contrôle de propriété** : stop/suppression/logs d'un enregistrement et suppression d'un season pass ne sont plus possibles que par leur propriétaire (ou un admin)
 - **SQLite durci** : `foreign_keys=ON` (les CASCADE déclarés s'appliquent enfin), WAL, `busy_timeout`, migrations de schéma versionnées, index sur `user_id`/`start_time`

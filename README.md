@@ -35,6 +35,8 @@ Au premier démarrage, un compte `admin` est créé avec un **mot de passe aléa
 | Variable | Défaut | Rôle |
 |---|---|---|
 | `RECORDINGS_PATH` | `./data/recordings` | Dossier hôte des enregistrements |
+| `PUID` / `PGID` | *(utilisateur interne)* | UID/GID du serveur, à aligner sur le propriétaire du dossier d'enregistrement (Unraid : `99` / `100`, comme Plex) |
+| `UMASK` | `002` | Droits des fichiers créés (lisibles par tous, groupe en écriture) |
 | `TZ` | `Europe/Paris` | Fuseau du conteneur (les enregistrements sont stockés en UTC) |
 | `MAX_CONCURRENT_RECORDINGS` | `2` | Enregistrements simultanés |
 | `EPG_XMLTV_URLS` | dumps FR, CH, BE | Sources XMLTV de repli (vide = aucun appel sortant) |

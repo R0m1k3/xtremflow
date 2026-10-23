@@ -101,6 +101,28 @@ pub fn decide_post_exit_action(
     }
 }
 
+/// Cause lisible d'un code de sortie FFmpeg, pour le motif d'échec affiché.
+///
+/// FFmpeg ≥ 7 sort avec son code d'erreur interne (`AVERROR`, négatif)
+/// tronqué à un octet : 243 = −13 = `EACCES`. Seules les causes que
+/// l'utilisateur peut corriger sont nommées.
+pub fn describe_ffmpeg_exit(exit_code: i32) -> Option<&'static str> {
+    match exit_code {
+        // −13 EACCES
+        243 => Some("permission refusée sur le dossier d'enregistrement"),
+        // −2 ENOENT
+        254 => Some("fichier ou dossier introuvable"),
+        // −28 ENOSPC
+        228 => Some("disque plein"),
+        // −30 EROFS
+        226 => Some("dossier d'enregistrement en lecture seule"),
+        // Erreurs HTTP du fournisseur (AVERROR_HTTP_*)
+        8 => Some("flux refusé par le fournisseur (erreur HTTP)"),
+        c if c < 0 => Some("FFmpeg interrompu par un signal"),
+        _ => None,
+    }
+}
+
 /// Durée de capture (`-t`) : le temps restant jusqu'à la fin programmée,
 /// et non la durée théorique du programme — un démarrage tardif (ou une
 /// relance après coupure) ne doit pas décaler la fin de l'enregistrement.
@@ -214,6 +236,23 @@ mod tests {
             decide_post_exit_action(n, n, 1, false),
             PostExitAction::Fail
         );
+    }
+
+    #[test]
+    fn causes_de_sortie_ffmpeg() {
+        assert_eq!(
+            describe_ffmpeg_exit(243),
+            Some("permission refusée sur le dossier d'enregistrement")
+        );
+        assert_eq!(
+            describe_ffmpeg_exit(8),
+            Some("flux refusé par le fournisseur (erreur HTTP)")
+        );
+        assert_eq!(
+            describe_ffmpeg_exit(-9),
+            Some("FFmpeg interrompu par un signal")
+        );
+        assert_eq!(describe_ffmpeg_exit(1), None);
     }
 
     #[test]

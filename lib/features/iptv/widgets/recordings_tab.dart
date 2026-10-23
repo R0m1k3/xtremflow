@@ -1069,13 +1069,23 @@ class _RecordingsListViewState extends ConsumerState<_RecordingsListView> {
     ];
   }
 
+  /// Message `error` renvoyé par l'API, précédé d'un séparateur.
+  String _errorDetail(String body) {
+    try {
+      final error = json.decode(body)['error'];
+      return error is String && error.isNotEmpty ? ' : $error' : '';
+    } catch (_) {
+      return '';
+    }
+  }
+
   Future<void> _showLogs(String id, String title) async {
     try {
       final response = await AuthedHttp.get(Uri.parse('/api/recordings/logs/$id'));
       if (!mounted) return;
       final content = response.statusCode == 200
           ? (json.decode(response.body)['logs'] as String? ?? 'Aucun log')
-          : 'Logs non disponibles (${response.statusCode})';
+          : 'Logs non disponibles (${response.statusCode})${_errorDetail(response.body)}';
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
