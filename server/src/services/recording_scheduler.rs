@@ -8,7 +8,7 @@ use crate::db::AppDatabase;
 use crate::models::Recording;
 use crate::services::recording_decision::{
     OrphanAction, PostExitAction, RecordingAction, capture_duration, decide_orphan_action,
-    decide_post_exit_action, decide_recording_action, ffmpeg_retry_delay,
+    decide_post_exit_action, decide_recording_action, describe_ffmpeg_exit, ffmpeg_retry_delay,
 };
 use crate::util::b64;
 use crate::util::log_redactor::redact_url;
@@ -631,6 +631,27 @@ impl RecordingScheduler {
             }
         }
 
+        // Un dossier non inscriptible (droits modifiés côté hôte) ferait
+        // échouer chaque relance de FFmpeg pendant toute la fenêtre, sans
+        // même de log : on le signale tout de suite.
+        if let Err(e) = check_writable(&dir) {
+            println!(
+                "[RecordingScheduler] Dossier {} non accessible en écriture ({e}) : \"{}\" refusé",
+                dir.display(),
+                recording.title
+            );
+            self.db.update_recording_status(
+                &recording.id,
+                "failed",
+                None,
+                Some(&format!(
+                    "Dossier d'enregistrement non accessible en écriture ({e}). Vérifier les droits du dossier hôte (PUID/PGID)."
+                )),
+                false,
+            );
+            return Ok(());
+        }
+
         let file_path = dir
             .join(file_name_for(&recording))
             .to_string_lossy()
@@ -849,8 +870,11 @@ impl RecordingScheduler {
                     state.consecutive_failures
                 };
                 let delay = ffmpeg_retry_delay(failures);
+                let cause = describe_ffmpeg_exit(exit_code)
+                    .map(|c| format!(", {c}"))
+                    .unwrap_or_default();
                 let message = format!(
-                    "FFmpeg s'est arrêté (code {exit_code}) après {}s, avant la fin prévue — relance dans {}s (échec consécutif n°{failures})",
+                    "FFmpeg s'est arrêté (code {exit_code}{cause}) après {}s, avant la fin prévue — relance dans {}s (échec consécutif n°{failures})",
                     lasted.as_secs(),
                     delay.as_secs(),
                 );
@@ -893,7 +917,12 @@ impl RecordingScheduler {
                 self.finalize(
                     &active,
                     "failed",
-                    Some(&format!("Erreur FFmpeg code {exit_code}. Voir logs.")),
+                    Some(&match describe_ffmpeg_exit(exit_code) {
+                        Some(cause) => {
+                            format!("Erreur FFmpeg code {exit_code} : {cause}. Voir logs.")
+                        }
+                        None => format!("Erreur FFmpeg code {exit_code}. Voir logs."),
+                    }),
                 )
                 .await;
             }
@@ -1232,6 +1261,14 @@ fn active_has_data(file_path: &str, extra_parts: &[String]) -> bool {
 fn file_has_data(path: Option<&str>) -> bool {
     path.and_then(|p| std::fs::metadata(p).ok())
         .is_some_and(|m| m.is_file() && m.len() > 0)
+}
+
+/// Vérifie qu'un fichier peut être créé dans [dir] (fichier sonde supprimé).
+fn check_writable(dir: &Path) -> std::io::Result<()> {
+    let probe = dir.join(format!(".xtremflow-write-test-{}", std::process::id()));
+    std::fs::File::create(&probe)?;
+    let _ = std::fs::remove_file(&probe);
+    Ok(())
 }
 
 fn delete_quietly(path: &str) {
