@@ -1,15 +1,15 @@
 //! Proxy Xtream `/api/xtream/<url>` (images, API du panneau) avec
 //! protections anti-SSRF, et mémoire des hôtes d'images hors service.
 
-use crate::http::{self, Req, Resp, extract_token};
+use crate::http::{self, Req, Resp};
 use crate::models::PlaylistConfig;
 use crate::state::AppState;
 use crate::util::log_redactor::redact_url;
+use crate::util::ssrf;
 use axum::body::Body;
 use futures::TryStreamExt;
 use serde_json::json;
 use std::collections::HashMap;
-use std::net::IpAddr;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -113,30 +113,12 @@ fn is_static_asset_url(url: &reqwest::Url) -> bool {
         || path.contains("/logos/")
 }
 
-/// Hôte à ne jamais atteindre par le proxy (loopback, LAN privé,
-/// link-local/métadonnées cloud) — protection SSRF des URL d'images qui
-/// échappent à l'allowlist de domaine.
+/// Hôte à ne jamais atteindre par le proxy, jugé sur l'URL seule (loopback,
+/// LAN privé, link-local/métadonnées cloud, CGNAT, IPv4 mappée…). Les NOMS
+/// d'hôtes sont jugés à la connexion, sur chaque adresse résolue, par le
+/// résolveur du client `http_guarded` (voir `util::ssrf`).
 pub fn is_forbidden_proxy_host(host: &str) -> bool {
-    let lower = host.to_lowercase();
-    let lower = lower.trim_start_matches('[').trim_end_matches(']');
-    if lower == "localhost" || lower == "::1" {
-        return true;
-    }
-    let Ok(ip) = lower.parse::<IpAddr>() else {
-        return false; // nom d'hôte : validé par l'allowlist de domaine
-    };
-    match ip {
-        IpAddr::V4(v4) => {
-            let o = v4.octets();
-            v4.is_loopback()
-                || o[0] == 10
-                || (o[0] == 172 && (16..=31).contains(&o[1]))
-                || (o[0] == 192 && o[1] == 168)
-                || (o[0] == 169 && o[1] == 254)
-                || o[0] == 0
-        }
-        IpAddr::V6(v6) => v6.is_loopback() || (v6.segments()[0] & 0xffc0) == 0xfe80,
-    }
+    ssrf::is_forbidden_host_literal(host)
 }
 
 fn host_of(url: &reqwest::Url) -> String {
@@ -188,11 +170,14 @@ impl ProxyHandler {
     }
 
     fn cached_playlist(&self, state: &AppState, req: &Req) -> Option<PlaylistConfig> {
-        let key = req
+        // L'utilisateur fait partie de la clé : la playlist d'un compte ne doit
+        // pas servir d'allowlist à un autre qui en demanderait l'identifiant.
+        let requested = req
             .query_param("playlist")
             .filter(|p| !p.trim().is_empty())
             .or_else(|| req.header("x-playlist-id").map(str::to_string))
             .unwrap_or_default();
+        let key = format!("{}\u{0}{requested}", req.user_id.as_deref().unwrap_or(""));
         if let Some((playlist, expiry)) = self.playlist_cache.lock().unwrap().get(&key)
             && Instant::now() < *expiry
         {
@@ -216,11 +201,12 @@ impl ProxyHandler {
         // Authentification par session (en-tête ou cookie HttpOnly posé au
         // login : `img src` et hls.js n'envoient que le cookie). Un proxy
         // ouvert offrait un rebond SSRF non authentifié.
-        let authorized = extract_token(req)
-            .is_some_and(|token| state.db.find_session_by_token(&token).is_some());
-        if !authorized {
+        // L'utilisateur est attaché à la requête : get_playlist ne lui laisse
+        // alors choisir que ses propres playlists (admin : toutes).
+        let Some(authed) = state.with_session_user(req) else {
             return http::text(401, "Unauthorized");
-        }
+        };
+        let req = &authed;
 
         let mut api_path = api_path.to_string();
         if api_path.starts_with("http%3A") || api_path.starts_with("https%3A") {
@@ -344,12 +330,14 @@ impl ProxyHandler {
 
         // Redirections suivies À LA MAIN : chaque destination est revalidée
         // (hôte privé, allowlist). Une 302 du serveur amont suffisait sinon à
-        // atteindre un hôte interne malgré l'anti-SSRF.
+        // atteindre un hôte interne malgré l'anti-SSRF. Le client
+        // `http_guarded` contrôle en plus chaque adresse résolue, à la
+        // connexion (noms qui pointent vers le LAN, DNS rebinding).
         let mut current = target.clone();
         let mut redirects = 0;
         let response = loop {
             let mut builder = state
-                .http_manual
+                .http_guarded
                 .request(method.clone(), current.clone())
                 .headers(headers.clone());
             if let Some(body) = &post_body {

@@ -599,6 +599,12 @@ impl RecordingScheduler {
         recording: Recording,
         resume: bool,
     ) -> Result<(), String> {
+        // L'URL finit en `-i` de FFmpeg, qui résout le nom lui-même : contrôle
+        // anti-SSRF refait ici (lignes anciennes, season passes, NBA auto),
+        // au plus près de la connexion.
+        crate::util::ssrf::check_stream_url(&recording.stream_url)
+            .await
+            .map_err(|e| format!("URL de flux refusée : {e}"))?;
         let dir = PathBuf::from(recordings_dir_path());
         if !dir.exists() {
             std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;

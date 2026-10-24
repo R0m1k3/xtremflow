@@ -6,6 +6,7 @@ use crate::http::{self, Req, Resp, json, segments};
 use crate::models::{Recording, User, stream_url_for_playlist};
 use crate::services::recording_scheduler::{RecordingScheduler, recordings_dir_path};
 use crate::state::SharedState;
+use crate::util::ssrf;
 use crate::util::{media_probe, safe_path};
 use chrono::{DateTime, Utc};
 use regex::Regex;
@@ -21,7 +22,7 @@ fn can_access(user: Option<&User>, recording: &Recording) -> bool {
 pub async fn recordings(state: &SharedState, req: &Req, rest: &str) -> Resp {
     match (req.method.as_str(), segments(rest).as_slice()) {
         ("GET" | "HEAD", []) => list(state, req).await,
-        ("POST", []) => create(state, req),
+        ("POST", []) => create(state, req).await,
         ("DELETE", [id]) => delete(state, req, id),
         ("POST", ["stop", id]) => stop(state, req, id),
         ("GET" | "HEAD", ["logs", id]) => logs(state, req, id).await,
@@ -144,7 +145,7 @@ fn to_text(v: Option<&Value>) -> Option<String> {
     }
 }
 
-fn create(state: &SharedState, req: &Req) -> Resp {
+async fn create(state: &SharedState, req: &Req) -> Resp {
     let Some(user_id) = req
         .user
         .as_ref()
@@ -163,6 +164,11 @@ fn create(state: &SharedState, req: &Req) -> Resp {
     }
     if stream_url.is_empty() {
         return json(400, &json!({"error": "stream_url est requis"}));
+    }
+    // Passée telle quelle à FFmpeg (-i) : http(s) public ou chemin local
+    // /api/… seulement (anti-SSRF, pas de file:/concat:).
+    if let Err(e) = ssrf::check_stream_url(&stream_url).await {
+        return json(400, &json!({"error": e}));
     }
     let (Some(start), Some(end)) = (
         parse_zoned_date(data.get("start_time")),
@@ -347,6 +353,11 @@ fn create_pass(state: &SharedState, req: &Req) -> Resp {
     }
     if stream_url.is_empty() {
         return json(400, &json!({"error": "stream_url est requis"}));
+    }
+    // Même contrôle qu'à la création d'un enregistrement ; la résolution DNS
+    // est refaite au lancement de chaque capture.
+    if let Err(e) = ssrf::check_stream_url_syntax(&stream_url) {
+        return json(400, &json!({"error": e}));
     }
     let Some(user) = &req.user else {
         return json(401, &json!({"error": "Authentification requise"}));

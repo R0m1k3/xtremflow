@@ -94,6 +94,15 @@ async fn main() {
 
     let http = http_client(reqwest::redirect::Policy::limited(5));
     let http_manual = http_client(reqwest::redirect::Policy::none());
+    // URL fournies par les clients (proxy d'images / API Xtream) : chaque
+    // adresse résolue est contrôlée à la connexion (anti-SSRF).
+    let http_guarded = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .user_agent("VLC/3.0.18 LibVLC/3.0.18")
+        .connect_timeout(Duration::from_secs(30))
+        .dns_resolver(Arc::new(crate::util::ssrf::GuardedResolver::from_env()))
+        .build()
+        .expect("client HTTP");
 
     // Planificateur d'enregistrements (les season passes résolvent la
     // playlist de leur propriétaire à chaque scan).
@@ -170,6 +179,7 @@ async fn main() {
         versioned,
         http: http.clone(),
         http_manual,
+        http_guarded,
         scheduler: scheduler.clone(),
         nba,
         streaming,

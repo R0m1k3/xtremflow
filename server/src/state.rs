@@ -23,6 +23,9 @@ pub struct AppState {
     pub http: reqwest::Client,
     /// Client HTTP sans suivi des redirections (revalidées à la main).
     pub http_manual: reqwest::Client,
+    /// Comme `http_manual`, mais son résolveur DNS refuse les adresses
+    /// privées/réservées (`util::ssrf`) : pour les URL fournies par un client.
+    pub http_guarded: reqwest::Client,
     pub scheduler: Arc<RecordingScheduler>,
     pub nba: Arc<NbaAutoRecorder>,
     pub streaming: Arc<Streaming>,
@@ -37,6 +40,19 @@ pub struct AppState {
 }
 
 impl AppState {
+    /// Requête avec l'utilisateur de sa session attaché, ou `None` sans
+    /// session valide. Les routes de streaming et le proxy, authentifiés à
+    /// part, en ont besoin pour que [`Self::get_playlist`] applique les droits
+    /// du compte au lieu d'accepter n'importe quel identifiant de playlist.
+    pub fn with_session_user(&self, req: &Req) -> Option<Req> {
+        let token = crate::http::extract_token(req)?;
+        let session = self.db.find_session_by_token(&token)?;
+        let mut authed = req.clone();
+        authed.user = self.db.find_user_by_id(&session.user_id);
+        authed.user_id = Some(session.user_id);
+        Some(authed)
+    }
+
     /// IPTV de rattachement des listes (enregistrements, season passes,
     /// règles automatiques).
     ///
@@ -62,9 +78,11 @@ impl AppState {
     /// foi : sans elle, toutes les fonctions
     /// (direct, guide, enregistrements) tombaient sur la playlist la plus
     /// récente, même quand une autre IPTV était sélectionnée. Un utilisateur
-    /// authentifié n'accède qu'à ses playlists (admin : toutes). Sans
-    /// utilisateur (flux déjà validés par jeton, ou capture FFmpeg locale),
-    /// l'identifiant — un UUID — suffit.
+    /// authentifié n'accède qu'à ses playlists (admin : toutes) — le proxy
+    /// et les routes de streaming attachent donc l'utilisateur de la session
+    /// ([`Self::with_session_user`]). Sans utilisateur (seulement la capture
+    /// FFmpeg locale du planificateur, en loopback), l'identifiant — un UUID
+    /// — suffit.
     ///
     /// À défaut : la playlist la plus récente de l'utilisateur, sinon celle
     /// du premier utilisateur de la base.
