@@ -44,7 +44,13 @@ Au premier démarrage, un compte `admin` est créé avec un **mot de passe aléa
 | `ADMIN_INITIAL_PASSWORD` | *(généré)* | Mot de passe initial du compte admin |
 | `MIN_FREE_DISK_MB` | `500` | Espace libre minimal pour démarrer une capture |
 | `RECORDINGS_QUOTA_GB` | `0` (off) | Quota du dossier d'enregistrements (rotation des plus anciens terminés) |
-| `TRUSTED_PROXIES` | loopback + RFC1918 | IPs de reverse proxy dont `X-Forwarded-For` est honoré |
+| `TRUSTED_PROXIES` | *(vide : aucun)* | IP ou plages CIDR (ex. `172.18.0.0/16`) des reverse proxies dont `X-Forwarded-For` est honoré ; l'en-tête est lu de droite à gauche. Vide : l'IP retenue est celle de la connexion |
+| `PROXY_ALLOW_PRIVATE_HOSTS` | *(vide)* | Noms d'hôtes du LAN que le proxy `/api/xtream/` et les captures peuvent joindre malgré l'anti-SSRF (panneau IPTV local) |
+
+### Sécurité / variables à connaître
+
+- **Derrière un reverse proxy** (Nginx, Traefik, Caddy…), définissez `TRUSTED_PROXIES` avec l'IP ou le réseau Docker du proxy. Sinon, tous les clients partagent l'IP du proxy pour le rate limit (600 req/min) et la limite de tentatives de login (10/min).
+- **Anti-SSRF** : le proxy `/api/xtream/<url>` et les URL de flux des enregistrements refusent toute adresse privée, loopback, link-local (métadonnées cloud), CGNAT ou réservée — y compris quand un nom de domaine s'y résout (contrôle à la connexion). Un panneau IPTV hébergé sur le réseau local doit être listé dans `PROXY_ALLOW_PRIVATE_HOSTS`.
 
 ## Développement local
 

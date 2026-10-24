@@ -34,6 +34,14 @@ services:
       # d'enregistrement (Unraid : 99/100). Vides = utilisateur interne.
       - PUID=${PUID:-}
       - PGID=${PGID:-}
+      # Reverse proxy devant XtremFlow : IP ou plage CIDR du proxy dont
+      # X-Forwarded-For est honoré (ex. 172.18.0.0/16). Vide = aucun : l'IP
+      # vue est celle de la connexion (rate limit par IP du proxy).
+      - TRUSTED_PROXIES=${TRUSTED_PROXIES:-}
+      # Hôtes du réseau local que le proxy d'images/API et les captures
+      # peuvent joindre malgré l'anti-SSRF (panneau IPTV sur le LAN), séparés
+      # par des virgules. Vide = adresses privées toujours refusées.
+      - PROXY_ALLOW_PRIVATE_HOSTS=${PROXY_ALLOW_PRIVATE_HOSTS:-}
     restart: unless-stopped
 
 volumes:

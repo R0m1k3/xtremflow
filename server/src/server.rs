@@ -161,8 +161,13 @@ async fn security_chain(state: &SharedState, req: Req) -> Resp {
     // Limite globale : 600 req/min/IP (une grille de chaînes déclenche une
     // requête de logo et une de guide par tuile, derrière une seule IP de
     // reverse proxy).
+    // Exemption des requêtes LOCALES (captures FFmpeg du planificateur) :
+    // jugée sur la socket, jamais sur X-Forwarded-For qu'un client peut
+    // forger à « 127.0.0.1 ».
     let ip = client_ip(&req, &state.trusted_proxies);
-    if ip != "unknown" && ip != "127.0.0.1" && !state.rate_limit.allow(&ip) {
+    let local = socket_ip(&req).is_some_and(|ip| ip.is_loopback())
+        && !req.headers.contains_key("x-forwarded-for");
+    if ip != "unknown" && !local && !state.rate_limit.allow(&ip) {
         println!("SECURITY WARN: Rate limit exceeded for {ip}");
         return http::text(429, "Too Many Requests");
     }
