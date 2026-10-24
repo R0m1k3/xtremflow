@@ -358,13 +358,18 @@ async fn protected_streaming(state: &SharedState, req: &Req) -> Resp {
     }
     let loopback = socket_ip(req).is_some_and(|ip| ip.is_loopback());
     let via_proxy = req.headers.contains_key("x-forwarded-for");
-    if !(loopback && !via_proxy) {
-        let valid =
-            extract_token(req).is_some_and(|t| state.db.find_session_by_token(&t).is_some());
-        if !valid {
-            return http::text(401, "Unauthorized");
+    // Utilisateur de la session ATTACHÉ à la requête : get_playlist ne lui
+    // laisse choisir que ses playlists (sans lui, tout `?playlist=<id>` était
+    // accepté, et à défaut on servait la playlist du premier compte).
+    let authed;
+    let req = match state.with_session_user(req) {
+        Some(r) => {
+            authed = r;
+            &authed
         }
-    }
+        None if loopback && !via_proxy => req,
+        None => return http::text(401, "Unauthorized"),
+    };
     let streaming = state.streaming.clone();
     if let Some(rest) = mounted(path, "api/live") {
         return streaming.live(state, req, rest).await;

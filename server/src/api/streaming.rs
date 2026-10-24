@@ -1197,6 +1197,14 @@ impl Streaming {
         let Some(recording) = state.db.get_recording_by_id(id) else {
             return http::text(404, "Recording not found");
         };
+        // Comme la liste : un compte ne lit que ses enregistrements (admin :
+        // tous). Sans utilisateur = requête locale du serveur lui-même.
+        if let Some(user) = &req.user
+            && !user.is_admin
+            && recording.user_id != user.id
+        {
+            return http::text(403, "Forbidden");
+        }
         // Lisible seulement terminé ou en cours.
         match recording.status.as_str() {
             "scheduled" => return http::text(202, "Recording not yet started"),
