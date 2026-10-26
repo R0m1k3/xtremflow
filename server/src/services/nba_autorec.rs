@@ -411,6 +411,41 @@ pub fn suspend_rule(db: &AppDatabase, rule: &AutoRule) {
     }
 }
 
+/// Rattrapage des vignettes d'un enregistrement automatique terminé.
+#[derive(Debug, PartialEq)]
+pub enum ArtworkRepair {
+    /// Jamais déposées (clôture après un redémarrage, écriture refusée…) :
+    /// annexes et pochette intégrée au MKV.
+    Full,
+    /// Mise en page changée : redessiner les annexes seulement.
+    Sidecars,
+    None,
+}
+
+/// Délai après la fin prévue avant de toucher au fichier : la clôture
+/// (fusion des parties, remux de la pochette) doit être finie, sans quoi
+/// deux remux écriraient le même MKV.
+const ARTWORK_REPAIR_DELAY_HOURS: i64 = 2;
+
+pub fn plan_artwork_repair(
+    rec: &Recording,
+    file_ok: bool,
+    has_sidecars: bool,
+    layout_outdated: bool,
+    now: DateTime<Utc>,
+) -> ArtworkRepair {
+    let eligible = rec.status == "completed"
+        && rec.source_rule_id.is_some()
+        && file_ok
+        && rec.end_utc() + Duration::hours(ARTWORK_REPAIR_DELAY_HOURS) < now;
+    match (eligible, has_sidecars, layout_outdated) {
+        (false, _, _) => ArtworkRepair::None,
+        (true, false, _) => ArtworkRepair::Full,
+        (true, true, true) => ArtworkRepair::Sidecars,
+        (true, true, false) => ArtworkRepair::None,
+    }
+}
+
 /// Jours de guide beIN demandés (le site publie environ 8 jours).
 const BEIN_GUIDE_DAYS: i64 = 10;
 
@@ -545,6 +580,7 @@ impl NbaAutoRecorder {
                     this.refresh_schedules().await;
                 }
                 this.reconcile_all().await;
+                this.repair_artwork().await;
                 tick += 1;
             }
         }));
@@ -610,6 +646,64 @@ impl NbaAutoRecorder {
             }
             self.db.delete_recording(&rec.id);
             println!("[NBA] Rétention : « {} » supprimé", rec.title);
+        }
+    }
+
+    /// Vignettes manquantes ou d'une ancienne mise en page : la clôture
+    /// normale n'est pas le seul chemin vers « completed » (reprise après
+    /// redémarrage, arrêt manuel d'un orphelin), et une écriture refusée ne
+    /// doit pas priver définitivement le match de sa vignette.
+    async fn repair_artwork(&self) {
+        let dir = std::path::PathBuf::from(recordings_dir_path());
+        let layout_file = nba_artwork::artwork_dir(&dir).join("layout");
+        let layout_outdated = std::fs::read_to_string(&layout_file)
+            .ok()
+            .and_then(|v| v.trim().parse::<u32>().ok())
+            != Some(nba_artwork::LAYOUT_VERSION);
+        let now = Utc::now();
+        let mut all_ok = true;
+        for rec in self.db.get_finished_recordings_oldest_first() {
+            let Some(path) = rec.file_path.as_deref().map(std::path::Path::new) else {
+                continue;
+            };
+            let file_ok = std::fs::metadata(path).is_ok_and(|m| m.is_file() && m.len() > 0);
+            let action = plan_artwork_repair(
+                &rec,
+                file_ok,
+                nba_artwork::has_sidecars(path),
+                layout_outdated,
+                now,
+            );
+            if action == ArtworkRepair::None {
+                continue;
+            }
+            let Some(game) = self.db.get_nba_game_by_recording(&rec.id) else {
+                continue;
+            };
+            let done = if action == ArtworkRepair::Full {
+                println!("[NBA] Vignettes rattrapées : {}", rec.title);
+                nba_artwork::finish_recording(
+                    &self.http,
+                    &dir,
+                    &game,
+                    path,
+                    &rec.title,
+                    &crate::services::recording_scheduler::resolve_ffmpeg_path(),
+                )
+                .await;
+                nba_artwork::has_sidecars(path)
+            } else {
+                nba_artwork::write_sidecars(&self.http, &dir, &game, path, &rec.title)
+                    .await
+                    .is_some()
+            };
+            all_ok &= done;
+        }
+        if layout_outdated && all_ok {
+            let _ = std::fs::create_dir_all(nba_artwork::artwork_dir(&dir));
+            if let Err(e) = std::fs::write(&layout_file, nba_artwork::LAYOUT_VERSION.to_string()) {
+                println!("[NBA] Version des vignettes non enregistrée : {e}");
+            }
         }
     }
 
@@ -1408,6 +1502,51 @@ mod tests {
         assert_eq!(
             plan_action(&rule(), &game("auto"), t(TIP), None, None, now),
             Action::Status("not_on_bein")
+        );
+    }
+
+    #[test]
+    fn rattrapage_des_vignettes() {
+        let now = t("2026-10-26T20:00:00Z");
+        let mut r = rec(
+            "1",
+            "completed",
+            "2026-10-24T00:00:00Z",
+            "2026-10-24T03:30:00Z",
+        );
+        r.source_rule_id = Some("rule".into());
+        assert_eq!(
+            plan_artwork_repair(&r, true, false, false, now),
+            ArtworkRepair::Full
+        );
+        assert_eq!(
+            plan_artwork_repair(&r, true, true, true, now),
+            ArtworkRepair::Sidecars
+        );
+        assert_eq!(
+            plan_artwork_repair(&r, true, true, false, now),
+            ArtworkRepair::None
+        );
+        // Fichier absent, enregistrement manuel, clôture peut-être en cours.
+        assert_eq!(
+            plan_artwork_repair(&r, false, false, true, now),
+            ArtworkRepair::None
+        );
+        let just_ended = t("2026-10-24T04:00:00Z");
+        assert_eq!(
+            plan_artwork_repair(&r, true, false, true, just_ended),
+            ArtworkRepair::None
+        );
+        r.source_rule_id = None;
+        assert_eq!(
+            plan_artwork_repair(&r, true, false, true, now),
+            ArtworkRepair::None
+        );
+        r.source_rule_id = Some("rule".into());
+        r.status = "failed".into();
+        assert_eq!(
+            plan_artwork_repair(&r, true, false, true, now),
+            ArtworkRepair::None
         );
     }
 

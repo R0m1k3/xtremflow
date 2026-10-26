@@ -7,8 +7,9 @@ use crate::dart_time::{DartDateTime, display_local, now_display};
 use crate::db::AppDatabase;
 use crate::models::Recording;
 use crate::services::recording_decision::{
-    OrphanAction, PostExitAction, RecordingAction, capture_duration, decide_orphan_action,
-    decide_post_exit_action, decide_recording_action, describe_ffmpeg_exit, ffmpeg_retry_delay,
+    MissCause, OrphanAction, PostExitAction, RecordingAction, capture_duration, decide_miss_cause,
+    decide_orphan_action, decide_post_exit_action, decide_recording_action, describe_ffmpeg_exit,
+    ffmpeg_retry_delay,
 };
 use crate::util::b64;
 use crate::util::log_redactor::redact_url;
@@ -145,6 +146,12 @@ pub struct RecordingScheduler {
     recordings_quota_gb: i64,
     /// Enregistrements créés au plus par season pass et par scan.
     season_pass_max_per_scan: i64,
+    /// Instant du passage précédent (`None` avant le premier) : un trou
+    /// révèle un serveur arrêté ou bloqué.
+    last_tick: Mutex<Option<chrono::DateTime<Utc>>>,
+    /// Enregistrements laissés en attente faute de créneau, avec les titres
+    /// des captures qui les occupaient.
+    waiting: Mutex<HashMap<String, Vec<String>>>,
 }
 
 static UNSAFE_FILENAME_CHAR: LazyLock<Regex> =
@@ -162,6 +169,8 @@ impl RecordingScheduler {
             min_free_disk_mb: env_int("MIN_FREE_DISK_MB", 500),
             recordings_quota_gb: env_int("RECORDINGS_QUOTA_GB", 0),
             season_pass_max_per_scan: env_int("SEASON_PASS_MAX_PER_SCAN", 10),
+            last_tick: Mutex::new(None),
+            waiting: Mutex::new(HashMap::new()),
         }
     }
 
@@ -264,6 +273,16 @@ impl RecordingScheduler {
     async fn run_tick(self: &Arc<Self>) {
         // Toujours comparer en UTC pour éviter les problèmes de fuseau horaire.
         let now = Utc::now();
+        let previous_tick = self.last_tick.lock().unwrap().replace(now);
+        if let Some(previous) = previous_tick
+            && now - previous > chrono::Duration::minutes(2)
+        {
+            println!(
+                "[RecordingScheduler] AVERTISSEMENT: aucun passage depuis {} ({} min) : serveur suspendu ou bloqué",
+                display_local(previous),
+                (now - previous).num_minutes()
+            );
+        }
 
         // Arrêter les enregistrements actifs dont l'heure de fin est passée.
         let actives: Vec<Arc<ActiveRecording>> =
@@ -299,6 +318,7 @@ impl RecordingScheduler {
                 self.max_concurrent,
             ) {
                 RecordingAction::Start => {
+                    self.waiting.lock().unwrap().remove(&recording.id);
                     println!(
                         "[RecordingScheduler] *** DÉMARRAGE DE L'ENREGISTREMENT : {} ***",
                         recording.title
@@ -308,21 +328,38 @@ impl RecordingScheduler {
                 RecordingAction::Wait => {
                     // Capacité atteinte, fenêtre encore ouverte : on garde le
                     // statut "scheduled" et on réessaiera au prochain tick.
+                    let busy: Vec<String> = self
+                        .active
+                        .lock()
+                        .unwrap()
+                        .values()
+                        .map(|a| a.recording.title.clone())
+                        .collect();
+                    self.waiting
+                        .lock()
+                        .unwrap()
+                        .insert(recording.id.clone(), busy);
                     println!(
                         "[RecordingScheduler] Capacité max atteinte ({active_count}/{}), \"{}\" en attente.",
                         self.max_concurrent, recording.title
                     );
                 }
                 RecordingAction::Fail => {
+                    let waited_for = self.waiting.lock().unwrap().remove(&recording.id);
+                    let reason = missed_reason(
+                        decide_miss_cause(recording.start_utc(), previous_tick, waited_for),
+                        now,
+                        self.max_concurrent,
+                    );
                     println!(
-                        "[RecordingScheduler] Enregistrement \"{}\" manqué (fin dépassée).",
+                        "[RecordingScheduler] Enregistrement \"{}\" manqué : {reason}",
                         recording.title
                     );
                     self.db.update_recording_status(
                         &recording.id,
                         "failed",
                         None,
-                        Some("Heure de fin dépassée avant le démarrage"),
+                        Some(&reason),
                         false,
                     );
                 }
@@ -1196,6 +1233,38 @@ impl RecordingScheduler {
                 freed / (1024 * 1024)
             );
         }
+    }
+}
+
+/// Motif affiché d'un enregistrement jamais démarré.
+fn missed_reason(cause: MissCause, now: chrono::DateTime<Utc>, max_concurrent: usize) -> String {
+    let at = |dt| {
+        DartDateTime::local_from_utc(dt)
+            .naive
+            .format("%d/%m à %H:%M")
+            .to_string()
+    };
+    match cause {
+        MissCause::ServerDown => format!(
+            "Serveur arrêté pendant toute la plage prévue (redémarré le {})",
+            at(now)
+        ),
+        MissCause::Stalled(since) => format!(
+            "Serveur suspendu ou bloqué pendant toute la plage prévue (aucune activité du {} au {})",
+            at(since),
+            at(now)
+        ),
+        MissCause::Capacity(busy) if busy.is_empty() => format!(
+            "Aucun enregistrement simultané autorisé (MAX_CONCURRENT_RECORDINGS={max_concurrent})"
+        ),
+        MissCause::Capacity(busy) => format!(
+            "Enregistrements simultanés déjà au maximum ({max_concurrent}) pendant toute la plage : {}",
+            busy.iter()
+                .map(|t| format!("« {t} »"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        MissCause::Unknown => "Heure de fin dépassée avant le démarrage".into(),
     }
 }
 

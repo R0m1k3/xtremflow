@@ -8,7 +8,9 @@
 //! résumé) et une copie intégrée au MKV.
 //!
 //! Formats déposés à côté de `X.mkv` :
-//! - `X.jpg`, `X-poster.jpg` : affiche 2:3 (Plex « local assets », Jellyfin) ;
+//! - `X.jpg`, `X-poster.jpg` : affiche 2:3 (Plex « local assets », Jellyfin),
+//!   lisible même recadrée en 16:9 (tuiles paysage des bibliothèques
+//!   « Autres vidéos » de Plex) ;
 //! - `X-thumb.jpg`, `X-fanart.jpg` : vignette 16:9 ;
 //! - `X.nfo` : métadonnées au format Kodi « movie », lues par Jellyfin.
 
@@ -23,6 +25,10 @@ use std::sync::LazyLock;
 
 const THUMB: (u32, u32) = (1280, 720);
 const POSTER: (u32, u32) = (1000, 1500);
+
+/// Version de la mise en page : les annexes des enregistrements existants
+/// sont redessinées quand elle change (voir `NbaAutoRecorder`).
+pub const LAYOUT_VERSION: u32 = 2;
 
 /// Police : `ARTWORK_FONT`, sinon DejaVu (image Docker), sinon Arial (Windows).
 static FONT: LazyLock<Option<FontVec>> = LazyLock::new(|| {
@@ -281,6 +287,11 @@ pub fn render_thumb(
 }
 
 /// Affiche 2:3.
+///
+/// POURQUOI : Plex affiche les « Autres vidéos » en tuiles 16:9 en
+/// recadrant l'affiche au centre (bande y ≈ 470–1030). Logos et « @ » y
+/// tiennent côte à côte ; titre et bandeau, hors de la bande, ne servent qu'à
+/// l'affiche entière.
 pub fn render_poster(
     away: &TeamArt,
     home: &TeamArt,
@@ -293,23 +304,23 @@ pub fn render_poster(
     draw_text(
         &mut img,
         "NBA",
-        64.0,
+        84.0,
         w as f32 / 2.0,
-        110.0,
+        330.0,
         600.0,
         [255, 255, 255],
     );
-    draw_logo(&mut img, away_logo, away, 500, 390, 400);
+    draw_logo(&mut img, away_logo, away, 255, 735, 360);
+    draw_logo(&mut img, home_logo, home, 745, 735, 360);
     draw_text(
         &mut img,
         "@",
-        120.0,
+        100.0,
         w as f32 / 2.0,
-        760.0,
-        300.0,
+        770.0,
+        120.0,
         [255, 255, 255],
     );
-    draw_logo(&mut img, home_logo, home, 500, 1000, 400);
     banner(&mut img, 260);
     draw_text(
         &mut img,
@@ -411,7 +422,10 @@ pub async fn ensure_artwork(
     game: &NbaGame,
 ) -> Option<(PathBuf, PathBuf)> {
     let dir = artwork_dir(recordings_dir);
-    tokio::fs::create_dir_all(&dir).await.ok()?;
+    if let Err(e) = tokio::fs::create_dir_all(&dir).await {
+        println!("[NBA] Dossier {} impossible à créer : {e}", dir.display());
+        return None;
+    }
     let away = TeamArt::from_abbr(&game.away_tri, &game.away);
     let home = TeamArt::from_abbr(&game.home_tri, &game.home);
     let away_logo = team_logo(client, &dir, &game.away_tri).await;
@@ -507,9 +521,30 @@ pub async fn finish_recording(
     title: &str,
     ffmpeg: &str,
 ) {
-    let Some((thumb, poster)) = ensure_artwork(client, recordings_dir, game).await else {
-        return;
-    };
+    // Annexes incomplètes : dossier sans doute non inscriptible, le remux
+    // échouerait aussi (et le rattrapage le relancerait à chaque passage).
+    if let Some(thumb) = write_sidecars(client, recordings_dir, game, video, title).await
+        && has_sidecars(video)
+    {
+        embed_cover(video, &thumb, title, ffmpeg).await;
+    }
+}
+
+/// Les annexes de `video` ont-elles déjà été déposées ?
+pub fn has_sidecars(video: &Path) -> bool {
+    sidecar_paths(video).iter().all(|p| p.exists())
+}
+
+/// Dépose (ou redessine) vignettes et `.nfo` à côté du fichier, sans
+/// toucher au MKV. Renvoie la vignette 16:9 générée.
+pub async fn write_sidecars(
+    client: &reqwest::Client,
+    recordings_dir: &Path,
+    game: &NbaGame,
+    video: &Path,
+    title: &str,
+) -> Option<PathBuf> {
+    let (thumb, poster) = ensure_artwork(client, recordings_dir, game).await?;
     let paths = sidecar_paths(video);
     let copies = [
         (&poster, &paths[0]),
@@ -522,8 +557,10 @@ pub async fn finish_recording(
             println!("[NBA] Copie de {} impossible : {e}", dst.display());
         }
     }
-    let _ = tokio::fs::write(&paths[4], nfo(game, title)).await;
-    embed_cover(video, &thumb, title, ffmpeg).await;
+    if let Err(e) = tokio::fs::write(&paths[4], nfo(game, title)).await {
+        println!("[NBA] Écriture de {} impossible : {e}", paths[4].display());
+    }
+    Some(thumb)
 }
 
 /// Remux sans réencodage avec la vignette en pièce jointe et le titre en
