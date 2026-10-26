@@ -35,6 +35,39 @@ pub fn decide_recording_action(
     RecordingAction::Start
 }
 
+/// Pourquoi un enregistrement planifié n'a jamais démarré.
+#[derive(Debug, PartialEq, Eq)]
+pub enum MissCause {
+    /// Premier passage du planificateur depuis le (re)démarrage du serveur :
+    /// le serveur était arrêté pendant toute la fenêtre.
+    ServerDown,
+    /// Aucun passage depuis cet instant, antérieur au début de la fenêtre :
+    /// processus suspendu ou bloqué.
+    Stalled(DateTime<Utc>),
+    /// Créneaux pleins : titres des captures qui les occupaient.
+    Capacity(Vec<String>),
+    /// Fenêtre déjà passée quand l'enregistrement est apparu en base.
+    Unknown,
+}
+
+/// Un passage a lieu toutes les 10 s : si la fenêtre s'est ouverte et
+/// refermée sans démarrage, soit aucun passage n'a eu lieu pendant (serveur
+/// arrêté ou bloqué), soit chacun a trouvé les créneaux pleins.
+pub fn decide_miss_cause(
+    start: DateTime<Utc>,
+    previous_tick: Option<DateTime<Utc>>,
+    waited_for: Option<Vec<String>>,
+) -> MissCause {
+    if let Some(busy) = waited_for {
+        return MissCause::Capacity(busy);
+    }
+    match previous_tick {
+        None => MissCause::ServerDown,
+        Some(t) if t < start => MissCause::Stalled(t),
+        Some(_) => MissCause::Unknown,
+    }
+}
+
 /// Sort d'un enregistrement resté au statut « recording » en base alors
 /// qu'aucun processus FFmpeg ne lui correspond (redémarrage du conteneur…).
 #[derive(Debug, PartialEq, Eq)]
@@ -153,6 +186,26 @@ mod tests {
 
     fn now() -> DateTime<Utc> {
         "2026-08-27T21:00:00Z".parse().unwrap()
+    }
+
+    #[test]
+    fn cause_d_un_enregistrement_manque() {
+        let n = now();
+        let m = Duration::minutes;
+        let start = n - m(200);
+        assert_eq!(decide_miss_cause(start, None, None), MissCause::ServerDown);
+        assert_eq!(
+            decide_miss_cause(start, Some(start - m(1)), None),
+            MissCause::Stalled(start - m(1))
+        );
+        assert_eq!(
+            decide_miss_cause(start, Some(n - Duration::seconds(10)), None),
+            MissCause::Unknown
+        );
+        assert_eq!(
+            decide_miss_cause(start, None, Some(vec!["Match".into()])),
+            MissCause::Capacity(vec!["Match".into()])
+        );
     }
 
     #[test]
