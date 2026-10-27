@@ -677,7 +677,11 @@ impl NbaAutoRecorder {
             if action == ArtworkRepair::None {
                 continue;
             }
-            let Some(game) = self.db.get_nba_game_by_recording(&rec.id) else {
+            let Some(game) = self
+                .db
+                .get_nba_game_by_recording(&rec.id)
+                .or_else(|| nba_artwork::game_from_recording(&rec))
+            else {
                 continue;
             };
             let done = if action == ArtworkRepair::Full {
