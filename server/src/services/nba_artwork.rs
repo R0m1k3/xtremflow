@@ -28,7 +28,7 @@ const POSTER: (u32, u32) = (1000, 1500);
 
 /// Version de la mise en page : les annexes des enregistrements existants
 /// sont redessinées quand elle change (voir `NbaAutoRecorder`).
-pub const LAYOUT_VERSION: u32 = 2;
+pub const LAYOUT_VERSION: u32 = 3;
 
 /// Police : `ARTWORK_FONT`, sinon DejaVu (image Docker), sinon Arial (Windows).
 static FONT: LazyLock<Option<FontVec>> = LazyLock::new(|| {
@@ -288,10 +288,12 @@ pub fn render_thumb(
 
 /// Affiche 2:3.
 ///
-/// POURQUOI : Plex affiche les « Autres vidéos » en tuiles 16:9 en
-/// recadrant l'affiche au centre (bande y ≈ 470–1030). Logos et « @ » y
-/// tiennent côte à côte ; titre et bandeau, hors de la bande, ne servent qu'à
-/// l'affiche entière.
+/// POURQUOI : chaque serveur recadre l'affiche au centre selon sa tuile :
+/// Plex en 16:9 (« Autres vidéos », bande y ≈ 470–1030), Jellyfin en carré
+/// (y ≈ 250–1250). Logos et « @ » occupent seuls le centre, gardé par tous
+/// les recadrages ; « NBA », l'affiche et la date restent dans les marges,
+/// visibles seulement sur l'affiche entière. Pas de bandeau : son bord
+/// apparaissait en bas des tuiles recadrées.
 pub fn render_poster(
     away: &TeamArt,
     home: &TeamArt,
@@ -301,33 +303,26 @@ pub fn render_poster(
 ) -> RgbaImage {
     let (w, h) = POSTER;
     let mut img = background(w, h, hex_color(&away.color), hex_color(&home.color), true);
-    draw_text(
-        &mut img,
-        "NBA",
-        84.0,
-        w as f32 / 2.0,
-        330.0,
-        600.0,
-        [255, 255, 255],
-    );
-    draw_logo(&mut img, away_logo, away, 255, 735, 360);
-    draw_logo(&mut img, home_logo, home, 745, 735, 360);
+    let cx = w as f32 / 2.0;
+    let cy = h as i64 / 2;
+    draw_text(&mut img, "NBA", 84.0, cx, 175.0, 600.0, [255, 255, 255]);
+    draw_logo(&mut img, away_logo, away, 255, cy, 360);
+    draw_logo(&mut img, home_logo, home, 745, cy, 360);
     draw_text(
         &mut img,
         "@",
         100.0,
-        w as f32 / 2.0,
-        770.0,
+        cx,
+        cy as f32 + 35.0,
         120.0,
         [255, 255, 255],
     );
-    banner(&mut img, 260);
     draw_text(
         &mut img,
         &text.matchup,
-        72.0,
-        w as f32 / 2.0,
-        1340.0,
+        64.0,
+        cx,
+        1385.0,
         920.0,
         [255, 255, 255],
     );
@@ -335,8 +330,8 @@ pub fn render_poster(
         &mut img,
         &text.details,
         34.0,
-        w as f32 / 2.0,
-        1420.0,
+        cx,
+        1450.0,
         920.0,
         [220, 220, 220],
     );
@@ -375,6 +370,49 @@ fn texts(game: &NbaGame, away: &TeamArt, home: &TeamArt) -> ArtText {
         matchup: format!("{} @ {}", away.nickname, home.nickname),
         details,
     }
+}
+
+/// Match reconstitué depuis un enregistrement automatique dont la ligne
+/// `nba_games` a disparu (règle supprimée : ses matchs partent avec elle) :
+/// équipes lues dans le titre « NBA - Heat @ Hornets ».
+///
+/// Le coup d'envoi n'est connu qu'à la marge près : le début arrondi à la
+/// demi-heure suivante (les matchs commencent à :00 ou :30, la marge avant
+/// fait moins de 30 min).
+pub fn game_from_recording(rec: &crate::models::Recording) -> Option<NbaGame> {
+    let teams = nba_teams::extract_teams(&rec.title);
+    let [away, home] = teams.as_slice() else {
+        return None;
+    };
+    let start = rec.start_utc();
+    let past_half = start.timestamp().rem_euclid(1800);
+    let tipoff = if past_half == 0 {
+        start
+    } else {
+        start + chrono::Duration::seconds(1800 - past_half)
+    };
+    Some(NbaGame {
+        game_id: format!("rec{}", rec.id),
+        rule_id: rec.source_rule_id.clone().unwrap_or_default(),
+        home: home.full_name(),
+        away: away.full_name(),
+        home_id: String::new(),
+        away_id: String::new(),
+        home_tri: home.abbr.to_string(),
+        away_tri: away.abbr.to_string(),
+        tipoff_utc: crate::dart_time::utc_iso(tipoff),
+        status: "recorded".into(),
+        decision: "accepted".into(),
+        channel_id: None,
+        channel_name: None,
+        epg_title: None,
+        epg_start: None,
+        epg_end: None,
+        recording_id: Some(rec.id.clone()),
+        confidence: None,
+        conflict: false,
+        updated_at: String::new(),
+    })
 }
 
 /// Dossier des vignettes et logos en cache.
@@ -682,6 +720,36 @@ mod tests {
             .await
             .unwrap();
         assert!(thumb.exists() && poster.exists());
+    }
+
+    #[test]
+    fn match_reconstitue_depuis_le_titre() {
+        let rec = crate::models::Recording {
+            id: "0f49f14a-1".into(),
+            user_id: "u".into(),
+            channel_id: "1".into(),
+            stream_url: String::new(),
+            title: "NBA - Heat @ Hornets".into(),
+            start_time: DartDateTime::parse("2026-10-23T23:25:00.000Z").unwrap(),
+            end_time: DartDateTime::parse("2026-10-24T03:00:00.000Z").unwrap(),
+            status: "completed".into(),
+            file_path: None,
+            error_reason: None,
+            source_rule_id: Some("r".into()),
+            playlist_id: None,
+            created_at: DartDateTime::parse("2026-10-23T20:00:00.000Z").unwrap(),
+            updated_at: DartDateTime::parse("2026-10-23T20:00:00.000Z").unwrap(),
+        };
+        let g = game_from_recording(&rec).unwrap();
+        assert_eq!((g.away_tri.as_str(), g.home_tri.as_str()), ("MIA", "CHA"));
+        assert_eq!(g.tipoff_utc, "2026-10-23T23:30:00.000Z");
+        let away = TeamArt::from_abbr(&g.away_tri, &g.away);
+        let home = TeamArt::from_abbr(&g.home_tri, &g.home);
+        assert_eq!(texts(&g, &away, &home).matchup, "Heat @ Hornets");
+
+        let mut other = rec.clone();
+        other.title = "Journal de 20h".into();
+        assert!(game_from_recording(&other).is_none());
     }
 
     #[test]
