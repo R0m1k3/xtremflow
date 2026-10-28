@@ -10,5 +10,6 @@ pub mod nba_schedule;
 pub mod nba_teams;
 pub mod recording_decision;
 pub mod recording_scheduler;
+pub mod stream_capture;
 pub mod upstream_slots;
 pub mod xmltv;

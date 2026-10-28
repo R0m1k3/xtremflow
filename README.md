@@ -6,7 +6,7 @@ Application IPTV auto-hébergée : frontend Flutter Web + serveur Rust natif, em
 
 - **Live TV, Films, Séries** : catalogues Xtream avec catégories, recherche, favoris, reprise de lecture
 - **Guide TV (EPG)** : panneau de l'abonné en priorité, repli automatique sur un dump XMLTV quand le panneau est figé
-- **Enregistrements TV** : planification depuis le guide, capture FFmpeg (`-c copy`), reprise après coupure amont ou redémarrage du serveur, fusion automatique des parties
+- **Enregistrements TV** : planification depuis le guide, capture du flux brut en `.ts` (reconnexion automatique, reprise après redémarrage du serveur dans le même fichier), conversion en MKV en fin de capture
 - **Season Passes** : enregistrement automatique de toutes les diffusions d'une émission (scan EPG toutes les 4 h)
 - **Transcodage à la demande** : `source | high | medium | low` (live et VOD), `source` = zéro transcodage ; NVENC optionnel
 - **Multi-utilisateurs** : comptes locaux (bcrypt), playlists par utilisateur, panneau d'administration
