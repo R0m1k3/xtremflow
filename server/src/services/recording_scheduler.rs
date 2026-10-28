@@ -7,18 +7,17 @@ use crate::dart_time::{DartDateTime, display_local, now_display};
 use crate::db::AppDatabase;
 use crate::models::Recording;
 use crate::services::recording_decision::{
-    MissCause, OrphanAction, PostExitAction, RecordingAction, capture_duration, decide_miss_cause,
-    decide_orphan_action, decide_post_exit_action, decide_recording_action, describe_ffmpeg_exit,
-    ffmpeg_retry_delay,
+    MissCause, OrphanAction, RecordingAction, decide_miss_cause, decide_orphan_action,
+    decide_recording_action, ffmpeg_retry_delay,
 };
+use crate::services::stream_capture;
 use crate::util::b64;
 use crate::util::log_redactor::redact_url;
-use crate::util::process::ManagedChild;
 use chrono::Utc;
 use futures::FutureExt;
 use regex::Regex;
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
@@ -26,7 +25,8 @@ use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{Duration, Instant};
-use tokio::io::AsyncReadExt;
+use tokio::io::AsyncWriteExt;
+use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
 /// Dossier où sont écrits les enregistrements et leurs logs.
@@ -104,24 +104,36 @@ impl RecordingLog {
 }
 
 struct ActiveState {
-    /// Fichiers additionnels écrits après une relance, dans l'ordre.
-    extra_parts: Vec<String>,
-    /// Index du lancement FFmpeg en cours (0 = fichier principal).
-    attempt: u32,
-    /// Échecs consécutifs, remis à zéro quand une capture tient assez longtemps.
+    /// Coupures consécutives, remises à zéro quand une connexion tient.
     consecutive_failures: u32,
-    launched_at: Instant,
-    process: Option<ManagedChild>,
+    /// Dernière cause de coupure, pour le motif d'un échec sans données.
+    last_cut: Option<String>,
+}
+
+/// Pourquoi une capture s'arrête.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum StopReason {
+    /// Fin de la fenêtre programmée.
+    Window,
+    /// Arrêt demandé depuis l'API.
+    User,
+    /// Arrêt du serveur : la capture sera reprise au redémarrage.
+    Shutdown,
+    /// Enregistrement supprimé : rien à clôturer ni à convertir.
+    Discard,
 }
 
 struct ActiveRecording {
     recording: Recording,
-    /// Fichier principal (celui exposé par l'API).
-    file_path: String,
+    /// Capture en cours (`.ts`), complétée à chaque reconnexion.
+    capture_path: String,
     log: Option<RecordingLog>,
     state: Mutex<ActiveState>,
-    /// Arrêt volontaire : la sortie de FFmpeg ne doit pas déclencher de relance.
-    stopping: AtomicBool,
+    stop_reason: Mutex<Option<StopReason>>,
+    /// Réveille la boucle de capture pour qu'elle s'arrête.
+    stop: Notify,
+    /// Boucle de capture, qui se charge aussi de la clôture.
+    task: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl ActiveRecording {
@@ -152,6 +164,9 @@ pub struct RecordingScheduler {
     /// Enregistrements laissés en attente faute de créneau, avec les titres
     /// des captures qui les occupaient.
     waiting: Mutex<HashMap<String, Vec<String>>>,
+    /// Captures en cours de clôture (conversion en MKV) : ni actives, ni
+    /// orphelines.
+    finalizing: Mutex<HashSet<String>>,
 }
 
 static UNSAFE_FILENAME_CHAR: LazyLock<Regex> =
@@ -171,15 +186,16 @@ impl RecordingScheduler {
             season_pass_max_per_scan: env_int("SEASON_PASS_MAX_PER_SCAN", 10),
             last_tick: Mutex::new(None),
             waiting: Mutex::new(HashMap::new()),
+            finalizing: Mutex::new(HashSet::new()),
         }
     }
 
-    /// Un enregistrement est-il activement capturé par un processus FFmpeg ?
+    /// Un enregistrement est-il en cours de capture (ou de clôture) ?
     pub fn is_capturing(&self, id: &str) -> bool {
-        self.active.lock().unwrap().contains_key(id)
+        self.active.lock().unwrap().contains_key(id) || self.finalizing.lock().unwrap().contains(id)
     }
 
-    /// Relances FFmpeg de l'enregistrement actif [id] (`None` si inactif).
+    /// Coupures consécutives de l'enregistrement actif [id] (`None` si inactif).
     pub fn retry_count_of(&self, id: &str) -> Option<u32> {
         let active = self.active.lock().unwrap().get(id).cloned()?;
         let failures = active.state.lock().unwrap().consecutive_failures;
@@ -188,11 +204,6 @@ impl RecordingScheduler {
 
     fn get_active(&self, id: &str) -> Option<Arc<ActiveRecording>> {
         self.active.lock().unwrap().get(id).cloned()
-    }
-
-    fn is_current(&self, active: &Arc<ActiveRecording>) -> bool {
-        self.get_active(&active.recording.id)
-            .is_some_and(|current| Arc::ptr_eq(&current, active))
     }
 
     pub fn start(self: &Arc<Self>) {
@@ -231,13 +242,10 @@ impl RecordingScheduler {
         }));
     }
 
-    /// Arrêt gracieux pour un `docker stop` : arrête les timers, clôt chaque
-    /// enregistrement actif (kill FFmpeg, fusion des parties, statut en base)
-    /// et attend la fin des clôtures dans la limite de 8 secondes.
-    ///
-    /// Sans cette attente, le conteneur meurt avant la clôture : les
-    /// enregistrements restent au statut « recording » et la reprise
-    /// d'orphelins doit systématiquement rattraper au redémarrage.
+    /// Arrêt gracieux pour un `docker stop` : arrête les timers et les
+    /// captures en vidant leur tampon sur disque. Les enregistrements restent
+    /// « recording » : au redémarrage, la reprise d'orphelins complète le
+    /// même `.ts` si la fenêtre est encore ouverte, ou le clôture sinon.
     pub async fn shutdown(self: &Arc<Self>) {
         for timer in self.timers.lock().unwrap().drain(..) {
             timer.abort();
@@ -245,11 +253,11 @@ impl RecordingScheduler {
         let ids: Vec<String> = self.active.lock().unwrap().keys().cloned().collect();
         let closings: Vec<JoinHandle<()>> = ids
             .iter()
-            .filter_map(|id| self.stop_active_recording(id, Some("Arrêt du serveur")))
+            .filter_map(|id| self.stop_active_recording(id, StopReason::Shutdown))
             .collect();
         if !closings.is_empty() {
             println!(
-                "[RecordingScheduler] Clôture de {} enregistrement(s)…",
+                "[RecordingScheduler] Arrêt de {} capture(s), reprise au redémarrage…",
                 closings.len()
             );
             let _ =
@@ -293,7 +301,7 @@ impl RecordingScheduler {
                     "[RecordingScheduler] Fin de l'enregistrement : {}",
                     active.recording.title
                 );
-                self.stop_active_recording(&active.recording.id, None);
+                self.stop_active_recording(&active.recording.id, StopReason::Window);
             }
         }
 
@@ -376,7 +384,7 @@ impl RecordingScheduler {
         let Some(current) = self.db.get_recording_by_id(&recording.id) else {
             return;
         };
-        if current.status != "recording" {
+        if current.status != "recording" || self.is_capturing(&current.id) {
             return;
         }
         match decide_orphan_action(
@@ -394,7 +402,30 @@ impl RecordingScheduler {
                 );
                 self.start_recording(current, true).await;
             }
+            OrphanAction::Finish if current.file_path.as_deref().is_some_and(is_capture) => {
+                println!(
+                    "[RecordingScheduler] Capture interrompue, fenêtre passée : clôture de {}",
+                    current.title
+                );
+                // La conversion en MKV prend du temps : hors du passage.
+                self.finalizing.lock().unwrap().insert(current.id.clone());
+                let this = self.clone();
+                tokio::spawn(async move {
+                    let path = current.file_path.clone().unwrap_or_default();
+                    let log = RecordingLog::open(&Path::new(&path).with_extension("log"), true);
+                    if let Some(log) = &log {
+                        log.writeln(&format!(
+                            "\n[{}] Serveur redémarré trop tard pour reprendre (fenêtre finie ou presque) : clôture",
+                            now_display()
+                        ));
+                    }
+                    this.finalize_capture(&current, &path, log.as_ref(), None)
+                        .await;
+                    this.finalizing.lock().unwrap().remove(&current.id);
+                });
+            }
             OrphanAction::Finish => {
+                // Ancien format (MKV écrit par FFmpeg) : conservé tel quel.
                 println!(
                     "[RecordingScheduler] Enregistrement interrompu conservé (partiel): {}",
                     current.title
@@ -611,9 +642,8 @@ impl RecordingScheduler {
 
         let id = recording.id.clone();
         if let Err(e) = self.try_start_recording(recording, resume).await {
-            // `io::Error` d'un spawn peut citer la commande : masquer.
             println!(
-                "[RecordingScheduler] ERREUR dans _startRecording: {}",
+                "[RecordingScheduler] ERREUR au démarrage: {}",
                 redact_url(&e)
             );
             self.db.update_recording_status(
@@ -636,9 +666,8 @@ impl RecordingScheduler {
         recording: Recording,
         resume: bool,
     ) -> Result<(), String> {
-        // L'URL finit en `-i` de FFmpeg, qui résout le nom lui-même : contrôle
-        // anti-SSRF refait ici (lignes anciennes, season passes, NBA auto),
-        // au plus près de la connexion.
+        // URL relative → serveur local ; absolue → contrôle anti-SSRF refait
+        // ici (lignes anciennes, season passes), au plus près de la connexion.
         crate::util::ssrf::check_stream_url(&recording.stream_url)
             .await
             .map_err(|e| format!("URL de flux refusée : {e}"))?;
@@ -675,8 +704,8 @@ impl RecordingScheduler {
         }
 
         // Un dossier non inscriptible (droits modifiés côté hôte) ferait
-        // échouer chaque relance de FFmpeg pendant toute la fenêtre, sans
-        // même de log : on le signale tout de suite.
+        // échouer chaque reconnexion pendant toute la fenêtre : on le signale
+        // tout de suite.
         if let Err(e) = check_writable(&dir) {
             println!(
                 "[RecordingScheduler] Dossier {} non accessible en écriture ({e}) : \"{}\" refusé",
@@ -695,41 +724,29 @@ impl RecordingScheduler {
             return Ok(());
         }
 
-        let file_path = dir
-            .join(file_name_for(&recording))
-            .to_string_lossy()
-            .into_owned();
-        let log_path = Path::new(&file_path).with_extension("log");
+        let capture_path = capture_path_for(&dir, &recording, resume);
+        if !resume {
+            // Reste d'une capture précédente du même enregistrement.
+            delete_quietly(&capture_path);
+        }
+        let log_path = Path::new(&capture_path).with_extension("log");
         // Une reprise complète le log existant au lieu de l'écraser.
         let log = RecordingLog::open(&log_path, resume);
-
-        let mut state = ActiveState {
-            extra_parts: Vec::new(),
-            attempt: 0,
-            consecutive_failures: 0,
-            launched_at: Instant::now(),
-            process: None,
-        };
-        if resume {
-            // Le fichier principal (et d'éventuelles parties) survivent au
-            // redémarrage : on repart sur une nouvelle partie.
-            state.extra_parts = existing_parts(&file_path);
-            state.attempt = if file_has_data(Some(&file_path)) || !state.extra_parts.is_empty() {
-                state.extra_parts.len() as u32 + 1
-            } else {
-                0
-            };
-        }
         let active = Arc::new(ActiveRecording {
-            file_path: file_path.clone(),
+            capture_path: capture_path.clone(),
             log,
-            state: Mutex::new(state),
-            stopping: AtomicBool::new(false),
+            state: Mutex::new(ActiveState {
+                consecutive_failures: 0,
+                last_cut: None,
+            }),
+            stop_reason: Mutex::new(None),
+            stop: Notify::new(),
+            task: Mutex::new(None),
             recording,
         });
         if resume {
             active.log(&format!(
-                "\n[{}] Reprise après interruption du serveur",
+                "\n[{}] Reprise après interruption du serveur : suite ajoutée au même fichier",
                 now_display()
             ));
         } else {
@@ -738,357 +755,251 @@ impl RecordingScheduler {
                 now_display(),
                 active.recording.title
             ));
-            active.log(&format!("Destination: {file_path}"));
+            active.log(&format!("Capture: {capture_path}"));
         }
 
         self.active
             .lock()
             .unwrap()
             .insert(active.recording.id.clone(), active.clone());
-
-        // Chemin du fichier en base.
+        // Chemin du fichier en base : la capture en cours est lisible.
         self.db.update_recording_status(
             &active.recording.id,
             "recording",
-            Some(&file_path),
+            Some(&capture_path),
             None,
             false,
         );
-
-        self.launch_ffmpeg(&active).map_err(|e| e.to_string())
-    }
-
-    /// Lance (ou relance) FFmpeg pour un enregistrement actif.
-    fn launch_ffmpeg(self: &Arc<Self>, active: &Arc<ActiveRecording>) -> std::io::Result<()> {
-        let recording = &active.recording;
-        let output = {
-            let mut state = active.state.lock().unwrap();
-            let output = if state.attempt == 0 {
-                active.file_path.clone()
-            } else {
-                part_path(&active.file_path, state.attempt)
-            };
-            if state.attempt > 0 && !state.extra_parts.contains(&output) {
-                state.extra_parts.push(output.clone());
-            }
-            output
-        };
-
-        // URL relative → absolue : le serveur écoute sur 8089 dans le conteneur.
-        let mut stream_url = recording.stream_url.clone();
-        if stream_url.starts_with('/') {
-            stream_url = format!("http://localhost:8089{stream_url}");
-        }
-
-        let duration = capture_duration(Utc::now(), recording.end_utc());
-        let args: Vec<String> = [
-            "-hide_banner",
-            // Les logs sont relus entièrement par l'API : sans -nostats, une
-            // heure de capture produit des mégaoctets de lignes de progression.
-            "-nostats",
-            "-user_agent",
-            "VLC/3.0.18 LibVLC/3.0.18",
-            // Une coupure amont ne doit pas terminer la capture : FFmpeg
-            // rouvre le flux lui-même.
-            "-reconnect",
-            "1",
-            "-reconnect_at_eof",
-            "1",
-            "-reconnect_streamed",
-            "1",
-            "-reconnect_delay_max",
-            "30",
-            "-rw_timeout",
-            "30000000",
-            "-y",
-            "-i",
-        ]
-        .iter()
-        .map(|s| s.to_string())
-        .chain([
-            stream_url.clone(),
-            "-c".into(),
-            "copy".into(),
-            "-t".into(),
-            duration.num_seconds().to_string(),
-            output,
-        ])
-        .collect();
-
-        let ffmpeg = resolve_ffmpeg_path();
-        // Le log est exposé via l'API : jamais d'identifiants dedans.
-        let redacted = args
-            .iter()
-            .map(|a| redact_url(a))
-            .collect::<Vec<_>>()
-            .join(" ");
-        active.log(&format!("URL: {}", redact_url(&stream_url)));
-        active.log(&format!("Commande: {ffmpeg} {redacted}\n"));
-        println!("[RecordingScheduler] Exécution: {ffmpeg} {redacted}");
-
-        let mut child = tokio::process::Command::new(&ffmpeg)
-            .args(&args)
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()?;
-        let stdout = child.stdout.take();
-        let stderr = child.stderr.take();
-        let process = ManagedChild::spawn(child);
-        {
-            let mut state = active.state.lock().unwrap();
-            state.process = Some(process.clone());
-            state.launched_at = Instant::now();
-        }
-
-        // stdout/stderr vers le log ; on attend la fin des deux flux avant de
-        // traiter la sortie, sinon les derniers morceaux seraient perdus.
-        let pipes: Vec<JoinHandle<()>> = [
-            stdout.map(|s| Box::new(s) as Box<dyn tokio::io::AsyncRead + Send + Unpin>),
-            stderr.map(|s| Box::new(s) as Box<dyn tokio::io::AsyncRead + Send + Unpin>),
-        ]
-        .into_iter()
-        .flatten()
-        .map(|mut stream| {
-            let active = active.clone();
-            tokio::spawn(async move {
-                let mut buf = vec![0u8; 8192];
-                while let Ok(n) = stream.read(&mut buf).await {
-                    if n == 0 {
-                        break;
-                    }
-                    if let Some(log) = &active.log {
-                        log.add(&buf[..n]);
-                    }
-                }
-            })
-        })
-        .collect();
-
-        let this = self.clone();
-        let active = active.clone();
-        tokio::spawn(async move {
-            let code = process.wait().await;
-            for pipe in pipes {
-                let _ = pipe.await;
-            }
-            let result = AssertUnwindSafe(this.on_ffmpeg_exit(active, code))
-                .catch_unwind()
-                .await;
-            if let Err(panic) = result {
-                println!("[RecordingScheduler] ERREUR à la sortie de FFmpeg: {panic:?}");
-            }
-        });
+        let task = tokio::spawn(self.clone().run_capture(active.clone()));
+        *active.task.lock().unwrap() = Some(task);
         Ok(())
     }
 
-    /// Suite à donner quand un processus FFmpeg se termine.
-    async fn on_ffmpeg_exit(self: Arc<Self>, active: Arc<ActiveRecording>, exit_code: i32) {
-        let recording = &active.recording;
+    /// Boucle de capture : recopie le flux dans le `.ts`, se reconnecte après
+    /// chaque coupure tant que la fenêtre est ouverte, puis clôture.
+    async fn run_capture(self: Arc<Self>, active: Arc<ActiveRecording>) {
+        let end = active.recording.end_utc();
+        let url = if active.recording.stream_url.starts_with('/') {
+            // Le proxy local gère le quota de connexions du fournisseur.
+            format!("http://127.0.0.1:8089{}", active.recording.stream_url)
+        } else {
+            active.recording.stream_url.clone()
+        };
+        active.log(&format!("URL: {}", redact_url(&url)));
+        let sink: stream_capture::LogSink = {
+            let active = active.clone();
+            Arc::new(move |line: &str| active.log(line))
+        };
+        let ffmpeg = resolve_ffmpeg_path();
 
-        // Arrêt volontaire, ou enregistrement repris ailleurs : la clôture est
-        // gérée par celui qui a demandé l'arrêt.
-        if active.stopping.load(Ordering::SeqCst) || !self.is_current(&active) {
+        let file = tokio::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&active.capture_path)
+            .await;
+        let mut out = match file {
+            Ok(f) => tokio::io::BufWriter::with_capacity(256 * 1024, f),
+            Err(e) => {
+                active.state.lock().unwrap().last_cut =
+                    Some(format!("fichier de capture impossible à créer : {e}"));
+                self.end_capture(&active).await;
+                return;
+            }
+        };
+
+        loop {
+            if active.stop_reason.lock().unwrap().is_some() || Utc::now() >= end {
+                break;
+            }
+            let stop = stop_signal(&active, end);
+            tokio::pin!(stop);
+            let launched = Instant::now();
+            let mut bytes = 0u64;
+            let opened = tokio::select! {
+                biased;
+                _ = stop.as_mut() => break,
+                opened = stream_capture::open(&self.http, &url, &ffmpeg, sink.clone()) => opened,
+            };
+            let cut = match opened {
+                Ok(stream) => {
+                    if active.state.lock().unwrap().consecutive_failures > 0 {
+                        active.log(&format!("[{}] Connexion au flux rétablie", now_display()));
+                    }
+                    match stream_capture::pump(
+                        stream,
+                        &mut out,
+                        stream_capture::STALL_TIMEOUT,
+                        &mut bytes,
+                        &mut stop,
+                    )
+                    .await
+                    {
+                        stream_capture::PumpEnd::Stop => break,
+                        stream_capture::PumpEnd::Cut(reason) => reason,
+                    }
+                }
+                Err(reason) => reason,
+            };
+            let _ = out.flush().await;
+
+            let lasted = launched.elapsed();
+            let failures = {
+                let mut state = active.state.lock().unwrap();
+                // Une connexion restée saine repart du délai minimal.
+                if lasted > Duration::from_secs(120) && bytes > 0 {
+                    state.consecutive_failures = 0;
+                }
+                state.consecutive_failures += 1;
+                state.last_cut = Some(cut.clone());
+                state.consecutive_failures
+            };
+            let delay = ffmpeg_retry_delay(failures);
+            let message = format!(
+                "Flux coupé ({cut}) après {}s et {} Mo — reconnexion dans {}s (échec consécutif n°{failures})",
+                lasted.as_secs(),
+                bytes / (1024 * 1024),
+                delay.as_secs(),
+            );
+            println!("[RecordingScheduler] {}: {message}", active.recording.title);
+            active.log(&format!("[{}] {message}", now_display()));
+            // Laisser la source respirer : sur les comptes limités en
+            // connexions simultanées, rouvrir immédiatement se fait refuser.
+            tokio::select! {
+                biased;
+                _ = stop.as_mut() => break,
+                _ = tokio::time::sleep(delay) => {}
+            }
+        }
+        let _ = out.flush().await;
+        drop(out);
+        self.end_capture(&active).await;
+    }
+
+    /// Fin de la boucle de capture : clôture, sauf à l'arrêt du serveur où
+    /// l'enregistrement reste « recording » pour être repris au redémarrage.
+    async fn end_capture(&self, active: &Arc<ActiveRecording>) {
+        let id = active.recording.id.clone();
+        // Marqué « en clôture » AVANT de quitter la liste des actifs : le
+        // planificateur le prendrait sinon pour un orphelin.
+        self.finalizing.lock().unwrap().insert(id.clone());
+        {
+            let mut map = self.active.lock().unwrap();
+            if map.get(&id).is_some_and(|a| Arc::ptr_eq(a, active)) {
+                map.remove(&id);
+            }
+        }
+        let reason = *active.stop_reason.lock().unwrap();
+        if reason == Some(StopReason::Shutdown) {
+            active.log(&format!(
+                "\n[{}] Arrêt du serveur : la capture reprendra au redémarrage si la fenêtre est encore ouverte",
+                now_display()
+            ));
+            if let Some(log) = &active.log {
+                log.close();
+            }
+            self.finalizing.lock().unwrap().remove(&id);
+            return;
+        }
+        if reason == Some(StopReason::Discard) {
+            if let Some(log) = &active.log {
+                log.close();
+            }
+            delete_quietly(&active.capture_path);
+            self.finalizing.lock().unwrap().remove(&id);
+            return;
+        }
+        let last_cut = active.state.lock().unwrap().last_cut.clone();
+        self.finalize_capture(
+            &active.recording,
+            &active.capture_path,
+            active.log.as_ref(),
+            last_cut,
+        )
+        .await;
+        self.finalizing.lock().unwrap().remove(&id);
+    }
+
+    /// Clôture d'une capture `.ts` : conversion en MKV, statut, vignettes.
+    async fn finalize_capture(
+        &self,
+        recording: &Recording,
+        capture_path: &str,
+        log: Option<&RecordingLog>,
+        last_cut: Option<String>,
+    ) {
+        let write = |line: &str| {
+            if let Some(log) = log {
+                log.writeln(line);
+            }
+        };
+        if !file_has_data(Some(capture_path)) {
+            delete_quietly(capture_path);
+            let reason = match last_cut {
+                Some(cut) => format!("Aucune donnée reçue du flux ({cut}). Voir logs."),
+                None => "Aucune donnée reçue du flux. Voir logs.".to_string(),
+            };
+            write(&format!("\n[{}] Échec : {reason}", now_display()));
+            if let Some(log) = log {
+                log.close();
+            }
+            self.db
+                .update_recording_status(&recording.id, "failed", None, Some(&reason), false);
             return;
         }
 
-        // Une capture qui a tenu longtemps repart du délai de relance minimal.
-        let (lasted, has_data) = {
-            let state = active.state.lock().unwrap();
-            (
-                state.launched_at.elapsed(),
-                active_has_data(&active.file_path, &state.extra_parts),
-            )
-        };
-        if lasted > Duration::from_secs(120) && has_data {
-            active.state.lock().unwrap().consecutive_failures = 0;
-        }
-
-        match decide_post_exit_action(Utc::now(), recording.end_utc(), exit_code, has_data) {
-            PostExitAction::Retry => {
-                let failures = {
-                    let mut state = active.state.lock().unwrap();
-                    state.attempt += 1;
-                    state.consecutive_failures += 1;
-                    state.consecutive_failures
-                };
-                let delay = ffmpeg_retry_delay(failures);
-                let cause = describe_ffmpeg_exit(exit_code)
-                    .map(|c| format!(", {c}"))
-                    .unwrap_or_default();
-                let message = format!(
-                    "FFmpeg s'est arrêté (code {exit_code}{cause}) après {}s, avant la fin prévue — relance dans {}s (échec consécutif n°{failures})",
-                    lasted.as_secs(),
-                    delay.as_secs(),
-                );
-                println!("[RecordingScheduler] {}: {message}", recording.title);
-                active.log(&format!("\n[{}] {message}", now_display()));
-                // Laisser la source respirer : sur les comptes limités en
-                // connexions simultanées, rouvrir immédiatement se fait refuser.
-                tokio::time::sleep(delay).await;
-                if active.stopping.load(Ordering::SeqCst) || !self.is_current(&active) {
-                    return;
+        let mkv = Path::new(capture_path).with_extension("mkv");
+        let (path, note) = if mkv.exists() {
+            // Fichier d'une capture antérieure (ancien format) : ne jamais
+            // l'écraser, la suite reste en `.ts`.
+            write("Un fichier .mkv du même nom existe déjà : capture conservée en .ts.");
+            (capture_path.to_string(), None)
+        } else {
+            write(&format!("\n[{}] Conversion en MKV…", now_display()));
+            match remux_to_mkv(Path::new(capture_path), &mkv, &write).await {
+                Ok(()) => {
+                    write("Conversion terminée.");
+                    (mkv.to_string_lossy().into_owned(), None)
                 }
-                if let Err(e) = self.launch_ffmpeg(&active) {
-                    println!(
-                        "[RecordingScheduler] Relance impossible: {}",
-                        redact_url(&e.to_string())
-                    );
-                    self.active.lock().unwrap().remove(&recording.id);
-                    self.finalize(
-                        &active,
-                        "failed",
-                        Some(&format!("Relance de FFmpeg impossible: {e}")),
+                Err(e) => {
+                    write(&format!(
+                        "Conversion impossible ({e}) : capture conservée en .ts."
+                    ));
+                    (
+                        capture_path.to_string(),
+                        Some(
+                            "Conversion en MKV impossible : fichier conservé en .ts (lisible tel quel)",
+                        ),
                     )
-                    .await;
                 }
             }
-            PostExitAction::Complete => {
-                println!(
-                    "[RecordingScheduler] Enregistrement terminé: {}",
-                    recording.title
-                );
-                self.active.lock().unwrap().remove(&recording.id);
-                self.finalize(&active, "completed", None).await;
-            }
-            PostExitAction::Fail => {
-                println!(
-                    "[RecordingScheduler] Erreur FFmpeg (code: {exit_code}) pour {}",
-                    recording.title
-                );
-                self.active.lock().unwrap().remove(&recording.id);
-                self.finalize(
-                    &active,
-                    "failed",
-                    Some(&match describe_ffmpeg_exit(exit_code) {
-                        Some(cause) => {
-                            format!("Erreur FFmpeg code {exit_code} : {cause}. Voir logs.")
-                        }
-                        None => format!("Erreur FFmpeg code {exit_code}. Voir logs."),
-                    }),
-                )
-                .await;
-            }
-        }
-    }
-
-    /// Clôture : fusion des parties, fermeture du log, statut.
-    async fn finalize(&self, active: &ActiveRecording, status: &str, error_reason: Option<&str>) {
-        if let Err(e) = self.merge_parts(active).await {
-            println!("[RecordingScheduler] Fusion des parties impossible: {e}");
-        }
-        active.log(&format!(
-            "\n[{}] Enregistrement clôturé avec le statut \"{status}\"",
+        };
+        write(&format!(
+            "\n[{}] Enregistrement clôturé avec le statut \"completed\"",
             now_display()
         ));
-        if let Some(log) = &active.log {
+        if let Some(log) = log {
             log.close();
         }
-        self.db.update_recording_status(
-            &active.recording.id,
-            status,
-            Some(&active.file_path),
-            error_reason,
-            false,
-        );
+        self.db
+            .update_recording_status(&recording.id, "completed", Some(&path), note, false);
         // Matchs NBA automatiques : vignettes Plex/Jellyfin, .nfo et pochette
         // intégrée au MKV.
-        if status == "completed"
-            && active.recording.source_rule_id.is_some()
-            && file_has_data(Some(&active.file_path))
-            && let Some(game) = self.db.get_nba_game_by_recording(&active.recording.id)
+        if recording.source_rule_id.is_some()
+            && let Some(game) = self
+                .db
+                .get_nba_game_by_recording(&recording.id)
+                .or_else(|| crate::services::nba_artwork::game_from_recording(recording))
         {
             crate::services::nba_artwork::finish_recording(
                 &self.http,
                 Path::new(&recordings_dir_path()),
                 &game,
-                Path::new(&active.file_path),
-                &active.recording.title,
+                Path::new(&path),
+                &recording.title,
                 &resolve_ffmpeg_path(),
             )
             .await;
         }
-    }
-
-    /// Recolle les parties issues des relances dans le fichier principal.
-    ///
-    /// Les parties viennent de la même source en `-c copy` : le demuxer
-    /// `concat` les rassemble sans réencodage. En cas d'échec, fichier
-    /// principal et parties sont conservés tels quels.
-    async fn merge_parts(&self, active: &ActiveRecording) -> std::io::Result<()> {
-        let parts: Vec<String> = {
-            let state = active.state.lock().unwrap();
-            state
-                .extra_parts
-                .iter()
-                .filter(|p| file_has_data(Some(p)))
-                .cloned()
-                .collect()
-        };
-        if parts.is_empty() {
-            return Ok(());
-        }
-        let mut segments = Vec::new();
-        if file_has_data(Some(&active.file_path)) {
-            segments.push(active.file_path.clone());
-        }
-        segments.extend(parts.iter().cloned());
-        if segments.len() < 2 {
-            // Fichier principal vide : la première partie le remplace.
-            return tokio::fs::rename(&segments[0], &active.file_path).await;
-        }
-
-        let list_file = format!("{}.parts.txt", active.file_path);
-        let list = segments
-            .iter()
-            .map(|s| format!("file '{}'", s.replace('\'', r"'\''")))
-            .collect::<Vec<_>>()
-            .join("\n");
-        tokio::fs::write(&list_file, list).await?;
-        let merged = format!("{}.merged.mkv", active.file_path);
-
-        active.log(&format!(
-            "\n[{}] Fusion de {} parties…",
-            now_display(),
-            segments.len()
-        ));
-        let result = tokio::process::Command::new(resolve_ffmpeg_path())
-            .args([
-                "-hide_banner",
-                "-nostats",
-                "-y",
-                "-f",
-                "concat",
-                "-safe",
-                "0",
-                "-i",
-                &list_file,
-                "-c",
-                "copy",
-                &merged,
-            ])
-            .stdin(Stdio::null())
-            .output()
-            .await;
-        delete_quietly(&list_file);
-
-        let code = result
-            .as_ref()
-            .map(|o| o.status.code().unwrap_or(-1))
-            .unwrap_or(-1);
-        if code != 0 || !file_has_data(Some(&merged)) {
-            active.log(&format!(
-                "Fusion échouée (code {code}) : les parties sont conservées séparément."
-            ));
-            delete_quietly(&merged);
-            return Ok(());
-        }
-        tokio::fs::rename(&merged, &active.file_path).await?;
-        for part in parts {
-            delete_quietly(&part);
-        }
-        active.log("Fusion terminée.");
-        Ok(())
     }
 
     /// Arrête un enregistrement en cours (appelé depuis l'API).
@@ -1100,60 +1011,49 @@ impl RecordingScheduler {
             "[RecordingScheduler] Arrêt demandé pour: {}",
             active.recording.title
         );
-        self.stop_active_recording(id, None);
+        self.stop_active_recording(id, StopReason::User);
         true
     }
 
-    /// Arrête l'enregistrement actif [id] et renvoie la tâche de clôture
-    /// (fusion + statut), ou `None` si aucun n'est actif.
-    fn stop_active_recording(
-        self: &Arc<Self>,
-        id: &str,
-        reason: Option<&str>,
-    ) -> Option<JoinHandle<()>> {
-        let active = self.active.lock().unwrap().remove(id)?;
-        active.stopping.store(true, Ordering::SeqCst);
-        if let Some(reason) = reason {
-            println!(
-                "[RecordingScheduler] Arrêt: {reason} ({})",
-                active.recording.title
-            );
-        }
-        active.log(&format!(
-            "\n[{}] Arrêt: {}",
-            now_display(),
-            reason.unwrap_or("fin de la fenêtre programmée")
-        ));
-        let process = active.state.lock().unwrap().process.clone();
-        if let Some(process) = &process {
-            process.terminate();
-        }
-        self.db
-            .update_recording_status(id, "completed", None, None, false);
-
-        let this = self.clone();
-        Some(tokio::spawn(async move {
-            // Attendre la fin effective de FFmpeg avant de clôturer.
-            if let Some(process) = process
-                && tokio::time::timeout(Duration::from_secs(15), process.wait())
-                    .await
-                    .is_err()
-            {
-                process.kill();
-            }
-            this.finalize(&active, "completed", None).await;
-        }))
+    /// Abandonne la capture de [id] sans la clôturer (suppression).
+    pub fn discard_recording(&self, id: &str) {
+        self.stop_active_recording(id, StopReason::Discard);
     }
 
-    /// Fichiers d'un enregistrement : principal, log, parties des relances.
+    /// Demande l'arrêt de l'enregistrement actif [id] et renvoie sa tâche de
+    /// capture (qui se charge de la clôture), ou `None` s'il n'est pas actif.
+    fn stop_active_recording(&self, id: &str, reason: StopReason) -> Option<JoinHandle<()>> {
+        let active = self.get_active(id)?;
+        {
+            let mut current = active.stop_reason.lock().unwrap();
+            if current.is_none() {
+                *current = Some(reason);
+                active.log(&format!(
+                    "\n[{}] Arrêt: {}",
+                    now_display(),
+                    match reason {
+                        StopReason::Window => "fin de la fenêtre programmée",
+                        StopReason::User => "demandé par l'utilisateur",
+                        StopReason::Shutdown => "arrêt du serveur",
+                        StopReason::Discard => "enregistrement supprimé",
+                    }
+                ));
+            }
+        }
+        active.stop.notify_one();
+        active.task.lock().unwrap().take()
+    }
+
+    /// Fichiers d'un enregistrement : principal, capture `.ts` ou MKV
+    /// converti, log, parties de l'ancien format.
     pub fn files_for(file_path: &str) -> Vec<String> {
-        let mut paths = vec![
-            file_path.to_string(),
-            Path::new(file_path)
-                .with_extension("log")
-                .to_string_lossy()
-                .into_owned(),
-        ];
+        let mut paths = vec![file_path.to_string()];
+        for ext in ["log", "ts", "mkv", "remux.mkv"] {
+            let other = Path::new(file_path).with_extension(ext);
+            if other.exists() && other != Path::new(file_path) {
+                paths.push(other.to_string_lossy().into_owned());
+            }
+        }
         for attempt in 1.. {
             let part = part_path(file_path, attempt);
             if !Path::new(&part).exists() {
@@ -1316,21 +1216,95 @@ fn part_path(file_path: &str, attempt: u32) -> String {
     format!("{}.part{}.mkv", without_ext.to_string_lossy(), attempt + 1)
 }
 
-/// Parties déjà écrites sur disque pour cet enregistrement, dans l'ordre.
-fn existing_parts(file_path: &str) -> Vec<String> {
-    let mut parts = Vec::new();
-    for attempt in 1.. {
-        let path = part_path(file_path, attempt);
-        if !file_has_data(Some(&path)) {
-            break;
-        }
-        parts.push(path);
-    }
-    parts
+/// Capture `.ts` du nouveau format (le MKV converti n'en est pas une).
+fn is_capture(path: &str) -> bool {
+    Path::new(path)
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("ts"))
 }
 
-fn active_has_data(file_path: &str, extra_parts: &[String]) -> bool {
-    file_has_data(Some(file_path)) || extra_parts.iter().any(|p| file_has_data(Some(p)))
+/// Fichier de capture : celui d'une capture interrompue s'il faut la
+/// reprendre, sinon le nom final avec l'extension `.ts`.
+fn capture_path_for(dir: &Path, recording: &Recording, resume: bool) -> String {
+    if resume
+        && let Some(previous) = recording.file_path.as_deref()
+        && is_capture(previous)
+        && Path::new(previous).exists()
+    {
+        return previous.to_string();
+    }
+    dir.join(file_name_for(recording))
+        .with_extension("ts")
+        .to_string_lossy()
+        .into_owned()
+}
+
+/// Réveil de la boucle de capture : arrêt demandé ou fin de la fenêtre.
+async fn stop_signal(active: &ActiveRecording, end: chrono::DateTime<Utc>) {
+    let wait = (end - Utc::now()).to_std().unwrap_or_default();
+    tokio::select! {
+        _ = active.stop.notified() => {}
+        _ = tokio::time::sleep(wait) => {}
+    }
+}
+
+/// Convertit la capture en MKV sans réencodage. FFmpeg recale les sauts
+/// d'horloge du flux (« timestamp discontinuity ») sur tout le fichier.
+///
+/// Le `.ts` n'est supprimé que si le MKV paraît complet : un MKV nettement
+/// plus petit que sa source trahirait une conversion tronquée.
+async fn remux_to_mkv(ts: &Path, mkv: &Path, log: &(dyn Fn(&str) + Sync)) -> Result<(), String> {
+    let tmp = mkv.with_extension("remux.mkv");
+    let output = tokio::process::Command::new(resolve_ffmpeg_path())
+        .args(["-hide_banner", "-nostats", "-loglevel", "warning"])
+        .args(["-fflags", "+genpts+discardcorrupt", "-i"])
+        .arg(ts)
+        // Vidéo et audio seulement : télétexte et données (SCTE-35…) des
+        // flux TV ne tiennent pas dans un MKV et feraient échouer la copie.
+        .args(["-map", "0:v?", "-map", "0:a?", "-c", "copy", "-y"])
+        .arg(&tmp)
+        .stdin(Stdio::null())
+        .output()
+        .await
+        .map_err(|e| format!("FFmpeg impossible à lancer : {e}"))?;
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let lines: Vec<&str> = stderr.lines().filter(|l| !l.trim().is_empty()).collect();
+    if lines.len() > 20 {
+        log(&format!(
+            "({} avertissements FFmpeg, 20 derniers :)",
+            lines.len()
+        ));
+    }
+    for line in lines.iter().skip(lines.len().saturating_sub(20)) {
+        log(line);
+    }
+    let size = |p: &Path| std::fs::metadata(p).map(|m| m.len()).unwrap_or(0);
+    let (ts_size, mkv_size) = (size(ts), size(&tmp));
+    let code = output.status.code().unwrap_or(-1);
+    let problem = if code != 0 {
+        Some(format!("code {code}"))
+    } else if !conversion_complete(ts_size, mkv_size) {
+        Some(format!(
+            "MKV de {} Mo pour {} Mo capturés",
+            mkv_size / (1024 * 1024),
+            ts_size / (1024 * 1024)
+        ))
+    } else {
+        None
+    };
+    if let Some(problem) = problem {
+        delete_quietly(&tmp.to_string_lossy());
+        return Err(problem);
+    }
+    std::fs::rename(&tmp, mkv).map_err(|e| e.to_string())?;
+    delete_quietly(&ts.to_string_lossy());
+    Ok(())
+}
+
+/// Le MKV garde l'essentiel du `.ts` : l'en-tête MPEG-TS et les flux
+/// écartés (télétexte, données) pèsent quelques pour cent, pas plus.
+fn conversion_complete(ts_size: u64, mkv_size: u64) -> bool {
+    mkv_size > 0 && mkv_size as f64 >= ts_size as f64 * 0.85
 }
 
 fn file_has_data(path: Option<&str>) -> bool {
@@ -1421,6 +1395,41 @@ mod tests {
     fn chemins_des_parties() {
         assert_eq!(part_path("/rec/a_b.mkv", 1), "/rec/a_b.part2.mkv");
         assert_eq!(part_path("/rec/a_b.mkv", 3), "/rec/a_b.part4.mkv");
+    }
+
+    #[test]
+    fn capture_ts_puis_mkv() {
+        let dir = std::env::temp_dir().join(format!("xf-capture-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut rec = recording("NBA - Heat @ Hornets");
+        rec.source_rule_id = Some("r".into());
+        let fresh = capture_path_for(&dir, &rec, false);
+        assert!(fresh.ends_with(".ts") && is_capture(&fresh));
+        assert!(!is_capture("/rec/x.mkv"));
+
+        // Reprise : la capture existante est complétée, pas recréée.
+        let previous = dir.join("ancienne capture.ts");
+        std::fs::write(&previous, b"x").unwrap();
+        rec.file_path = Some(previous.to_string_lossy().into_owned());
+        assert_eq!(
+            capture_path_for(&dir, &rec, true),
+            rec.file_path.clone().unwrap()
+        );
+        assert_eq!(capture_path_for(&dir, &rec, false), fresh);
+
+        // Suppression : capture et MKV converti partent ensemble.
+        let mkv = previous.with_extension("mkv");
+        std::fs::write(&mkv, b"y").unwrap();
+        let files = RecordingScheduler::files_for(&mkv.to_string_lossy());
+        assert!(files.contains(&previous.to_string_lossy().into_owned()));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn conversion_complete_ou_tronquee() {
+        assert!(conversion_complete(1000, 955));
+        assert!(!conversion_complete(1000, 500));
+        assert!(!conversion_complete(1000, 0));
     }
 
     #[test]

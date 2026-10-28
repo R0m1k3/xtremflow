@@ -2,6 +2,12 @@
 
 ## Non publié
 
+### 📼 Enregistrements : capture en `.ts`, conversion en MKV à la fin
+- **Fin des fichiers incomplets** : FFmpeg écrivait le direct en MKV et chaque coupure du fournisseur produisait une nouvelle partie, recollée à la fin. Les sauts d'horloge des flux IPTV (« timestamp discontinuity ») cassaient la chronologie du MKV et le recollage : Plex et Jellyfin voyaient un fichier qui s'arrêtait avant la fin du match. Le serveur recopie désormais les octets du flux tels quels dans un seul `.ts`, complété à chaque reconnexion, puis le convertit une seule fois en MKV en fin de capture ; FFmpeg recale alors les sauts d'horloge sur tout le fichier. Le `.ts` n'est supprimé que si le MKV obtenu est complet, sinon il est conservé (lisible tel quel)
+- **Reprise au redémarrage** : un `docker stop` ou une mise à jour pendant un match clôturait l'enregistrement, qui ne reprenait jamais. La capture reste désormais ouverte et repart dans le même `.ts` au redémarrage si la fenêtre n'est pas finie
+- **Connexion figée détectée** : sans données pendant 30 s, la connexion est abandonnée et rouverte (délai croissant, jamais d'abandon avant la fin de la fenêtre). Le log de l'enregistrement indique chaque coupure, sa cause, sa durée et le volume reçu
+- Les sources HLS (`.m3u8`) ou non HTTP passent toujours par FFmpeg, converti en MPEG-TS dans le même fichier
+
 ### 🦀 Serveur réécrit en Rust
 - **Le serveur Dart (`bin/`) est remplacé par un serveur Rust (`server/`)** : tokio + axum, reqwest/rustls, SQLite embarqué (rusqlite). Même API, mêmes routes, mêmes réponses : le front Flutter n'a pas changé. Le binaire est multi-thread (plus de boucle d'événements unique sur laquelle un gros JSON ou un dump XMLTV gelait les flux en cours) et pèse ~9 Mo
 - **Base reprise telle quelle** : schéma, migrations numérotées et formats de dates (`DateTime.toIso8601String()` de Dart) identiques ; sessions, playlists, enregistrements et season passes existants restent valides, les hachages SHA-256 historiques sont toujours migrés vers bcrypt à la connexion

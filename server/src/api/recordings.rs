@@ -221,8 +221,8 @@ async fn create(state: &SharedState, req: &Req) -> Resp {
     }
 }
 
-/// Annule ou supprime un enregistrement : FFmpeg arrêté s'il tourne,
-/// fichiers (.mkv, .log, parties) supprimés avec la ligne.
+/// Annule ou supprime un enregistrement : capture abandonnée si elle
+/// tourne, fichiers (.ts, .mkv, .log, annexes) supprimés avec la ligne.
 fn delete(state: &SharedState, req: &Req, id: &str) -> Resp {
     let Some(recording) = state.db.get_recording_by_id(id) else {
         return json(404, &json!({"error": "Enregistrement non trouvé"}));
@@ -230,8 +230,8 @@ fn delete(state: &SharedState, req: &Req, id: &str) -> Resp {
     if !can_access(req.user.as_ref(), &recording) {
         return json(403, &json!({"error": "Accès refusé"}));
     }
-    // Tuer FFmpeg AVANT de supprimer de la base.
-    state.scheduler.stop_recording(id);
+    // Abandonner la capture AVANT de supprimer de la base.
+    state.scheduler.discard_recording(id);
     if let Some(path) = &recording.file_path {
         // Confiné au dossier des enregistrements.
         if let Some(safe) = safe_path::resolve_within(&recordings_dir_path(), path) {
