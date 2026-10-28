@@ -28,6 +28,10 @@ services:
       # tout appel sortant : l'EPG se limite alors au panneau de l'abonné.
       # Plusieurs dumps se séparent par des virgules.
       - EPG_XMLTV_URLS=${EPG_XMLTV_URLS-https://epgshare01.online/epgshare01/epg_ripper_FR1.xml.gz,https://epgshare01.online/epgshare01/epg_ripper_CH1.xml.gz,https://epgshare01.online/epgshare01/epg_ripper_BE2.xml.gz}
+      # Repérage des pubs des enregistrements (Comskip) : chapitres
+      # « Commercial » dans le MKV, que Jellyfin propose de passer.
+      # false = désactivé.
+      - COMMERCIAL_DETECTION=${COMMERCIAL_DETECTION:-true}
       # Accélération GPU NVIDIA pour le transcodage (NVENC) : true/false
       - NVIDIA_GPU=${NVIDIA_GPU:-false}
       # UID/GID du serveur, à aligner sur le propriétaire du dossier

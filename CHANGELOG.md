@@ -2,6 +2,12 @@
 
 ## Non publié
 
+### ⏭️ Enregistrements : saut des pubs dans Jellyfin
+- **Coupures pub repérées après chaque enregistrement** : Comskip (compilé dans l'image, lié à un FFmpeg réduit aux décodeurs TV) analyse le fichier terminé, une analyse à la fois et en priorité basse. Les coupures sont inscrites dans le MKV comme chapitres `Commercial` (le reste en `Programme`) par un remux sans réencodage ; vignette intégrée et titre sont conservés, et le fichier n'est remplacé qu'une fois la copie complète
+- **Bouton « Passer » dans Jellyfin** via le plugin officiel Chapter Segments Provider, qui transforme ces chapitres en segments « Commercial » (réglage décrit dans le README). Un `X.edl` (format Kodi, type 3) est déposé à côté du fichier
+- **Rattrapage** : deux minutes après le démarrage, les enregistrements terminés sans `.edl` (antérieurs à la fonction, analyse interrompue ou en échec) sont remis en file
+- `COMMERCIAL_DETECTION=false` coupe la détection ; `COMSKIP_INI` permet de fournir ses propres réglages
+
 ### 📼 Enregistrements : capture en `.ts`, conversion en MKV à la fin
 - **Fin des fichiers incomplets** : FFmpeg écrivait le direct en MKV et chaque coupure du fournisseur produisait une nouvelle partie, recollée à la fin. Les sauts d'horloge des flux IPTV (« timestamp discontinuity ») cassaient la chronologie du MKV et le recollage : Plex et Jellyfin voyaient un fichier qui s'arrêtait avant la fin du match. Le serveur recopie désormais les octets du flux tels quels dans un seul `.ts`, complété à chaque reconnexion, puis le convertit une seule fois en MKV en fin de capture ; FFmpeg recale alors les sauts d'horloge sur tout le fichier. Le `.ts` n'est supprimé que si le MKV obtenu est complet, sinon il est conservé (lisible tel quel)
 - **Reprise au redémarrage** : un `docker stop` ou une mise à jour pendant un match clôturait l'enregistrement, qui ne reprenait jamais. La capture reste désormais ouverte et repart dans le même `.ts` au redémarrage si la fenêtre n'est pas finie
