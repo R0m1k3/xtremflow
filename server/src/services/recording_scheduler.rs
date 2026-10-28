@@ -211,6 +211,7 @@ impl RecordingScheduler {
             "[RecordingScheduler] Démarrage du planificateur d'enregistrements TV (max simultanés: {})",
             self.max_concurrent
         );
+        println!("{}", crate::services::commercial_detection::status_line());
         let mut timers = self.timers.lock().unwrap();
 
         // Toutes les 10 secondes (démarrage quasi immédiat), premier passage tout de suite.
@@ -221,6 +222,14 @@ impl RecordingScheduler {
                 interval.tick().await;
                 this.check_and_run_recordings().await;
             }
+        }));
+
+        // Coupures pub : rattrapage deux minutes après le démarrage, une fois
+        // les reprises de capture lancées.
+        let this = self.clone();
+        timers.push(tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_secs(120)).await;
+            this.schedule_missing_commercial_detection();
         }));
 
         // Season passes : un premier scan après 30 s (laisser le serveur
@@ -1000,6 +1009,24 @@ impl RecordingScheduler {
             )
             .await;
         }
+        // Après la pochette : les deux remplacent le MKV, jamais en même temps.
+        crate::services::commercial_detection::schedule(Path::new(&path), resolve_ffmpeg_path());
+    }
+
+    /// Enregistrements terminés jamais analysés (détection ajoutée après
+    /// coup, analyse interrompue par un redémarrage ou en échec).
+    fn schedule_missing_commercial_detection(&self) {
+        for rec in self.db.get_finished_recordings_oldest_first() {
+            if rec.status != "completed" {
+                continue;
+            }
+            let Some(path) = rec.file_path.as_deref().map(Path::new) else {
+                continue;
+            };
+            if crate::services::commercial_detection::needs_detection(path) {
+                crate::services::commercial_detection::schedule(path, resolve_ffmpeg_path());
+            }
+        }
     }
 
     /// Arrête un enregistrement en cours (appelé depuis l'API).
@@ -1070,6 +1097,18 @@ impl RecordingScheduler {
         let remux = Path::new(file_path).with_extension("cover.mkv");
         if remux.exists() {
             paths.push(remux.to_string_lossy().into_owned());
+        }
+        // Coupures pub : EDL et remux en cours.
+        let video = Path::new(file_path);
+        let [chapters_mkv, chapters_txt] = crate::services::commercial_detection::temp_paths(video);
+        for extra in [
+            crate::services::commercial_detection::edl_path(video),
+            chapters_mkv,
+            chapters_txt,
+        ] {
+            if extra.exists() {
+                paths.push(extra.to_string_lossy().into_owned());
+            }
         }
         paths
     }
