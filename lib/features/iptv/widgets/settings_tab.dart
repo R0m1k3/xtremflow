@@ -77,10 +77,18 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
     });
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(32, 28, 32, 16),
+          child: Text(
+            'Réglages',
+            style: AppTheme.display(fontSize: 30, fontWeight: FontWeight.w600),
+          ),
+        ),
         // TabBar
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          padding: const EdgeInsets.fromLTRB(32, 0, 32, 4),
           child: Container(
             padding: const EdgeInsets.all(4),
             decoration: const GlassDecoration(radius: 999, halo: false),
@@ -133,21 +141,24 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
 
         // TabBarView
         Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              // Filters Tab
-              _buildFiltersTab(context, currentUser, settings),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // Filters Tab
+                _buildFiltersTab(context, currentUser, settings),
 
-              // Streaming Tab
-              const StreamingSettingsTab(),
+                // Streaming Tab
+                const StreamingSettingsTab(),
 
-              // Playback Tab
-              _buildPlaybackTab(context, settings),
+                // Playback Tab
+                _buildPlaybackTab(context, settings),
 
-              // Admin Tab
-              if (currentUser?.isAdmin ?? false) const AdminContent(),
-            ],
+                // Admin Tab
+                if (currentUser?.isAdmin ?? false) const AdminContent(),
+              ],
+            ),
           ),
         ),
       ],
@@ -334,7 +345,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
               style: AppTheme.body(fontSize: 15, fontWeight: FontWeight.w500),
             ),
             subtitle: Text(
-              'XtremFlow IPTV v1.0.0',
+              'XtremFlow IPTV v1.1.0',
               style: AppTheme.body(fontSize: 13, color: AppColors.textMuted),
             ),
           ),

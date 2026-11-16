@@ -65,11 +65,17 @@ class _RecordingsTabState extends State<RecordingsTab>
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+            padding: const EdgeInsets.fromLTRB(32, 28, 32, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Enregistrements', style: AppTheme.display(fontSize: 26)),
+                Text(
+                  'Enregistrements',
+                  style: AppTheme.display(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 TabBar(
                   controller: _tabController,
