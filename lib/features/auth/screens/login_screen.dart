@@ -1,11 +1,12 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../providers/auth_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/glass_container.dart';
 import '../../../core/widgets/tv_focusable_card.dart';
+import '../../../core/theme/app_theme.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -121,7 +122,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [AppColors.surfaceVariant, AppColors.background],
+                          colors: [
+                            AppColors.surfaceVariant,
+                            AppColors.background,
+                          ],
                         ),
                         borderRadius: BorderRadius.circular(32),
                         boxShadow: [
@@ -144,7 +148,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   // Title
                   Text(
                     'XtremFlow',
-                    style: GoogleFonts.karla(
+                    style: AppTheme.font(
                       fontSize: 42,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
@@ -154,7 +158,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'Sign in to sync your playlists',
-                    style: GoogleFonts.karla(
+                    style: AppTheme.font(
                       fontSize: 18,
                       color: AppColors.textSecondary,
                       fontWeight: FontWeight.w400,
@@ -266,7 +270,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     )
                                   : Text(
                                       'Sign In',
-                                      style: GoogleFonts.karla(
+                                      style: AppTheme.font(
                                         color: AppColors.primary,
                                         fontSize: 18,
                                         fontWeight: FontWeight.w600,
@@ -282,7 +286,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 32),
                   Text(
                     'Default: admin / admin',
-                    style: GoogleFonts.karla(
+                    style: AppTheme.font(
                       fontSize: 14,
                       color: AppColors.textTertiary,
                     ),
@@ -310,13 +314,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
-      style: GoogleFonts.karla(fontSize: 18, color: AppColors.textPrimary),
+      style: AppTheme.font(fontSize: 18, color: AppColors.textPrimary),
       autofocus: autofocus,
       textInputAction: nextFocus ? TextInputAction.next : TextInputAction.done,
       onFieldSubmitted: isLast ? (_) => onSubmitted?.call() : null,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.karla(color: AppColors.textSecondary),
+        labelStyle: AppTheme.font(color: AppColors.textSecondary),
         prefixIcon: Icon(icon, color: AppColors.textSecondary),
         suffixIcon: suffix,
         filled: true,
@@ -333,8 +337,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: AppColors.focusColor, width: 2),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 20,
+        ),
       ),
       validator: (value) {
         if (value == null || value.trim().isEmpty) {

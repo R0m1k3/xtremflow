@@ -1,20 +1,17 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../../core/models/playlist_config.dart';
 import '../providers/xtream_provider.dart';
 import '../models/xtream_models.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 
 class EPGWidget extends ConsumerStatefulWidget {
   final String channelId;
   final PlaylistConfig playlist;
 
-  const EPGWidget({
-    super.key,
-    required this.channelId,
-    required this.playlist,
-  });
+  const EPGWidget({super.key, required this.channelId, required this.playlist});
 
   @override
   ConsumerState<EPGWidget> createState() => _EPGWidgetState();
@@ -34,7 +31,7 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
     try {
       final service = ref.read(xtreamServiceProvider(widget.playlist));
       final epg = await service.getShortEPG(widget.channelId);
-      
+
       if (mounted) {
         setState(() {
           _epg = epg;
@@ -99,7 +96,7 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
                   ),
                   child: Text(
                     'LIVE',
-                    style: GoogleFonts.karla(
+                    style: AppTheme.font(
                       fontSize: 9,
                       fontWeight: FontWeight.bold,
                       color: AppColors.onSurface,
@@ -110,7 +107,7 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
                 Expanded(
                   child: Text(
                     _epg!.nowPlaying!,
-                    style: GoogleFonts.karla(
+                    style: AppTheme.font(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: AppColors.onSurface,
@@ -121,7 +118,7 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
                 ),
               ],
             ),
-            
+
             // Progress bar
             if (_epg!.progress != null) ...[
               const SizedBox(height: 4),
@@ -130,7 +127,9 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
                 child: LinearProgressIndicator(
                   value: _epg!.progress!.clamp(0.0, 1.0),
                   backgroundColor: AppColors.outlineVariant,
-                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.error),
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    AppColors.error,
+                  ),
                   minHeight: 3,
                 ),
               ),
@@ -142,16 +141,12 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
             const SizedBox(height: 6),
             Row(
               children: [
-                Icon(
-                  Icons.upcoming,
-                  size: 12,
-                  color: AppColors.outline,
-                ),
+                Icon(Icons.upcoming, size: 12, color: AppColors.outline),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     'Next: ${_epg!.nextPlaying}',
-                    style: GoogleFonts.karla(
+                    style: AppTheme.font(
                       fontSize: 10,
                       color: AppColors.outline,
                     ),

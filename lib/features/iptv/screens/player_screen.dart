@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'dart:html' as html;
 import 'dart:ui_web' as ui_web;
 import 'dart:async';
-import 'package:google_fonts/google_fonts.dart';
+
 import 'package:pointer_interceptor/pointer_interceptor.dart';
+
 import '../providers/xtream_provider.dart';
 import '../providers/playback_positions_provider.dart';
 import '../widgets/quality_selector_widget.dart';
@@ -15,6 +17,7 @@ import '../widgets/quality_selector_widget.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/widgets/glass_container.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 
 enum StreamType { live, vod, series, recording }
 
@@ -55,8 +58,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _isLoading = true;
   StreamSubscription? _messageSubscription;
   bool _isSeeking = false;
-  late final String _viewIdPrefix =
-      DateTime.now().millisecondsSinceEpoch.toString();
+  late final String _viewIdPrefix = DateTime.now().millisecondsSinceEpoch
+      .toString();
   String _viewId = 'iptv-player';
   bool _isMuted = false;
   bool _ignoreStatusUpdates = false;
@@ -114,8 +117,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _onHover(); // Start the auto-hide timer
     _initializePlayer(startTimeOverride: widget.startTime);
     _setupMessageListener();
-    _fullscreenSubscription =
-        html.document.onFullscreenChange.listen((_) => _syncFullscreenState());
+    _fullscreenSubscription = html.document.onFullscreenChange.listen(
+      (_) => _syncFullscreenState(),
+    );
   }
 
   @override
@@ -207,10 +211,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         _mediaOffset = (startTimeOverride ?? 0) > 0
             ? startTimeOverride!.floorToDouble()
             : 0;
-        final base = '${service.backendBaseUrl}/api/recordings/stream/'
+        final base =
+            '${service.backendBaseUrl}/api/recordings/stream/'
             '$currentStreamId/playlist.m3u8';
-        streamUrl =
-            _mediaOffset > 0 ? '$base?start=${_mediaOffset.toInt()}' : base;
+        streamUrl = _mediaOffset > 0
+            ? '$base?start=${_mediaOffset.toInt()}'
+            : base;
       }
 
       // Store URL for Lite Player
@@ -234,8 +240,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // - Live TV: Player Lite (simple TS playback with mpegts.js)
       // - VOD/Series: Player Standard (fuller controls, HLS support)
 
-      final streamTypeParam =
-          widget.streamType == StreamType.live ? 'live' : 'vod';
+      final streamTypeParam = widget.streamType == StreamType.live
+          ? 'live'
+          : 'vod';
       final playerFile = isMobile
           ? 'player_mobile.html'
           : (isLiveTV ? 'player_lite.html' : 'player.html');
@@ -320,8 +327,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         final rawDuration = (data['duration'] as num).toDouble();
         final duration = rawDuration.isFinite ? rawDuration : 0.0;
         final rawSeekable = data['seekableEnd'];
-        final seekableEnd =
-            rawSeekable is num ? rawSeekable.toDouble() : currentTime;
+        final seekableEnd = rawSeekable is num
+            ? rawSeekable.toDouble()
+            : currentTime;
 
         // Only update position if user is NOT dragging the slider
         setState(() {
@@ -338,11 +346,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         // d'un flux continu n'a pas de sens et polluait le stockage avec une
         // entrée bidon par chaîne zappée.
         if (currentTime > 0 && widget.streamType != StreamType.live) {
-          ref.read(playbackPositionsProvider.notifier).savePosition(
-                _positionKey,
-                currentTime,
-                duration,
-              );
+          ref
+              .read(playbackPositionsProvider.notifier)
+              .savePosition(_positionKey, currentTime, duration);
         }
       } else if (type == 'seek_out_of_range') {
         // Cible hors de la zone déjà transcodée : seul un redémarrage du
@@ -351,7 +357,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         if (target != null) _restartAt(target);
       } else if (type == 'playback_ended') {
         setState(() => _isPlaying = false);
-        ref.read(playbackPositionsProvider.notifier).clearPosition(_positionKey);
+        ref
+            .read(playbackPositionsProvider.notifier)
+            .clearPosition(_positionKey);
       } else if (type == 'playback_status') {
         if (!_ignoreStatusUpdates) {
           setState(() => _isPlaying = data['status'] == 'playing');
@@ -383,8 +391,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
 
     if (iframe != null) {
-      iframe.contentWindow
-          ?.postMessage(message, html.window.location.origin);
+      iframe.contentWindow?.postMessage(message, html.window.location.origin);
     } else {
       print(
         '[PlayerScreen] Error: Could not find iframe to send message: $message',
@@ -437,8 +444,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (!_isSeekable || _seekReloading) return;
     // Jamais tout à la fin : FFmpeg lancé au-delà de la dernière image
     // n'encoderait rien et le lecteur n'aurait qu'une erreur à afficher.
-    final ceiling =
-        _totalDuration > 10 ? _totalDuration - 5 : _totalDuration;
+    final ceiling = _totalDuration > 10 ? _totalDuration - 5 : _totalDuration;
     final clamped = target.clamp(0.0, ceiling);
     if (widget.streamType != StreamType.recording) {
       // VOD/séries : le serveur ne sait pas démarrer ailleurs qu'au début,
@@ -475,10 +481,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
     // `fullscreenchange` arrive de façon asynchrone : relire l'état juste
     // après l'appel évite que l'icône reste figée si l'évènement est perdu.
-    Future.delayed(
-      const Duration(milliseconds: 150),
-      _syncFullscreenState,
-    );
+    Future.delayed(const Duration(milliseconds: 150), _syncFullscreenState);
   }
 
   void _toggleMute() {
@@ -491,8 +494,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     setState(() => _quality = quality);
     // Rebuild the iframe with the new quality; VOD resumes at the
     // current position, live restarts at the live edge.
-    final resumeAt =
-        widget.streamType == StreamType.live ? null : _currentPosition;
+    final resumeAt = widget.streamType == StreamType.live
+        ? null
+        : _currentPosition;
     // Un enregistrement redémarre à cette position côté serveur : sa zone
     // navigable repart de zéro.
     _initializePlayer(startTimeOverride: resumeAt, isChannelSwitch: true);
@@ -672,189 +676,190 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         autofocus: true,
         onKeyEvent: _onKeyEvent,
         child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Video Player
-            if (_isInitialized) HtmlElementView(viewType: _viewId),
+          backgroundColor: AppColors.background,
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Video Player
+              if (_isInitialized) HtmlElementView(viewType: _viewId),
 
-            // Control Overlay (sits on top of video, catches all pointer events)
-            Positioned.fill(
-              child: PointerInterceptor(
-                child: MouseRegion(
-                  onHover: (_) => _onHover(),
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.translucent,
-                    onTap: () {
-                      if (_showControls) {
-                        setState(() => _showControls = false);
-                      } else {
-                        _onHover();
-                      }
-                    },
-                    child: Container(
-                      color: Colors.transparent,
-                      child: Stack(
-                        children: [
-                          // Top Bar
-                          AnimatedPositioned(
-                            duration: const Duration(milliseconds: 200),
-                            top: _showControls ? 0 : -100,
-                            left: 0,
-                            right: 0,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    AppColors.background.withOpacity(0.8),
-                                    Colors.transparent,
-                                  ],
+              // Control Overlay (sits on top of video, catches all pointer events)
+              Positioned.fill(
+                child: PointerInterceptor(
+                  child: MouseRegion(
+                    onHover: (_) => _onHover(),
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: () {
+                        if (_showControls) {
+                          setState(() => _showControls = false);
+                        } else {
+                          _onHover();
+                        }
+                      },
+                      child: Container(
+                        color: Colors.transparent,
+                        child: Stack(
+                          children: [
+                            // Top Bar
+                            AnimatedPositioned(
+                              duration: const Duration(milliseconds: 200),
+                              top: _showControls ? 0 : -100,
+                              left: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
                                 ),
-                              ),
-                              child: SafeArea(
-                                bottom: false,
-                                child: Row(
-                                  children: [
-                                    _buildSimpleIconButton(
-                                      icon: Icons.arrow_back_rounded,
-                                      onTap: () => Navigator.pop(context),
-                                      tooltip: 'Retour',
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            widget.channels != null
-                                                ? (widget
-                                                            .channels![
-                                                                _currentIndex]
-                                                            .name ??
-                                                        widget
-                                                            .channels![
-                                                                _currentIndex]
-                                                            .title ??
-                                                        'Unknown')
-                                                    .toString()
-                                                : widget.title,
-                                            style: GoogleFonts.fraunces(
-                                              color: AppColors.textPrimary,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          Text(
-                                            'Live TV',
-                                            style: GoogleFonts.karla(
-                                              color: AppColors.primary,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    // Top right mute button removed
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          // Unified Bottom Bar - EPG + Controls in one bar
-                          AnimatedPositioned(
-                            duration: const Duration(milliseconds: 200),
-                            bottom: _showControls
-                                ? 24
-                                : -150, // More offset for stacked layout
-                            left: 16,
-                            right: 16,
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                final isSmallScreen =
-                                    constraints.maxWidth < 600;
-                                return Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: isSmallScreen ? 16 : 20,
-                                    vertical: isSmallScreen ? 12 : 16,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surface.withOpacity(0.95),
-                                    borderRadius: BorderRadius.circular(24),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppColors.background
-                                            .withOpacity(0.3),
-                                        blurRadius: 10,
-                                        spreadRadius: 2,
-                                      ),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      AppColors.background.withOpacity(0.8),
+                                      Colors.transparent,
                                     ],
-                                    border: Border.all(
-                                      color: AppColors.textPrimary
-                                          .withOpacity(0.15),
-                                    ),
                                   ),
-                                  child: isSmallScreen
-                                      ? Column(
+                                ),
+                                child: SafeArea(
+                                  bottom: false,
+                                  child: Row(
+                                    children: [
+                                      _buildSimpleIconButton(
+                                        icon: Icons.arrow_back_rounded,
+                                        onTap: () => Navigator.pop(context),
+                                        tooltip: 'Retour',
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            // EPG Info (top in mobile)
-                                            _buildInlineEpg(),
-                                            const SizedBox(height: 12),
-                                            const Divider(
-                                              color: AppColors.onSurface06,
-                                            ),
-                                            const SizedBox(height: 8),
-                                            // Control Buttons
-                                            Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.spaceEvenly,
-                                              children: _buildControlButtons(
-                                                isSmallScreen,
+                                            Text(
+                                              widget.channels != null
+                                                  ? (widget
+                                                                .channels![_currentIndex]
+                                                                .name ??
+                                                            widget
+                                                                .channels![_currentIndex]
+                                                                .title ??
+                                                            'Unknown')
+                                                        .toString()
+                                                  : widget.title,
+                                              style: AppTheme.font(
+                                                color: AppColors.textPrimary,
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w600,
                                               ),
+                                              overflow: TextOverflow.ellipsis,
                                             ),
-                                          ],
-                                        )
-                                      : Row(
-                                          children: [
-                                            // EPG Info (left side)
-                                            Expanded(
-                                              child: _buildInlineEpg(),
-                                            ),
-                                            const SizedBox(width: 24),
-                                            // Control Buttons (right side)
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: _buildControlButtons(
-                                                isSmallScreen,
+                                            Text(
+                                              'Live TV',
+                                              style: AppTheme.font(
+                                                color: AppColors.primary,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
                                               ),
                                             ),
                                           ],
                                         ),
-                                );
-                              },
+                                      ),
+                                      // Top right mute button removed
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
+
+                            // Unified Bottom Bar - EPG + Controls in one bar
+                            AnimatedPositioned(
+                              duration: const Duration(milliseconds: 200),
+                              bottom: _showControls
+                                  ? 24
+                                  : -150, // More offset for stacked layout
+                              left: 16,
+                              right: 16,
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final isSmallScreen =
+                                      constraints.maxWidth < 600;
+                                  return Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: isSmallScreen ? 16 : 20,
+                                      vertical: isSmallScreen ? 12 : 16,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surface.withOpacity(
+                                        0.95,
+                                      ),
+                                      borderRadius: BorderRadius.circular(24),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: AppColors.background
+                                              .withOpacity(0.3),
+                                          blurRadius: 10,
+                                          spreadRadius: 2,
+                                        ),
+                                      ],
+                                      border: Border.all(
+                                        color: AppColors.textPrimary
+                                            .withOpacity(0.15),
+                                      ),
+                                    ),
+                                    child: isSmallScreen
+                                        ? Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              // EPG Info (top in mobile)
+                                              _buildInlineEpg(),
+                                              const SizedBox(height: 12),
+                                              const Divider(
+                                                color: AppColors.onSurface06,
+                                              ),
+                                              const SizedBox(height: 8),
+                                              // Control Buttons
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceEvenly,
+                                                children: _buildControlButtons(
+                                                  isSmallScreen,
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        : Row(
+                                            children: [
+                                              // EPG Info (left side)
+                                              Expanded(
+                                                child: _buildInlineEpg(),
+                                              ),
+                                              const SizedBox(width: 24),
+                                              // Control Buttons (right side)
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: _buildControlButtons(
+                                                  isSmallScreen,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         ),
       );
     }
@@ -864,286 +869,296 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       autofocus: true,
       onKeyEvent: _onKeyEvent,
       child: Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (_isInitialized) HtmlElementView(viewType: _viewId),
+        backgroundColor: Colors.black,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (_isInitialized) HtmlElementView(viewType: _viewId),
 
-          // User interaction area
-          Positioned.fill(
-            child: PointerInterceptor(
-              child: MouseRegion(
-                onHover: (_) => _onHover(),
-                child: GestureDetector(
-                  onTap: () {
-                    if (_showControls) {
-                      setState(() => _showControls = false);
-                    } else {
-                      _onHover();
-                    }
-                  },
-                  behavior: HitTestBehavior.translucent,
-                  child: Container(color: Colors.transparent),
-                ),
-              ),
-            ),
-          ),
-
-          // Controls Overlay
-          if (_showControls || _isLoading)
+            // User interaction area
             Positioned.fill(
               child: PointerInterceptor(
-                child: Container(
-                  color: Colors.black.withOpacity(0.4),
-                  child: Stack(
-                    children: [
-                      // Top Bar
-                      Positioned(
-                        top: 24,
-                        left: 24,
-                        right: 24,
-                        child: GlassContainer.glass(
-                          height: 72,
-                          borderRadius: 24,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            children: [
-                              _buildGlassIconButton(
-                                icon: Icons.arrow_back_rounded,
-                                onTap: () => Navigator.pop(context),
-                                tooltip: 'Retour',
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Text(
-                                  widget.title,
-                                  style: GoogleFonts.fraunces(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.onSurface,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      // Center Loading Indicator (only show when loading)
-                      if (_isLoading)
-                        Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const CircularProgressIndicator(
-                                color: AppColors.primary,
-                              ),
-                              // Un saut hors de la zone transcodée relance
-                              // l'encodeur : quelques secondes d'attente,
-                              // autant dire pourquoi.
-                              if (_seekReloading) ...[
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Reprise à '
-                                  '${_formatDuration(Duration(seconds: _currentPosition.toInt()))}…',
-                                  style: GoogleFonts.karla(
-                                    color: AppColors.onSurfaceVariant,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-
-                      // Bottom Controls
-                      Positioned(
-                        bottom: 40,
-                        left: 40,
-                        right: 40,
-                        child: GlassContainer.glass(
-                          borderRadius: 24,
-                          borderColor: AppColors.onSurface.withOpacity(0.1),
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Progress
-                              Row(
-                                children: [
-                                  Text(
-                                    _formatDuration(
-                                      Duration(
-                                        seconds: _currentPosition.toInt(),
-                                      ),
-                                    ),
-                                    style: GoogleFonts.karla(
-                                      color: AppColors.onSurfaceVariant,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: SliderTheme(
-                                      data: SliderThemeData(
-                                        trackHeight: 4,
-                                        activeTrackColor: AppColors.primary,
-                                        inactiveTrackColor:
-                                            AppColors.onSurface.withOpacity(0.2),
-                                        // Portion déjà transcodée : navigable
-                                        // instantanément, contrairement au
-                                        // reste qui redémarre l'encodeur.
-                                        secondaryActiveTrackColor:
-                                            AppColors.onSurface.withOpacity(0.4),
-                                        thumbColor: AppColors.onSurface,
-                                        thumbShape: const RoundSliderThumbShape(
-                                          enabledThumbRadius: 8,
-                                        ),
-                                        overlayColor:
-                                            AppColors.primary.withOpacity(0.2),
-                                      ),
-                                      child: Slider(
-                                        value: _currentPosition
-                                            .clamp(0.0, _totalDuration),
-                                        secondaryTrackValue: _seekableEnd > 0
-                                            ? _seekableEnd
-                                                .clamp(0.0, _totalDuration)
-                                            : null,
-                                        min: 0,
-                                        max: _totalDuration,
-                                        onChanged: (val) => setState(
-                                          () => _currentPosition = val,
-                                        ),
-                                        onChangeStart: (_) =>
-                                            setState(() => _isSeeking = true),
-                                        onChangeEnd: (val) {
-                                          _seekTo(val);
-                                          Future.delayed(
-                                              const Duration(milliseconds: 500),
-                                              () {
-                                            if (mounted) {
-                                              setState(
-                                                () => _isSeeking = false,
-                                              );
-                                            }
-                                          });
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Text(
-                                    _formatDuration(
-                                      Duration(
-                                        seconds: _totalDuration.toInt(),
-                                      ),
-                                    ),
-                                    style: GoogleFonts.karla(
-                                      color: AppColors.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-
-                              // Buttons
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  // Sous 720 px, les sauts de 60 s et le
-                                  // sélecteur de vitesse sortent de la barre
-                                  // plutôt que de la faire déborder.
-                                  final compact = constraints.maxWidth < 720;
-                                  return Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      if (!compact) ...[
-                                        _buildGlassIconButton(
-                                          icon: Icons.fast_rewind_rounded,
-                                          onTap: () => _seekBy(-_bigStep),
-                                          transparent: true,
-                                          tooltip: 'Reculer de 1 min',
-                                        ),
-                                        const SizedBox(width: 16),
-                                      ],
-                                      _buildGlassIconButton(
-                                        icon: Icons.replay_10_rounded,
-                                        onTap: () => _seekBy(-_smallStep),
-                                        transparent: true,
-                                        tooltip: 'Reculer de 10 s',
-                                      ),
-                                      const SizedBox(width: 24),
-                                      _buildGlassIconButton(
-                                        icon: _isPlaying
-                                            ? Icons.pause_rounded
-                                            : Icons.play_arrow_rounded,
-                                        onTap: _togglePlayPause,
-                                        size: 56,
-                                        iconSize: 32,
-                                        tooltip:
-                                            _isPlaying ? 'Pause' : 'Lecture',
-                                      ),
-                                      const SizedBox(width: 24),
-                                      _buildGlassIconButton(
-                                        icon: Icons.forward_10_rounded,
-                                        onTap: () => _seekBy(_smallStep),
-                                        transparent: true,
-                                        tooltip: 'Avancer de 10 s',
-                                      ),
-                                      if (!compact) ...[
-                                        const SizedBox(width: 16),
-                                        _buildGlassIconButton(
-                                          icon: Icons.fast_forward_rounded,
-                                          onTap: () => _seekBy(_bigStep),
-                                          transparent: true,
-                                          tooltip: 'Avancer de 1 min',
-                                        ),
-                                      ],
-                                      const Spacer(),
-                                      if (!compact) ...[
-                                        _buildRateSelector(),
-                                        const SizedBox(width: 16),
-                                      ],
-                                      QualitySelectorButton(
-                                        current: _quality,
-                                        onSelected: _changeQuality,
-                                      ),
-                                      const SizedBox(width: 16),
-                                      _buildGlassIconButton(
-                                        icon: _isMuted
-                                            ? Icons.volume_off_rounded
-                                            : Icons.volume_up_rounded,
-                                        onTap: _toggleMute,
-                                        transparent: true,
-                                        tooltip: _isMuted
-                                            ? 'Activer le son'
-                                            : 'Couper le son',
-                                      ),
-                                      const SizedBox(width: 16),
-                                      _buildGlassIconButton(
-                                        icon: _isFullscreen
-                                            ? Icons.fullscreen_exit_rounded
-                                            : Icons.fullscreen_rounded,
-                                        onTap: _toggleFullscreen,
-                                        transparent: true,
-                                        tooltip: _isFullscreen
-                                            ? 'Quitter le plein écran'
-                                            : 'Plein écran',
-                                      ),
-                                    ],
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                child: MouseRegion(
+                  onHover: (_) => _onHover(),
+                  child: GestureDetector(
+                    onTap: () {
+                      if (_showControls) {
+                        setState(() => _showControls = false);
+                      } else {
+                        _onHover();
+                      }
+                    },
+                    behavior: HitTestBehavior.translucent,
+                    child: Container(color: Colors.transparent),
                   ),
                 ),
               ),
             ),
-        ],
-      ),
+
+            // Controls Overlay
+            if (_showControls || _isLoading)
+              Positioned.fill(
+                child: PointerInterceptor(
+                  child: Container(
+                    color: Colors.black.withOpacity(0.4),
+                    child: Stack(
+                      children: [
+                        // Top Bar
+                        Positioned(
+                          top: 24,
+                          left: 24,
+                          right: 24,
+                          child: GlassContainer.glass(
+                            height: 72,
+                            borderRadius: 24,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Row(
+                              children: [
+                                _buildGlassIconButton(
+                                  icon: Icons.arrow_back_rounded,
+                                  onTap: () => Navigator.pop(context),
+                                  tooltip: 'Retour',
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Text(
+                                    widget.title,
+                                    style: AppTheme.font(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.onSurface,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // Center Loading Indicator (only show when loading)
+                        if (_isLoading)
+                          Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const CircularProgressIndicator(
+                                  color: AppColors.primary,
+                                ),
+                                // Un saut hors de la zone transcodée relance
+                                // l'encodeur : quelques secondes d'attente,
+                                // autant dire pourquoi.
+                                if (_seekReloading) ...[
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Reprise à '
+                                    '${_formatDuration(Duration(seconds: _currentPosition.toInt()))}…',
+                                    style: AppTheme.font(
+                                      color: AppColors.onSurfaceVariant,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+
+                        // Bottom Controls
+                        Positioned(
+                          bottom: 40,
+                          left: 40,
+                          right: 40,
+                          child: GlassContainer.glass(
+                            borderRadius: 24,
+                            borderColor: AppColors.onSurface.withOpacity(0.1),
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Progress
+                                Row(
+                                  children: [
+                                    Text(
+                                      _formatDuration(
+                                        Duration(
+                                          seconds: _currentPosition.toInt(),
+                                        ),
+                                      ),
+                                      style: AppTheme.font(
+                                        color: AppColors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: SliderTheme(
+                                        data: SliderThemeData(
+                                          trackHeight: 4,
+                                          activeTrackColor: AppColors.primary,
+                                          inactiveTrackColor: AppColors
+                                              .onSurface
+                                              .withOpacity(0.2),
+                                          // Portion déjà transcodée : navigable
+                                          // instantanément, contrairement au
+                                          // reste qui redémarre l'encodeur.
+                                          secondaryActiveTrackColor: AppColors
+                                              .onSurface
+                                              .withOpacity(0.4),
+                                          thumbColor: AppColors.onSurface,
+                                          thumbShape:
+                                              const RoundSliderThumbShape(
+                                                enabledThumbRadius: 8,
+                                              ),
+                                          overlayColor: AppColors.primary
+                                              .withOpacity(0.2),
+                                        ),
+                                        child: Slider(
+                                          value: _currentPosition.clamp(
+                                            0.0,
+                                            _totalDuration,
+                                          ),
+                                          secondaryTrackValue: _seekableEnd > 0
+                                              ? _seekableEnd.clamp(
+                                                  0.0,
+                                                  _totalDuration,
+                                                )
+                                              : null,
+                                          min: 0,
+                                          max: _totalDuration,
+                                          onChanged: (val) => setState(
+                                            () => _currentPosition = val,
+                                          ),
+                                          onChangeStart: (_) =>
+                                              setState(() => _isSeeking = true),
+                                          onChangeEnd: (val) {
+                                            _seekTo(val);
+                                            Future.delayed(
+                                              const Duration(milliseconds: 500),
+                                              () {
+                                                if (mounted) {
+                                                  setState(
+                                                    () => _isSeeking = false,
+                                                  );
+                                                }
+                                              },
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Text(
+                                      _formatDuration(
+                                        Duration(
+                                          seconds: _totalDuration.toInt(),
+                                        ),
+                                      ),
+                                      style: AppTheme.font(
+                                        color: AppColors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+
+                                // Buttons
+                                LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    // Sous 720 px, les sauts de 60 s et le
+                                    // sélecteur de vitesse sortent de la barre
+                                    // plutôt que de la faire déborder.
+                                    final compact = constraints.maxWidth < 720;
+                                    return Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        if (!compact) ...[
+                                          _buildGlassIconButton(
+                                            icon: Icons.fast_rewind_rounded,
+                                            onTap: () => _seekBy(-_bigStep),
+                                            transparent: true,
+                                            tooltip: 'Reculer de 1 min',
+                                          ),
+                                          const SizedBox(width: 16),
+                                        ],
+                                        _buildGlassIconButton(
+                                          icon: Icons.replay_10_rounded,
+                                          onTap: () => _seekBy(-_smallStep),
+                                          transparent: true,
+                                          tooltip: 'Reculer de 10 s',
+                                        ),
+                                        const SizedBox(width: 24),
+                                        _buildGlassIconButton(
+                                          icon: _isPlaying
+                                              ? Icons.pause_rounded
+                                              : Icons.play_arrow_rounded,
+                                          onTap: _togglePlayPause,
+                                          size: 56,
+                                          iconSize: 32,
+                                          tooltip: _isPlaying
+                                              ? 'Pause'
+                                              : 'Lecture',
+                                        ),
+                                        const SizedBox(width: 24),
+                                        _buildGlassIconButton(
+                                          icon: Icons.forward_10_rounded,
+                                          onTap: () => _seekBy(_smallStep),
+                                          transparent: true,
+                                          tooltip: 'Avancer de 10 s',
+                                        ),
+                                        if (!compact) ...[
+                                          const SizedBox(width: 16),
+                                          _buildGlassIconButton(
+                                            icon: Icons.fast_forward_rounded,
+                                            onTap: () => _seekBy(_bigStep),
+                                            transparent: true,
+                                            tooltip: 'Avancer de 1 min',
+                                          ),
+                                        ],
+                                        const Spacer(),
+                                        if (!compact) ...[
+                                          _buildRateSelector(),
+                                          const SizedBox(width: 16),
+                                        ],
+                                        QualitySelectorButton(
+                                          current: _quality,
+                                          onSelected: _changeQuality,
+                                        ),
+                                        const SizedBox(width: 16),
+                                        _buildGlassIconButton(
+                                          icon: _isMuted
+                                              ? Icons.volume_off_rounded
+                                              : Icons.volume_up_rounded,
+                                          onTap: _toggleMute,
+                                          transparent: true,
+                                          tooltip: _isMuted
+                                              ? 'Activer le son'
+                                              : 'Couper le son',
+                                        ),
+                                        const SizedBox(width: 16),
+                                        _buildGlassIconButton(
+                                          icon: _isFullscreen
+                                              ? Icons.fullscreen_exit_rounded
+                                              : Icons.fullscreen_rounded,
+                                          onTap: _toggleFullscreen,
+                                          transparent: true,
+                                          tooltip: _isFullscreen
+                                              ? 'Quitter le plein écran'
+                                              : 'Plein écran',
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1166,9 +1181,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    rate == _rate
-                        ? Icons.check_rounded
-                        : Icons.speed_rounded,
+                    rate == _rate ? Icons.check_rounded : Icons.speed_rounded,
                     size: 16,
                     color: rate == _rate
                         ? AppColors.primary
@@ -1197,7 +1210,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           ),
           child: Text(
             _formatRate(_rate),
-            style: GoogleFonts.karla(
+            style: AppTheme.font(
               color: _rate == 1.0 ? AppColors.onSurface : AppColors.primary,
               fontWeight: FontWeight.w600,
             ),
@@ -1225,7 +1238,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }) {
     // Button with direct Material/InkWell - PointerInterceptor is on outer container
     final button = Material(
-      color: transparent ? Colors.transparent : AppColors.onSurface.withOpacity(0.1),
+      color: transparent
+          ? Colors.transparent
+          : AppColors.onSurface.withOpacity(0.1),
       shape: const CircleBorder(),
       child: InkWell(
         onTap: onTap,
@@ -1384,8 +1399,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               return Row(
                 children: [
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.live,
                       borderRadius: BorderRadius.circular(4),
@@ -1405,7 +1422,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       widget.channels != null
                           ? widget.channels![_currentIndex].name
                           : widget.title,
-                      style: GoogleFonts.fraunces(
+                      style: AppTheme.font(
                         color: AppColors.onSurface,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -1420,20 +1437,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
             // Get current program
             final now = DateTime.now();
-            final currentProgram = epgEntries.firstWhere(
-              (entry) {
-                final start = DateTime.parse(entry.start);
-                final end = DateTime.parse(entry.end);
-                return now.isAfter(start) && now.isBefore(end);
-              },
-              orElse: () => epgEntries.first,
-            );
+            final currentProgram = epgEntries.firstWhere((entry) {
+              final start = DateTime.parse(entry.start);
+              final end = DateTime.parse(entry.end);
+              return now.isAfter(start) && now.isBefore(end);
+            }, orElse: () => epgEntries.first);
 
             return Row(
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.live,
                     borderRadius: BorderRadius.circular(4),
@@ -1455,7 +1471,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                     children: [
                       Text(
                         currentProgram.title,
-                        style: GoogleFonts.fraunces(
+                        style: AppTheme.font(
                           color: AppColors.onSurface,
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
@@ -1466,7 +1482,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       if (currentProgram.description.isNotEmpty)
                         Text(
                           currentProgram.description,
-                          style: GoogleFonts.karla(
+                          style: AppTheme.font(
                             color: AppColors.onSurface54,
                             fontSize: 12,
                           ),
@@ -1501,7 +1517,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 widget.channels != null
                     ? widget.channels![_currentIndex].name
                     : widget.title,
-                style: GoogleFonts.fraunces(
+                style: AppTheme.font(
                   color: AppColors.onSurface,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -1513,7 +1529,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             widget.channels != null
                 ? widget.channels![_currentIndex].name
                 : widget.title,
-            style: GoogleFonts.fraunces(
+            style: AppTheme.font(
               color: AppColors.onSurface,
               fontSize: 16,
               fontWeight: FontWeight.w600,

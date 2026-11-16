@@ -1,14 +1,15 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../features/iptv/providers/xtream_provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/playlist_api_service.dart';
 import '../../../../core/api/authed_http.dart';
 import '../../../../core/models/playlist_config.dart';
 import '../../../../features/auth/providers/auth_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../theme/mobile_theme.dart';
+import '../../../../core/theme/app_theme.dart';
 
 final playlistsProvider = FutureProvider<List<PlaylistConfig>>((ref) async {
   final service = PlaylistApiService();
@@ -71,7 +72,7 @@ class MobilePlaylistSelectionScreen extends ConsumerWidget {
                   color: AppColors.error,
                 ),
                 const SizedBox(height: 16),
-                Text('Error loading playlists', style: GoogleFonts.karla()),
+                Text('Error loading playlists', style: AppTheme.font()),
                 TextButton(
                   onPressed: () => ref.refresh(playlistsProvider),
                   child: const Text('Retry'),
@@ -93,7 +94,7 @@ class MobilePlaylistSelectionScreen extends ConsumerWidget {
                     const SizedBox(height: 16),
                     Text(
                       'No playlists available',
-                      style: GoogleFonts.karla(color: AppColors.textSecondary),
+                      style: AppTheme.font(color: AppColors.textSecondary),
                     ),
                   ],
                 ),
@@ -109,7 +110,10 @@ class MobilePlaylistSelectionScreen extends ConsumerWidget {
                 return _MobilePlaylistCard(
                   playlist: playlist,
                   onTap: () {
-                    AuthedHttp.usePlaylist(playlist.id, json: playlist.toJson());
+                    AuthedHttp.usePlaylist(
+                      playlist.id,
+                      json: playlist.toJson(),
+                    );
                     // Choix + persistance dans le même geste : l'en-tête
                     // X-Playlist-Id doit partir dès la première requête.
                     selectPlaylist(ref, playlist);
@@ -130,10 +134,7 @@ class _MobilePlaylistCard extends StatelessWidget {
   final PlaylistConfig playlist;
   final VoidCallback onTap;
 
-  const _MobilePlaylistCard({
-    required this.playlist,
-    required this.onTap,
-  });
+  const _MobilePlaylistCard({required this.playlist, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -179,7 +180,7 @@ class _MobilePlaylistCard extends StatelessWidget {
                     children: [
                       Text(
                         playlist.name,
-                        style: GoogleFonts.karla(
+                        style: AppTheme.font(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary,
@@ -190,7 +191,7 @@ class _MobilePlaylistCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         Uri.tryParse(playlist.dns)?.host ?? playlist.dns,
-                        style: GoogleFonts.karla(
+                        style: AppTheme.font(
                           fontSize: 13,
                           color: AppColors.textSecondary,
                         ),

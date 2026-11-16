@@ -1,7 +1,8 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/responsive_layout.dart';
@@ -13,6 +14,7 @@ import '../models/xtream_models.dart';
 import '../providers/xtream_provider.dart';
 import '../providers/settings_provider.dart';
 import '../screens/series_detail_screen.dart';
+import '../../../core/theme/app_theme.dart';
 
 class SeriesTab extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
@@ -123,9 +125,8 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load series: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to load series: $e')));
       }
     }
   }
@@ -151,10 +152,8 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SeriesDetailScreen(
-          series: series,
-          playlist: widget.playlist,
-        ),
+        builder: (context) =>
+            SeriesDetailScreen(series: series, playlist: widget.playlist),
       ),
     );
   }
@@ -170,8 +169,8 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
       displaySeries = settings.seriesKeywords.isEmpty
           ? _series
           : _series
-              .where((s) => settings.matchesSeriesFilter(s.categoryName))
-              .toList();
+                .where((s) => settings.matchesSeriesFilter(s.categoryName))
+                .toList();
     }
 
     const double gridItemRatio = 0.65;
@@ -193,13 +192,15 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
               child: GlassContainer.glass(
                 borderRadius: 100,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
                 child: Row(
                   children: [
                     Text(
                       'TV Series',
-                      style: GoogleFonts.fraunces(
+                      style: AppTheme.font(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
                         color: AppColors.onSurface,
@@ -229,18 +230,20 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                           Expanded(
                             child: TextField(
                               controller: _searchController,
-                              style: GoogleFonts.karla(
+                              style: AppTheme.font(
                                 fontSize: 14,
                                 color: AppColors.onSurface,
                               ),
                               decoration: InputDecoration(
                                 hintText: 'Search series...',
-                                hintStyle:
-                                    GoogleFonts.karla(color: AppColors.outline),
+                                hintStyle: AppTheme.font(
+                                  color: AppColors.outline,
+                                ),
                                 border: InputBorder.none,
                                 isDense: true,
-                                contentPadding:
-                                    const EdgeInsets.only(bottom: 12),
+                                contentPadding: const EdgeInsets.only(
+                                  bottom: 12,
+                                ),
                               ),
                               onChanged: _onSearchChanged,
                             ),
@@ -326,38 +329,26 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                 mainAxisSpacing: 20,
                 childAspectRatio: gridItemRatio,
               ),
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  if (index >= displaySeries.length) return null;
-                  final serie = displaySeries[index];
-                  return TvFocusableCard(
-                    onTap: () => _openSeries(serie),
-                    borderRadius: 12,
-                    semanticLabel: 'Série ${serie.name}',
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Poster Image
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: serie.cover != null && serie.cover!.isNotEmpty
-                              ? Image.network(
-                                  _getProxiedImageUrl(serie.cover),
-                                  fit: BoxFit.cover,
-                                  cacheWidth: 400,
-                                  filterQuality: FilterQuality.low,
-                                  errorBuilder: (ctx, err, stack) => Container(
-                                    color: AppColors.surfaceContainerLow,
-                                    child: Center(
-                                      child: Icon(
-                                        Icons.tv,
-                                        size: 48,
-                                        color: AppColors.outline,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : Container(
+              delegate: SliverChildBuilderDelegate((context, index) {
+                if (index >= displaySeries.length) return null;
+                final serie = displaySeries[index];
+                return TvFocusableCard(
+                  onTap: () => _openSeries(serie),
+                  borderRadius: 12,
+                  semanticLabel: 'Série ${serie.name}',
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // Poster Image
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: serie.cover != null && serie.cover!.isNotEmpty
+                            ? Image.network(
+                                _getProxiedImageUrl(serie.cover),
+                                fit: BoxFit.cover,
+                                cacheWidth: 400,
+                                filterQuality: FilterQuality.low,
+                                errorBuilder: (ctx, err, stack) => Container(
                                   color: AppColors.surfaceContainerLow,
                                   child: Center(
                                     child: Icon(
@@ -367,97 +358,107 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                                     ),
                                   ),
                                 ),
-                        ),
+                              )
+                            : Container(
+                                color: AppColors.surfaceContainerLow,
+                                child: Center(
+                                  child: Icon(
+                                    Icons.tv,
+                                    size: 48,
+                                    color: AppColors.outline,
+                                  ),
+                                ),
+                              ),
+                      ),
 
-                        // Gradient Overlay
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          height: 80,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  AppColors.baseLevel0.withOpacity(0.9),
-                                ],
-                              ),
-                              borderRadius: const BorderRadius.vertical(
-                                bottom: Radius.circular(12),
-                              ),
+                      // Gradient Overlay
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        height: 80,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                AppColors.baseLevel0.withOpacity(0.9),
+                              ],
+                            ),
+                            borderRadius: const BorderRadius.vertical(
+                              bottom: Radius.circular(12),
                             ),
                           ),
                         ),
+                      ),
 
-                        // Title
+                      // Title
+                      Positioned(
+                        left: 12,
+                        right: 12,
+                        bottom: 12,
+                        child: Text(
+                          serie.name,
+                          style: AppTheme.font(
+                            color: AppColors.onSurface,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            shadows: [
+                              const Shadow(
+                                color: AppColors.background,
+                                blurRadius: 4,
+                              ),
+                            ],
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+
+                      // Rating Badge
+                      if (serie.rating != null && serie.rating!.isNotEmpty)
                         Positioned(
-                          left: 12,
-                          right: 12,
-                          bottom: 12,
-                          child: Text(
-                            serie.name,
-                            style: GoogleFonts.karla(
-                              color: AppColors.onSurface,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              shadows: [
-                                const Shadow(
-                                  color: AppColors.background,
-                                  blurRadius: 4,
+                          top: 8,
+                          right: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.background.withOpacity(0.7),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: AppColors.outlineVariant,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.star,
+                                  size: 10,
+                                  color: AppColors.ratingGold,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _formatRating(serie.rating)!,
+                                  style: AppTheme.font(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.onSurface,
+                                  ),
                                 ),
                               ],
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-
-                        // Rating Badge
-                        if (serie.rating != null && serie.rating!.isNotEmpty)
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.background.withOpacity(0.7),
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(
-                                    color: AppColors.outlineVariant),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.star,
-                                    size: 10,
-                                    color: AppColors.ratingGold,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _formatRating(serie.rating)!,
-                                    style: GoogleFonts.karla(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.onSurface,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                },
-                childCount: displaySeries.length,
-              ),
+                    ],
+                  ),
+                );
+              }, childCount: displaySeries.length),
             ),
           ),
 

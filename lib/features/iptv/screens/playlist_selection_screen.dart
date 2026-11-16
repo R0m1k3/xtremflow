@@ -1,7 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../../core/services/playlist_api_service.dart';
 import '../../../core/api/authed_http.dart';
 import '../../../core/models/playlist_config.dart';
@@ -32,7 +32,7 @@ class PlaylistSelectionScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(
           'Select Playlist',
-          style: GoogleFonts.karla(
+          style: AppTheme.font(
             fontWeight: FontWeight.w600,
             color: AppColors.textPrimary,
           ),
@@ -68,9 +68,7 @@ class PlaylistSelectionScreen extends ConsumerWidget {
         // deux), si bien que le degrade n'etait peint que sur un rectangle
         // de la taille des cartes, le reste de l'ecran restant noir.
         constraints: const BoxConstraints.expand(),
-        decoration: const BoxDecoration(
-          gradient: AppColors.backgroundGradient,
-        ),
+        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -100,7 +98,7 @@ class PlaylistSelectionScreen extends ConsumerWidget {
                       const SizedBox(height: 16),
                       Text(
                         'Error loading playlists',
-                        style: GoogleFonts.fraunces(
+                        style: AppTheme.font(
                           fontSize: 18,
                           color: AppColors.textSecondary,
                         ),
@@ -112,7 +110,7 @@ class PlaylistSelectionScreen extends ConsumerWidget {
                           backgroundColor: AppColors.primary,
                           foregroundColor: AppColors.textPrimary,
                         ),
-                        child: Text('Retry', style: GoogleFonts.karla()),
+                        child: Text('Retry', style: AppTheme.font()),
                       ),
                     ],
                   ),
@@ -131,7 +129,7 @@ class PlaylistSelectionScreen extends ConsumerWidget {
                           const SizedBox(height: 16),
                           Text(
                             'No playlists available',
-                            style: GoogleFonts.fraunces(
+                            style: AppTheme.font(
                               fontSize: 18,
                               color: AppColors.onSurface54,
                             ),
@@ -141,7 +139,7 @@ class PlaylistSelectionScreen extends ConsumerWidget {
                             currentUser?.isAdmin ?? false
                                 ? 'Add playlists in Admin Panel'
                                 : 'Contact administrator',
-                            style: GoogleFonts.karla(
+                            style: AppTheme.font(
                               fontSize: 14,
                               color: AppColors.onSurface38,
                             ),
@@ -190,10 +188,7 @@ class _PlaylistCard extends StatefulWidget {
   final PlaylistConfig playlist;
   final VoidCallback onTap;
 
-  const _PlaylistCard({
-    required this.playlist,
-    required this.onTap,
-  });
+  const _PlaylistCard({required this.playlist, required this.onTap});
 
   @override
   State<_PlaylistCard> createState() => _PlaylistCardState();
@@ -226,8 +221,7 @@ class _PlaylistCardState extends State<_PlaylistCard> {
                   : AppColors.glassLevel1Border,
               width: _isHovered ? 2 : 1,
             ),
-            boxShadow:
-                _isHovered ? AppColors.emberFocus() : AppColors.lift(),
+            boxShadow: _isHovered ? AppColors.emberFocus() : AppColors.lift(),
           ),
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -263,13 +257,15 @@ class _PlaylistCardState extends State<_PlaylistCard> {
                 child: Icon(
                   Icons.playlist_play_rounded,
                   size: 32,
-                  color: _isHovered ? AppColors.onSurface : AppColors.onSurfaceVariant,
+                  color: _isHovered
+                      ? AppColors.onSurface
+                      : AppColors.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 20),
               Text(
                 widget.playlist.name,
-                style: GoogleFonts.fraunces(
+                style: AppTheme.font(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: AppColors.onSurface,
@@ -281,7 +277,7 @@ class _PlaylistCardState extends State<_PlaylistCard> {
               const SizedBox(height: 8),
               Text(
                 Uri.tryParse(widget.playlist.dns)?.host ?? widget.playlist.dns,
-                style: GoogleFonts.karla(
+                style: AppTheme.font(
                   fontSize: 13,
                   color: AppColors.onSurface38,
                   letterSpacing: 0.5,

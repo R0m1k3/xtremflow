@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import 'dart:html' as html; // For reloading
+
 import '../../auth/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/xtream_provider.dart';
@@ -10,6 +11,7 @@ import 'streaming_settings_tab.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../admin/screens/admin_panel.dart';
+import '../../../core/theme/app_theme.dart';
 
 /// Main Settings tab with sub-tabs for Filters, Streaming, and Appearance
 class SettingsTab extends ConsumerStatefulWidget {
@@ -149,14 +151,11 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             children: [
               Row(
                 children: [
-                  const Icon(
-                    Icons.dark_mode,
-                    color: AppColors.onSurface,
-                  ),
+                  const Icon(Icons.dark_mode, color: AppColors.onSurface),
                   const SizedBox(width: 12),
                   Text(
                     'Thème',
-                    style: GoogleFonts.karla(
+                    style: AppTheme.font(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: AppColors.onSurface,
@@ -213,7 +212,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             ),
             title: Text(
               'Mode actuel',
-              style: GoogleFonts.karla(
+              style: AppTheme.font(
                 fontWeight: FontWeight.w500,
                 color: AppColors.onSurface,
               ),
@@ -280,7 +279,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
                 children: [
                   Text(
                     title,
-                    style: GoogleFonts.karla(
+                    style: AppTheme.font(
                       fontWeight: FontWeight.w600,
                       color: isSelected
                           ? colorScheme.primary
@@ -289,7 +288,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
                   ),
                   Text(
                     subtitle,
-                    style: GoogleFonts.karla(
+                    style: AppTheme.font(
                       fontSize: 12,
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -298,10 +297,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
               ),
             ),
             if (isSelected)
-              Icon(
-                Icons.check_circle,
-                color: colorScheme.primary,
-              ),
+              Icon(Icons.check_circle, color: colorScheme.primary),
           ],
         ),
       ),
@@ -328,11 +324,14 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             leading: const Icon(Icons.person, color: AppColors.onSurface),
             title: Text(
               'Connecté en tant que',
-              style: GoogleFonts.karla(fontSize: 12, color: AppColors.onSurfaceVariant),
+              style: AppTheme.font(
+                fontSize: 12,
+                color: AppColors.onSurfaceVariant,
+              ),
             ),
             subtitle: Text(
               currentUser?.username ?? 'Unknown',
-              style: GoogleFonts.karla(
+              style: AppTheme.font(
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurface,
               ),
@@ -341,7 +340,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
                 ? Chip(
                     label: Text(
                       'Admin',
-                      style: GoogleFonts.karla(
+                      style: AppTheme.font(
                         fontSize: 11,
                         color: AppColors.onPrimaryContainer,
                       ),
@@ -356,7 +355,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
         // Category filters section
         Text(
           'Filtres de Catégories',
-          style: GoogleFonts.karla(
+          style: AppTheme.font(
             fontWeight: FontWeight.bold,
             fontSize: 16,
             color: AppColors.onSurface,
@@ -365,10 +364,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
         const SizedBox(height: 4),
         Text(
           'Seules les catégories contenant un de ces mots-clés seront affichées. Séparez par des virgules.',
-          style: GoogleFonts.karla(
-            fontSize: 12,
-            color: AppColors.onSurfaceVariant,
-          ),
+          style: AppTheme.font(fontSize: 12, color: AppColors.onSurfaceVariant),
         ),
         const SizedBox(height: 12),
 
@@ -428,22 +424,25 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             border: Border.all(color: AppColors.outlineVariant),
           ),
           child: ListTile(
-            leading: const Icon(Icons.playlist_play, color: AppColors.onSurface),
+            leading: const Icon(
+              Icons.playlist_play,
+              color: AppColors.onSurface,
+            ),
             title: Text(
               'Changer de Playlist',
-              style: GoogleFonts.karla(color: AppColors.onSurface),
+              style: AppTheme.font(color: AppColors.onSurface),
             ),
             // L'IPTV active, pour savoir d'où viennent guide, enregistrements
             // et Auto NBA avant d'en changer.
             subtitle: Text(
               ref.watch(selectedPlaylistProvider)?.name ?? 'Aucune',
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.karla(
-                color: AppColors.textTertiary,
-                fontSize: 11,
-              ),
+              style: AppTheme.font(color: AppColors.textTertiary, fontSize: 11),
             ),
-            trailing: const Icon(Icons.chevron_right, color: AppColors.onSurfaceVariant),
+            trailing: const Icon(
+              Icons.chevron_right,
+              color: AppColors.onSurfaceVariant,
+            ),
             onTap: () => context.go('/playlists'),
           ),
         ),
@@ -460,11 +459,14 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             leading: const Icon(Icons.info_outline, color: AppColors.onSurface),
             title: Text(
               'À propos',
-              style: GoogleFonts.karla(color: AppColors.onSurface),
+              style: AppTheme.font(color: AppColors.onSurface),
             ),
             subtitle: Text(
               'XtremFlow IPTV v1.0.0',
-              style: GoogleFonts.karla(fontSize: 12, color: AppColors.onSurfaceVariant),
+              style: AppTheme.font(
+                fontSize: 12,
+                color: AppColors.onSurfaceVariant,
+              ),
             ),
           ),
         ),
@@ -478,14 +480,20 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             border: Border.all(color: AppColors.warning.withOpacity(0.3)),
           ),
           child: ListTile(
-            leading: const Icon(Icons.cleaning_services, color: AppColors.warning),
+            leading: const Icon(
+              Icons.cleaning_services,
+              color: AppColors.warning,
+            ),
             title: Text(
               'Maintenance',
-              style: GoogleFonts.karla(color: AppColors.onSurface),
+              style: AppTheme.font(color: AppColors.onSurface),
             ),
             subtitle: Text(
               'En cas de problèmes d\'affichage ou de mise à jour',
-              style: GoogleFonts.karla(fontSize: 12, color: AppColors.onSurfaceVariant),
+              style: AppTheme.font(
+                fontSize: 12,
+                color: AppColors.onSurfaceVariant,
+              ),
             ),
             trailing: FilledButton.icon(
               onPressed: () {
@@ -584,7 +592,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
               const SizedBox(width: 8),
               Text(
                 title,
-                style: GoogleFonts.karla(
+                style: AppTheme.font(
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
                   color: AppColors.onSurface,
@@ -597,8 +605,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             controller: controller,
             decoration: InputDecoration(
               hintText: 'Ex: FR,FRANCE,HD,SPORT',
-              hintStyle:
-                  GoogleFonts.karla(fontSize: 12, color: AppColors.outline),
+              hintStyle: AppTheme.font(fontSize: 12, color: AppColors.outline),
               filled: true,
               fillColor: AppColors.surfaceContainerHigh,
               border: OutlineInputBorder(
@@ -623,7 +630,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
                     )
                   : null,
             ),
-            style: GoogleFonts.karla(fontSize: 12, color: AppColors.onSurface),
+            style: AppTheme.font(fontSize: 12, color: AppColors.onSurface),
             onChanged: onChanged,
           ),
           if (keywords.isNotEmpty) ...[
@@ -633,18 +640,23 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
               runSpacing: 6,
               children: keywords.map((keyword) {
                 return Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primaryContainer.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(50),
-                    border:
-                        Border.all(color: AppColors.primaryContainer.withOpacity(0.5)),
+                    border: Border.all(
+                      color: AppColors.primaryContainer.withOpacity(0.5),
+                    ),
                   ),
                   child: Text(
                     keyword,
-                    style:
-                        GoogleFonts.karla(fontSize: 11, color: AppColors.onSurface),
+                    style: AppTheme.font(
+                      fontSize: 11,
+                      color: AppColors.onSurface,
+                    ),
                   ),
                 );
               }).toList(),

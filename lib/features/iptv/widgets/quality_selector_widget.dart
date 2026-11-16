@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 
 /// Stream quality presets handled server-side by FFmpeg
 /// (see bin/api/streaming_handler.dart).
@@ -64,7 +65,7 @@ class QualitySelectorButton extends StatelessWidget {
                           Text(
                             q.label,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.karla(
+                            style: AppTheme.font(
                               color: AppColors.textPrimary,
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
@@ -73,7 +74,7 @@ class QualitySelectorButton extends StatelessWidget {
                           Text(
                             q.description,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.karla(
+                            style: AppTheme.font(
                               color: AppColors.textTertiary,
                               fontSize: 11,
                             ),

@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../../core/api/authed_http.dart';
 import '../../../core/api/recording_requests.dart';
 import '../../../core/api/channel_logo.dart';
@@ -14,6 +15,7 @@ import '../providers/recordings_refresh.dart';
 import '../providers/xtream_provider.dart';
 import '../providers/settings_provider.dart';
 import '../screens/player_screen.dart';
+import '../../../core/theme/app_theme.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  ENTRÉE — Onglet "Enregistrements"
@@ -179,7 +181,9 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
     });
 
     try {
-      final response = await AuthedHttp.get(Uri.parse('/api/epg/${ch.streamId}'));
+      final response = await AuthedHttp.get(
+        Uri.parse('/api/epg/${ch.streamId}'),
+      );
       if (mounted) {
         if (response.statusCode == 200) {
           final data = json.decode(response.body) as Map<String, dynamic>;
@@ -211,8 +215,9 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
   Widget build(BuildContext context) {
     super.build(context);
     final settings = ref.watch(iptvSettingsProvider);
-    final channelsAsync =
-        ref.watch(liveChannelsByPlaylistProvider(widget.playlist));
+    final channelsAsync = ref.watch(
+      liveChannelsByPlaylistProvider(widget.playlist),
+    );
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -237,9 +242,9 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
           final visibleChannels = _searchQuery.isEmpty
               ? channelsInCategory
               : groupedChannels.values
-                  .expand((l) => l)
-                  .where((c) => c.name.toLowerCase().contains(_searchQuery))
-                  .toList();
+                    .expand((l) => l)
+                    .where((c) => c.name.toLowerCase().contains(_searchQuery))
+                    .toList();
 
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -251,7 +256,7 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                   children: [
                     Text(
                       'GROUPES',
-                      style: GoogleFonts.fraunces(
+                      style: AppTheme.font(
                         color: AppColors.onSurface38,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
@@ -285,7 +290,7 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                               ),
                               child: Text(
                                 cat,
-                                style: GoogleFonts.fraunces(
+                                style: AppTheme.font(
                                   color: isSelected
                                       ? AppColors.onSurface
                                       : AppColors.onSurface54,
@@ -316,7 +321,10 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                     // Barre de recherche
                     TextField(
                       controller: _searchCtrl,
-                      style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
+                      style: const TextStyle(
+                        color: AppColors.onSurface,
+                        fontSize: 13,
+                      ),
                       decoration: InputDecoration(
                         hintText: 'Rechercher...',
                         hintStyle: const TextStyle(
@@ -367,7 +375,9 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                                     decoration: BoxDecoration(
                                       color: isSelected
                                           ? AppColors.live.withOpacity(0.2)
-                                          : AppColors.onSurface.withOpacity(0.05),
+                                          : AppColors.onSurface.withOpacity(
+                                              0.05,
+                                            ),
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
                                         color: isSelected
@@ -391,16 +401,16 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                                           fit: BoxFit.contain,
                                           errorBuilder: (_, __, ___) =>
                                               const Icon(
-                                            Icons.tv,
-                                            color: AppColors.onSurface24,
-                                            size: 16,
-                                          ),
+                                                Icons.tv,
+                                                color: AppColors.onSurface24,
+                                                size: 16,
+                                              ),
                                         ),
                                         const SizedBox(width: 10),
                                         Expanded(
                                           child: Text(
                                             ch.name,
-                                            style: GoogleFonts.fraunces(
+                                            style: AppTheme.font(
                                               color: isSelected
                                                   ? AppColors.onSurface
                                                   : AppColors.onSurfaceVariant,
@@ -439,7 +449,7 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                             Text(
                               'Sélectionnez une chaîne\npour voir son guide des programmes',
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.fraunces(
+                              style: AppTheme.font(
                                 color: AppColors.onSurface38,
                                 fontSize: 15,
                               ),
@@ -454,7 +464,7 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                             children: [
                               Text(
                                 _selectedChannel!.name,
-                                style: GoogleFonts.fraunces(
+                                style: AppTheme.font(
                                   color: AppColors.onSurface,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
@@ -479,34 +489,33 @@ class _EpgGuideViewState extends ConsumerState<_EpgGuideView>
                                     child: CircularProgressIndicator(),
                                   )
                                 : _epgError.isNotEmpty
-                                    ? Center(
-                                        child: Text(
-                                          'Erreur EPG: $_epgError',
-                                          style: const TextStyle(
-                                            color: AppColors.live,
-                                            fontSize: 12,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      )
-                                    : _programmes.isEmpty
-                                        ? Center(
-                                            child: Text(
-                                              'Aucun programme EPG disponible\npour cette chaîne',
-                                              textAlign: TextAlign.center,
-                                              style: GoogleFonts.fraunces(
-                                                color: AppColors.onSurface38,
-                                              ),
-                                            ),
-                                          )
-                                        : ListView.builder(
-                                            itemCount: _programmes.length,
-                                            itemBuilder: (ctx, i) =>
-                                                _ProgrammeCard(
-                                              programme: _programmes[i],
-                                              channel: _selectedChannel!,
-                                            ),
-                                          ),
+                                ? Center(
+                                    child: Text(
+                                      'Erreur EPG: $_epgError',
+                                      style: const TextStyle(
+                                        color: AppColors.live,
+                                        fontSize: 12,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  )
+                                : _programmes.isEmpty
+                                ? Center(
+                                    child: Text(
+                                      'Aucun programme EPG disponible\npour cette chaîne',
+                                      textAlign: TextAlign.center,
+                                      style: AppTheme.font(
+                                        color: AppColors.onSurface38,
+                                      ),
+                                    ),
+                                  )
+                                : ListView.builder(
+                                    itemCount: _programmes.length,
+                                    itemBuilder: (ctx, i) => _ProgrammeCard(
+                                      programme: _programmes[i],
+                                      channel: _selectedChannel!,
+                                    ),
+                                  ),
                           ),
                         ],
                       ),
@@ -527,10 +536,7 @@ class _ProgrammeCard extends StatelessWidget {
   final Map<String, dynamic> programme;
   final Channel channel;
 
-  const _ProgrammeCard({
-    required this.programme,
-    required this.channel,
-  });
+  const _ProgrammeCard({required this.programme, required this.channel});
 
   String get _start => programme['start'] as String? ?? '';
   String get _end => programme['end'] as String? ?? '';
@@ -594,7 +600,7 @@ class _ProgrammeCard extends StatelessWidget {
             Expanded(
               child: Text(
                 'Enregistrer',
-                style: GoogleFonts.fraunces(color: AppColors.onSurface),
+                style: AppTheme.font(color: AppColors.onSurface),
               ),
             ),
           ],
@@ -605,7 +611,7 @@ class _ProgrammeCard extends StatelessWidget {
           children: [
             Text(
               title.isEmpty ? channel.name : title,
-              style: GoogleFonts.fraunces(
+              style: AppTheme.font(
                 color: AppColors.onSurface,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
@@ -622,7 +628,10 @@ class _ProgrammeCard extends StatelessWidget {
                 _description,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: AppColors.onSurface38, fontSize: 12),
+                style: const TextStyle(
+                  color: AppColors.onSurface38,
+                  fontSize: 12,
+                ),
               ),
             ],
           ],
@@ -702,8 +711,8 @@ class _ProgrammeCard extends StatelessWidget {
         color: isNow
             ? AppColors.live.withValues(alpha: 0.15)
             : isPast
-                ? AppColors.onSurface.withOpacity(0.03)
-                : AppColors.onSurface.withOpacity(0.06),
+            ? AppColors.onSurface.withOpacity(0.03)
+            : AppColors.onSurface.withOpacity(0.06),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isNow
@@ -720,15 +729,17 @@ class _ProgrammeCard extends StatelessWidget {
             children: [
               if (isNow)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.live,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     'LIVE',
-                    style: GoogleFonts.fraunces(
+                    style: AppTheme.font(
                       color: AppColors.onSurface,
                       fontSize: 8,
                       fontWeight: FontWeight.bold,
@@ -738,8 +749,10 @@ class _ProgrammeCard extends StatelessWidget {
               else
                 Text(
                   _fmt(_start),
-                  style: GoogleFonts.fraunces(
-                    color: isPast ? AppColors.onSurface24 : AppColors.onSurfaceVariant,
+                  style: AppTheme.font(
+                    color: isPast
+                        ? AppColors.onSurface24
+                        : AppColors.onSurfaceVariant,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -747,15 +760,17 @@ class _ProgrammeCard extends StatelessWidget {
               if (!isNow)
                 Text(
                   _fmt(_end),
-                  style:
-                      GoogleFonts.fraunces(color: AppColors.onSurface24, fontSize: 10),
+                  style: AppTheme.font(
+                    color: AppColors.onSurface24,
+                    fontSize: 10,
+                  ),
                 ),
             ],
           ),
         ),
         title: Text(
           _title.isEmpty ? '—' : _title,
-          style: GoogleFonts.fraunces(
+          style: AppTheme.font(
             color: isPast ? AppColors.onSurface38 : AppColors.onSurface,
             fontWeight: isNow ? FontWeight.bold : FontWeight.normal,
           ),
@@ -767,7 +782,10 @@ class _ProgrammeCard extends StatelessWidget {
                 _description,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: AppColors.onSurface38, fontSize: 11),
+                style: const TextStyle(
+                  color: AppColors.onSurface38,
+                  fontSize: 11,
+                ),
               )
             : null,
         trailing: !isPast
@@ -829,9 +847,9 @@ class _RecordingsListViewState extends ConsumerState<_RecordingsListView> {
   }
 
   bool get _hasActiveOrPending => _recordings.any((rec) {
-        final status = rec is Map ? rec['status'] as String? : null;
-        return status == 'recording' || status == 'scheduled';
-      });
+    final status = rec is Map ? rec['status'] as String? : null;
+    return status == 'recording' || status == 'scheduled';
+  });
 
   void _scheduleNextPoll() {
     _pollTimer?.cancel();
@@ -900,7 +918,7 @@ class _RecordingsListViewState extends ConsumerState<_RecordingsListView> {
         backgroundColor: AppColors.surfaceContainer,
         title: Text(
           'Supprimer l\'enregistrement ?',
-          style: GoogleFonts.fraunces(color: AppColors.onSurface, fontSize: 18),
+          style: AppTheme.font(color: AppColors.onSurface, fontSize: 18),
         ),
         content: Text(
           '« $title » et son fichier seront définitivement supprimés.',
@@ -957,7 +975,10 @@ class _RecordingsListViewState extends ConsumerState<_RecordingsListView> {
     return null;
   }
 
-  Future<void> _playRecording(BuildContext context, Map<String, dynamic> rec) async {
+  Future<void> _playRecording(
+    BuildContext context,
+    Map<String, dynamic> rec,
+  ) async {
     final recordingId = rec['id'] as String?;
     final title = rec['title'] as String? ?? 'Enregistrement';
 
@@ -982,7 +1003,7 @@ class _RecordingsListViewState extends ConsumerState<_RecordingsListView> {
           backgroundColor: AppColors.surfaceContainer,
           title: Text(
             'Reprendre la lecture ?',
-            style: GoogleFonts.fraunces(color: AppColors.onSurface),
+            style: AppTheme.font(color: AppColors.onSurface),
           ),
           content: Text(
             '« $title » a été interrompu à '
@@ -1051,18 +1072,14 @@ class _RecordingsListViewState extends ConsumerState<_RecordingsListView> {
                   value: ratio,
                   minHeight: 4,
                   backgroundColor: AppColors.onSurface.withOpacity(0.1),
-                  valueColor:
-                      const AlwaysStoppedAnimation(AppColors.primary),
+                  valueColor: const AlwaysStoppedAnimation(AppColors.primary),
                 ),
               ),
             ),
           if (ratio != null) const SizedBox(width: 8),
           Text(
             'Reprendre à ${PlaybackPositionsNotifier.formatTime(saved)}',
-            style: const TextStyle(
-              color: AppColors.primary,
-              fontSize: 11,
-            ),
+            style: const TextStyle(color: AppColors.primary, fontSize: 11),
           ),
         ],
       ),
@@ -1081,7 +1098,9 @@ class _RecordingsListViewState extends ConsumerState<_RecordingsListView> {
 
   Future<void> _showLogs(String id, String title) async {
     try {
-      final response = await AuthedHttp.get(Uri.parse('/api/recordings/logs/$id'));
+      final response = await AuthedHttp.get(
+        Uri.parse('/api/recordings/logs/$id'),
+      );
       if (!mounted) return;
       final content = response.statusCode == 200
           ? (json.decode(response.body)['logs'] as String? ?? 'Aucun log')
@@ -1092,7 +1111,7 @@ class _RecordingsListViewState extends ConsumerState<_RecordingsListView> {
           backgroundColor: AppColors.surfaceContainer,
           title: Text(
             title,
-            style: GoogleFonts.fraunces(color: AppColors.onSurface, fontSize: 14),
+            style: AppTheme.font(color: AppColors.onSurface, fontSize: 14),
           ),
           content: SizedBox(
             width: 500,
@@ -1125,21 +1144,21 @@ class _RecordingsListViewState extends ConsumerState<_RecordingsListView> {
   }
 
   Color _statusColor(String status) => switch (status) {
-        'recording' => AppColors.live,
-        'completed' => AppColors.success,
-        'failed' => AppColors.warning,
-        'cancelled' => AppColors.onSurface38,
-        _ => AppColors.primaryContainer,
-      };
+    'recording' => AppColors.live,
+    'completed' => AppColors.success,
+    'failed' => AppColors.warning,
+    'cancelled' => AppColors.onSurface38,
+    _ => AppColors.primaryContainer,
+  };
 
   String _statusLabel(String status) => switch (status) {
-        'scheduled' => 'Planifié',
-        'recording' => '● En cours',
-        'completed' => 'Terminé',
-        'failed' => 'Échoué',
-        'cancelled' => 'Annulé',
-        _ => status,
-      };
+    'scheduled' => 'Planifié',
+    'recording' => '● En cours',
+    'completed' => 'Terminé',
+    'failed' => 'Échoué',
+    'cancelled' => 'Annulé',
+    _ => status,
+  };
 
   String _fmtSize(int bytes) {
     if (bytes >= 1024 * 1024 * 1024) {
@@ -1193,7 +1212,10 @@ class _RecordingsListViewState extends ConsumerState<_RecordingsListView> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.refresh, color: AppColors.onSurfaceVariant),
+                icon: const Icon(
+                  Icons.refresh,
+                  color: AppColors.onSurfaceVariant,
+                ),
                 onPressed: _fetchRecordings,
                 tooltip: 'Rafraîchir maintenant',
               ),
@@ -1203,234 +1225,222 @@ class _RecordingsListViewState extends ConsumerState<_RecordingsListView> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text(
-                              'Impossible de charger les enregistrements',
-                              style: TextStyle(color: AppColors.live),
-                            ),
-                            const SizedBox(height: 12),
-                            OutlinedButton.icon(
-                              icon: const Icon(Icons.refresh, size: 18),
-                              label: const Text('Réessayer'),
-                              onPressed: _fetchRecordings,
-                            ),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Impossible de charger les enregistrements',
+                          style: TextStyle(color: AppColors.live),
                         ),
-                      )
-                    : _recordings.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.videocam_off,
-                                  size: 64,
-                                  color: AppColors.glassLevel1Border,
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('Réessayer'),
+                          onPressed: _fetchRecordings,
+                        ),
+                      ],
+                    ),
+                  )
+                : _recordings.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.videocam_off,
+                          size: 64,
+                          color: AppColors.glassLevel1Border,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Aucun enregistrement',
+                          style: AppTheme.font(
+                            color: AppColors.onSurface38,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _recordings.length,
+                    itemBuilder: (ctx, i) {
+                      final rec = _recordings[i];
+                      final status = rec['status'] as String? ?? 'unknown';
+                      final color = _statusColor(status);
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.onSurface.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.onSurface.withOpacity(0.1),
+                          ),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          leading: Icon(
+                            status == 'recording'
+                                ? Icons.fiber_manual_record
+                                : Icons.videocam,
+                            color: color,
+                            size: 28,
+                          ),
+                          title: Text(
+                            rec['title'] ?? '—',
+                            style: AppTheme.font(
+                              color: AppColors.onSurface,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${_fmtDate(rec['start_time'])} → ${_fmtDate(rec['end_time'])}'
+                                '${rec['file_size_bytes'] is int ? ' · ${_fmtSize(rec['file_size_bytes'] as int)}' : ''}',
+                                style: const TextStyle(
+                                  color: AppColors.onSurface54,
+                                  fontSize: 12,
                                 ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Aucun enregistrement',
-                                  style: GoogleFonts.fraunces(
-                                    color: AppColors.onSurface38,
-                                    fontSize: 16,
+                              ),
+                              if (status == 'recording' &&
+                                  rec['progress_pct'] is int) ...[
+                                const SizedBox(height: 6),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(3),
+                                  child: LinearProgressIndicator(
+                                    value: (rec['progress_pct'] as int) / 100,
+                                    minHeight: 4,
+                                    backgroundColor: AppColors.onSurface
+                                        .withOpacity(0.1),
+                                    valueColor: const AlwaysStoppedAnimation(
+                                      AppColors.live,
+                                    ),
                                   ),
                                 ),
                               ],
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: _recordings.length,
-                            itemBuilder: (ctx, i) {
-                              final rec = _recordings[i];
-                              final status =
-                                  rec['status'] as String? ?? 'unknown';
-                              final color = _statusColor(status);
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                decoration: BoxDecoration(
-                                  color: AppColors.onSurface.withOpacity(0.05),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: AppColors.onSurface.withOpacity(0.1),
+                              if (status == 'completed')
+                                ..._buildResumeIndicator(rec),
+                              if (rec['error_reason'] != null)
+                                Text(
+                                  '⚠ ${rec['error_reason']}',
+                                  style: const TextStyle(
+                                    color: AppColors.warning,
+                                    fontSize: 11,
                                   ),
                                 ),
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 8,
+                            ],
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (rec['source_rule_id'] != null) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
                                   ),
-                                  leading: Icon(
-                                    status == 'recording'
-                                        ? Icons.fiber_manual_record
-                                        : Icons.videocam,
-                                    color: color,
-                                    size: 28,
-                                  ),
-                                  title: Text(
-                                    rec['title'] ?? '—',
-                                    style: GoogleFonts.fraunces(
-                                      color: AppColors.onSurface,
-                                      fontWeight: FontWeight.w600,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.tertiary.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: AppColors.tertiary.withOpacity(
+                                        0.4,
+                                      ),
                                     ),
                                   ),
-                                  subtitle: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${_fmtDate(rec['start_time'])} → ${_fmtDate(rec['end_time'])}'
-                                        '${rec['file_size_bytes'] is int ? ' · ${_fmtSize(rec['file_size_bytes'] as int)}' : ''}',
-                                        style: const TextStyle(
-                                          color: AppColors.onSurface54,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                      if (status == 'recording' &&
-                                          rec['progress_pct'] is int) ...[
-                                        const SizedBox(height: 6),
-                                        ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(3),
-                                          child: LinearProgressIndicator(
-                                            value:
-                                                (rec['progress_pct'] as int) /
-                                                    100,
-                                            minHeight: 4,
-                                            backgroundColor: AppColors
-                                                .onSurface
-                                                .withOpacity(0.1),
-                                            valueColor:
-                                                const AlwaysStoppedAnimation(
-                                              AppColors.live,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                      if (status == 'completed')
-                                        ..._buildResumeIndicator(rec),
-                                      if (rec['error_reason'] != null)
-                                        Text(
-                                          '⚠ ${rec['error_reason']}',
-                                          style: const TextStyle(
-                                            color: AppColors.warning,
-                                            fontSize: 11,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (rec['source_rule_id'] != null) ...[
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.tertiary
-                                                .withOpacity(0.15),
-                                            borderRadius:
-                                                BorderRadius.circular(20),
-                                            border: Border.all(
-                                              color: AppColors.tertiary
-                                                  .withOpacity(0.4),
-                                            ),
-                                          ),
-                                          child: const Text(
-                                            'Auto NBA',
-                                            style: TextStyle(
-                                              color: AppColors.tertiary,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 11,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                      ],
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: color.withOpacity(0.15),
-                                          borderRadius:
-                                              BorderRadius.circular(20),
-                                          border: Border.all(
-                                            color: color.withOpacity(0.4),
-                                          ),
-                                        ),
-                                        child: Text(
-                                          _statusLabel(status),
-                                          style: TextStyle(
-                                            color: color,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 11,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      if (status == 'recording')
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.stop_circle,
-                                            color: AppColors.live,
-                                          ),
-                                          tooltip: 'Arrêter',
-                                          onPressed: () => _stopRecording(
-                                            rec['id'],
-                                            rec['title'] ?? '',
-                                          ),
-                                        ),
-                                      if (status == 'completed')
-                                        IconButton(
-                                          icon: Icon(
-                                            _savedPosition(rec) > 30
-                                                ? Icons.play_circle_fill
-                                                : Icons.play_circle_outline,
-                                            color: AppColors.success,
-                                            size: 20,
-                                          ),
-                                          tooltip: _savedPosition(rec) > 30
-                                              ? 'Reprendre'
-                                              : 'Lecture',
-                                          onPressed: () =>
-                                              _playRecording(context, rec),
-                                        ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.description_outlined,
-                                          color: AppColors.primaryContainer,
-                                          size: 20,
-                                        ),
-                                        tooltip: 'Logs',
-                                        onPressed: () => _showLogs(
-                                          rec['id'],
-                                          rec['title'] ?? '',
-                                        ),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.delete_outline,
-                                          color: AppColors.onSurface38,
-                                          size: 20,
-                                        ),
-                                        tooltip: 'Supprimer',
-                                        onPressed: () => _deleteRecording(
-                                          rec['id'],
-                                          rec['title'] ?? '',
-                                        ),
-                                      ),
-                                    ],
+                                  child: const Text(
+                                    'Auto NBA',
+                                    style: TextStyle(
+                                      color: AppColors.tertiary,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11,
+                                    ),
                                   ),
                                 ),
-                              );
-                            },
+                                const SizedBox(width: 4),
+                              ],
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: color.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: color.withOpacity(0.4),
+                                  ),
+                                ),
+                                child: Text(
+                                  _statusLabel(status),
+                                  style: TextStyle(
+                                    color: color,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              if (status == 'recording')
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.stop_circle,
+                                    color: AppColors.live,
+                                  ),
+                                  tooltip: 'Arrêter',
+                                  onPressed: () => _stopRecording(
+                                    rec['id'],
+                                    rec['title'] ?? '',
+                                  ),
+                                ),
+                              if (status == 'completed')
+                                IconButton(
+                                  icon: Icon(
+                                    _savedPosition(rec) > 30
+                                        ? Icons.play_circle_fill
+                                        : Icons.play_circle_outline,
+                                    color: AppColors.success,
+                                    size: 20,
+                                  ),
+                                  tooltip: _savedPosition(rec) > 30
+                                      ? 'Reprendre'
+                                      : 'Lecture',
+                                  onPressed: () => _playRecording(context, rec),
+                                ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.description_outlined,
+                                  color: AppColors.primaryContainer,
+                                  size: 20,
+                                ),
+                                tooltip: 'Logs',
+                                onPressed: () =>
+                                    _showLogs(rec['id'], rec['title'] ?? ''),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: AppColors.onSurface38,
+                                  size: 20,
+                                ),
+                                tooltip: 'Supprimer',
+                                onPressed: () => _deleteRecording(
+                                  rec['id'],
+                                  rec['title'] ?? '',
+                                ),
+                              ),
+                            ],
                           ),
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -1479,9 +1489,9 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
     await AuthedHttp.delete(Uri.parse('/api/season-passes/$id'));
     _loadPasses();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Season Pass "$title" supprimé')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Season Pass "$title" supprimé')));
     }
   }
 
@@ -1499,7 +1509,7 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
             const SizedBox(width: 8),
             Text(
               'Nouveau Season Pass',
-              style: GoogleFonts.fraunces(color: AppColors.onSurface),
+              style: AppTheme.font(color: AppColors.onSurface),
             ),
           ],
         ),
@@ -1510,7 +1520,10 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
             children: [
               Text(
                 'Enregistre automatiquement toutes les nouvelles diffusions d\'une émission.',
-                style: GoogleFonts.fraunces(color: AppColors.onSurface54, fontSize: 13),
+                style: AppTheme.font(
+                  color: AppColors.onSurface54,
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(height: 16),
               _buildField(
@@ -1548,9 +1561,11 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
               final r = await AuthedHttp.post(
                 Uri.parse('/api/season-passes'),
                 headers: {'Content-Type': 'application/json'},
-                body: json.encode(
-                  {'show_title': t, 'channel_id': c, 'stream_url': u},
-                ),
+                body: json.encode({
+                  'show_title': t,
+                  'channel_id': c,
+                  'stream_url': u,
+                }),
               );
               _loadPasses();
               if (mounted) {
@@ -1600,7 +1615,10 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
             children: [
               Text(
                 'Enregistrements automatiques',
-                style: GoogleFonts.fraunces(color: AppColors.onSurface54, fontSize: 13),
+                style: AppTheme.font(
+                  color: AppColors.onSurface54,
+                  fontSize: 13,
+                ),
               ),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
@@ -1632,7 +1650,7 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
                 Expanded(
                   child: Text(
                     'Scanne l\'EPG toutes les 4h et programme automatiquement les nouvelles diffusions. Seuls les nouveaux épisodes sont enregistrés.',
-                    style: GoogleFonts.fraunces(
+                    style: AppTheme.font(
                       color: AppColors.secondaryFixed,
                       fontSize: 12,
                     ),
@@ -1646,92 +1664,92 @@ class _SeasonPassesViewState extends State<_SeasonPassesView> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _passes.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.repeat,
-                              size: 64,
-                              color: AppColors.glassLevel1Border,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Aucun Season Pass actif',
-                              style: GoogleFonts.fraunces(
-                                color: AppColors.onSurface38,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Créez-en un pour enregistrer automatiquement vos émissions préférées',
-                              style: GoogleFonts.fraunces(
-                                color: AppColors.onSurface24,
-                                fontSize: 12,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.repeat,
+                          size: 64,
+                          color: AppColors.glassLevel1Border,
                         ),
-                      )
-                    : ListView.builder(
-                        itemCount: _passes.length,
-                        itemBuilder: (ctx, i) {
-                          final p = _passes[i];
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            decoration: BoxDecoration(
-                              color: AppColors.secondary.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: AppColors.secondary.withOpacity(0.2),
-                              ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Aucun Season Pass actif',
+                          style: AppTheme.font(
+                            color: AppColors.onSurface38,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Créez-en un pour enregistrer automatiquement vos émissions préférées',
+                          style: AppTheme.font(
+                            color: AppColors.onSurface24,
+                            fontSize: 12,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _passes.length,
+                    itemBuilder: (ctx, i) {
+                      final p = _passes[i];
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.secondary.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.secondary.withOpacity(0.2),
+                          ),
+                        ),
+                        child: ListTile(
+                          leading: const Icon(
+                            Icons.repeat,
+                            color: AppColors.secondary,
+                          ),
+                          title: Text(
+                            p['show_title'] ?? '—',
+                            style: AppTheme.font(
+                              color: AppColors.onSurface,
+                              fontWeight: FontWeight.w600,
                             ),
-                            child: ListTile(
-                              leading: const Icon(
-                                Icons.repeat,
-                                color: AppColors.secondary,
-                              ),
-                              title: Text(
-                                p['show_title'] ?? '—',
-                                style: GoogleFonts.fraunces(
-                                  color: AppColors.onSurface,
-                                  fontWeight: FontWeight.w600,
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Chaîne : ${p['channel_id']}',
+                                style: const TextStyle(
+                                  color: AppColors.onSurface54,
+                                  fontSize: 11,
                                 ),
                               ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Chaîne : ${p['channel_id']}',
-                                    style: const TextStyle(
-                                      color: AppColors.onSurface54,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Flux : ${p['stream_url']}',
-                                    style: const TextStyle(
-                                      color: AppColors.onSurface38,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              trailing: IconButton(
-                                icon: const Icon(
-                                  Icons.delete_outline,
+                              Text(
+                                'Flux : ${p['stream_url']}',
+                                style: const TextStyle(
                                   color: AppColors.onSurface38,
+                                  fontSize: 10,
                                 ),
-                                tooltip: 'Supprimer',
-                                onPressed: () =>
-                                    _deletePass(p['id'], p['show_title'] ?? ''),
                               ),
+                            ],
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: AppColors.onSurface38,
                             ),
-                          );
-                        },
-                      ),
+                            tooltip: 'Supprimer',
+                            onPressed: () =>
+                                _deletePass(p['id'], p['show_title'] ?? ''),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -1968,10 +1986,12 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
     final selected = <String>{
       for (final c in (rule['channel_ids'] as List)) c.toString(),
     };
-    final beforeCtrl =
-        TextEditingController(text: '${rule['pad_before_min'] ?? 5}');
-    final afterCtrl =
-        TextEditingController(text: '${rule['pad_after_min'] ?? 45}');
+    final beforeCtrl = TextEditingController(
+      text: '${rule['pad_before_min'] ?? 5}',
+    );
+    final afterCtrl = TextEditingController(
+      text: '${rule['pad_after_min'] ?? 45}',
+    );
     final keepCtrl = TextEditingController(
       text: rule['keep_days'] == null ? '' : '${rule['keep_days']}',
     );
@@ -1985,30 +2005,27 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialog) {
           Widget channelRow(dynamic c) => SwitchListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  c['label'] ?? c['name'],
-                  style: GoogleFonts.fraunces(
-                    color: AppColors.onSurface,
-                    fontSize: 13,
-                  ),
-                ),
-                subtitle: Text(
-                  c['name'] ?? '',
-                  style: const TextStyle(
-                    color: AppColors.onSurface38,
-                    fontSize: 11,
-                  ),
-                ),
-                value: selected.contains(c['stream_id'].toString()),
-                activeThumbColor: AppColors.primary,
-                trackColor: _switchTrack,
-                onChanged: (v) => setDialog(() {
-                  final id = c['stream_id'].toString();
-                  v ? selected.add(id) : selected.remove(id);
-                }),
-              );
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              c['label'] ?? c['name'],
+              style: AppTheme.font(color: AppColors.onSurface, fontSize: 13),
+            ),
+            subtitle: Text(
+              c['name'] ?? '',
+              style: const TextStyle(
+                color: AppColors.onSurface38,
+                fontSize: 11,
+              ),
+            ),
+            value: selected.contains(c['stream_id'].toString()),
+            activeThumbColor: AppColors.primary,
+            trackColor: _switchTrack,
+            onChanged: (v) => setDialog(() {
+              final id = c['stream_id'].toString();
+              v ? selected.add(id) : selected.remove(id);
+            }),
+          );
           return AlertDialog(
             backgroundColor: AppColors.surfaceContainer,
             title: Row(
@@ -2017,7 +2034,7 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
                 const SizedBox(width: 8),
                 Text(
                   'Réglages Auto NBA',
-                  style: GoogleFonts.fraunces(color: AppColors.onSurface),
+                  style: AppTheme.font(color: AppColors.onSurface),
                 ),
               ],
             ),
@@ -2056,7 +2073,7 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
                     const SizedBox(height: 16),
                     Text(
                       'Chaînes beIN Sports françaises',
-                      style: GoogleFonts.fraunces(
+                      style: AppTheme.font(
                         color: AppColors.onSurface54,
                         fontSize: 13,
                       ),
@@ -2078,7 +2095,7 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
                         tilePadding: EdgeInsets.zero,
                         title: Text(
                           'Autres beIN (${others.length})',
-                          style: GoogleFonts.fraunces(
+                          style: AppTheme.font(
                             color: AppColors.onSurface54,
                             fontSize: 13,
                           ),
@@ -2104,8 +2121,7 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
                   final keep = int.tryParse(keepCtrl.text.trim());
                   _updateRule({
                     'channel_ids': selected.toList(),
-                    'pad_before_min':
-                        int.tryParse(beforeCtrl.text.trim()) ?? 5,
+                    'pad_before_min': int.tryParse(beforeCtrl.text.trim()) ?? 5,
                     'pad_after_min': int.tryParse(afterCtrl.text.trim()) ?? 45,
                     'keep_days': (keep != null && keep > 0) ? keep : null,
                   });
@@ -2220,7 +2236,8 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
     final taken = g['slot_taken_by'] as String?;
     if (taken != null) {
       return Tooltip(
-        message: 'Créneau déjà pris par « $taken » : un seul enregistrement '
+        message:
+            'Créneau déjà pris par « $taken » : un seul enregistrement '
             'à la fois',
         child: OutlinedButton.icon(
           style: OutlinedButton.styleFrom(visualDensity: compact),
@@ -2239,21 +2256,17 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
   }
 
   Widget _pill(String label, Color color) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withOpacity(0.4)),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.bold,
-            fontSize: 11,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    decoration: BoxDecoration(
+      color: color.withOpacity(0.15),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: color.withOpacity(0.4)),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 11),
+    ),
+  );
 
   Widget _gameCard(Map<String, dynamic> g) {
     final tipoff = DateTime.parse(g['tipoff_utc']).toLocal();
@@ -2263,8 +2276,8 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
     final recordable = g['channel_id'] != null;
     final locked =
         ['recorded', 'missed', 'not_on_bein'].contains(g['status']) ||
-            tipoff.isBefore(DateTime.now()) ||
-            (!recordable && g['wanted'] != true);
+        tipoff.isBefore(DateTime.now()) ||
+        (!recordable && g['wanted'] != true);
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -2294,7 +2307,7 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
         ),
         title: Text(
           '${g['away']} @ ${g['home']}',
-          style: GoogleFonts.fraunces(
+          style: AppTheme.font(
             color: AppColors.onSurface,
             fontWeight: FontWeight.w600,
           ),
@@ -2346,18 +2359,12 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
           const SizedBox(height: 16),
           Text(
             title,
-            style: GoogleFonts.fraunces(
-              color: AppColors.onSurface38,
-              fontSize: 16,
-            ),
+            style: AppTheme.font(color: AppColors.onSurface38, fontSize: 16),
           ),
           const SizedBox(height: 8),
           Text(
             subtitle,
-            style: GoogleFonts.fraunces(
-              color: AppColors.onSurface24,
-              fontSize: 12,
-            ),
+            style: AppTheme.font(color: AppColors.onSurface24, fontSize: 12),
             textAlign: TextAlign.center,
           ),
           if (action != null) ...[const SizedBox(height: 16), action],
@@ -2409,17 +2416,14 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
         // (ou déjà choisis) : le reste du calendrier NBA n'est pas diffusé.
         .where(
           (g) =>
-              _showOffBein ||
-              g['channel_name'] != null ||
-              g['wanted'] == true,
+              _showOffBein || g['channel_name'] != null || g['wanted'] == true,
         )
         .toList();
     if (visible.isEmpty) {
       return _emptyState(
         Icons.event_busy,
         'Aucun match NBA annoncé sur beIN Sports',
-        _diagText() ??
-            'Le programme beIN couvre environ 8 jours et est relu toutes les 30 min',
+        _diagText() ?? 'Le programme beIN couvre environ 8 jours et est relu toutes les 30 min',
       );
     }
     // Liste aplatie : intertitre de nuit puis ses matchs.
@@ -2442,10 +2446,7 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
             padding: EdgeInsets.only(top: i == 0 ? 0 : 12, bottom: 8),
             child: Text(
               item,
-              style: GoogleFonts.fraunces(
-                color: AppColors.onSurface54,
-                fontSize: 13,
-              ),
+              style: AppTheme.font(color: AppColors.onSurface54, fontSize: 13),
             ),
           );
         }
@@ -2467,7 +2468,7 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
                 child: Text(
                   'Matchs NBA en direct sur beIN Sports FR · '
                   'enregistrés sur « ${widget.playlist.name} »',
-                  style: GoogleFonts.fraunces(
+                  style: AppTheme.font(
                     color: AppColors.onSurface54,
                     fontSize: 13,
                   ),
@@ -2547,7 +2548,7 @@ class _AutoNbaViewState extends State<_AutoNbaView> {
                     'Les rediffusions sont ignorées. Un seul '
                     "enregistrement à la fois : le flux IPTV ne permet qu'une "
                     'lecture.',
-                    style: GoogleFonts.fraunces(
+                    style: AppTheme.font(
                       color: AppColors.secondaryFixed,
                       fontSize: 12,
                     ),

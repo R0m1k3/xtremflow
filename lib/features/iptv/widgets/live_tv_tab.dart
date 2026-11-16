@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../providers/xtream_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/favorites_provider.dart';
@@ -14,6 +14,7 @@ import '../../../core/widgets/themed_loading_screen.dart';
 import '../../../core/widgets/glass_container.dart';
 import '../../../core/widgets/tv_focusable_card.dart';
 import 'recording_modal.dart';
+import '../../../core/theme/app_theme.dart';
 
 class LiveTVTab extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
@@ -54,8 +55,9 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
   Widget build(BuildContext context) {
     super.build(context);
 
-    final channelsAsync =
-        ref.watch(liveChannelsByPlaylistProvider(widget.playlist));
+    final channelsAsync = ref.watch(
+      liveChannelsByPlaylistProvider(widget.playlist),
+    );
     final favorites = ref.watch(favoritesProvider);
     final settings = ref.watch(iptvSettingsProvider);
 
@@ -117,8 +119,10 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                 padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
                 child: GlassContainer.glass(
                   borderRadius: 16,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                   child: Row(
                     children: [
                       if (_selectedCategory != null &&
@@ -152,9 +156,9 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                           _searchQuery.isNotEmpty
                               ? 'Search Results'
                               : _showFavoritesOnly
-                                  ? 'Favorites'
-                                  : _selectedCategory ?? 'Live TV',
-                          style: GoogleFonts.karla(
+                              ? 'Favorites'
+                              : _selectedCategory ?? 'Live TV',
+                          style: AppTheme.font(
                             fontSize: 24,
                             fontWeight: FontWeight.w700,
                             color: AppColors.onSurface,
@@ -174,13 +178,16 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                         ),
                         child: TextField(
                           controller: _searchController,
-                          style: GoogleFonts.karla(color: AppColors.onSurface),
+                          style: AppTheme.font(color: AppColors.onSurface),
                           decoration: InputDecoration(
                             hintText: 'Search channels...',
-                            hintStyle:
-                                GoogleFonts.karla(color: AppColors.onSurface54),
-                            prefixIcon: const Icon(Icons.search,
-                                color: AppColors.onSurface54),
+                            hintStyle: AppTheme.font(
+                              color: AppColors.onSurface54,
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.search,
+                              color: AppColors.onSurface54,
+                            ),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 16,
@@ -241,28 +248,28 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                 child: showingCategoryGrid
                     ? _buildCategoryGrid(categories, groupedChannels)
                     : displayedChannels.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.tv_off,
-                                  size: 64,
-                                  color: AppColors.onSurface.withOpacity(0.3),
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No channels found',
-                                  style: GoogleFonts.karla(
-                                    color: AppColors.onSurface54,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                              ],
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.tv_off,
+                              size: 64,
+                              color: AppColors.onSurface.withOpacity(0.3),
                             ),
-                          )
-                        // Use raw grid for now, but wrapped in focusable cards
-                        : _buildChannelGrid(displayedChannels),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No channels found',
+                              style: AppTheme.font(
+                                color: AppColors.onSurface54,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    // Use raw grid for now, but wrapped in focusable cards
+                    : _buildChannelGrid(displayedChannels),
               ),
             ],
           );
@@ -337,7 +344,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                         child: Text(
                           category,
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.karla(
+                          style: AppTheme.font(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: AppColors.onSurface,
@@ -349,7 +356,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                       const SizedBox(height: 4),
                       Text(
                         '$count Channels',
-                        style: GoogleFonts.karla(
+                        style: AppTheme.font(
                           fontSize: 13,
                           color: AppColors.onSurface54,
                         ),
@@ -426,7 +433,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                               channel.name.isEmpty
                                   ? '?'
                                   : channel.name.characters.first.toUpperCase(),
-                              style: GoogleFonts.fraunces(
+                              style: AppTheme.font(
                                 fontSize: 40,
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.onSurface24,
@@ -448,7 +455,7 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                         children: [
                           Text(
                             channel.name,
-                            style: GoogleFonts.karla(
+                            style: AppTheme.font(
                               color: AppColors.onSurface,
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
@@ -473,35 +480,36 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                                   if (epgList.isEmpty) {
                                     return Text(
                                       'No Info',
-                                      style: GoogleFonts.karla(
+                                      style: AppTheme.font(
                                         color: AppColors.onSurface54,
                                         fontSize: 10,
                                       ),
                                     );
                                   }
                                   final now = DateTime.now();
-                                  final currentProgram = epgList.firstWhere(
-                                    (entry) {
-                                      try {
-                                        final start =
-                                            EpgEntry.parseDateTime(entry.start);
-                                        final end =
-                                            EpgEntry.parseDateTime(entry.end);
-                                        if (start == null || end == null) {
-                                          return false;
-                                        }
-                                        return now.isAfter(start) &&
-                                            now.isBefore(end);
-                                      } catch (e) {
+                                  final currentProgram = epgList.firstWhere((
+                                    entry,
+                                  ) {
+                                    try {
+                                      final start = EpgEntry.parseDateTime(
+                                        entry.start,
+                                      );
+                                      final end = EpgEntry.parseDateTime(
+                                        entry.end,
+                                      );
+                                      if (start == null || end == null) {
                                         return false;
                                       }
-                                    },
-                                    orElse: () => epgList.first,
-                                  );
+                                      return now.isAfter(start) &&
+                                          now.isBefore(end);
+                                    } catch (e) {
+                                      return false;
+                                    }
+                                  }, orElse: () => epgList.first);
 
                                   return Text(
                                     currentProgram.title,
-                                    style: GoogleFonts.karla(
+                                    style: AppTheme.font(
                                       color: AppColors.primary,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
@@ -512,14 +520,14 @@ class _LiveTVTabState extends ConsumerState<LiveTVTab>
                                 },
                                 loading: () => Text(
                                   '...',
-                                  style: GoogleFonts.karla(
+                                  style: AppTheme.font(
                                     color: AppColors.onSurface24,
                                     fontSize: 10,
                                   ),
                                 ),
                                 error: (_, __) => Text(
                                   'Err',
-                                  style: GoogleFonts.karla(
+                                  style: AppTheme.font(
                                     color: AppColors.error,
                                     fontSize: 10,
                                   ),

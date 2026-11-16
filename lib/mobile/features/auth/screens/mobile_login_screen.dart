@@ -1,11 +1,12 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../../../features/auth/providers/auth_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/glass_container.dart';
 import '../../../theme/mobile_theme.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class MobileLoginScreen extends ConsumerStatefulWidget {
   const MobileLoginScreen({super.key});
@@ -62,7 +63,7 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
           fit: StackFit.expand,
           children: [
             // Cinematic Background Gradient
-             Container(
+            Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
@@ -75,7 +76,7 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                 ),
               ),
             ),
-             // Ambient Glow Top Left
+            // Ambient Glow Top Left
             Positioned(
               top: -100,
               left: -100,
@@ -95,7 +96,7 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                 ),
               ),
             ),
-            
+
             // Content
             Center(
               child: SingleChildScrollView(
@@ -124,23 +125,23 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                       const SizedBox(height: 24),
                       Text(
                         'XtremFlow',
-                        style: GoogleFonts.fraunces(
+                        style: AppTheme.font(
                           fontSize: 32,
                           fontWeight: FontWeight.w700,
                           color: AppColors.onSurface,
                           letterSpacing: -1.0,
                         ),
                       ),
-                       Text(
+                      Text(
                         'Mobile Edition',
-                        style: GoogleFonts.karla(
+                        style: AppTheme.font(
                           fontSize: 14,
                           color: AppColors.onSurfaceVariant,
                           letterSpacing: 0.5,
                         ),
                       ),
                       const SizedBox(height: 48),
-            
+
                       // Form
                       Form(
                         key: _formKey,
@@ -158,29 +159,39 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                               icon: Icons.lock_outline_rounded,
                               isPassword: true,
                               obscureText: _obscurePassword,
-                              onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
+                              onTogglePassword: () => setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              ),
                               onSubmitted: (_) => _handleLogin(),
                             ),
-                            
+
                             if (authState.errorMessage != null) ...[
                               const SizedBox(height: 24),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
                                 decoration: BoxDecoration(
                                   color: AppColors.error.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                                  border: Border.all(
+                                    color: AppColors.error.withOpacity(0.3),
+                                  ),
                                 ),
                                 child: Text(
                                   authState.errorMessage!,
-                                  style: GoogleFonts.karla(color: AppColors.error, fontSize: 13),
+                                  style: AppTheme.font(
+                                    color: AppColors.error,
+                                    fontSize: 13,
+                                  ),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
                             ],
-                            
+
                             const SizedBox(height: 32),
-                            
+
                             Container(
                               width: double.infinity,
                               height: 50,
@@ -196,24 +207,38 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                                 ],
                               ),
                               child: FilledButton(
-                                onPressed: authState.isLoading ? null : _handleLogin,
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: Colors.transparent,
-                                  foregroundColor: AppColors.onSurface,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  elevation: 0,
-                                ).copyWith(
-                                  overlayColor: WidgetStateProperty.all(AppColors.onSurface.withOpacity(0.1)),
-                                ),
+                                onPressed: authState.isLoading
+                                    ? null
+                                    : _handleLogin,
+                                style:
+                                    FilledButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      foregroundColor: AppColors.onSurface,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      elevation: 0,
+                                    ).copyWith(
+                                      overlayColor: WidgetStateProperty.all(
+                                        AppColors.onSurface.withOpacity(0.1),
+                                      ),
+                                    ),
                                 child: authState.isLoading
                                     ? const SizedBox(
                                         width: 24,
                                         height: 24,
-                                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onSurface),
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: AppColors.onSurface,
+                                        ),
                                       )
                                     : Text(
                                         'Sign In',
-                                        style: GoogleFonts.karla(fontWeight: FontWeight.w600, fontSize: 16, color: AppColors.onSurface),
+                                        style: AppTheme.font(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 16,
+                                          color: AppColors.onSurface,
+                                        ),
                                       ),
                               ),
                             ),
@@ -243,17 +268,22 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
-      style: GoogleFonts.karla(color: AppColors.onSurface),
+      style: AppTheme.font(color: AppColors.onSurface),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.karla(color: AppColors.onSurfaceVariant),
+        labelStyle: AppTheme.font(color: AppColors.onSurfaceVariant),
         prefixIcon: Icon(icon, color: AppColors.onSurfaceVariant),
         suffixIcon: isPassword
-          ? IconButton(
-              icon: Icon(obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: AppColors.outline),
-              onPressed: onTogglePassword,
-            )
-          : null,
+            ? IconButton(
+                icon: Icon(
+                  obscureText
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: AppColors.outline,
+                ),
+                onPressed: onTogglePassword,
+              )
+            : null,
         filled: true,
         fillColor: AppColors.surfaceContainerLow,
         border: OutlineInputBorder(
@@ -266,11 +296,18 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primaryContainer, width: 2),
+          borderSide: const BorderSide(
+            color: AppColors.primaryContainer,
+            width: 2,
+          ),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
       ),
-      validator: (value) => (value == null || value.trim().isEmpty) ? 'Required' : null,
+      validator: (value) =>
+          (value == null || value.trim().isEmpty) ? 'Required' : null,
       onFieldSubmitted: onSubmitted,
     );
   }

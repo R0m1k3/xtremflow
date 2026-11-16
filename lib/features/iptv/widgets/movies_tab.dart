@@ -1,7 +1,8 @@
-﻿import 'dart:async';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/responsive_layout.dart';
@@ -14,6 +15,7 @@ import '../models/xtream_models.dart';
 import '../providers/xtream_provider.dart';
 import '../providers/settings_provider.dart';
 import '../screens/player_screen.dart';
+import '../../../core/theme/app_theme.dart';
 
 class MoviesTab extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
@@ -124,9 +126,8 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load movies: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to load movies: $e')));
       }
     }
   }
@@ -199,8 +200,8 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
       displayMovies = settings.moviesKeywords.isEmpty
           ? _movies
           : _movies
-              .where((m) => settings.matchesMoviesFilter(m.categoryName))
-              .toList();
+                .where((m) => settings.matchesMoviesFilter(m.categoryName))
+                .toList();
     }
 
     const double gridItemRatio = 0.65;
@@ -222,13 +223,15 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
               child: GlassContainer.glass(
                 borderRadius: 100,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
                 child: Row(
                   children: [
                     Text(
                       'Movies',
-                      style: GoogleFonts.fraunces(
+                      style: AppTheme.font(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
                         color: AppColors.onSurface,
@@ -260,18 +263,20 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                           Expanded(
                             child: TextField(
                               controller: _searchController,
-                              style: GoogleFonts.karla(
+                              style: AppTheme.font(
                                 fontSize: 14,
                                 color: AppColors.onSurface,
                               ),
                               decoration: InputDecoration(
                                 hintText: 'Search movies...',
-                                hintStyle:
-                                    GoogleFonts.karla(color: AppColors.outline),
+                                hintStyle: AppTheme.font(
+                                  color: AppColors.outline,
+                                ),
                                 border: InputBorder.none,
                                 isDense: true,
-                                contentPadding:
-                                    const EdgeInsets.only(bottom: 12),
+                                contentPadding: const EdgeInsets.only(
+                                  bottom: 12,
+                                ),
                               ),
                               onChanged: _onSearchChanged,
                             ),
@@ -341,41 +346,30 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                 mainAxisSpacing: 20,
                 childAspectRatio: gridItemRatio,
               ),
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  if (index >= displayMovies.length) return null;
-                  final movie = displayMovies[index];
-                  final isWatched = watchHistory.isMovieWatched(movie.streamId);
+              delegate: SliverChildBuilderDelegate((context, index) {
+                if (index >= displayMovies.length) return null;
+                final movie = displayMovies[index];
+                final isWatched = watchHistory.isMovieWatched(movie.streamId);
 
-                  return TvFocusableCard(
-                    onTap: () => _playMovie(movie),
-                    borderRadius: 12,
-                    semanticLabel: 'Film ${movie.name}',
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Poster Image
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: movie.streamIcon != null &&
-                                  movie.streamIcon!.isNotEmpty
-                              ? Image.network(
-                                  _getProxiedImageUrl(movie.streamIcon),
-                                  fit: BoxFit.cover,
-                                  cacheWidth: 400,
-                                  filterQuality: FilterQuality.low,
-                                  errorBuilder: (ctx, err, stack) => Container(
-                                    color: AppColors.surfaceContainerLow,
-                                    child: Center(
-                                      child: Icon(
-                                        Icons.movie,
-                                        size: 48,
-                                        color: AppColors.outline,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : Container(
+                return TvFocusableCard(
+                  onTap: () => _playMovie(movie),
+                  borderRadius: 12,
+                  semanticLabel: 'Film ${movie.name}',
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // Poster Image
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child:
+                            movie.streamIcon != null &&
+                                movie.streamIcon!.isNotEmpty
+                            ? Image.network(
+                                _getProxiedImageUrl(movie.streamIcon),
+                                fit: BoxFit.cover,
+                                cacheWidth: 400,
+                                filterQuality: FilterQuality.low,
+                                errorBuilder: (ctx, err, stack) => Container(
                                   color: AppColors.surfaceContainerLow,
                                   child: Center(
                                     child: Icon(
@@ -385,115 +379,125 @@ class _MoviesTabState extends ConsumerState<MoviesTab> {
                                     ),
                                   ),
                                 ),
-                        ),
+                              )
+                            : Container(
+                                color: AppColors.surfaceContainerLow,
+                                child: Center(
+                                  child: Icon(
+                                    Icons.movie,
+                                    size: 48,
+                                    color: AppColors.outline,
+                                  ),
+                                ),
+                              ),
+                      ),
 
-                        // Gradient Overlay
+                      // Gradient Overlay
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        height: 80,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                AppColors.baseLevel0.withOpacity(0.9),
+                              ],
+                            ),
+                            borderRadius: const BorderRadius.vertical(
+                              bottom: Radius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Rating Badge
+                      if (movie.rating != null && movie.rating!.isNotEmpty)
                         Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          height: 80,
+                          top: 8,
+                          right: 8,
                           child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  AppColors.baseLevel0.withOpacity(0.9),
-                                ],
+                              color: AppColors.background.withOpacity(0.7),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: AppColors.outlineVariant,
                               ),
-                              borderRadius: const BorderRadius.vertical(
-                                bottom: Radius.circular(12),
-                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.star,
+                                  size: 10,
+                                  color: AppColors.ratingGold,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _formatRating(movie.rating)!,
+                                  style: AppTheme.font(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.onSurface,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
 
-                        // Rating Badge
-                        if (movie.rating != null && movie.rating!.isNotEmpty)
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.background.withOpacity(0.7),
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(
-                                    color: AppColors.outlineVariant),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.star,
-                                    size: 10,
-                                    color: AppColors.ratingGold,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _formatRating(movie.rating)!,
-                                    style: GoogleFonts.karla(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.onSurface,
-                                    ),
+                      // Title
+                      Positioned(
+                        left: 12,
+                        right: 12,
+                        bottom: 12,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              movie.name,
+                              style: AppTheme.font(
+                                color: AppColors.onSurface,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                shadows: [
+                                  const Shadow(
+                                    color: AppColors.background,
+                                    blurRadius: 4,
                                   ),
                                 ],
                               ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-
-                        // Title
-                        Positioned(
-                          left: 12,
-                          right: 12,
-                          bottom: 12,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                movie.name,
-                                style: GoogleFonts.karla(
-                                  color: AppColors.onSurface,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  shadows: [
-                                    const Shadow(
-                                      color: AppColors.background,
-                                      blurRadius: 4,
-                                    ),
-                                  ],
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              if (isWatched)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Text(
-                                    'WATCHED',
-                                    style: GoogleFonts.karla(
-                                      color: AppColors.primary,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                            if (isWatched)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  'WATCHED',
+                                  style: AppTheme.font(
+                                    color: AppColors.primary,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                            ],
-                          ),
+                              ),
+                          ],
                         ),
-                      ],
-                    ),
-                  );
-                },
-                childCount: displayMovies.length,
-              ),
+                      ),
+                    ],
+                  ),
+                );
+              }, childCount: displayMovies.length),
             ),
           ),
 

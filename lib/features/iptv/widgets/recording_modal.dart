@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../../core/api/recording_requests.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/glass_container.dart';
 import '../../../core/widgets/tv_focusable_card.dart';
 import '../providers/recordings_refresh.dart';
+import '../../../core/theme/app_theme.dart';
 
 class RecordingModal extends StatefulWidget {
   final Channel channel;
 
-  const RecordingModal({
-    super.key,
-    required this.channel,
-  });
+  const RecordingModal({super.key, required this.channel});
 
   static Future<void> show(BuildContext context, Channel channel) {
     return showDialog(
@@ -40,7 +38,7 @@ class _RecordingModalState extends State<RecordingModal> {
 
   Future<void> _scheduleRecording() async {
     setState(() => _isLoading = true);
-    
+
     final endTime = _startTime.add(Duration(minutes: _durationMinutes));
 
     try {
@@ -66,9 +64,8 @@ class _RecordingModalState extends State<RecordingModal> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erreur: $e')));
       }
     } finally {
       if (mounted) {
@@ -102,7 +99,7 @@ class _RecordingModalState extends State<RecordingModal> {
                   Expanded(
                     child: Text(
                       'Programmer un enregistrement',
-                      style: GoogleFonts.karla(
+                      style: AppTheme.font(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: AppColors.onSurface,
@@ -116,12 +113,15 @@ class _RecordingModalState extends State<RecordingModal> {
               // Informations Chaine
               Text(
                 'Chaîne ciblée :',
-                style: GoogleFonts.karla(color: AppColors.onSurfaceVariant, fontSize: 14),
+                style: AppTheme.font(
+                  color: AppColors.onSurfaceVariant,
+                  fontSize: 14,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 widget.channel.name,
-                style: GoogleFonts.karla(color: AppColors.onSurface, fontSize: 18),
+                style: AppTheme.font(color: AppColors.onSurface, fontSize: 18),
               ),
               const SizedBox(height: 24),
 
@@ -135,7 +135,10 @@ class _RecordingModalState extends State<RecordingModal> {
                       children: [
                         Text(
                           'Date :',
-                          style: GoogleFonts.karla(color: AppColors.onSurfaceVariant, fontSize: 14),
+                          style: AppTheme.font(
+                            color: AppColors.onSurfaceVariant,
+                            fontSize: 14,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         TvFocusableCard(
@@ -144,32 +147,46 @@ class _RecordingModalState extends State<RecordingModal> {
                               context: context,
                               initialDate: _startTime,
                               firstDate: DateTime.now(),
-                              lastDate: DateTime.now().add(const Duration(days: 365)),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 365),
+                              ),
                             );
                             if (date != null) {
                               setState(() {
                                 _startTime = DateTime(
-                                  date.year, date.month, date.day,
-                                  _startTime.hour, _startTime.minute,
+                                  date.year,
+                                  date.month,
+                                  date.day,
+                                  _startTime.hour,
+                                  _startTime.minute,
                                 );
                               });
                             }
                           },
                           borderRadius: 8,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.onSurface.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.calendar_today, color: AppColors.onSurface, size: 18),
+                                const Icon(
+                                  Icons.calendar_today,
+                                  color: AppColors.onSurface,
+                                  size: 18,
+                                ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     '${_startTime.day.toString().padLeft(2, '0')}/${_startTime.month.toString().padLeft(2, '0')}/${_startTime.year}',
-                                    style: GoogleFonts.karla(color: AppColors.onSurface),
+                                    style: AppTheme.font(
+                                      color: AppColors.onSurface,
+                                    ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -189,7 +206,10 @@ class _RecordingModalState extends State<RecordingModal> {
                       children: [
                         Text(
                           'Heure :',
-                          style: GoogleFonts.karla(color: AppColors.onSurfaceVariant, fontSize: 14),
+                          style: AppTheme.font(
+                            color: AppColors.onSurfaceVariant,
+                            fontSize: 14,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         TvFocusableCard(
@@ -199,7 +219,8 @@ class _RecordingModalState extends State<RecordingModal> {
                               initialTime: TimeOfDay.fromDateTime(_startTime),
                               builder: (context, child) {
                                 return MediaQuery(
-                                  data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+                                  data: MediaQuery.of(context)
+                                      .copyWith(alwaysUse24HourFormat: true),
                                   child: child!,
                                 );
                               },
@@ -208,31 +229,45 @@ class _RecordingModalState extends State<RecordingModal> {
                               setState(() {
                                 final now = DateTime.now();
                                 _startTime = DateTime(
-                                  _startTime.year, _startTime.month, _startTime.day,
-                                  time.hour, time.minute,
+                                  _startTime.year,
+                                  _startTime.month,
+                                  _startTime.day,
+                                  time.hour,
+                                  time.minute,
                                 );
                                 // Empêcher l'heure de passé si c'est aujourd'hui
                                 if (_startTime.isBefore(now)) {
-                                  _startTime = _startTime.add(const Duration(days: 1));
+                                  _startTime = _startTime.add(
+                                    const Duration(days: 1),
+                                  );
                                 }
                               });
                             }
                           },
                           borderRadius: 8,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.onSurface.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.access_time, color: AppColors.onSurface, size: 18),
+                                const Icon(
+                                  Icons.access_time,
+                                  color: AppColors.onSurface,
+                                  size: 18,
+                                ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}',
-                                    style: GoogleFonts.karla(color: AppColors.onSurface),
+                                    style: AppTheme.font(
+                                      color: AppColors.onSurface,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -243,7 +278,7 @@ class _RecordingModalState extends State<RecordingModal> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  
+
                   // Durée
                   Expanded(
                     child: Column(
@@ -251,7 +286,10 @@ class _RecordingModalState extends State<RecordingModal> {
                       children: [
                         Text(
                           'Durée (min) :',
-                          style: GoogleFonts.karla(color: AppColors.onSurfaceVariant, fontSize: 14),
+                          style: AppTheme.font(
+                            color: AppColors.onSurfaceVariant,
+                            fontSize: 14,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         GlassContainer.glass(
@@ -260,9 +298,16 @@ class _RecordingModalState extends State<RecordingModal> {
                           child: Row(
                             children: [
                               IconButton(
-                                icon: const Icon(Icons.remove, color: AppColors.onSurface, size: 18),
+                                icon: const Icon(
+                                  Icons.remove,
+                                  color: AppColors.onSurface,
+                                  size: 18,
+                                ),
                                 padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(minWidth: 32, minHeight: 46),
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 46,
+                                ),
                                 onPressed: () {
                                   if (_durationMinutes > 15) {
                                     setState(() => _durationMinutes -= 15);
@@ -273,13 +318,22 @@ class _RecordingModalState extends State<RecordingModal> {
                                 child: Text(
                                   '$_durationMinutes',
                                   textAlign: TextAlign.center,
-                                  style: GoogleFonts.karla(color: AppColors.onSurface),
+                                  style: AppTheme.font(
+                                    color: AppColors.onSurface,
+                                  ),
                                 ),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.add, color: AppColors.onSurface, size: 18),
+                                icon: const Icon(
+                                  Icons.add,
+                                  color: AppColors.onSurface,
+                                  size: 18,
+                                ),
                                 padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(minWidth: 32, minHeight: 46),
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 46,
+                                ),
                                 onPressed: () {
                                   if (_durationMinutes < 300) {
                                     setState(() => _durationMinutes += 15);
@@ -301,10 +355,12 @@ class _RecordingModalState extends State<RecordingModal> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                    onPressed: _isLoading
+                        ? null
+                        : () => Navigator.of(context).pop(),
                     child: Text(
                       'Annuler',
-                      style: GoogleFonts.karla(color: AppColors.onSurfaceVariant),
+                      style: AppTheme.font(color: AppColors.onSurfaceVariant),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -312,23 +368,30 @@ class _RecordingModalState extends State<RecordingModal> {
                     onTap: _isLoading ? () {} : _recordNow,
                     borderRadius: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.error.withOpacity(0.8),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: _isLoading 
-                        ? const SizedBox(
-                            width: 20, height: 20, 
-                            child: CircularProgressIndicator(color: AppColors.onSurface, strokeWidth: 2),
-                          )
-                        : Text(
-                            'Enregistrer de suite',
-                            style: GoogleFonts.karla(
-                              color: AppColors.onSurface,
-                              fontWeight: FontWeight.bold,
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: AppColors.onSurface,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              'Enregistrer de suite',
+                              style: AppTheme.font(
+                                color: AppColors.onSurface,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -336,23 +399,30 @@ class _RecordingModalState extends State<RecordingModal> {
                     onTap: _isLoading ? () {} : _scheduleRecording,
                     borderRadius: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: _isLoading 
-                        ? const SizedBox(
-                            width: 20, height: 20, 
-                            child: CircularProgressIndicator(color: AppColors.onSurface, strokeWidth: 2),
-                          )
-                        : Text(
-                            'Programmer',
-                            style: GoogleFonts.karla(
-                              color: AppColors.onSurface,
-                              fontWeight: FontWeight.bold,
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: AppColors.onSurface,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              'Programmer',
+                              style: AppTheme.font(
+                                color: AppColors.onSurface,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
                     ),
                   ),
                 ],

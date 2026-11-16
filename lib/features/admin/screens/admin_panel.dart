@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../core/services/playlist_api_service.dart';
 import '../../../core/services/user_api_service.dart';
 import '../../../core/models/playlist_config.dart';
@@ -29,9 +29,7 @@ class AdminPanel extends StatelessWidget {
         // Meme precaution que sur l'ecran de selection de playlist : sans
         // contrainte d'expansion, le degrade ne couvre que le contenu.
         constraints: const BoxConstraints.expand(),
-        decoration: const BoxDecoration(
-          gradient: AppColors.backgroundGradient,
-        ),
+        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
         child: const AdminContent(),
       ),
     );
@@ -77,15 +75,18 @@ class _AdminContentState extends ConsumerState<AdminContent>
                   padding: const EdgeInsets.all(8),
                   showBorder: false,
                   onTap: () => context.go('/playlists'),
-                  child: const Icon(Icons.arrow_back, color: AppColors.textSecondary),
+                  child: const Icon(
+                    Icons.arrow_back,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Text(
                   'Administration',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const Spacer(),
                 // Custom Tab Bar Indicator
@@ -112,12 +113,8 @@ class _AdminContentState extends ConsumerState<AdminContent>
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              physics:
-                  const NeverScrollableScrollPhysics(), // Custom tabs handle ref
-              children: const [
-                _PlaylistsTab(),
-                _UsersTab(),
-              ],
+              physics: const NeverScrollableScrollPhysics(), // Custom tabs handle ref
+              children: const [_PlaylistsTab(), _UsersTab()],
             ),
           ),
         ],
@@ -144,15 +141,19 @@ class _AdminContentState extends ConsumerState<AdminContent>
                 Icon(
                   icon,
                   size: 18,
-                  color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
+                  color: isSelected
+                      ? AppColors.textPrimary
+                      : AppColors.textSecondary,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   label,
-                  style: GoogleFonts.karla(
+                  style: AppTheme.font(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
-                    color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
+                    color: isSelected
+                        ? AppColors.textPrimary
+                        : AppColors.textSecondary,
                   ),
                 ),
               ],
@@ -181,9 +182,7 @@ class _PlaylistsTab extends ConsumerWidget {
             children: [
               Text(
                 '${playlistsAsync.asData?.value.length ?? 0} Playlists',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyLarge
+                style: Theme.of(context).textTheme.bodyLarge
                     ?.copyWith(color: AppColors.textSecondary),
               ),
               GradientButton(
@@ -230,8 +229,10 @@ class _PlaylistsTab extends ConsumerWidget {
               }
 
               return ListView.separated(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 8,
+                ),
                 itemCount: playlists.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
@@ -259,17 +260,13 @@ class _PlaylistsTab extends ConsumerWidget {
                             children: [
                               Text(
                                 playlist.name,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
+                                style: Theme.of(context).textTheme.titleMedium
                                     ?.copyWith(color: AppColors.onSurface),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 playlist.dns,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
+                                style: Theme.of(context).textTheme.bodyMedium
                                     ?.copyWith(color: AppColors.onSurface54),
                               ),
                             ],
@@ -373,9 +370,10 @@ class _PlaylistsTab extends ConsumerWidget {
                         return;
                       }
                       setState(() => isLoading = true);
-                      final dns = dnsController.text
-                          .trim()
-                          .replaceAll(RegExp(r'/$'), '');
+                      final dns = dnsController.text.trim().replaceAll(
+                        RegExp(r'/$'),
+                        '',
+                      );
                       if (playlist == null) {
                         await service.createPlaylist(
                           name: nameController.text.trim(),
@@ -456,9 +454,7 @@ class _UsersTab extends ConsumerWidget {
             children: [
               Text(
                 '${usersAsync.asData?.value.length ?? 0} Users',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyLarge
+                style: Theme.of(context).textTheme.bodyLarge
                     ?.copyWith(color: AppColors.textSecondary),
               ),
               GradientButton(
@@ -500,8 +496,10 @@ class _UsersTab extends ConsumerWidget {
               }
 
               return ListView.separated(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 8,
+                ),
                 itemCount: users.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
@@ -551,8 +549,9 @@ class _UsersTab extends ConsumerWidget {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppColors.focusColor
-                                            .withOpacity(0.2),
+                                        color: AppColors.focusColor.withOpacity(
+                                          0.2,
+                                        ),
                                         borderRadius: BorderRadius.circular(50),
                                       ),
                                       child: Text(
@@ -570,9 +569,7 @@ class _UsersTab extends ConsumerWidget {
                               const SizedBox(height: 4),
                               Text(
                                 'ID: ${user.id}',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
+                                style: Theme.of(context).textTheme.bodyMedium
                                     ?.copyWith(color: AppColors.onSurface54),
                               ),
                             ],
@@ -759,9 +756,7 @@ class _UsersTab extends ConsumerWidget {
                   : () async {
                       if (passwordController.text.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Mot de passe requis'),
-                          ),
+                          const SnackBar(content: Text('Mot de passe requis')),
                         );
                         return;
                       }

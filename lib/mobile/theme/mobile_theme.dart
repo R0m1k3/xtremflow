@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 
 /// Thème mobile XtremFlow — déclinaison tactile de « Warm Cinema ».
 ///
@@ -32,69 +33,69 @@ class MobileTheme {
 
       // Typography: Scaled down for mobile
       textTheme: TextTheme(
-        displayLarge: GoogleFonts.fraunces(
+        displayLarge: AppTheme.font(
           fontSize: 32,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.02,
           height: 1.1,
           color: AppColors.onSurface,
         ),
-        displayMedium: GoogleFonts.fraunces(
+        displayMedium: AppTheme.font(
           fontSize: 28,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.01,
           height: 1.2,
           color: AppColors.onSurface,
         ),
-        displaySmall: GoogleFonts.fraunces(
+        displaySmall: AppTheme.font(
           fontSize: 22,
           fontWeight: FontWeight.w500,
           height: 1.3,
           color: AppColors.onSurface,
         ),
-        headlineMedium: GoogleFonts.fraunces(
+        headlineMedium: AppTheme.font(
           fontSize: 20,
           fontWeight: FontWeight.w500,
           height: 1.3,
           color: AppColors.onSurface,
         ),
-        titleLarge: GoogleFonts.fraunces(
+        titleLarge: AppTheme.font(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: AppColors.onSurface,
         ),
-        titleMedium: GoogleFonts.karla(
+        titleMedium: AppTheme.font(
           fontSize: 16,
           fontWeight: FontWeight.w600,
           color: AppColors.onSurface,
         ),
-        bodyLarge: GoogleFonts.karla(
+        bodyLarge: AppTheme.font(
           fontSize: 16,
           fontWeight: FontWeight.w400,
           height: 1.5,
           color: AppColors.onSurfaceVariant,
         ),
-        bodyMedium: GoogleFonts.karla(
+        bodyMedium: AppTheme.font(
           fontSize: 14,
           fontWeight: FontWeight.w400,
           height: 1.5,
           color: AppColors.onSurfaceVariant,
         ),
-        labelLarge: GoogleFonts.karla(
+        labelLarge: AppTheme.font(
           fontSize: 14,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.05,
           height: 1.2,
           color: AppColors.onSurface,
         ),
-        labelMedium: GoogleFonts.karla(
+        labelMedium: AppTheme.font(
           fontSize: 12,
           fontWeight: FontWeight.w500,
           letterSpacing: 0.02,
           height: 1.2,
           color: AppColors.onSurface,
         ),
-        labelSmall: GoogleFonts.karla(
+        labelSmall: AppTheme.font(
           fontSize: 11,
           fontWeight: FontWeight.w500,
           letterSpacing: 0.02,
@@ -110,7 +111,7 @@ class MobileTheme {
         elevation: 0,
         centerTitle: true,
         scrolledUnderElevation: 0,
-        titleTextStyle: GoogleFonts.fraunces(
+        titleTextStyle: AppTheme.font(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: AppColors.onSurface,
@@ -124,11 +125,11 @@ class MobileTheme {
         backgroundColor: AppColors.surfaceContainerLowest,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.outline,
-        selectedLabelStyle: GoogleFonts.karla(
+        selectedLabelStyle: AppTheme.font(
           fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
-        unselectedLabelStyle: GoogleFonts.karla(
+        unselectedLabelStyle: AppTheme.font(
           fontSize: 11,
           fontWeight: FontWeight.w500,
         ),
@@ -150,7 +151,10 @@ class MobileTheme {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMd),
-          borderSide: const BorderSide(color: AppColors.outlineVariant, width: 1),
+          borderSide: const BorderSide(
+            color: AppColors.outlineVariant,
+            width: 1,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMd),
@@ -159,10 +163,7 @@ class MobileTheme {
             width: 2,
           ),
         ),
-        hintStyle: GoogleFonts.karla(
-          color: AppColors.outline,
-          fontSize: 14,
-        ),
+        hintStyle: AppTheme.font(color: AppColors.outline, fontSize: 14),
       ),
 
       // Buttons
@@ -177,10 +178,7 @@ class MobileTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusMd),
           ),
-          textStyle: GoogleFonts.karla(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
+          textStyle: AppTheme.font(fontWeight: FontWeight.w600, fontSize: 14),
         ),
       ),
 

@@ -1,7 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../../core/models/playlist_config.dart';
 import '../models/xtream_models.dart';
 import '../providers/xtream_provider.dart';
@@ -9,6 +9,7 @@ import '../providers/playback_positions_provider.dart';
 import '../providers/watch_history_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import 'player_screen.dart';
+import '../../../core/theme/app_theme.dart';
 
 /// Series detail screen showing seasons and episodes
 class SeriesDetailScreen extends ConsumerStatefulWidget {
@@ -87,22 +88,29 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-                      const SizedBox(height: 16),
-                      Text('Error: $_error', style: const TextStyle(color: AppColors.onSurfaceVariant)),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadSeriesInfo,
-                        child: const Text('Retry'),
-                      ),
-                    ],
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: AppColors.error,
                   ),
-                )
-              : _buildContent(),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error: $_error',
+                    style: const TextStyle(color: AppColors.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadSeriesInfo,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            )
+          : _buildContent(),
     );
   }
 
@@ -136,23 +144,27 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                         width: 248,
                         height: 350,
                         color: AppColors.surfaceContainer,
-                        child: const Icon(Icons.tv, size: 64, color: AppColors.onSurfaceVariant),
+                        child: const Icon(
+                          Icons.tv,
+                          size: 64,
+                          color: AppColors.onSurfaceVariant,
+                        ),
                       ),
                     ),
                   ),
                 const SizedBox(height: 16),
-                
+
                 // Title
                 Text(
                   _seriesInfo!.name,
-                  style: GoogleFonts.karla(
+                  style: AppTheme.font(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: AppColors.onSurface,
                   ),
                 ),
                 const SizedBox(height: 8),
-                
+
                 // Rating
                 if (_seriesInfo!.rating != null)
                   Row(
@@ -161,26 +173,32 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                       const SizedBox(width: 4),
                       Text(
                         _formatRating(_seriesInfo!.rating!)!,
-                        style: GoogleFonts.karla(fontSize: 13, color: AppColors.onSurfaceVariant),
+                        style: AppTheme.font(
+                          fontSize: 13,
+                          color: AppColors.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
                 const SizedBox(height: 12),
-                
+
                 // Plot
                 if (_seriesInfo!.plot != null && _seriesInfo!.plot!.isNotEmpty)
                   Text(
                     _seriesInfo!.plot!,
-                    style: GoogleFonts.karla(fontSize: 12, color: AppColors.onSurfaceVariant),
+                    style: AppTheme.font(
+                      fontSize: 12,
+                      color: AppColors.onSurfaceVariant,
+                    ),
                     maxLines: 5,
                     overflow: TextOverflow.ellipsis,
                   ),
                 const SizedBox(height: 16),
-                
+
                 // Season selector
                 Text(
                   'Seasons',
-                  style: GoogleFonts.karla(
+                  style: AppTheme.font(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppColors.onSurface,
@@ -202,8 +220,10 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                       },
                       selectedColor: AppColors.primaryContainer,
                       backgroundColor: AppColors.surfaceContainer,
-                      labelStyle: GoogleFonts.karla(
-                        color: isSelected ? AppColors.onPrimary : AppColors.onSurfaceVariant,
+                      labelStyle: AppTheme.font(
+                        color: isSelected
+                            ? AppColors.onPrimary
+                            : AppColors.onSurfaceVariant,
                         fontSize: 12,
                       ),
                     );
@@ -213,10 +233,10 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
             ),
           ),
         ),
-        
+
         // Divider
         Container(width: 1, color: AppColors.surfaceContainerHigh),
-        
+
         // Right panel: Episodes list
         Expanded(
           child: Column(
@@ -226,7 +246,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Text(
                   'Season $_selectedSeason - ${currentEpisodes.length} Episodes',
-                  style: GoogleFonts.karla(
+                  style: AppTheme.font(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: AppColors.onSurface,
@@ -238,7 +258,9 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                     ? Center(
                         child: Text(
                           'No episodes found',
-                          style: GoogleFonts.karla(color: AppColors.onSurfaceVariant),
+                          style: AppTheme.font(
+                            color: AppColors.onSurfaceVariant,
+                          ),
                         ),
                       )
                     : ListView.builder(
@@ -272,8 +294,10 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
       child: InkWell(
         onTap: () async {
           // Mark as watched when playing
-          ref.read(watchHistoryProvider.notifier).markEpisodeWatched(episodeKey);
-          
+          ref
+              .read(watchHistoryProvider.notifier)
+              .markEpisodeWatched(episodeKey);
+
           // Fetch actual duration from API if not available
           Duration? episodeDuration;
           if (episode.durationSecs != null && episode.durationSecs! > 0) {
@@ -286,7 +310,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
               episodeDuration = Duration(seconds: durationSecs);
             }
           }
-           
+
           if (!context.mounted) return;
 
           // Reprise de lecture : le player sauvegarde la position sous
@@ -313,7 +337,9 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
         },
         onLongPress: () {
           // Toggle watched on long press
-          ref.read(watchHistoryProvider.notifier).toggleEpisodeWatched(episodeKey);
+          ref
+              .read(watchHistoryProvider.notifier)
+              .toggleEpisodeWatched(episodeKey);
         },
         borderRadius: BorderRadius.circular(8),
         child: Padding(
@@ -325,15 +351,21 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: isWatched ? AppColors.success : AppColors.primaryContainer,
+                  color: isWatched
+                      ? AppColors.success
+                      : AppColors.primaryContainer,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Center(
                   child: isWatched
-                      ? const Icon(Icons.check, color: AppColors.onSurface, size: 20)
+                      ? const Icon(
+                          Icons.check,
+                          color: AppColors.onSurface,
+                          size: 20,
+                        )
                       : Text(
                           '${episode.episodeNum}',
-                          style: GoogleFonts.karla(
+                          style: AppTheme.font(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: AppColors.onSurface,
@@ -342,7 +374,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              
+
               // Episode info
               Expanded(
                 child: Column(
@@ -350,18 +382,21 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                   children: [
                     Text(
                       episode.title,
-                      style: GoogleFonts.karla(
+                      style: AppTheme.font(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: isWatched ? AppColors.onSurfaceVariant : AppColors.onSurface,
+                        color: isWatched
+                            ? AppColors.onSurfaceVariant
+                            : AppColors.onSurface,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (episode.durationSecs != null && episode.durationSecs! > 0)
+                    if (episode.durationSecs != null &&
+                        episode.durationSecs! > 0)
                       Text(
                         _formatDuration(episode.durationSecs!),
-                        style: GoogleFonts.karla(
+                        style: AppTheme.font(
                           fontSize: 12,
                           color: AppColors.onSurfaceVariant,
                         ),
@@ -369,7 +404,7 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen> {
                   ],
                 ),
               ),
-              
+
               // Play icon
               Icon(
                 isWatched ? Icons.replay : Icons.play_circle_outline,

@@ -1,11 +1,13 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
+
 import '../../../core/api/authed_http.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/glass_container.dart';
 import '../providers/recordings_refresh.dart';
+import '../../../core/theme/app_theme.dart';
 
 class SimpleRecordingWidget extends StatefulWidget {
   final Channel channel;
@@ -51,9 +53,9 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('✅ Recording started!')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('✅ Recording started!')));
         }
       } else {
         throw Exception('API error');
@@ -111,9 +113,9 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Recording stopped!')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('✅ Recording stopped!')));
       }
     } catch (e) {
       setState(() => _status = '❌ Error: $e');
@@ -136,7 +138,7 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
               // Title
               Text(
                 '🎬 Record "${widget.channel.name}"',
-                style: GoogleFonts.fraunces(
+                style: AppTheme.font(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: AppColors.onSurface,
@@ -154,7 +156,7 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
                   ),
                   child: Text(
                     _status,
-                    style: GoogleFonts.fraunces(
+                    style: AppTheme.font(
                       fontSize: 14,
                       color: AppColors.onSurfaceVariant,
                     ),
@@ -166,7 +168,7 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
               if (!_isRecording) ...[
                 Text(
                   '⚡ Quick Record',
-                  style: GoogleFonts.fraunces(
+                  style: AppTheme.font(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: AppColors.onSurface,
@@ -177,14 +179,8 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    _QuickButton(
-                      label: '30 min',
-                      onTap: () => _recordNow(30),
-                    ),
-                    _QuickButton(
-                      label: '1 hour',
-                      onTap: () => _recordNow(60),
-                    ),
+                    _QuickButton(label: '30 min', onTap: () => _recordNow(30)),
+                    _QuickButton(label: '1 hour', onTap: () => _recordNow(60)),
                     _QuickButton(
                       label: '2 hours',
                       onTap: () => _recordNow(120),
@@ -216,7 +212,7 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
                 ExpansionTile(
                   title: Text(
                     '🔵 Schedule for Later',
-                    style: GoogleFonts.fraunces(
+                    style: AppTheme.font(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: AppColors.onSurface,
@@ -311,10 +307,7 @@ class _QuickButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _QuickButton({
-    required this.label,
-    required this.onTap,
-  });
+  const _QuickButton({required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -323,9 +316,7 @@ class _QuickButton extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary.withOpacity(0.7),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: Text(label),
     );

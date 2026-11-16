@@ -1,7 +1,8 @@
-﻿import 'dart:async';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../../../core/models/playlist_config.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/components/hero_carousel.dart';
@@ -11,6 +12,7 @@ import '../../../../features/iptv/models/xtream_models.dart';
 import '../../../../features/iptv/providers/xtream_provider.dart';
 import '../../../../features/iptv/providers/settings_provider.dart';
 import '../screens/mobile_player_screen.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class MobileMoviesTab extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
@@ -169,8 +171,8 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
       displayMovies = settings.moviesKeywords.isEmpty
           ? _movies
           : _movies
-              .where((m) => settings.matchesMoviesFilter(m.categoryName))
-              .toList();
+                .where((m) => settings.matchesMoviesFilter(m.categoryName))
+                .toList();
     }
 
     final heroItems = displayMovies
@@ -180,7 +182,9 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
             id: m.streamId,
             title: m.name,
             imageUrl: _getProxiedImageUrl(m.streamIcon, ref),
-            subtitle: m.rating != null ? '${_formatRating(m.rating)} â˜…' : null,
+            subtitle: m.rating != null
+                ? '${_formatRating(m.rating)} â˜…'
+                : null,
             onMoreInfo: () => _playMovie(m, displayMovies),
           ),
         )
@@ -197,22 +201,30 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
               padding: const EdgeInsets.all(16),
               child: GlassContainer.glass(
                 borderRadius: 100,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
-                    const Icon(Icons.search, size: 20, color: AppColors.onSurfaceVariant),
+                    const Icon(
+                      Icons.search,
+                      size: 20,
+                      color: AppColors.onSurfaceVariant,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
                         controller: _searchController,
-                        style: GoogleFonts.karla(
+                        style: AppTheme.font(
                           fontSize: 14,
                           color: AppColors.onSurface,
                         ),
                         decoration: InputDecoration(
                           hintText: 'Search Movies...',
-                          hintStyle: GoogleFonts.karla(color: AppColors.onSurfaceVariant),
+                          hintStyle: AppTheme.font(
+                            color: AppColors.onSurfaceVariant,
+                          ),
                           border: InputBorder.none,
                           isDense: true,
                           contentPadding: const EdgeInsets.only(bottom: 11),
@@ -257,8 +269,9 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                   child: HeroCarousel(
                     items: heroItems,
                     onTap: (item) {
-                      final movie = _movies
-                          .firstWhere((element) => element.streamId == item.id);
+                      final movie = _movies.firstWhere(
+                        (element) => element.streamId == item.id,
+                      );
                       _playMovie(movie, _movies);
                     },
                   ),
@@ -276,137 +289,136 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                 mainAxisSpacing: 16,
                 childAspectRatio: 0.65,
               ),
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  if (index >= displayMovies.length) return null;
-                  final movie = displayMovies[index];
-                  final isWatched = watchHistory.isMovieWatched(movie.streamId);
+              delegate: SliverChildBuilderDelegate((context, index) {
+                if (index >= displayMovies.length) return null;
+                final movie = displayMovies[index];
+                final isWatched = watchHistory.isMovieWatched(movie.streamId);
 
-                  return GestureDetector(
-                    onTap: () => _playMovie(movie, displayMovies),
-                    onLongPress: () {
-                      ref
-                          .read(watchHistoryProvider.notifier)
-                          .toggleMovieWatched(movie.streamId);
-                    },
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Poster
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: movie.streamIcon != null &&
-                                  movie.streamIcon!.isNotEmpty
-                              ? Image.network(
-                                  _getProxiedImageUrl(movie.streamIcon, ref),
-                                  fit: BoxFit.cover,
-                                  cacheWidth: 360,
-                                  filterQuality: FilterQuality.low,
-                                  errorBuilder: (_, __, ___) =>
-                                      Container(color: AppColors.surfaceContainerLow),
-                                )
-                              : Container(
+                return GestureDetector(
+                  onTap: () => _playMovie(movie, displayMovies),
+                  onLongPress: () {
+                    ref
+                        .read(watchHistoryProvider.notifier)
+                        .toggleMovieWatched(movie.streamId);
+                  },
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // Poster
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child:
+                            movie.streamIcon != null &&
+                                movie.streamIcon!.isNotEmpty
+                            ? Image.network(
+                                _getProxiedImageUrl(movie.streamIcon, ref),
+                                fit: BoxFit.cover,
+                                cacheWidth: 360,
+                                filterQuality: FilterQuality.low,
+                                errorBuilder: (_, __, ___) => Container(
                                   color: AppColors.surfaceContainerLow,
-                                  child: const Icon(
-                                    Icons.movie,
-                                    color: AppColors.outlineVariant,
-                                  ),
                                 ),
-                        ),
+                              )
+                            : Container(
+                                color: AppColors.surfaceContainerLow,
+                                child: const Icon(
+                                  Icons.movie,
+                                  color: AppColors.outlineVariant,
+                                ),
+                              ),
+                      ),
 
-                        // Gradient Overlay
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          height: 80,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  AppColors.background.withOpacity(0.9),
-                                ],
-                              ),
-                              borderRadius: const BorderRadius.vertical(
-                                bottom: Radius.circular(16),
-                              ),
+                      // Gradient Overlay
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: 80,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                AppColors.background.withOpacity(0.9),
+                              ],
+                            ),
+                            borderRadius: const BorderRadius.vertical(
+                              bottom: Radius.circular(16),
                             ),
                           ),
                         ),
+                      ),
 
-                        // Title
-                        Positioned(
-                          bottom: 12,
-                          left: 12,
-                          right: 12,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                movie.name,
-                                style: GoogleFonts.karla(
-                                  color: AppColors.onSurface,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+                      // Title
+                      Positioned(
+                        bottom: 12,
+                        left: 12,
+                        right: 12,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              movie.name,
+                              style: AppTheme.font(
+                                color: AppColors.onSurface,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
                               ),
-                              if (isWatched)
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (isWatched)
+                              Text(
+                                'WATCHED',
+                                style: AppTheme.font(
+                                  color: AppColors.primary,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+
+                      // Rating
+                      if (movie.rating != null && movie.rating!.isNotEmpty)
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: GlassContainer.glass(
+                            borderRadius: 4,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.star,
+                                  size: 10,
+                                  color: AppColors.ratingGold,
+                                ),
+                                const SizedBox(width: 4),
                                 Text(
-                                  'WATCHED',
-                                  style: GoogleFonts.karla(
-                                    color: AppColors.primary,
+                                  _formatRating(movie.rating)!,
+                                  style: AppTheme.font(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
+                                    color: AppColors.onSurface,
                                   ),
                                 ),
-                            ],
-                          ),
-                        ),
-
-                        // Rating
-                        if (movie.rating != null && movie.rating!.isNotEmpty)
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: GlassContainer.glass(
-                              borderRadius: 4,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.star,
-                                    size: 10,
-                                    color: AppColors.ratingGold,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _formatRating(movie.rating)!,
-                                    style: GoogleFonts.karla(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.onSurface,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                              ],
                             ),
                           ),
-                      ],
-                    ),
-                  );
-                },
-                childCount: displayMovies.length,
-              ),
+                        ),
+                    ],
+                  ),
+                );
+              }, childCount: displayMovies.length),
             ),
           ),
 

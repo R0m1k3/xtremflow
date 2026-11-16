@@ -1,7 +1,8 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import '../glass_container.dart';
@@ -34,10 +35,7 @@ class GlassCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(borderRadius),
-          child: Padding(
-            padding: padding,
-            child: child,
-          ),
+          child: Padding(padding: padding, child: child),
         ),
       ),
     );
@@ -93,10 +91,7 @@ class _GradientButtonState extends State<GradientButton>
     final button = AnimatedBuilder(
       animation: _scaleAnimation,
       builder: (context, child) {
-        return Transform.scale(
-          scale: _scaleAnimation.value,
-          child: child,
-        );
+        return Transform.scale(scale: _scaleAnimation.value, child: child);
       },
       child: Container(
         decoration: BoxDecoration(
@@ -124,10 +119,7 @@ class _GradientButtonState extends State<GradientButton>
             onTapCancel: () => _controller.reverse(),
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 14,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
               child: widget.isLoading
                   ? const SizedBox(
                       width: 20,
@@ -144,12 +136,16 @@ class _GradientButtonState extends State<GradientButton>
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         if (widget.icon != null) ...[
-                          Icon(widget.icon, color: AppColors.onSurface, size: 20),
+                          Icon(
+                            widget.icon,
+                            color: AppColors.onSurface,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                         ],
                         Text(
                           widget.label,
-                          style: GoogleFonts.karla(
+                          style: AppTheme.font(
                             color: AppColors.onSurface,
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
@@ -253,7 +249,7 @@ class LiveBadge extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             'LIVE',
-            style: GoogleFonts.karla(
+            style: AppTheme.font(
               color: AppColors.onSurface,
               fontSize: 10,
               fontWeight: FontWeight.w700,
@@ -302,10 +298,12 @@ class CategoryChip extends StatelessWidget {
           ),
           child: Text(
             label,
-            style: GoogleFonts.karla(
+            style: AppTheme.font(
               fontSize: 13,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              color: isSelected ? AppColors.primary : AppColors.onSurfaceVariant,
+              color: isSelected
+                  ? AppColors.primary
+                  : AppColors.onSurfaceVariant,
             ),
           ),
         ),
@@ -347,8 +345,9 @@ class _MediaCardState extends State<MediaCard>
 
   @override
   Widget build(BuildContext context) {
-    final focusBorderColor =
-        _isHovered ? AppColors.primaryContainer.withOpacity(0.5) : Colors.transparent;
+    final focusBorderColor = _isHovered
+        ? AppColors.primaryContainer.withOpacity(0.5)
+        : Colors.transparent;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -405,7 +404,8 @@ class _MediaCardState extends State<MediaCard>
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(
-                        AppTheme.radiusMd - (_isHovered ? 2 : 0)),
+                      AppTheme.radiusMd - (_isHovered ? 2 : 0),
+                    ),
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
@@ -417,15 +417,19 @@ class _MediaCardState extends State<MediaCard>
                             placeholder: (context, url) => Container(
                               color: AppColors.surfaceContainerLow,
                               child: Center(
-                                child: Icon(widget.placeholderIcon,
-                                    color: AppColors.outline),
+                                child: Icon(
+                                  widget.placeholderIcon,
+                                  color: AppColors.outline,
+                                ),
                               ),
                             ),
                             errorWidget: (context, url, error) => Container(
                               color: AppColors.surfaceContainerLow,
                               child: Center(
-                                child: Icon(widget.placeholderIcon,
-                                    color: AppColors.outline),
+                                child: Icon(
+                                  widget.placeholderIcon,
+                                  color: AppColors.outline,
+                                ),
                               ),
                             ),
                           )
@@ -433,20 +437,23 @@ class _MediaCardState extends State<MediaCard>
                           Container(
                             color: AppColors.surfaceContainerLow,
                             child: Center(
-                              child: Icon(widget.placeholderIcon,
-                                  color: AppColors.outline),
+                              child: Icon(
+                                widget.placeholderIcon,
+                                color: AppColors.outline,
+                              ),
                             ),
                           ),
 
                         // Rating Badge (Top Left)
-                        if (widget.rating != null &&
-                            widget.rating!.isNotEmpty)
+                        if (widget.rating != null && widget.rating!.isNotEmpty)
                           Positioned(
                             top: 8,
                             left: 8,
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.black.withOpacity(0.7),
                                 borderRadius: BorderRadius.circular(4),
@@ -454,12 +461,15 @@ class _MediaCardState extends State<MediaCard>
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.star,
-                                      size: 10, color: AppColors.primaryContainer),
+                                  const Icon(
+                                    Icons.star,
+                                    size: 10,
+                                    color: AppColors.primaryContainer,
+                                  ),
                                   const SizedBox(width: 4),
                                   Text(
                                     widget.rating!,
-                                    style: GoogleFonts.karla(
+                                    style: AppTheme.font(
                                       color: AppColors.onSurface,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
@@ -481,8 +491,11 @@ class _MediaCardState extends State<MediaCard>
                                 color: AppColors.success,
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.check,
-                                  size: 12, color: AppColors.onSurface),
+                              child: const Icon(
+                                Icons.check,
+                                size: 12,
+                                color: AppColors.onSurface,
+                              ),
                             ),
                           ),
                       ],
@@ -503,12 +516,13 @@ class _MediaCardState extends State<MediaCard>
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.karla(
+                    style: AppTheme.font(
                       color: _isHovered
                           ? AppColors.primary
                           : AppColors.onSurface,
-                      fontWeight:
-                          _isHovered ? FontWeight.w600 : FontWeight.w500,
+                      fontWeight: _isHovered
+                          ? FontWeight.w600
+                          : FontWeight.w500,
                       fontSize: 13,
                     ),
                   ),
@@ -519,7 +533,7 @@ class _MediaCardState extends State<MediaCard>
                       textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.karla(
+                      style: AppTheme.font(
                         color: AppColors.onSurfaceVariant,
                         fontSize: 11,
                       ),

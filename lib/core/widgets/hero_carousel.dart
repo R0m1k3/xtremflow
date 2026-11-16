@@ -1,6 +1,7 @@
-﻿import 'dart:async';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 
@@ -56,10 +57,7 @@ class _HeroCarouselState extends State<HeroCarousel>
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(
-      initialPage: 0,
-      viewportFraction: 1.0,
-    );
+    _pageController = PageController(initialPage: 0, viewportFraction: 1.0);
 
     _fadeController = AnimationController(
       vsync: this,
@@ -160,11 +158,7 @@ class _HeroCarouselState extends State<HeroCarousel>
                 child: _buildContentOverlay(widget.items[_currentIndex]),
               ),
             ),
-            Positioned(
-              bottom: 20,
-              right: 32,
-              child: _buildIndicators(),
-            ),
+            Positioned(bottom: 20, right: 32, child: _buildIndicators()),
           ],
         ),
       ),
@@ -221,7 +215,7 @@ class _HeroCarouselState extends State<HeroCarousel>
             ),
             child: Text(
               item.badge!,
-              style: GoogleFonts.karla(
+              style: AppTheme.font(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: AppColors.primary,
@@ -234,7 +228,7 @@ class _HeroCarouselState extends State<HeroCarousel>
           item.title,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.fraunces(
+          style: AppTheme.font(
             fontSize: 48,
             fontWeight: FontWeight.w800,
             color: AppColors.textPrimary,
@@ -248,7 +242,7 @@ class _HeroCarouselState extends State<HeroCarousel>
             item.subtitle!,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.karla(
+            style: AppTheme.font(
               fontSize: 16,
               fontWeight: FontWeight.w400,
               color: AppColors.textSecondary,
@@ -293,7 +287,7 @@ class _HeroCarouselState extends State<HeroCarousel>
                           const SizedBox(width: 8),
                           Text(
                             'Play',
-                            style: GoogleFonts.karla(
+                            style: AppTheme.font(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: AppColors.primary,
@@ -315,10 +309,7 @@ class _HeroCarouselState extends State<HeroCarousel>
                     ),
                     decoration: BoxDecoration(
                       color: AppColors.surface.withOpacity(0.8),
-                      border: Border.all(
-                        color: AppColors.border,
-                        width: 1.5,
-                      ),
+                      border: Border.all(color: AppColors.border, width: 1.5),
                       borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                     ),
                     child: Row(
@@ -331,7 +322,7 @@ class _HeroCarouselState extends State<HeroCarousel>
                         const SizedBox(width: 8),
                         Text(
                           'More Info',
-                          style: GoogleFonts.karla(
+                          style: AppTheme.font(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
@@ -367,8 +358,9 @@ class _HeroCarouselState extends State<HeroCarousel>
             width: _currentIndex == index ? 32 : 8,
             height: 8,
             decoration: BoxDecoration(
-              color:
-                  _currentIndex == index ? AppColors.primary : AppColors.border,
+              color: _currentIndex == index
+                  ? AppColors.primary
+                  : AppColors.border,
               borderRadius: BorderRadius.circular(4),
             ),
           ),

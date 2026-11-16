@@ -1,6 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../../../features/iptv/providers/xtream_provider.dart';
 import '../../../../features/iptv/providers/settings_provider.dart';
 import '../../../../features/iptv/providers/favorites_provider.dart';
@@ -10,6 +10,7 @@ import '../../../../core/models/iptv_models.dart';
 import '../../../../core/models/playlist_config.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/glass_container.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class MobileLiveTVTab extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
@@ -35,8 +36,9 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
 
   @override
   Widget build(BuildContext context) {
-    final channelsAsync =
-        ref.watch(liveChannelsByPlaylistProvider(widget.playlist));
+    final channelsAsync = ref.watch(
+      liveChannelsByPlaylistProvider(widget.playlist),
+    );
     final favorites = ref.watch(favoritesProvider);
     final settings = ref.watch(iptvSettingsProvider);
 
@@ -77,11 +79,15 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline, color: AppColors.error, size: 48),
+                const Icon(
+                  Icons.error_outline,
+                  color: AppColors.error,
+                  size: 48,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'Failed to load channels',
-                  style: GoogleFonts.karla(
+                  style: AppTheme.font(
                     color: AppColors.onSurface,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -95,8 +101,9 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: () => ref
-                      .refresh(liveChannelsByPlaylistProvider(widget.playlist)),
+                  onPressed: () => ref.refresh(
+                    liveChannelsByPlaylistProvider(widget.playlist),
+                  ),
                   child: const Text('Retry'),
                 ),
               ],
@@ -130,8 +137,9 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
             // If the selected category is no longer available (due to filters), reset it
             if (_selectedCategory != null &&
                 !categories.contains(_selectedCategory)) {
-              _selectedCategory =
-                  categories.isNotEmpty ? categories.first : null;
+              _selectedCategory = categories.isNotEmpty
+                  ? categories.first
+                  : null;
             }
             if (_selectedCategory != null) {
               displayedChannels = groupedChannels[_selectedCategory] ?? [];
@@ -147,18 +155,21 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                   padding: const EdgeInsets.all(16),
                   child: GlassContainer.glass(
                     borderRadius: 16,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: Row(
                       children: [
                         Expanded(
                           child: TextField(
                             controller: _searchController,
-                            style: GoogleFonts.karla(color: AppColors.onSurface),
+                            style: AppTheme.font(color: AppColors.onSurface),
                             decoration: InputDecoration(
                               hintText: 'Search channels...',
-                              hintStyle:
-                                  GoogleFonts.karla(color: AppColors.onSurface54),
+                              hintStyle: AppTheme.font(
+                                color: AppColors.onSurface54,
+                              ),
                               border: InputBorder.none,
                               prefixIcon: const Icon(
                                 Icons.search,
@@ -171,8 +182,10 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                         if (_searchQuery.isNotEmpty)
                           GestureDetector(
                             onTap: () => _searchController.clear(),
-                            child:
-                                const Icon(Icons.close, color: AppColors.onSurface54),
+                            child: const Icon(
+                              Icons.close,
+                              color: AppColors.onSurface54,
+                            ),
                           ),
                       ],
                     ),
@@ -208,9 +221,10 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                             ),
                             child: Text(
                               category,
-                              style: GoogleFonts.karla(
-                                color:
-                                    isSelected ? Colors.black : AppColors.onSurfaceVariant,
+                              style: AppTheme.font(
+                                color: isSelected
+                                    ? Colors.black
+                                    : AppColors.onSurfaceVariant,
                                 fontWeight: isSelected
                                     ? FontWeight.w600
                                     : FontWeight.w500,
@@ -232,9 +246,9 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                         _searchQuery.isNotEmpty
                             ? 'Results'
                             : _showFavoritesOnly
-                                ? 'Favorites'
-                                : _selectedCategory ?? 'Channels',
-                        style: GoogleFonts.karla(
+                            ? 'Favorites'
+                            : _selectedCategory ?? 'Channels',
+                        style: AppTheme.font(
                           color: AppColors.onSurface,
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
@@ -286,7 +300,9 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                               const SizedBox(height: 16),
                               Text(
                                 'No channels found',
-                                style: GoogleFonts.karla(color: AppColors.onSurface38),
+                                style: AppTheme.font(
+                                  color: AppColors.onSurface38,
+                                ),
                               ),
                             ],
                           ),
@@ -340,10 +356,7 @@ class _MobileChannelTile extends ConsumerWidget {
   final Channel channel;
   final VoidCallback onTap;
 
-  const _MobileChannelTile({
-    required this.channel,
-    required this.onTap,
-  });
+  const _MobileChannelTile({required this.channel, required this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -386,7 +399,7 @@ class _MobileChannelTile extends ConsumerWidget {
               Expanded(
                 child: Text(
                   channel.name,
-                  style: GoogleFonts.karla(
+                  style: AppTheme.font(
                     color: AppColors.onSurface,
                     fontWeight: FontWeight.w500,
                     fontSize: 14,

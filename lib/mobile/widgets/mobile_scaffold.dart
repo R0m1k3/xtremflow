@@ -1,7 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 
 class MobileScaffold extends ConsumerWidget {
   final Widget child;
@@ -29,10 +30,7 @@ class MobileScaffold extends ConsumerWidget {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  AppColors.surfaceVariant,
-                  AppColors.background,
-                ],
+                colors: [AppColors.surfaceVariant, AppColors.background],
               ),
             ),
           ),
@@ -44,12 +42,7 @@ class MobileScaffold extends ConsumerWidget {
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
-          border: Border(
-            top: BorderSide(
-              color: AppColors.border,
-              width: 0.5,
-            ),
-          ),
+          border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
         ),
         child: BottomNavigationBar(
           currentIndex: currentIndex,
@@ -59,10 +52,14 @@ class MobileScaffold extends ConsumerWidget {
           elevation: 0,
           selectedItemColor: AppColors.primary,
           unselectedItemColor: AppColors.textSecondary,
-          selectedLabelStyle:
-              GoogleFonts.karla(fontWeight: FontWeight.w600, fontSize: 11),
-          unselectedLabelStyle:
-              GoogleFonts.karla(fontWeight: FontWeight.w500, fontSize: 11),
+          selectedLabelStyle: AppTheme.font(
+            fontWeight: FontWeight.w600,
+            fontSize: 11,
+          ),
+          unselectedLabelStyle: AppTheme.font(
+            fontWeight: FontWeight.w500,
+            fontSize: 11,
+          ),
           items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.live_tv_rounded),

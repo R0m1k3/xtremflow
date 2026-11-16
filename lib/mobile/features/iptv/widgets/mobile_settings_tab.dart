@@ -1,12 +1,13 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../../../features/auth/providers/auth_provider.dart';
 import '../../../../features/iptv/providers/settings_provider.dart';
 import '../../../../features/iptv/providers/xtream_provider.dart';
 import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class MobileSettingsTab extends ConsumerStatefulWidget {
   const MobileSettingsTab({super.key});
@@ -171,8 +172,10 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                     'Show Clock',
                     style: TextStyle(color: AppColors.onSurface),
                   ),
-                  secondary:
-                      const Icon(Icons.access_time, color: AppColors.primary),
+                  secondary: const Icon(
+                    Icons.access_time,
+                    color: AppColors.primary,
+                  ),
                   value: settings.showClock,
                   onChanged: (val) =>
                       ref.read(iptvSettingsProvider.notifier).setShowClock(val),
@@ -266,8 +269,10 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
                     'Auto Reconnect',
                     style: TextStyle(color: AppColors.onSurface),
                   ),
-                  secondary:
-                      const Icon(Icons.refresh, color: AppColors.primary),
+                  secondary: const Icon(
+                    Icons.refresh,
+                    color: AppColors.primary,
+                  ),
                   value: settings.autoReconnect,
                   onChanged: (val) => ref
                       .read(iptvSettingsProvider.notifier)
@@ -402,7 +407,7 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.only(left: 8, bottom: 8),
       child: Text(
         title,
-        style: GoogleFonts.karla(
+        style: AppTheme.font(
           fontSize: 14,
           fontWeight: FontWeight.w600,
           color: AppColors.onSurfaceVariant,
@@ -444,8 +449,10 @@ class _FilterInput extends StatelessWidget {
               ),
               TextField(
                 controller: controller,
-                style:
-                    const TextStyle(fontSize: 14, color: AppColors.onSurface),
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.onSurface,
+                ),
                 decoration: const InputDecoration(
                   isDense: true,
                   contentPadding: EdgeInsets.symmetric(vertical: 4),
@@ -507,7 +514,7 @@ class _SettingsButton extends StatelessWidget {
                   Text(
                     value!,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.karla(
+                    style: AppTheme.font(
                       color: AppColors.textTertiary,
                       fontSize: 11,
                     ),
@@ -551,10 +558,7 @@ class _DropdownSetting<T> extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
-                color: AppColors.onSurface,
-                fontSize: 16,
-              ),
+              style: const TextStyle(color: AppColors.onSurface, fontSize: 16),
             ),
           ),
           DropdownButton<T>(

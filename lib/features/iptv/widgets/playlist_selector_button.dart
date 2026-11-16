@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../providers/xtream_provider.dart';
 import '../screens/playlist_selection_screen.dart';
+import '../../../core/theme/app_theme.dart';
 
 /// Nomme l'IPTV active et permet d'en changer sans quitter l'onglet courant.
 ///
@@ -65,7 +66,7 @@ class PlaylistSelectorButton extends ConsumerWidget {
                       child: Text(
                         playlist.name,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.karla(
+                        style: AppTheme.font(
                           color: AppColors.textPrimary,
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
@@ -103,7 +104,7 @@ class PlaylistSelectorButton extends ConsumerWidget {
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.karla(
+                style: AppTheme.font(
                   color: AppColors.textTertiary,
                   fontSize: 11,
                 ),

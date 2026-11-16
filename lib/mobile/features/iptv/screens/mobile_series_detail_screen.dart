@@ -1,7 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../../../core/models/playlist_config.dart';
 import '../../../../features/iptv/models/xtream_models.dart';
 import '../../../../features/iptv/providers/xtream_provider.dart';
@@ -10,6 +10,7 @@ import '../../../../features/iptv/providers/watch_history_provider.dart';
 import 'mobile_player_screen.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/glass_container.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class MobileSeriesDetailScreen extends ConsumerStatefulWidget {
   final Series series;
@@ -96,7 +97,9 @@ class _MobileSeriesDetailScreenState
           ),
 
           if (_isLoading)
-            const Center(child: CircularProgressIndicator(color: AppColors.onSurface))
+            const Center(
+              child: CircularProgressIndicator(color: AppColors.onSurface),
+            )
           else if (_error != null)
             Center(
               child: Column(
@@ -110,7 +113,7 @@ class _MobileSeriesDetailScreenState
                   const SizedBox(height: 16),
                   Text(
                     'Error: $_error',
-                    style: GoogleFonts.karla(color: AppColors.onSurfaceVariant),
+                    style: AppTheme.font(color: AppColors.onSurfaceVariant),
                   ),
                   TextButton(
                     onPressed: _loadSeriesInfo,
@@ -187,7 +190,7 @@ class _MobileSeriesDetailScreenState
                     children: [
                       Text(
                         _seriesInfo!.name,
-                        style: GoogleFonts.karla(
+                        style: AppTheme.font(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: AppColors.onSurface,
@@ -205,7 +208,7 @@ class _MobileSeriesDetailScreenState
                             const SizedBox(width: 4),
                             Text(
                               _formatRating(_seriesInfo!.rating!)!,
-                              style: GoogleFonts.karla(
+                              style: AppTheme.font(
                                 color: AppColors.onSurfaceVariant,
                                 fontSize: 13,
                               ),
@@ -214,7 +217,7 @@ class _MobileSeriesDetailScreenState
                           ],
                           Text(
                             '${_seriesInfo!.episodes.keys.length} Seasons',
-                            style: GoogleFonts.karla(
+                            style: AppTheme.font(
                               color: AppColors.onSurfaceVariant,
                               fontSize: 13,
                             ),
@@ -236,7 +239,10 @@ class _MobileSeriesDetailScreenState
               padding: const EdgeInsets.all(16.0),
               child: Text(
                 _seriesInfo!.plot!,
-                style: GoogleFonts.karla(color: AppColors.onSurfaceVariant, height: 1.4),
+                style: AppTheme.font(
+                  color: AppColors.onSurfaceVariant,
+                  height: 1.4,
+                ),
                 maxLines: 4,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -263,8 +269,10 @@ class _MobileSeriesDetailScreenState
                   },
                   backgroundColor: AppColors.surfaceContainer,
                   selectedColor: AppColors.primary,
-                  labelStyle: GoogleFonts.karla(
-                    color: isSelected ? AppColors.onPrimary : AppColors.onSurfaceVariant,
+                  labelStyle: AppTheme.font(
+                    color: isSelected
+                        ? AppColors.onPrimary
+                        : AppColors.onSurfaceVariant,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                   ),
                   shape: RoundedRectangleBorder(
@@ -284,16 +292,13 @@ class _MobileSeriesDetailScreenState
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
           sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final episode = currentEpisodes[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _buildEpisodeTile(episode),
-                );
-              },
-              childCount: currentEpisodes.length,
-            ),
+            delegate: SliverChildBuilderDelegate((context, index) {
+              final episode = currentEpisodes[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _buildEpisodeTile(episode),
+              );
+            }, childCount: currentEpisodes.length),
           ),
         ),
       ],
@@ -358,7 +363,7 @@ class _MobileSeriesDetailScreenState
                   children: [
                     Text(
                       'E${episode.episodeNum} - ${episode.title}',
-                      style: GoogleFonts.karla(
+                      style: AppTheme.font(
                         color: AppColors.onSurface,
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
@@ -370,7 +375,7 @@ class _MobileSeriesDetailScreenState
                         episode.durationSecs! > 0)
                       Text(
                         _formatDuration(episode.durationSecs!),
-                        style: GoogleFonts.karla(
+                        style: AppTheme.font(
                           color: AppColors.onSurfaceVariant,
                           fontSize: 12,
                         ),

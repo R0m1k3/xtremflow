@@ -1,7 +1,7 @@
 name: xtremflow
 description: High-performance IPTV Web Application with Xtream Codes API
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.1.0+2
 
 environment:
   sdk: ^3.13.0
@@ -34,7 +34,6 @@ dependencies:
   chewie: ^1.8.3
   
   # UI Components
-  google_fonts: ^6.2.1
   cached_network_image: ^3.3.1
   pointer_interceptor: ^0.10.1
   lottie: ^2.7.0
@@ -64,10 +63,15 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # NOTE : ne pas re-embarquer les polices via assets/google_fonts/ sans
-  # verifier la signature des fichiers (un TTF valide commence par
-  # 00 01 00 00). Une tentative precedente a embarque des fichiers invalides
-  # que Skia refusait, avec pour resultat "Failed to parse font family" et un
-  # rendu en police de repli. Les seuls fichiers officiels disponibles sont
-  # des polices VARIABLES, que google_fonts ne sait pas mapper par graisse en
-  # mode assets : un embarquement correct demande des instances statiques.
+  # Figtree (OFL, assets/fonts/OFL.txt) : instances statiques 400/500/600,
+  # signature TTF 00 01 00 00 verifiee. Aucune requete vers Google : la charte
+  # ramene toute graisse superieure a 600 (AppTheme.font).
+  fonts:
+    - family: Figtree
+      fonts:
+        - asset: assets/fonts/Figtree-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Figtree-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Figtree-SemiBold.ttf
+          weight: 600

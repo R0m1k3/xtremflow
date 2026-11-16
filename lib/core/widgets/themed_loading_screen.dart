@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 
 /// Écran de chargement « Warm Cinema » — salle qui s'éteint avant projection.
 class ThemedLoading extends StatelessWidget {
@@ -38,7 +39,7 @@ class _LoadingLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       'PROJECTION',
-      style: GoogleFonts.karla(
+      style: AppTheme.font(
         color: AppColors.textTertiary,
         fontSize: 11,
         fontWeight: FontWeight.w700,

@@ -1,8 +1,8 @@
-﻿
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 
@@ -10,11 +10,7 @@ class HeroCarousel extends StatefulWidget {
   final List<HeroItem> items;
   final Function(HeroItem) onTap;
 
-  const HeroCarousel({
-    super.key,
-    required this.items,
-    required this.onTap,
-  });
+  const HeroCarousel({super.key, required this.items, required this.onTap});
 
   @override
   State<HeroCarousel> createState() => _HeroCarouselState();
@@ -76,7 +72,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
         itemBuilder: (context, index) {
           final item = widget.items[index];
           final isActive = index == _currentPage;
-          
+
           return AnimatedScale(
             duration: const Duration(milliseconds: 500),
             scale: isActive ? 1.0 : 0.9,
@@ -86,7 +82,10 @@ class _HeroCarouselState extends State<HeroCarousel> {
               child: GestureDetector(
                 onTap: () => widget.onTap(item),
                 child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                     boxShadow: [
@@ -108,13 +107,18 @@ class _HeroCarouselState extends State<HeroCarousel> {
                           imageUrl: item.imageUrl,
                           fit: BoxFit.cover,
                           memCacheWidth: 1280,
-                          placeholder: (context, url) => Container(color: AppColors.surfaceContainerLow),
+                          placeholder: (context, url) =>
+                              Container(color: AppColors.surfaceContainerLow),
                           errorWidget: (context, url, error) => Container(
                             color: AppColors.surfaceContainerLow,
-                            child: const Icon(Icons.movie, size: 64, color: AppColors.outline),
+                            child: const Icon(
+                              Icons.movie,
+                              size: 64,
+                              color: AppColors.outline,
+                            ),
                           ),
                         ),
-                        
+
                         // Gradient Overlay
                         Container(
                           decoration: BoxDecoration(
@@ -130,7 +134,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                             ),
                           ),
                         ),
-                        
+
                         // Content
                         Positioned(
                           bottom: 32,
@@ -141,7 +145,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                             children: [
                               Text(
                                 item.title,
-                                style: GoogleFonts.fraunces(
+                                style: AppTheme.font(
                                   fontSize: 32,
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.onSurface,
@@ -153,7 +157,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                                 const SizedBox(height: 8),
                                 Text(
                                   item.subtitle!,
-                                  style: GoogleFonts.karla(
+                                  style: AppTheme.font(
                                     fontSize: 16,
                                     color: AppColors.onSurface,
                                   ),
@@ -223,7 +227,9 @@ class _HeroButtonState extends State<_HeroButton> {
             gradient: widget.isPrimary ? AppColors.primaryGradient : null,
             color: widget.isPrimary
                 ? null
-                : (_isHovered ? AppColors.surfaceContainerHigh : AppColors.surfaceContainer),
+                : (_isHovered
+                      ? AppColors.surfaceContainerHigh
+                      : AppColors.surfaceContainer),
             borderRadius: BorderRadius.circular(AppTheme.radiusFull),
             boxShadow: widget.isPrimary
                 ? [
@@ -238,15 +244,11 @@ class _HeroButtonState extends State<_HeroButton> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                widget.icon,
-                color: AppColors.onSurface,
-                size: 20,
-              ),
+              Icon(widget.icon, color: AppColors.onSurface, size: 20),
               const SizedBox(width: 8),
               Text(
                 widget.label,
-                style: GoogleFonts.karla(
+                style: AppTheme.font(
                   color: AppColors.onSurface,
                   fontWeight: FontWeight.w600,
                 ),
