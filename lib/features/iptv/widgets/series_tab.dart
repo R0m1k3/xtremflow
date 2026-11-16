@@ -4,17 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/playlist_config.dart';
+import '../../../core/navigation/search_requests.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../../core/widgets/hero_carousel.dart';
-import '../../../core/widgets/glass_container.dart';
-import '../../../core/widgets/tv_focusable_card.dart';
 
 import '../models/xtream_models.dart';
 import '../providers/xtream_provider.dart';
 import '../providers/settings_provider.dart';
 import '../screens/series_detail_screen.dart';
-import '../../../core/theme/app_theme.dart';
+import 'live_widgets.dart' show SectionTitle;
+import 'movies_tab.dart' show PosterCard;
 
 class SeriesTab extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
@@ -26,8 +27,11 @@ class SeriesTab extends ConsumerStatefulWidget {
 }
 
 class _SeriesTabState extends ConsumerState<SeriesTab> {
+  static const _tabIndex = 2;
+
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode(debugLabel: 'series-search');
   final List<Series> _series = [];
   List<Series>? _searchResults;
   String _searchQuery = '';
@@ -43,14 +47,23 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
     super.initState();
     _loadMoreSeries();
     _scrollController.addListener(_onScroll);
+    searchRequests.addListener(_onSearchRequest);
   }
 
   @override
   void dispose() {
+    searchRequests.removeListener(_onSearchRequest);
     _scrollController.dispose();
     _searchController.dispose();
+    _searchFocus.dispose();
     _searchDebounce?.cancel();
     super.dispose();
+  }
+
+  /// « Rechercher » of the side rail, while Séries is on screen.
+  void _onSearchRequest() {
+    if (activeTab.value != _tabIndex || !mounted) return;
+    _searchFocus.requestFocus();
   }
 
   void _onScroll() {
@@ -125,8 +138,9 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Failed to load series: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Impossible de charger les séries : $e')),
+        );
       }
     }
   }
@@ -158,12 +172,57 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
     );
   }
 
+  Series _resolve(Series s) => _series.firstWhere(
+    (element) => element.seriesId.toString() == s.seriesId.toString(),
+    orElse: () => s,
+  );
+
+  Widget _searchField() {
+    return SizedBox(
+      width: 340,
+      child: TextField(
+        controller: _searchController,
+        focusNode: _searchFocus,
+        cursorColor: AppColors.accent,
+        style: AppTheme.body(fontSize: 15),
+        textInputAction: TextInputAction.search,
+        onChanged: _onSearchChanged,
+        decoration: InputDecoration(
+          hintText: 'Rechercher une série',
+          prefixIcon: const Icon(Icons.search_rounded, size: 20),
+          suffixIcon: _isSearching
+              ? const Padding(
+                  padding: EdgeInsets.all(14),
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : _searchQuery.isEmpty
+              ? null
+              : IconButton(
+                  tooltip: 'Effacer',
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  onPressed: () {
+                    _searchController.clear();
+                    _onSearchChanged('');
+                  },
+                ),
+          isDense: true,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(iptvSettingsProvider);
 
+    final bool showingResults =
+        _searchQuery.isNotEmpty && _searchResults != null;
     List<Series> displaySeries;
-    if (_searchQuery.isNotEmpty && _searchResults != null) {
+    if (showingResults) {
       displaySeries = _searchResults!;
     } else {
       displaySeries = settings.seriesKeywords.isEmpty
@@ -173,7 +232,6 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
                 .toList();
     }
 
-    const double gridItemRatio = 0.65;
     final int crossAxisCount = ResponsiveLayout.value(
       context,
       mobile: 3,
@@ -186,279 +244,98 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
-          // Header
+          // Header: title and search field
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-              child: GlassContainer.glass(
-                borderRadius: 100,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      'TV Series',
-                      style: AppTheme.font(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.onSurface,
+              padding: const EdgeInsets.fromLTRB(32, 28, 32, 18),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Séries',
+                      style: AppTheme.display(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const Spacer(),
-                    Container(
-                      width: 300,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(100),
-                        border: Border.all(
-                          color: AppColors.outlineVariant,
-                          width: 1,
-                        ),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.search,
-                            size: 20,
-                            color: AppColors.outline,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextField(
-                              controller: _searchController,
-                              style: AppTheme.font(
-                                fontSize: 14,
-                                color: AppColors.onSurface,
-                              ),
-                              decoration: InputDecoration(
-                                hintText: 'Search series...',
-                                hintStyle: AppTheme.font(
-                                  color: AppColors.outline,
-                                ),
-                                border: InputBorder.none,
-                                isDense: true,
-                                contentPadding: const EdgeInsets.only(
-                                  bottom: 12,
-                                ),
-                              ),
-                              onChanged: _onSearchChanged,
-                            ),
-                          ),
-                          if (_isSearching)
-                            const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.onSurface,
-                              ),
-                            ),
-                          if (_searchQuery.isNotEmpty)
-                            GestureDetector(
-                              onTap: () {
-                                _searchController.clear();
-                                _onSearchChanged('');
-                              },
-                              child: Icon(
-                                Icons.close,
-                                size: 16,
-                                color: AppColors.onSurface,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 16),
+                  _searchField(),
+                ],
               ),
             ),
           ),
 
-          // Hero Carousel
+          // Hero carousel (only when not searching)
           if (_searchQuery.isEmpty && displaySeries.isNotEmpty)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.only(bottom: 32),
-                child: HeroCarousel(
-                  items: displaySeries
-                      .take(5)
-                      .map(
-                        (s) => HeroCarouselItem(
-                          id: s.seriesId.toString(),
-                          title: s.name,
-                          imageUrl: _getProxiedImageUrl(s.cover),
-                          subtitle: s.rating != null
-                              ? '${_formatRating(s.rating)} ★'
-                              : null,
-                          onPlay: () {
-                            final series = _series.firstWhere(
-                              (element) =>
-                                  element.seriesId.toString() ==
-                                  s.seriesId.toString(),
-                              orElse: () => s,
-                            );
-                            _openSeries(series);
-                          },
-                          onTap: () {
-                            final series = _series.firstWhere(
-                              (element) =>
-                                  element.seriesId.toString() ==
-                                  s.seriesId.toString(),
-                              orElse: () => s,
-                            );
-                            _openSeries(series);
-                          },
-                        ),
-                      )
-                      .toList(),
+                padding: const EdgeInsets.fromLTRB(32, 6, 32, 32),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: HeroCarousel(
+                    items: displaySeries
+                        .take(5)
+                        .map(
+                          (s) => HeroCarouselItem(
+                            id: s.seriesId.toString(),
+                            title: s.name,
+                            imageUrl: _getProxiedImageUrl(s.cover),
+                            subtitle: s.rating != null
+                                ? 'Note ${_formatRating(s.rating)}'
+                                : null,
+                            onPlay: () => _openSeries(_resolve(s)),
+                            onTap: () => _openSeries(_resolve(s)),
+                          ),
+                        )
+                        .toList(),
+                  ),
                 ),
               ),
             ),
 
-          // Grid
           SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            sliver: SliverGrid(
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossAxisCount,
-                crossAxisSpacing: 20,
-                mainAxisSpacing: 20,
-                childAspectRatio: gridItemRatio,
-              ),
-              delegate: SliverChildBuilderDelegate((context, index) {
-                if (index >= displaySeries.length) return null;
-                final serie = displaySeries[index];
-                return TvFocusableCard(
-                  onTap: () => _openSeries(serie),
-                  borderRadius: 12,
-                  semanticLabel: 'Série ${serie.name}',
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      // Poster Image
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: serie.cover != null && serie.cover!.isNotEmpty
-                            ? Image.network(
-                                _getProxiedImageUrl(serie.cover),
-                                fit: BoxFit.cover,
-                                cacheWidth: 400,
-                                filterQuality: FilterQuality.low,
-                                errorBuilder: (ctx, err, stack) => Container(
-                                  color: AppColors.surfaceContainerLow,
-                                  child: Center(
-                                    child: Icon(
-                                      Icons.tv,
-                                      size: 48,
-                                      color: AppColors.outline,
-                                    ),
-                                  ),
-                                ),
-                              )
-                            : Container(
-                                color: AppColors.surfaceContainerLow,
-                                child: Center(
-                                  child: Icon(
-                                    Icons.tv,
-                                    size: 48,
-                                    color: AppColors.outline,
-                                  ),
-                                ),
-                              ),
-                      ),
+            padding: const EdgeInsets.fromLTRB(32, 0, 32, 14),
+            sliver: SliverToBoxAdapter(
+              child: showingResults
+                  ? SectionTitle('Résultats', count: displaySeries.length)
+                  : const SectionTitle('Toutes les séries'),
+            ),
+          ),
 
-                      // Gradient Overlay
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        height: 80,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.transparent,
-                                AppColors.baseLevel0.withOpacity(0.9),
-                              ],
-                            ),
-                            borderRadius: const BorderRadius.vertical(
-                              bottom: Radius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // Title
-                      Positioned(
-                        left: 12,
-                        right: 12,
-                        bottom: 12,
-                        child: Text(
-                          serie.name,
-                          style: AppTheme.font(
-                            color: AppColors.onSurface,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            shadows: [
-                              const Shadow(
-                                color: AppColors.background,
-                                blurRadius: 4,
-                              ),
-                            ],
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-
-                      // Rating Badge
-                      if (serie.rating != null && serie.rating!.isNotEmpty)
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.background.withOpacity(0.7),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: AppColors.outlineVariant,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.star,
-                                  size: 10,
-                                  color: AppColors.ratingGold,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _formatRating(serie.rating)!,
-                                  style: AppTheme.font(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.onSurface,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
+          // Series grid
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            sliver: SliverLayoutBuilder(
+              builder: (context, constraints) {
+                const spacing = 20.0;
+                final tileWidth =
+                    (constraints.crossAxisExtent -
+                        spacing * (crossAxisCount - 1)) /
+                    crossAxisCount;
+                return SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: spacing,
+                    mainAxisSpacing: spacing,
+                    mainAxisExtent: PosterCard.extentFor(tileWidth),
                   ),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    if (index >= displaySeries.length) return null;
+                    final serie = displaySeries[index];
+                    return PosterCard(
+                      title: serie.name,
+                      imageUrl: serie.cover != null && serie.cover!.isNotEmpty
+                          ? _getProxiedImageUrl(serie.cover)
+                          : null,
+                      rating: _formatRating(serie.rating),
+                      placeholderIcon: Icons.tv_rounded,
+                      semanticLabel: 'Série ${serie.name}',
+                      onPressed: () => _openSeries(serie),
+                    );
+                  }, childCount: displaySeries.length),
                 );
-              }, childCount: displaySeries.length),
+              },
             ),
           ),
 
@@ -467,9 +344,7 @@ class _SeriesTabState extends ConsumerState<SeriesTab> {
             const SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.all(32),
-                child: Center(
-                  child: CircularProgressIndicator(color: AppColors.onSurface),
-                ),
+                child: Center(child: CircularProgressIndicator()),
               ),
             ),
 
