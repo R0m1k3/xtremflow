@@ -5,7 +5,9 @@ import '../../../core/api/authed_http.dart';
 import '../../../core/models/playlist_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/glass.dart';
+import '../../../core/navigation/search_requests.dart';
 import '../../../core/widgets/side_rail.dart';
+import '../widgets/live_preview_controller.dart';
 import '../widgets/live_tv_tab.dart';
 import '../widgets/movies_tab.dart';
 import '../widgets/series_tab.dart';
@@ -35,7 +37,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   void _select(int index) {
     if (index == _selectedIndex) return;
+    // Leaving the Direct tab: the preview gives its connection back.
+    if (_selectedIndex == 0) ref.read(livePreviewProvider.notifier).stop();
     setState(() => _selectedIndex = index);
+    activeTab.value = index;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    activeTab.value = _selectedIndex;
   }
 
   @override

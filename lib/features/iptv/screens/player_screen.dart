@@ -380,7 +380,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (iframe == null) {
       final iframes = html.document.getElementsByTagName('iframe');
       for (final frame in iframes) {
+        // L'aperçu du Direct (name="xf-preview") n'est jamais la cible.
         if (frame is html.IFrameElement &&
+            frame.name != 'xf-preview' &&
             (frame.src?.contains('player_lite.html') == true ||
                 frame.src?.contains('player.html') == true ||
                 frame.src?.contains('player_mobile.html') == true)) {

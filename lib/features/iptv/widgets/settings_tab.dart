@@ -8,7 +8,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/xtream_provider.dart';
 import 'streaming_settings_tab.dart';
-import '../../../core/providers/theme_provider.dart';
+import '../../../core/widgets/glass_container.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../admin/screens/admin_panel.dart';
 import '../../../core/theme/app_theme.dart';
@@ -96,7 +96,10 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             tabs: [
               const Tab(icon: Icon(Icons.filter_list), text: 'Filtres'),
               const Tab(icon: Icon(Icons.stream), text: 'Streaming'),
-              const Tab(icon: Icon(Icons.palette), text: 'Apparence'),
+              const Tab(
+                icon: Icon(Icons.smart_display_outlined),
+                text: 'Lecture',
+              ),
               if (currentUser?.isAdmin ?? false)
                 const Tab(
                   icon: Icon(Icons.admin_panel_settings),
@@ -117,8 +120,8 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
               // Streaming Tab
               const StreamingSettingsTab(),
 
-              // Appearance Tab
-              _buildAppearanceTab(context),
+              // Playback Tab
+              _buildPlaybackTab(context, settings),
 
               // Admin Tab
               if (currentUser?.isAdmin ?? false) const AdminContent(),
@@ -129,178 +132,39 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
     );
   }
 
-  /// Build Appearance tab with theme toggle
-  Widget _buildAppearanceTab(BuildContext context) {
-    final themeState = ref.watch(themeProvider);
-    final themeNotifier = ref.read(themeProvider.notifier);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
+  /// Lecture : réglages d'affichage du direct. (L'ancien onglet Apparence
+  /// choisissait un thème clair ou sombre ; la charte n'a qu'un mode sombre.)
+  Widget _buildPlaybackTab(BuildContext context, IptvSettings settings) {
+    final notifier = ref.read(iptvSettingsProvider.notifier);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Theme selection card
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.outlineVariant),
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.dark_mode, color: AppColors.onSurface),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Thème',
-                    style: AppTheme.font(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.onSurface,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Theme options
-              _buildThemeOption(
-                context: context,
-                title: 'Système',
-                subtitle: 'Suivre les paramètres du système',
-                icon: Icons.settings_suggest,
-                isSelected: themeState.appThemeMode == AppThemeMode.system,
-                onTap: () => themeNotifier.setThemeMode(AppThemeMode.system),
-              ),
-              const SizedBox(height: 8),
-              _buildThemeOption(
-                context: context,
-                title: 'Sombre',
-                subtitle: 'Interface sombre premium',
-                icon: Icons.dark_mode,
-                isSelected: themeState.appThemeMode == AppThemeMode.dark,
-                onTap: () => themeNotifier.setThemeMode(AppThemeMode.dark),
-              ),
-              const SizedBox(height: 8),
-              _buildThemeOption(
-                context: context,
-                title: 'Clair',
-                subtitle: 'Interface claire et lumineuse',
-                icon: Icons.light_mode,
-                isSelected: themeState.appThemeMode == AppThemeMode.light,
-                onTap: () => themeNotifier.setThemeMode(AppThemeMode.light),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 16),
-
-        // Quick toggle card
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.outlineVariant),
-          ),
-          child: ListTile(
-            leading: Icon(
-              isDark ? Icons.dark_mode : Icons.light_mode,
-              color: AppColors.onSurface,
+        GlassContainer(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: SwitchListTile(
+            value: settings.livePreview,
+            onChanged: notifier.setLivePreview,
+            secondary: const Icon(
+              Icons.smart_display_outlined,
+              color: AppColors.accent,
             ),
             title: Text(
-              'Mode actuel',
-              style: AppTheme.font(
-                fontWeight: FontWeight.w500,
-                color: AppColors.onSurface,
-              ),
+              'Aperçu vidéo dans le Direct',
+              style: AppTheme.body(fontSize: 16, fontWeight: FontWeight.w500),
             ),
             subtitle: Text(
-              isDark ? 'Thème sombre actif' : 'Thème clair actif',
-              style: const TextStyle(color: AppColors.onSurfaceVariant),
-            ),
-            trailing: Switch(
-              value: isDark,
-              onChanged: (_) => themeNotifier.toggleTheme(),
-              activeThumbColor: AppColors.primary,
-              trackColor: WidgetStateProperty.resolveWith(
-                (states) => states.contains(WidgetState.selected)
-                    ? AppColors.primary.withOpacity(0.5)
-                    : AppColors.surfaceContainerHigh,
+              "Image muette de la chaîne survolée, dans le panneau de droite. "
+              "Elle utilise une connexion de l'abonnement, rendue dès qu'on "
+              'quitte la liste ou qu\'on ouvre le plein écran.',
+              style: AppTheme.body(
+                fontSize: 14,
+                height: 1.4,
+                color: AppColors.textSecondary,
               ),
             ),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildThemeOption({
-    required BuildContext context,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? colorScheme.primary.withOpacity(0.1)
-              : colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? colorScheme.primary : Colors.transparent,
-            width: 2,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: isSelected
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: AppTheme.font(
-                      fontWeight: FontWeight.w600,
-                      color: isSelected
-                          ? colorScheme.primary
-                          : colorScheme.onSurface,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: AppTheme.font(
-                      fontSize: 12,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (isSelected)
-              Icon(Icons.check_circle, color: colorScheme.primary),
-          ],
-        ),
-      ),
     );
   }
 
