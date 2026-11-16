@@ -10,6 +10,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/components/ui_components.dart';
 import '../../iptv/screens/playlist_selection_screen.dart';
+import '../../../core/theme/glass.dart';
 
 /// Users provider for admin panel
 final usersProvider = FutureProvider<List<AppUser>>((ref) async {
@@ -24,14 +25,8 @@ class AdminPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      backgroundColor: AppColors.baseLevel0,
-      body: Container(
-        // Meme precaution que sur l'ecran de selection de playlist : sans
-        // contrainte d'expansion, le degrade ne couvre que le contenu.
-        constraints: const BoxConstraints.expand(),
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
-        child: const AdminContent(),
-      ),
+      backgroundColor: AppColors.background,
+      body: const AmbientBackground(child: AdminContent()),
     );
   }
 }

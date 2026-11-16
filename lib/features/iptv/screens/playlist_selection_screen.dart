@@ -9,6 +9,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/xtream_provider.dart';
+import '../../../core/theme/glass.dart';
 
 /// Provider for fetching playlists from API
 final playlistsProvider = FutureProvider<List<PlaylistConfig>>((ref) async {
@@ -28,7 +29,7 @@ class PlaylistSelectionScreen extends ConsumerWidget {
       extendBodyBehindAppBar: true,
       // Filet de securite : meme pendant une transition de route, le fond
       // reste dans la palette au lieu de virer au noir pur.
-      backgroundColor: AppColors.baseLevel0,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(
           'Select Playlist',
@@ -61,14 +62,7 @@ class PlaylistSelectionScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: Container(
-        // `BoxConstraints.expand()` est indispensable ici : sous les
-        // contraintes laches du body, ce Container se dimensionnait sur son
-        // contenu (SingleChildScrollView -> Wrap shrink-wrappent tous les
-        // deux), si bien que le degrade n'etait peint que sur un rectangle
-        // de la taille des cartes, le reste de l'ecran restant noir.
-        constraints: const BoxConstraints.expand(),
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+      body: AmbientBackground(
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
