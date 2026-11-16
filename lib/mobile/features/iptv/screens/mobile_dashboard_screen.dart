@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/api/authed_http.dart';
 import '../../../../core/models/playlist_config.dart';
 import '../../../widgets/mobile_scaffold.dart';
@@ -12,14 +13,12 @@ import '../widgets/mobile_settings_tab.dart';
 
 class MobileDashboardScreen extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
-  
-  const MobileDashboardScreen({
-    super.key, 
-    required this.playlist,
-  });
+
+  const MobileDashboardScreen({super.key, required this.playlist});
 
   @override
-  ConsumerState<MobileDashboardScreen> createState() => _MobileDashboardScreenState();
+  ConsumerState<MobileDashboardScreen> createState() =>
+      _MobileDashboardScreenState();
 }
 
 class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {

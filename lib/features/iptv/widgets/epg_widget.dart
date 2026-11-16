@@ -6,6 +6,7 @@ import '../providers/xtream_provider.dart';
 import '../models/xtream_models.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/glass.dart';
 
 class EPGWidget extends ConsumerStatefulWidget {
   final String channelId;
@@ -52,15 +53,21 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
     if (_isLoading) {
       return Container(
         padding: const EdgeInsets.all(8),
-        child: const Row(
+        child: Row(
           children: [
-            SizedBox(
+            const SizedBox(
               width: 12,
               height: 12,
-              child: CircularProgressIndicator(strokeWidth: 1.5),
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                color: AppColors.accent,
+              ),
             ),
-            SizedBox(width: 8),
-            Text('Loading EPG...', style: TextStyle(fontSize: 10)),
+            const SizedBox(width: 8),
+            Text(
+              'Chargement du guide…',
+              style: AppTheme.body(fontSize: 12, color: AppColors.textMuted),
+            ),
           ],
         ),
       );
@@ -72,11 +79,8 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: AppColors.background.withOpacity(0.6),
-        borderRadius: BorderRadius.circular(4),
-      ),
+      padding: const EdgeInsets.all(10),
+      decoration: const GlassDecoration(radius: 10, halo: false),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -91,15 +95,15 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.error,
-                    borderRadius: BorderRadius.circular(3),
+                    color: AppColors.accentFill,
+                    borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    'LIVE',
-                    style: AppTheme.font(
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.onSurface,
+                    'En direct',
+                    style: AppTheme.body(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.accent,
                     ),
                   ),
                 ),
@@ -107,10 +111,9 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
                 Expanded(
                   child: Text(
                     _epg!.nowPlaying!,
-                    style: AppTheme.font(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.onSurface,
+                    style: AppTheme.body(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -126,9 +129,9 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
                 borderRadius: BorderRadius.circular(2),
                 child: LinearProgressIndicator(
                   value: _epg!.progress!.clamp(0.0, 1.0),
-                  backgroundColor: AppColors.outlineVariant,
+                  backgroundColor: AppColors.track,
                   valueColor: const AlwaysStoppedAnimation<Color>(
-                    AppColors.error,
+                    AppColors.live,
                   ),
                   minHeight: 3,
                 ),
@@ -141,14 +144,18 @@ class _EPGWidgetState extends ConsumerState<EPGWidget> {
             const SizedBox(height: 6),
             Row(
               children: [
-                Icon(Icons.upcoming, size: 12, color: AppColors.outline),
+                const Icon(
+                  Icons.upcoming,
+                  size: 14,
+                  color: AppColors.textMuted,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Next: ${_epg!.nextPlaying}',
-                    style: AppTheme.font(
-                      fontSize: 10,
-                      color: AppColors.outline,
+                    'Ensuite : ${_epg!.nextPlaying}',
+                    style: AppTheme.body(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

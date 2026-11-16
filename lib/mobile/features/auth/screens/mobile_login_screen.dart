@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../features/auth/providers/auth_provider.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/glass_container.dart';
-import '../../../theme/mobile_theme.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/glass.dart';
+import '../../../../core/widgets/xtremflow_mark.dart';
+import '../../../../features/auth/providers/auth_provider.dart';
+import '../../../theme/mobile_theme.dart';
 
 class MobileLoginScreen extends ConsumerStatefulWidget {
   const MobileLoginScreen({super.key});
@@ -58,191 +59,110 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
       data: MobileTheme.darkTheme,
       child: Scaffold(
         resizeToAvoidBottomInset: false,
-        backgroundColor: AppColors.background,
-        body: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Cinematic Background Gradient
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.baseLevel0,
-                    AppColors.surfaceContainerLowest,
-                    AppColors.baseLevel0,
-                  ],
-                ),
-              ),
-            ),
-            // Ambient Glow Top Left
-            Positioned(
-              top: -100,
-              left: -100,
-              child: Container(
-                width: 300,
-                height: 300,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.primary.withOpacity(0.15),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.15),
-                      blurRadius: 150,
-                      spreadRadius: 50,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Content
-            Center(
+        backgroundColor: Colors.transparent,
+        body: AmbientBackground(
+          child: SafeArea(
+            child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
-                child: GlassContainer.floating(
-                  borderRadius: 24,
-                  padding: const EdgeInsets.all(32),
+                padding: const EdgeInsets.all(20),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Logo / Icon
+                      const Center(
+                        child: XtremFlowWordmark(markHeight: 34, fontSize: 26),
+                      ),
+                      const SizedBox(height: 32),
                       Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceContainer,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.outlineVariant),
+                        decoration: const GlassDecoration(
+                          radius: 16,
+                          halo: false,
                         ),
-                        child: const Icon(
-                          Icons.live_tv_rounded,
-                          color: AppColors.onSurface,
-                          size: 40,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        'XtremFlow',
-                        style: AppTheme.font(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.onSurface,
-                          letterSpacing: -1.0,
-                        ),
-                      ),
-                      Text(
-                        'Mobile Edition',
-                        style: AppTheme.font(
-                          fontSize: 14,
-                          color: AppColors.onSurfaceVariant,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 48),
-
-                      // Form
-                      Form(
-                        key: _formKey,
-                        child: Column(
-                          children: [
-                            _buildInput(
-                              controller: _usernameController,
-                              label: 'Username',
-                              icon: Icons.person_outline_rounded,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildInput(
-                              controller: _passwordController,
-                              label: 'Password',
-                              icon: Icons.lock_outline_rounded,
-                              isPassword: true,
-                              obscureText: _obscurePassword,
-                              onTogglePassword: () => setState(
-                                () => _obscurePassword = !_obscurePassword,
+                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                'Connexion',
+                                style: AppTheme.display(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                              onSubmitted: (_) => _handleLogin(),
-                            ),
-
-                            if (authState.errorMessage != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Votre compte XtremFlow',
+                                style: AppTheme.body(
+                                  fontSize: 15,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
                               const SizedBox(height: 24),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
+                              _buildInput(
+                                controller: _usernameController,
+                                label: 'Nom d’utilisateur',
+                                icon: Icons.person_outline_rounded,
+                              ),
+                              const SizedBox(height: 12),
+                              _buildInput(
+                                controller: _passwordController,
+                                label: 'Mot de passe',
+                                icon: Icons.lock_outline_rounded,
+                                isPassword: true,
+                                obscureText: _obscurePassword,
+                                onTogglePassword: () => setState(
+                                  () => _obscurePassword = !_obscurePassword,
                                 ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.error.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: AppColors.error.withOpacity(0.3),
+                                onSubmitted: (_) => _handleLogin(),
+                              ),
+                              if (authState.errorMessage != null) ...[
+                                const SizedBox(height: 16),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.errorContainer,
+                                    borderRadius: BorderRadius.circular(
+                                      AppTheme.radiusMd,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    authState.errorMessage!,
+                                    style: AppTheme.body(
+                                      fontSize: 14,
+                                      color: AppColors.onErrorContainer,
+                                    ),
+                                    textAlign: TextAlign.center,
                                   ),
                                 ),
-                                child: Text(
-                                  authState.errorMessage!,
-                                  style: AppTheme.font(
-                                    color: AppColors.error,
-                                    fontSize: 13,
-                                  ),
-                                  textAlign: TextAlign.center,
+                              ],
+                              const SizedBox(height: 24),
+                              SizedBox(
+                                height: 52,
+                                child: FilledButton(
+                                  onPressed: authState.isLoading
+                                      ? null
+                                      : _handleLogin,
+                                  child: authState.isLoading
+                                      ? const SizedBox(
+                                          width: 22,
+                                          height: 22,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        )
+                                      : const Text('Se connecter'),
                                 ),
                               ),
                             ],
-
-                            const SizedBox(height: 32),
-
-                            Container(
-                              width: double.infinity,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                gradient: AppColors.primaryGradient,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.glowPrimary(0.4),
-                                    blurRadius: 16,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: FilledButton(
-                                onPressed: authState.isLoading
-                                    ? null
-                                    : _handleLogin,
-                                style:
-                                    FilledButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      foregroundColor: AppColors.onSurface,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      elevation: 0,
-                                    ).copyWith(
-                                      overlayColor: WidgetStateProperty.all(
-                                        AppColors.onSurface.withOpacity(0.1),
-                                      ),
-                                    ),
-                                child: authState.isLoading
-                                    ? const SizedBox(
-                                        width: 24,
-                                        height: 24,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: AppColors.onSurface,
-                                        ),
-                                      )
-                                    : Text(
-                                        'Sign In',
-                                        style: AppTheme.font(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 16,
-                                          color: AppColors.onSurface,
-                                        ),
-                                      ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ],
@@ -250,7 +170,7 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                 ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -268,46 +188,34 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
-      style: AppTheme.font(color: AppColors.onSurface),
+      style: AppTheme.body(fontSize: 16),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: AppTheme.font(color: AppColors.onSurfaceVariant),
-        prefixIcon: Icon(icon, color: AppColors.onSurfaceVariant),
+        labelStyle: AppTheme.body(fontSize: 15, color: AppColors.textMuted),
+        floatingLabelStyle: AppTheme.body(
+          fontSize: 14,
+          color: AppColors.textSecondary,
+        ),
+        prefixIcon: Icon(icon, color: AppColors.textMuted),
         suffixIcon: isPassword
             ? IconButton(
+                tooltip: obscureText
+                    ? 'Afficher le mot de passe'
+                    : 'Masquer le mot de passe',
                 icon: Icon(
                   obscureText
                       ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined,
-                  color: AppColors.outline,
+                  color: AppColors.textMuted,
                 ),
                 onPressed: onTogglePassword,
               )
             : null,
-        filled: true,
-        fillColor: AppColors.surfaceContainerLow,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: AppColors.primaryContainer,
-            width: 2,
-          ),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 16,
-        ),
+        fillColor: AppColors.background,
+        errorStyle: AppTheme.body(fontSize: 13, color: AppColors.error),
       ),
       validator: (value) =>
-          (value == null || value.trim().isEmpty) ? 'Required' : null,
+          (value == null || value.trim().isEmpty) ? 'Obligatoire' : null,
       onFieldSubmitted: onSubmitted,
     );
   }

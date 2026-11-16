@@ -9,7 +9,6 @@ import '../../../../features/iptv/providers/watch_history_provider.dart';
 // Explicit import for StreamType
 import 'mobile_player_screen.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/glass_container.dart';
 import '../../../../core/theme/app_theme.dart';
 
 class MobileSeriesDetailScreen extends ConsumerStatefulWidget {
@@ -82,50 +81,39 @@ class _MobileSeriesDetailScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Global Background
-          Container(
-            decoration: const BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment.center,
-                radius: 1.5,
-                colors: [AppColors.surfaceContainerLow, AppColors.background],
-              ),
-            ),
-          ),
-
-          if (_isLoading)
-            const Center(
-              child: CircularProgressIndicator(color: AppColors.onSurface),
-            )
-          else if (_error != null)
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.error_outline,
-                    size: 48,
-                    color: AppColors.error,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error: $_error',
-                    style: AppTheme.font(color: AppColors.onSurfaceVariant),
-                  ),
-                  TextButton(
-                    onPressed: _loadSeriesInfo,
-                    child: const Text('Retry'),
-                  ),
-                ],
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 44,
+                      color: AppColors.error,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Erreur : $_error',
+                      textAlign: TextAlign.center,
+                      style: AppTheme.body(
+                        fontSize: 15,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: _loadSeriesInfo,
+                      child: const Text('Réessayer'),
+                    ),
+                  ],
+                ),
               ),
             )
-          else
-            _buildMobileContent(),
-        ],
-      ),
+          : _buildMobileContent(),
     );
   }
 
@@ -133,22 +121,30 @@ class _MobileSeriesDetailScreenState
     if (_seriesInfo == null) return const SizedBox.shrink();
 
     final currentEpisodes = _seriesInfo!.episodes[_selectedSeason] ?? [];
+    final seasonCount = _seriesInfo!.episodes.keys.length;
+    final rating = _formatRating(_seriesInfo!.rating);
+    final meta = [
+      if (rating != null) '$rating / 10',
+      '$seasonCount ${seasonCount > 1 ? 'saisons' : 'saison'}',
+    ].join(' · ');
 
     return CustomScrollView(
       slivers: [
         // App Bar with Cover
         SliverAppBar(
-          expandedHeight: 400,
+          expandedHeight: 360,
           pinned: true,
-          backgroundColor: Colors.transparent, // Let background show through
-          leading: Container(
-            margin: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.background.withOpacity(0.5),
-              shape: BoxShape.circle,
-            ),
+          backgroundColor: AppColors.background,
+          surfaceTintColor: Colors.transparent,
+          automaticallyImplyLeading: false,
+          leading: Padding(
+            padding: const EdgeInsets.all(8),
             child: IconButton(
-              icon: const Icon(Icons.arrow_back, color: AppColors.onSurface),
+              tooltip: 'Retour',
+              style: IconButton.styleFrom(
+                backgroundColor: AppColors.background.withValues(alpha: 0.6),
+              ),
+              icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
               onPressed: () => Navigator.pop(context),
             ),
           ),
@@ -162,67 +158,49 @@ class _MobileSeriesDetailScreenState
                     fit: BoxFit.cover,
                     memCacheWidth: 800,
                     errorWidget: (_, __, ___) =>
-                        Container(color: AppColors.surfaceContainerLow),
+                        const ColoredBox(color: AppColors.surface),
                   ),
-                // Gradient Overlay
-                Container(
+                // Scrim: the artwork fades into the page
+                const DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Colors.transparent,
-                        AppColors.background.withOpacity(0.8),
-                        AppColors.background, // Merge into body background
+                        Color(0x00101216),
+                        Color(0xCC101216),
+                        AppColors.background,
                       ],
-                      stops: const [0.5, 0.8, 1.0],
+                      stops: [0.45, 0.8, 1.0],
                     ),
                   ),
                 ),
                 // Info Overlay
                 Positioned(
                   bottom: 16,
-                  left: 16,
-                  right: 16,
+                  left: 20,
+                  right: 20,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         _seriesInfo!.name,
-                        style: AppTheme.font(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.onSurface,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTheme.display(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          if (_seriesInfo!.rating != null) ...[
-                            const Icon(
-                              Icons.star,
-                              size: 16,
-                              color: AppColors.ratingGold,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _formatRating(_seriesInfo!.rating!)!,
-                              style: AppTheme.font(
-                                color: AppColors.onSurfaceVariant,
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                          ],
-                          Text(
-                            '${_seriesInfo!.episodes.keys.length} Seasons',
-                            style: AppTheme.font(
-                              color: AppColors.onSurfaceVariant,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 6),
+                      Text(
+                        meta,
+                        style: AppTheme.body(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                          fontFeatures: AppTheme.tabular,
+                        ),
                       ),
                     ],
                   ),
@@ -236,12 +214,13 @@ class _MobileSeriesDetailScreenState
         if (_seriesInfo!.plot != null && _seriesInfo!.plot!.isNotEmpty)
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
               child: Text(
                 _seriesInfo!.plot!,
-                style: AppTheme.font(
-                  color: AppColors.onSurfaceVariant,
-                  height: 1.4,
+                style: AppTheme.body(
+                  fontSize: 15,
+                  color: AppColors.textSecondary,
+                  height: 1.45,
                 ),
                 maxLines: 4,
                 overflow: TextOverflow.ellipsis,
@@ -252,7 +231,7 @@ class _MobileSeriesDetailScreenState
         // Seasons Filter
         SliverToBoxAdapter(
           child: SizedBox(
-            height: 50,
+            height: 40,
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               scrollDirection: Axis.horizontal,
@@ -262,21 +241,22 @@ class _MobileSeriesDetailScreenState
                 final seasonNum = _seriesInfo!.episodes.keys.elementAt(index);
                 final isSelected = seasonNum == _selectedSeason;
                 return ChoiceChip(
-                  label: Text('Season $seasonNum'),
+                  label: Text('Saison $seasonNum'),
                   selected: isSelected,
                   onSelected: (selected) {
                     if (selected) setState(() => _selectedSeason = seasonNum);
                   },
-                  backgroundColor: AppColors.surfaceContainer,
-                  selectedColor: AppColors.primary,
-                  labelStyle: AppTheme.font(
+                  backgroundColor: AppColors.surface,
+                  selectedColor: AppColors.accentFill,
+                  labelStyle: AppTheme.body(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
                     color: isSelected
-                        ? AppColors.onPrimary
-                        : AppColors.onSurfaceVariant,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                        ? AppColors.textPrimary
+                        : AppColors.textSecondary,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                   ),
                   showCheckmark: false,
                   side: BorderSide.none,
@@ -286,19 +266,17 @@ class _MobileSeriesDetailScreenState
           ),
         ),
 
-        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+        const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
         // Episodes List
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate((context, index) {
-              final episode = currentEpisodes[index];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _buildEpisodeTile(episode),
-              );
-            }, childCount: currentEpisodes.length),
+          padding: const EdgeInsets.fromLTRB(4, 0, 4, 32),
+          sliver: SliverList.separated(
+            itemCount: currentEpisodes.length,
+            separatorBuilder: (_, __) =>
+                const Divider(height: 1, indent: 12, endIndent: 12),
+            itemBuilder: (context, index) =>
+                _buildEpisodeTile(currentEpisodes[index]),
           ),
         ),
       ],
@@ -314,77 +292,71 @@ class _MobileSeriesDetailScreenState
     );
     final isWatched = watchHistory.isEpisodeWatched(episodeKey);
 
-    return GlassContainer.glass(
-      borderRadius: 12,
-      padding: EdgeInsets.zero,
-      child: InkWell(
-        onTap: () {
-          ref
-              .read(watchHistoryProvider.notifier)
-              .markEpisodeWatched(episodeKey);
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MobilePlayerScreen(
-                streamId: episode.id,
-                title: '${widget.series.name} - ${episode.title}',
-                playlist: widget.playlist,
-                streamType: StreamType.series,
-                containerExtension: episode.containerExtension ?? 'mkv',
+    return InkWell(
+      onTap: () {
+        ref.read(watchHistoryProvider.notifier).markEpisodeWatched(episodeKey);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MobilePlayerScreen(
+              streamId: episode.id,
+              title: '${widget.series.name} - ${episode.title}',
+              playlist: widget.playlist,
+              streamType: StreamType.series,
+              containerExtension: episode.containerExtension ?? 'mkv',
+            ),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        child: Row(
+          children: [
+            // Play Button / Indicator
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: isWatched ? AppColors.surfaceHigh : AppColors.accentFill,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isWatched ? Icons.check : Icons.play_arrow_rounded,
+                color: isWatched ? AppColors.textSecondary : AppColors.accent,
+                size: 22,
               ),
             ),
-          );
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Row(
-            children: [
-              // Play Button / Indicator
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: isWatched
-                      ? AppColors.primary
-                      : AppColors.surfaceContainer,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  isWatched ? Icons.check : Icons.play_arrow_rounded,
-                  color: isWatched ? AppColors.onPrimary : AppColors.primary,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'E${episode.episodeNum} - ${episode.title}',
-                      style: AppTheme.font(
-                        color: AppColors.onSurface,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${episode.episodeNum}. ${episode.title}',
+                    style: AppTheme.body(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: isWatched
+                          ? AppColors.textSecondary
+                          : AppColors.textPrimary,
                     ),
-                    if (episode.durationSecs != null &&
-                        episode.durationSecs! > 0)
-                      Text(
-                        _formatDuration(episode.durationSecs!),
-                        style: AppTheme.font(
-                          color: AppColors.onSurfaceVariant,
-                          fontSize: 12,
-                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (episode.durationSecs != null && episode.durationSecs! > 0)
+                    Text(
+                      _formatDuration(episode.durationSecs!),
+                      style: AppTheme.body(
+                        fontSize: 13,
+                        color: AppColors.textMuted,
+                        fontFeatures: AppTheme.tabular,
                       ),
-                  ],
-                ),
+                    ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -393,7 +365,7 @@ class _MobileSeriesDetailScreenState
   String _formatDuration(int seconds) {
     final hours = seconds ~/ 3600;
     final minutes = (seconds % 3600) ~/ 60;
-    if (hours > 0) return '${hours}h ${minutes}m';
-    return '${minutes}m';
+    if (hours > 0) return '$hours h ${minutes.toString().padLeft(2, '0')}';
+    return '$minutes min';
   }
 }

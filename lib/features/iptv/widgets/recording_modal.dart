@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/api/recording_requests.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/glass_container.dart';
-import '../../../core/widgets/tv_focusable_card.dart';
+import '../../../core/widgets/app_dialog.dart';
+import '../../../core/widgets/tv_focusable.dart';
 import '../providers/recordings_refresh.dart';
 import '../../../core/theme/app_theme.dart';
 
@@ -14,8 +14,8 @@ class RecordingModal extends StatefulWidget {
   const RecordingModal({super.key, required this.channel});
 
   static Future<void> show(BuildContext context, Channel channel) {
-    return showDialog(
-      context: context,
+    return showAppDialog<void>(
+      context,
       builder: (context) => RecordingModal(channel: channel),
     );
   }
@@ -74,362 +74,232 @@ class _RecordingModalState extends State<RecordingModal> {
     }
   }
 
+  String get _dateLabel =>
+      '${_startTime.day.toString().padLeft(2, '0')}/${_startTime.month.toString().padLeft(2, '0')}/${_startTime.year}';
+
+  String get _timeLabel =>
+      '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}';
+
+  Future<void> _pickDate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _startTime,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (date != null) {
+      setState(() {
+        _startTime = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          _startTime.hour,
+          _startTime.minute,
+        );
+      });
+    }
+  }
+
+  Future<void> _pickTime() async {
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_startTime),
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: child!,
+        );
+      },
+    );
+    if (time != null) {
+      setState(() {
+        final now = DateTime.now();
+        _startTime = DateTime(
+          _startTime.year,
+          _startTime.month,
+          _startTime.day,
+          time.hour,
+          time.minute,
+        );
+        // Empêcher l'heure de passé si c'est aujourd'hui
+        if (_startTime.isBefore(now)) {
+          _startTime = _startTime.add(const Duration(days: 1));
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Material(
-        color: Colors.transparent,
-        child: Container(
-          width: 600,
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: AppColors.background.withOpacity(0.9),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+    return AppDialog(
+      title: 'Programmer un enregistrement',
+      width: 600,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Informations chaîne
+          Text(
+            'Chaîne',
+            style: AppTheme.body(fontSize: 13, color: AppColors.textMuted),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Header
-              Row(
-                children: [
-                  const Icon(Icons.fiber_manual_record, color: AppColors.error),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Programmer un enregistrement',
-                      style: AppTheme.font(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.onSurface,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
+          const SizedBox(height: 4),
+          Text(
+            widget.channel.name,
+            style: AppTheme.body(fontSize: 18, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 20),
 
-              // Informations Chaine
-              Text(
-                'Chaîne ciblée :',
-                style: AppTheme.font(
-                  color: AppColors.onSurfaceVariant,
-                  fontSize: 14,
+          // Date, heure et durée
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: AppDialogTile(
+                  icon: Icons.calendar_today,
+                  label: 'Date',
+                  value: _dateLabel,
+                  onPressed: _pickDate,
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                widget.channel.name,
-                style: AppTheme.font(color: AppColors.onSurface, fontSize: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: AppDialogTile(
+                  icon: Icons.access_time,
+                  label: 'Heure',
+                  value: _timeLabel,
+                  onPressed: _pickTime,
+                ),
               ),
-              const SizedBox(height: 24),
-
-              // Date, Heure et Durée
-              Row(
-                children: [
-                  // Date
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Date :',
-                          style: AppTheme.font(
-                            color: AppColors.onSurfaceVariant,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TvFocusableCard(
-                          onTap: () async {
-                            final date = await showDatePicker(
-                              context: context,
-                              initialDate: _startTime,
-                              firstDate: DateTime.now(),
-                              lastDate: DateTime.now().add(
-                                const Duration(days: 365),
-                              ),
-                            );
-                            if (date != null) {
-                              setState(() {
-                                _startTime = DateTime(
-                                  date.year,
-                                  date.month,
-                                  date.day,
-                                  _startTime.hour,
-                                  _startTime.minute,
-                                );
-                              });
-                            }
-                          },
-                          borderRadius: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.onSurface.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.calendar_today,
-                                  color: AppColors.onSurface,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    '${_startTime.day.toString().padLeft(2, '0')}/${_startTime.month.toString().padLeft(2, '0')}/${_startTime.year}',
-                                    style: AppTheme.font(
-                                      color: AppColors.onSurface,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // Heure
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Heure :',
-                          style: AppTheme.font(
-                            color: AppColors.onSurfaceVariant,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TvFocusableCard(
-                          onTap: () async {
-                            final time = await showTimePicker(
-                              context: context,
-                              initialTime: TimeOfDay.fromDateTime(_startTime),
-                              builder: (context, child) {
-                                return MediaQuery(
-                                  data: MediaQuery.of(context)
-                                      .copyWith(alwaysUse24HourFormat: true),
-                                  child: child!,
-                                );
-                              },
-                            );
-                            if (time != null) {
-                              setState(() {
-                                final now = DateTime.now();
-                                _startTime = DateTime(
-                                  _startTime.year,
-                                  _startTime.month,
-                                  _startTime.day,
-                                  time.hour,
-                                  time.minute,
-                                );
-                                // Empêcher l'heure de passé si c'est aujourd'hui
-                                if (_startTime.isBefore(now)) {
-                                  _startTime = _startTime.add(
-                                    const Duration(days: 1),
-                                  );
-                                }
-                              });
-                            }
-                          },
-                          borderRadius: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.onSurface.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.access_time,
-                                  color: AppColors.onSurface,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}',
-                                    style: AppTheme.font(
-                                      color: AppColors.onSurface,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // Durée
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Durée (min) :',
-                          style: AppTheme.font(
-                            color: AppColors.onSurfaceVariant,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        GlassContainer.glass(
-                          borderRadius: 8,
-                          padding: EdgeInsets.zero,
-                          child: Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.remove,
-                                  color: AppColors.onSurface,
-                                  size: 18,
-                                ),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(
-                                  minWidth: 32,
-                                  minHeight: 46,
-                                ),
-                                onPressed: () {
-                                  if (_durationMinutes > 15) {
-                                    setState(() => _durationMinutes -= 15);
-                                  }
-                                },
-                              ),
-                              Expanded(
-                                child: Text(
-                                  '$_durationMinutes',
-                                  textAlign: TextAlign.center,
-                                  style: AppTheme.font(
-                                    color: AppColors.onSurface,
-                                  ),
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.add,
-                                  color: AppColors.onSurface,
-                                  size: 18,
-                                ),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(
-                                  minWidth: 32,
-                                  minHeight: 46,
-                                ),
-                                onPressed: () {
-                                  if (_durationMinutes < 300) {
-                                    setState(() => _durationMinutes += 15);
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
-
-              // Actions
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: _isLoading
-                        ? null
-                        : () => Navigator.of(context).pop(),
-                    child: Text(
-                      'Annuler',
-                      style: AppTheme.font(color: AppColors.onSurfaceVariant),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  TvFocusableCard(
-                    onTap: _isLoading ? () {} : _recordNow,
-                    borderRadius: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.error.withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: AppColors.onSurface,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : Text(
-                              'Enregistrer de suite',
-                              style: AppTheme.font(
-                                color: AppColors.onSurface,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  TvFocusableCard(
-                    onTap: _isLoading ? () {} : _scheduleRecording,
-                    borderRadius: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: AppColors.onSurface,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : Text(
-                              'Programmer',
-                              style: AppTheme.font(
-                                color: AppColors.onSurface,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
+              const SizedBox(width: 10),
+              Expanded(
+                child: _DurationStepper(
+                  minutes: _durationMinutes,
+                  onMinus: () {
+                    if (_durationMinutes > 15) {
+                      setState(() => _durationMinutes -= 15);
+                    }
+                  },
+                  onPlus: () {
+                    if (_durationMinutes < 300) {
+                      setState(() => _durationMinutes += 15);
+                    }
+                  },
+                ),
               ),
             ],
           ),
+          if (_isLoading) ...[
+            const SizedBox(height: 18),
+            const LinearProgressIndicator(minHeight: 2),
+          ],
+        ],
+      ),
+      actions: [
+        AppDialogButton(
+          label: 'Annuler',
+          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
         ),
+        AppDialogButton(
+          label: 'Enregistrer maintenant',
+          onPressed: _isLoading ? null : _recordNow,
+        ),
+        AppDialogButton(
+          label: 'Programmer',
+          primary: true,
+          autofocus: true,
+          onPressed: _isLoading ? null : _scheduleRecording,
+        ),
+      ],
+    );
+  }
+}
+
+/// Duration in minutes, by steps of 15: − value +.
+class _DurationStepper extends StatelessWidget {
+  const _DurationStepper({
+    required this.minutes,
+    required this.onMinus,
+    required this.onPlus,
+  });
+
+  final int minutes;
+  final VoidCallback onMinus;
+  final VoidCallback onPlus;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.glassBottom,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          _StepButton(icon: Icons.remove, onPressed: onMinus),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Durée',
+                  style: AppTheme.body(
+                    fontSize: 12.5,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+                Text(
+                  '$minutes min',
+                  maxLines: 1,
+                  style: AppTheme.body(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    fontFeatures: AppTheme.tabular,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _StepButton(icon: Icons.add, onPressed: onPlus),
+        ],
+      ),
+    );
+  }
+}
+
+class _StepButton extends StatelessWidget {
+  const _StepButton({required this.icon, required this.onPressed});
+
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return TVFocusable(
+      paintsOwnFocus: true,
+      scale: 1.06,
+      borderRadius: BorderRadius.circular(10),
+      onPressed: onPressed,
+      child: Builder(
+        builder: (context) {
+          final lit = TVFocusable.isFocused(context);
+          return AnimatedContainer(
+            duration: AppTheme.durationFocus,
+            curve: AppTheme.curveFocus,
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: lit ? AppColors.focusTop : AppColors.track,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              size: 18,
+              color: lit ? AppColors.onFocus : AppColors.textPrimary,
+            ),
+          );
+        },
       ),
     );
   }
