@@ -10,7 +10,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="XtremFlow">
-  <meta name="theme-color" content="#0B0908">
+  <meta name="theme-color" content="#101216">
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>XtremFlow</title>
@@ -21,7 +21,7 @@
 
   <style>
     /* =============================================================
-     * Amorce « Warm Cinema » — charbon chaud, crème, braise.
+     * Amorce « Salle obscure » — graphite, bleu du logo.
      * Aucune police web, aucun script tiers : rien ne retarde le boot.
      * ============================================================= */
     * {
@@ -31,7 +31,7 @@
     }
 
     body {
-      background: radial-gradient(120% 90% at 22% 0%, #1A1310 0%, #0B0908 62%);
+      background: #101216;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -56,19 +56,16 @@
     }
 
     .mark {
-      font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
-      font-size: clamp(34px, 7vw, 58px);
+      font-size: clamp(30px, 6vw, 46px);
       font-weight: 600;
-      letter-spacing: 0.14em;
-      color: #F3E9DF;
-      text-transform: uppercase;
+      color: #EDEDED;
       line-height: 1;
     }
 
-    /* Le « W » d'XtremFlow porte la braise */
+    /* « Flow » dans le bleu du logo */
     .mark em {
       font-style: normal;
-      color: #D9541F;
+      color: #8FCFFF;
     }
 
     /* Barre d'amorce : balayage lent, comme une pellicule qui se lance */
@@ -77,7 +74,7 @@
       width: min(240px, 56vw);
       height: 2px;
       margin: 26px auto 0;
-      background: rgba(243, 233, 223, 0.12);
+      background: rgba(237, 237, 237, 0.10);
       overflow: hidden;
     }
 
@@ -86,17 +83,14 @@
       position: absolute;
       inset: 0 auto 0 0;
       width: 42%;
-      background: linear-gradient(90deg, transparent, #D9541F, transparent);
+      background: linear-gradient(90deg, transparent, #8FCFFF, transparent);
       animation: wipe 1150ms cubic-bezier(0.5, 0, 0.5, 1) infinite;
     }
 
     .caption {
       margin-top: 16px;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.32em;
-      text-transform: uppercase;
-      color: rgba(243, 233, 223, 0.38);
+      font-size: 13px;
+      color: #A8A8AE;
     }
 
     @keyframes wipe {
@@ -135,7 +129,7 @@
   <div class="boot">
     <div class="mark">Xtrem<em>Flow</em></div>
     <div class="leader"></div>
-    <div class="caption">Projection</div>
+    <div class="caption">Chargement…</div>
   </div>
 
   <!--
