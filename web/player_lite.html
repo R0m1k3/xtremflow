@@ -5,6 +5,15 @@
     <meta charset="UTF-8">
     <title>XtremFlow Player Lite</title>
     <link rel="stylesheet" href="xf-player.css">
+    <style>
+        /* Aperçu muet de l'onglet Direct (preview=1) : la vidéo seule, le
+           Flutter affiche lui-même logo et attente par-dessus. */
+        body.xf-preview #play-overlay,
+        body.xf-preview #loading,
+        body.xf-preview #error {
+            display: none !important;
+        }
+    </style>
     <script>
         // Précharge la SEULE lib utile à CE flux, dès le parse du <head>.
         // Un préchargement fixe de hls.js faisait télécharger 618 Ko inutiles
@@ -72,6 +81,12 @@
             var errorMessage = document.getElementById('error-message');
             var playOverlay = document.getElementById('play-overlay');
 
+            // Aperçu (preview=1) : aucun nouvel essai, la première erreur
+            // est remontée au Flutter par XFPlayer (preview_state).
+            var preview = new URLSearchParams(location.search)
+                .get('preview') === '1';
+            if (preview) document.body.classList.add('xf-preview');
+
             function showLoading(msg) {
                 loading.style.display = 'block';
                 loadingText.textContent = msg || 'Ouverture du flux';
@@ -94,7 +109,7 @@
             // relance un lecteur neuf avant d'afficher l'erreur, comme le
             // font déjà player.html et player_mobile.html.
             var retryCount = 0;
-            var maxRetries = 3;
+            var maxRetries = preview ? 0 : 3;
             var player = null;
 
             function buildPlayer() {

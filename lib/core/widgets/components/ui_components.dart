@@ -1,12 +1,15 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/glass.dart';
 import '../glass_container.dart';
+import '../tv_focusable.dart';
 
-/// Stitch-style glass card using GlassContainer Level 1.
+/// Glass card ([GlassDecoration]). With [onTap] it is focusable: the lit
+/// card on focus (hover on the web). [showBorder] is kept for older call
+/// sites and ignored (the glass draws its own rim).
 class GlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -25,27 +28,46 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassContainer.glass(
-      borderRadius: borderRadius,
-      border: showBorder,
-      padding: EdgeInsets.zero,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(borderRadius),
-          child: Padding(
+    if (onTap == null) {
+      return GlassContainer(
+        borderRadius: borderRadius,
+        padding: padding,
+        child: child,
+      );
+    }
+    return TVFocusable(
+      paintsOwnFocus: true,
+      scale: 1.03,
+      borderRadius: BorderRadius.circular(borderRadius),
+      onPressed: onTap,
+      child: Builder(
+        builder: (context) {
+          final lit = TVFocusable.isFocused(context);
+          return AnimatedContainer(
+            duration: AppTheme.durationFocus,
+            curve: AppTheme.curveFocus,
             padding: padding,
-            child: child,
-          ),
-        ),
+            decoration: GlassDecoration(
+              lit: lit ? 1 : 0,
+              radius: borderRadius,
+              halo: false,
+            ),
+            child: IconTheme.merge(
+              data: IconThemeData(
+                color: lit ? AppColors.onFocus : AppColors.textSecondary,
+              ),
+              child: child,
+            ),
+          );
+        },
       ),
     );
   }
 }
 
-/// Animated gradient primary button with Stitch glow.
-class GradientButton extends StatefulWidget {
+/// Primary button. The name is kept from the former gradient button; it is
+/// now the theme's [FilledButton]: the lit surface with dark ink.
+class GradientButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
   final IconData? icon;
@@ -62,115 +84,49 @@ class GradientButton extends StatefulWidget {
   });
 
   @override
-  State<GradientButton> createState() => _GradientButtonState();
-}
-
-class _GradientButtonState extends State<GradientButton>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: AppTheme.durationSm,
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
-      CurvedAnimation(parent: _controller, curve: AppTheme.curveDefault),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final button = AnimatedBuilder(
-      animation: _scaleAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _scaleAnimation.value,
-          child: child,
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: AppColors.primaryGradient,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.glowPrimary(0.3),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-            BoxShadow(
-              color: AppColors.glowPrimary(0.1),
-              blurRadius: 30,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: widget.isLoading ? null : widget.onPressed,
-            onTapDown: (_) => _controller.forward(),
-            onTapUp: (_) => _controller.reverse(),
-            onTapCancel: () => _controller.reverse(),
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 14,
-              ),
-              child: widget.isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.onSurface,
-                      ),
-                    )
-                  : Row(
-                      mainAxisSize: widget.isExpanded
-                          ? MainAxisSize.max
-                          : MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (widget.icon != null) ...[
-                          Icon(widget.icon, color: AppColors.onSurface, size: 20),
-                          const SizedBox(width: 8),
-                        ],
-                        Text(
-                          widget.label,
-                          style: GoogleFonts.karla(
-                            color: AppColors.onSurface,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            letterSpacing: 0.05,
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-          ),
-        ),
+    final button = FilledButton(
+      onPressed: isLoading ? null : onPressed,
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
       ),
+      child: isLoading
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.textMuted,
+              ),
+            )
+          : Row(
+              mainAxisSize: isExpanded ? MainAxisSize.max : MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 20),
+                  const SizedBox(width: 8),
+                ],
+                Text(
+                  label,
+                  style: AppTheme.body(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.onFocus,
+                  ),
+                ),
+              ],
+            ),
     );
 
-    return widget.isExpanded
+    return isExpanded
         ? SizedBox(width: double.infinity, child: button)
         : button;
   }
 }
 
-/// Shimmer loading effect using surface container tones.
+/// Loading placeholder: a graphite block that breathes between two surface
+/// steps (no moving gradient).
 class ShimmerLoading extends StatefulWidget {
   final double width;
   final double height;
@@ -190,16 +146,14 @@ class ShimmerLoading extends StatefulWidget {
 class _ShimmerLoadingState extends State<ShimmerLoading>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _animation;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 900),
       vsync: this,
-    )..repeat();
-    _animation = Tween<double>(begin: -2, end: 2).animate(_controller);
+    )..repeat(reverse: true);
   }
 
   @override
@@ -211,21 +165,17 @@ class _ShimmerLoadingState extends State<ShimmerLoading>
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _animation,
+      animation: _controller,
       builder: (context, child) {
         return Container(
           width: widget.width,
           height: widget.height,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(widget.borderRadius),
-            gradient: LinearGradient(
-              begin: Alignment(_animation.value - 1, 0),
-              end: Alignment(_animation.value + 1, 0),
-              colors: [
-                AppColors.surfaceContainerLow.withOpacity(0.5),
-                AppColors.surfaceContainer,
-                AppColors.surfaceContainerLow.withOpacity(0.5),
-              ],
+            color: Color.lerp(
+              AppColors.shimmer,
+              AppColors.shimmerHighlight,
+              _controller.value,
             ),
           ),
         );
@@ -234,7 +184,8 @@ class _ShimmerLoadingState extends State<ShimmerLoading>
   }
 }
 
-/// Live indicator badge — Stitch style pill.
+/// « En direct » pill (sentence case, accent; red is kept for the progress
+/// of the programme on now).
 class LiveBadge extends StatelessWidget {
   const LiveBadge({super.key});
 
@@ -243,30 +194,22 @@ class LiveBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: AppColors.live,
-        borderRadius: BorderRadius.circular(4),
+        color: AppColors.accentFill,
+        borderRadius: BorderRadius.circular(999),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.circle, size: 6, color: AppColors.onSurface),
-          const SizedBox(width: 4),
-          Text(
-            'LIVE',
-            style: GoogleFonts.karla(
-              color: AppColors.onSurface,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
+      child: Text(
+        'En direct',
+        style: AppTheme.body(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: AppColors.accent,
+        ),
       ),
     );
   }
 }
 
-/// Stitch-style category chip — pill shaped with primary accent.
+/// Category pill: accent tint when selected, lit on focus.
 class CategoryChip extends StatelessWidget {
   final String label;
   final bool isSelected;
@@ -281,41 +224,44 @@ class CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: isSelected
-          ? AppColors.primary.withOpacity(0.1)
-          : AppColors.surfaceContainerLow,
+    return TVFocusable(
+      paintsOwnFocus: true,
+      scale: 1.04,
       borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-            border: Border.all(
-              color: isSelected
-                  ? AppColors.primary.withOpacity(0.3)
-                  : AppColors.outlineVariant,
-              width: 1,
+      onPressed: onTap,
+      child: Builder(
+        builder: (context) {
+          final lit = TVFocusable.isFocused(context);
+          return AnimatedContainer(
+            duration: AppTheme.durationFocus,
+            curve: AppTheme.curveFocus,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: lit
+                  ? AppColors.focus
+                  : (isSelected ? AppColors.accentFill : AppColors.surface),
+              borderRadius: BorderRadius.circular(AppTheme.radiusFull),
             ),
-          ),
-          child: Text(
-            label,
-            style: GoogleFonts.karla(
-              fontSize: 13,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              color: isSelected ? AppColors.primary : AppColors.onSurfaceVariant,
+            child: Text(
+              label,
+              style: AppTheme.body(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: lit
+                    ? AppColors.onFocus
+                    : (isSelected ? AppColors.accent : AppColors.textSecondary),
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 }
 
-/// Media poster card with Stitch glass hover effect.
-class MediaCard extends StatefulWidget {
+/// Poster card: the poster grows and gets a light edge on focus (hover on
+/// the web), the title under it lights up. No shadow, no glow.
+class MediaCard extends StatelessWidget {
   final String title;
   final String? imageUrl;
   final String? subtitle;
@@ -337,199 +283,160 @@ class MediaCard extends StatefulWidget {
     this.placeholderIcon = Icons.movie,
   });
 
-  @override
-  State<MediaCard> createState() => _MediaCardState();
-}
-
-class _MediaCardState extends State<MediaCard>
-    with SingleTickerProviderStateMixin {
-  bool _isHovered = false;
+  Widget _placeholder() => Container(
+    color: AppColors.surfaceHigh,
+    child: Center(child: Icon(placeholderIcon, color: AppColors.textMuted)),
+  );
 
   @override
   Widget build(BuildContext context) {
-    final focusBorderColor =
-        _isHovered ? AppColors.primaryContainer.withOpacity(0.5) : Colors.transparent;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        onLongPress: widget.onLongPress,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Poster Image
-            Expanded(
-              child: AnimatedScale(
-                scale: _isHovered ? 1.05 : 1.0,
-                duration: AppTheme.durationSm,
-                curve: AppTheme.curveDefault,
-                child: AnimatedContainer(
-                  duration: AppTheme.durationSm,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                    color: AppColors.surfaceContainerLow,
-                    border: Border.all(
-                      color: focusBorderColor,
-                      width: _isHovered ? 2 : 0,
+    return TVFocusable(
+      paintsOwnFocus: true,
+      scale: 1.0,
+      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      onPressed: onTap,
+      onLongPress: onLongPress,
+      longPressDuration: const Duration(milliseconds: 700),
+      child: Builder(
+        builder: (context) {
+          final lit = TVFocusable.isFocused(context);
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Poster Image
+              Expanded(
+                child: AnimatedScale(
+                  scale: lit ? 1.05 : 1.0,
+                  duration: AppTheme.durationFocus,
+                  curve: AppTheme.curveFocus,
+                  child: AnimatedContainer(
+                    duration: AppTheme.durationFocus,
+                    curve: AppTheme.curveFocus,
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      color: lit ? AppColors.focus : AppColors.surface,
                     ),
-                    boxShadow: _isHovered
-                        ? [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.5),
-                              blurRadius: 25,
-                              offset: const Offset(0, 10),
-                              spreadRadius: 2,
-                            ),
-                            BoxShadow(
-                              color: AppColors.glowPrimary(0.3),
-                              blurRadius: 20,
-                              spreadRadius: 1,
-                            ),
-                            BoxShadow(
-                              color: AppColors.glowPrimary(0.1),
-                              blurRadius: 40,
-                              spreadRadius: 4,
-                            ),
-                          ]
-                        : [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(
-                        AppTheme.radiusMd - (_isHovered ? 2 : 0)),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        if (widget.imageUrl != null)
-                          CachedNetworkImage(
-                            imageUrl: widget.imageUrl!,
-                            fit: BoxFit.cover,
-                            memCacheWidth: 400,
-                            placeholder: (context, url) => Container(
-                              color: AppColors.surfaceContainerLow,
-                              child: Center(
-                                child: Icon(widget.placeholderIcon,
-                                    color: AppColors.outline),
-                              ),
-                            ),
-                            errorWidget: (context, url, error) => Container(
-                              color: AppColors.surfaceContainerLow,
-                              child: Center(
-                                child: Icon(widget.placeholderIcon,
-                                    color: AppColors.outline),
-                              ),
-                            ),
-                          )
-                        else
-                          Container(
-                            color: AppColors.surfaceContainerLow,
-                            child: Center(
-                              child: Icon(widget.placeholderIcon,
-                                  color: AppColors.outline),
-                            ),
-                          ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(
+                        AppTheme.radiusMd - 2,
+                      ),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          if (imageUrl != null)
+                            CachedNetworkImage(
+                              imageUrl: imageUrl!,
+                              fit: BoxFit.cover,
+                              memCacheWidth: 400,
+                              placeholder: (context, url) => _placeholder(),
+                              errorWidget: (context, url, error) =>
+                                  _placeholder(),
+                            )
+                          else
+                            _placeholder(),
 
-                        // Rating Badge (Top Left)
-                        if (widget.rating != null &&
-                            widget.rating!.isNotEmpty)
-                          Positioned(
-                            top: 8,
-                            left: 8,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.7),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.star,
-                                      size: 10, color: AppColors.primaryContainer),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    widget.rating!,
-                                    style: GoogleFonts.karla(
-                                      color: AppColors.onSurface,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
+                          // Rating Badge (Top Left)
+                          if (rating != null && rating!.isNotEmpty)
+                            Positioned(
+                              top: 8,
+                              left: 8,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                // Scrim over the poster: legible on any image.
+                                decoration: BoxDecoration(
+                                  color: AppColors.rail.withValues(alpha: 0.8),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.star,
+                                      size: 11,
+                                      color: AppColors.accent,
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      rating!,
+                                      style: AppTheme.body(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        fontFeatures: AppTheme.tabular,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
 
-                        // Watched Indicator (Top Right)
-                        if (widget.isWatched)
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(
-                                color: AppColors.success,
-                                shape: BoxShape.circle,
+                          // Watched Indicator (Top Right)
+                          if (isWatched)
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.success,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.check,
+                                  size: 12,
+                                  color: AppColors.onFocus,
+                                ),
                               ),
-                              child: const Icon(Icons.check,
-                                  size: 12, color: AppColors.onSurface),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
 
-            // Title & Subtitle (Below)
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: Column(
-                children: [
-                  Text(
-                    widget.title,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.karla(
-                      color: _isHovered
-                          ? AppColors.primary
-                          : AppColors.onSurface,
-                      fontWeight:
-                          _isHovered ? FontWeight.w600 : FontWeight.w500,
-                      fontSize: 13,
-                    ),
-                  ),
-                  if (widget.subtitle != null && _isHovered) ...[
-                    const SizedBox(height: 2),
+              // Title & Subtitle (Below)
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: Column(
+                  children: [
                     Text(
-                      widget.subtitle!,
+                      title,
                       textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.karla(
-                        color: AppColors.onSurfaceVariant,
-                        fontSize: 11,
+                      style: AppTheme.body(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: lit
+                            ? AppColors.textPrimary
+                            : AppColors.textSecondary,
                       ),
                     ),
+                    if (subtitle != null && lit) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTheme.body(
+                          fontSize: 12,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          );
+        },
       ),
     );
   }

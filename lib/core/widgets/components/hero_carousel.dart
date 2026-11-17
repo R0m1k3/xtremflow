@@ -1,8 +1,8 @@
-﻿
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 
@@ -10,11 +10,7 @@ class HeroCarousel extends StatefulWidget {
   final List<HeroItem> items;
   final Function(HeroItem) onTap;
 
-  const HeroCarousel({
-    super.key,
-    required this.items,
-    required this.onTap,
-  });
+  const HeroCarousel({super.key, required this.items, required this.onTap});
 
   @override
   State<HeroCarousel> createState() => _HeroCarouselState();
@@ -76,184 +72,100 @@ class _HeroCarouselState extends State<HeroCarousel> {
         itemBuilder: (context, index) {
           final item = widget.items[index];
           final isActive = index == _currentPage;
-          
+
           return AnimatedScale(
             duration: const Duration(milliseconds: 500),
-            scale: isActive ? 1.0 : 0.9,
+            scale: isActive ? 1.0 : 0.94,
             child: AnimatedOpacity(
               duration: const Duration(milliseconds: 500),
               opacity: isActive ? 1.0 : 0.5,
               child: GestureDetector(
                 onTap: () => widget.onTap(item),
                 child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                    boxShadow: [
-                      if (isActive)
-                        BoxShadow(
-                          color: AppColors.onPrimaryContainer.withOpacity(0.5),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                    ],
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 8,
                   ),
-                  child: ClipRRect(
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
                     borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Background Image
-                        CachedNetworkImage(
-                          imageUrl: item.imageUrl,
-                          fit: BoxFit.cover,
-                          memCacheWidth: 1280,
-                          placeholder: (context, url) => Container(color: AppColors.surfaceContainerLow),
-                          errorWidget: (context, url, error) => Container(
-                            color: AppColors.surfaceContainerLow,
-                            child: const Icon(Icons.movie, size: 64, color: AppColors.outline),
+                  ),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // Background image
+                      CachedNetworkImage(
+                        imageUrl: item.imageUrl,
+                        fit: BoxFit.cover,
+                        alignment: Alignment.topCenter,
+                        memCacheWidth: 1280,
+                        placeholder: (context, url) =>
+                            const ColoredBox(color: AppColors.surface),
+                        errorWidget: (context, url, error) => const Center(
+                          child: Icon(
+                            Icons.movie_outlined,
+                            size: 56,
+                            color: AppColors.textMuted,
                           ),
                         ),
-                        
-                        // Gradient Overlay
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.transparent,
-                                AppColors.onPrimaryContainer.withOpacity(0.2),
-                                AppColors.onPrimaryContainer.withOpacity(0.9),
-                              ],
-                              stops: const [0.0, 0.5, 1.0],
+                      ),
+
+                      // Veil from the left so the title reads over the art.
+                      const DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: AppColors.heroScrim,
+                        ),
+                      ),
+
+                      // Content
+                      Positioned(
+                        bottom: 28,
+                        left: 28,
+                        right: 28,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.title,
+                              style: AppTheme.display(
+                                fontSize: 30,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                        ),
-                        
-                        // Content
-                        Positioned(
-                          bottom: 32,
-                          left: 32,
-                          right: 32,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                            if (item.subtitle != null) ...[
+                              const SizedBox(height: 8),
                               Text(
-                                item.title,
-                                style: GoogleFonts.fraunces(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.onSurface,
+                                item.subtitle!,
+                                style: AppTheme.body(
+                                  fontSize: 15,
+                                  color: AppColors.textSecondary,
                                 ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              if (item.subtitle != null) ...[
-                                const SizedBox(height: 8),
-                                Text(
-                                  item.subtitle!,
-                                  style: GoogleFonts.karla(
-                                    fontSize: 16,
-                                    color: AppColors.onSurface,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                              const SizedBox(height: 16),
-                              Row(
-                                children: [
-                                  _HeroButton(
-                                    icon: Icons.play_arrow,
-                                    label: 'Lecture',
-                                    onPressed: () => widget.onTap(item),
-                                    isPrimary: true,
-                                  ),
-                                ],
-                              ),
                             ],
-                          ),
+                            const SizedBox(height: 18),
+                            FilledButton.icon(
+                              onPressed: () => widget.onTap(item),
+                              icon: const Icon(
+                                Icons.play_arrow_rounded,
+                                size: 22,
+                              ),
+                              label: const Text('Lire'),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _HeroButton extends StatefulWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onPressed;
-  final bool isPrimary;
-
-  const _HeroButton({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-    required this.isPrimary,
-  });
-
-  @override
-  State<_HeroButton> createState() => _HeroButtonState();
-}
-
-class _HeroButtonState extends State<_HeroButton> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onPressed,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          decoration: BoxDecoration(
-            gradient: widget.isPrimary ? AppColors.primaryGradient : null,
-            color: widget.isPrimary
-                ? null
-                : (_isHovered ? AppColors.surfaceContainerHigh : AppColors.surfaceContainer),
-            borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-            boxShadow: widget.isPrimary
-                ? [
-                    BoxShadow(
-                      color: AppColors.glowPrimary(0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                widget.icon,
-                color: AppColors.onSurface,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                widget.label,
-                style: GoogleFonts.karla(
-                  color: AppColors.onSurface,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

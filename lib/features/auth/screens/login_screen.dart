@@ -1,11 +1,13 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../providers/auth_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/glass_container.dart';
-import '../../../core/widgets/tv_focusable_card.dart';
+import '../../../core/theme/glass.dart';
+import '../../../core/widgets/xtremflow_mark.dart';
+import '../../../core/theme/app_theme.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -44,254 +46,152 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
-    final size = MediaQuery.of(context).size;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // 1. Cinematic Background (Deep Space - Premium Apple TV)
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  AppColors.surfaceContainerLowest,
-                  AppColors.background,
-                  AppColors.baseLevel0,
-                ],
-              ),
-            ),
-          ),
-
-          // 2. Ambient Glows (Apple TV Style - VISIBLE)
-          Positioned(
-            top: -size.height * 0.3,
-            right: -size.width * 0.2,
-            child: Container(
-              width: size.width * 0.8,
-              height: size.width * 0.8,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    AppColors.primary.withOpacity(0.4),
-                    AppColors.primary.withOpacity(0.1),
-                    Colors.transparent,
-                  ],
+      body: AmbientBackground(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Logo
+                const Hero(
+                  tag: 'app_logo',
+                  child: XtremFlowWordmark(markHeight: 48, fontSize: 34),
                 ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -size.height * 0.3,
-            left: -size.width * 0.2,
-            child: Container(
-              width: size.width * 0.8,
-              height: size.width * 0.8,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    AppColors.info.withOpacity(0.3),
-                    AppColors.info.withOpacity(0.05),
-                    Colors.transparent,
-                  ],
+                const SizedBox(height: 16),
+                Text(
+                  'Connectez-vous pour retrouver vos playlists',
+                  textAlign: TextAlign.center,
+                  style: AppTheme.body(
+                    fontSize: 17,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
-              ),
-            ),
-          ),
+                const SizedBox(height: 40),
 
-          // 3. Main Content Center
-          Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Logo / App Icon
-                  Hero(
-                    tag: 'app_logo',
-                    child: Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [AppColors.surfaceVariant, AppColors.background],
+                // Login Form Container
+                GlassContainer.floating(
+                  width: 460,
+                  padding: const EdgeInsets.all(36),
+                  borderRadius: 20,
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Username Input
+                        _buildTvInput(
+                          controller: _usernameController,
+                          label: "Nom d'utilisateur",
+                          icon: Icons.person_outline_rounded,
+                          autofocus: true,
+                          nextFocus: true,
                         ),
-                        borderRadius: BorderRadius.circular(32),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.background.withOpacity(0.5),
-                            blurRadius: 30,
-                            offset: const Offset(0, 15),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.play_arrow_rounded,
-                        color: AppColors.textPrimary,
-                        size: 64,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 48),
+                        const SizedBox(height: 18),
 
-                  // Title
-                  Text(
-                    'XtremFlow',
-                    style: GoogleFonts.karla(
-                      fontSize: 42,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                      letterSpacing: -1.0,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Sign in to sync your playlists',
-                    style: GoogleFonts.karla(
-                      fontSize: 18,
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  const SizedBox(height: 48),
-
-                  // Login Form Container
-                  GlassContainer.floating(
-                    width: 500,
-                    padding: const EdgeInsets.all(48), // Spacious padding
-                    borderRadius: 24,
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Username Input
-                          _buildTvInput(
-                            controller: _usernameController,
-                            label: 'Username',
-                            icon: Icons.person_outline_rounded,
-                            autofocus: true,
-                            nextFocus: true,
-                          ),
-                          const SizedBox(height: 24),
-
-                          // Password Input
-                          _buildTvInput(
-                            controller: _passwordController,
-                            label: 'Password',
-                            icon: Icons.lock_outline_rounded,
-                            obscureText: _obscurePassword,
-                            isLast: true,
-                            onSubmitted: _handleLogin,
-                            suffix: IconButton(
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                                color: AppColors.textSecondary,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscurePassword = !_obscurePassword;
-                                });
-                              },
+                        // Password Input
+                        _buildTvInput(
+                          controller: _passwordController,
+                          label: 'Mot de passe',
+                          icon: Icons.lock_outline_rounded,
+                          obscureText: _obscurePassword,
+                          isLast: true,
+                          onSubmitted: _handleLogin,
+                          suffix: IconButton(
+                            tooltip: _obscurePassword
+                                ? 'Afficher le mot de passe'
+                                : 'Masquer le mot de passe',
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              color: AppColors.textMuted,
                             ),
+                            onPressed: () {
+                              setState(() {
+                                _obscurePassword = !_obscurePassword;
+                              });
+                            },
                           ),
+                        ),
 
-                          // Error Message
-                          if (authState.errorMessage != null) ...[
-                            const SizedBox(height: 24),
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: AppColors.error.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: AppColors.error.withOpacity(0.3),
+                        // Error Message
+                        if (authState.errorMessage != null) ...[
+                          const SizedBox(height: 18),
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: AppColors.errorContainer,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.error_outline_rounded,
+                                  color: AppColors.error,
+                                  size: 20,
                                 ),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.error_outline_rounded,
-                                    color: AppColors.error,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      authState.errorMessage!,
-                                      style: const TextStyle(
-                                        color: AppColors.error,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    authState.errorMessage!,
+                                    style: AppTheme.body(
+                                      fontSize: 14,
+                                      color: AppColors.onErrorContainer,
                                     ),
                                   ),
-                                ],
-                              ),
-                            ),
-                          ],
-
-                          const SizedBox(height: 40),
-
-                          // Sign In Button
-                          TvFocusableCard(
-                            onTap: _handleLogin,
-                            scaleFactor: 1.03,
-                            focusColor: AppColors.primary,
-                            borderRadius: 16,
-                            child: Container(
-                              height: 60,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: AppColors.textPrimary,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: authState.isLoading
-                                  ? const SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.5,
-                                        color: AppColors.primary,
-                                      ),
-                                    )
-                                  : Text(
-                                      'Sign In',
-                                      style: GoogleFonts.karla(
-                                        color: AppColors.primary,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
-                      ),
-                    ),
-                  ),
 
-                  const SizedBox(height: 32),
-                  Text(
-                    'Default: admin / admin',
-                    style: GoogleFonts.karla(
-                      fontSize: 14,
-                      color: AppColors.textTertiary,
+                        const SizedBox(height: 28),
+
+                        // Sign In Button
+                        SizedBox(
+                          height: 54,
+                          child: FilledButton(
+                            onPressed: _handleLogin,
+                            child: authState.isLoading
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: AppColors.onFocus,
+                                    ),
+                                  )
+                                : Text(
+                                    'Se connecter',
+                                    style: AppTheme.body(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.onFocus,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+
+                const SizedBox(height: 28),
+                Text(
+                  'Par défaut : admin / admin',
+                  style: AppTheme.body(
+                    fontSize: 14,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -310,35 +210,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
-      style: GoogleFonts.karla(fontSize: 18, color: AppColors.textPrimary),
+      style: AppTheme.body(fontSize: 17),
+      cursorColor: AppColors.accent,
       autofocus: autofocus,
       textInputAction: nextFocus ? TextInputAction.next : TextInputAction.done,
       onFieldSubmitted: isLast ? (_) => onSubmitted?.call() : null,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.karla(color: AppColors.textSecondary),
-        prefixIcon: Icon(icon, color: AppColors.textSecondary),
+        labelStyle: AppTheme.body(fontSize: 15, color: AppColors.textMuted),
+        floatingLabelStyle: AppTheme.body(
+          fontSize: 15,
+          color: AppColors.accent,
+        ),
+        prefixIcon: Icon(icon, color: AppColors.textMuted),
         suffixIcon: suffix,
-        filled: true,
-        fillColor: AppColors.surfaceVariant.withOpacity(0.5),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
+        fillColor: AppColors.rail,
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.focusColor, width: 2),
+          borderRadius: BorderRadius.circular(AppTheme.radiusField),
+          borderSide: const BorderSide(color: AppColors.accent),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 18,
+        ),
       ),
       validator: (value) {
         if (value == null || value.trim().isEmpty) {
-          return '$label required';
+          return '$label requis';
         }
         return null;
       },

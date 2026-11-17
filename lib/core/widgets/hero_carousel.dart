@@ -1,6 +1,7 @@
-﻿import 'dart:async';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 
@@ -45,31 +46,23 @@ class HeroCarousel extends StatefulWidget {
 }
 
 class _HeroCarouselState extends State<HeroCarousel>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late PageController _pageController;
   late AnimationController _fadeController;
-  late AnimationController _scaleController;
   int _currentIndex = 0;
   Timer? _timer;
-  bool _isHovered = false;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(
-      initialPage: 0,
-      viewportFraction: 1.0,
-    );
+    _pageController = PageController(initialPage: 0, viewportFraction: 1.0);
 
+    // Starts visible: the first slide shows its title and buttons at once.
     _fadeController = AnimationController(
       vsync: this,
       duration: AppTheme.durationLg,
+      value: 1.0,
     );
-
-    _scaleController = AnimationController(
-      vsync: this,
-      duration: AppTheme.durationXl,
-    )..repeat(reverse: true);
 
     if (widget.autoPlay && widget.items.isNotEmpty) {
       _startAutoPlay();
@@ -80,14 +73,14 @@ class _HeroCarouselState extends State<HeroCarousel>
   void dispose() {
     _pageController.dispose();
     _fadeController.dispose();
-    _scaleController.dispose();
     _timer?.cancel();
     super.dispose();
   }
 
   void _startAutoPlay() {
+    _timer?.cancel();
     _timer = Timer.periodic(widget.autoPlayInterval, (timer) {
-      if (mounted) {
+      if (mounted && widget.items.isNotEmpty && _pageController.hasClients) {
         final nextPage = (_currentIndex + 1) % widget.items.length;
         _pageController.animateToPage(
           nextPage,
@@ -105,13 +98,12 @@ class _HeroCarouselState extends State<HeroCarousel>
 
   @override
   Widget build(BuildContext context) {
+    if (widget.items.isEmpty) return SizedBox(height: widget.height);
+    final current =
+        widget.items[_currentIndex.clamp(0, widget.items.length - 1)];
     return MouseRegion(
-      onEnter: (_) {
-        setState(() => _isHovered = true);
-        _stopAutoPlay();
-      },
+      onEnter: (_) => _stopAutoPlay(),
       onExit: (_) {
-        setState(() => _isHovered = false);
         if (widget.autoPlay) {
           _startAutoPlay();
         }
@@ -121,50 +113,43 @@ class _HeroCarouselState extends State<HeroCarousel>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            PageView.builder(
-              controller: _pageController,
-              onPageChanged: (index) {
-                setState(() => _currentIndex = index);
-                _fadeController.forward(from: 0.0);
-              },
-              itemCount: widget.items.length,
-              itemBuilder: (context, index) {
-                return _buildCarouselPage(widget.items[index]);
-              },
+            ColoredBox(
+              color: AppColors.surface,
+              child: PageView.builder(
+                controller: _pageController,
+                onPageChanged: (index) {
+                  setState(() => _currentIndex = index);
+                  _fadeController.forward(from: 0.0);
+                },
+                itemCount: widget.items.length,
+                itemBuilder: (context, index) {
+                  return _buildCarouselPage(widget.items[index]);
+                },
+              ),
+            ),
+            // Veil from the left so the title reads over any artwork.
+            const IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(gradient: AppColors.heroScrim),
+              ),
             ),
             Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 200,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      AppColors.background.withOpacity(0.6),
-                      AppColors.background,
-                    ],
+              bottom: 36,
+              left: 40,
+              right: 40,
+              child: Align(
+                alignment: Alignment.bottomLeft,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 620),
+                  child: FadeTransition(
+                    opacity: _fadeController,
+                    child: _buildContentOverlay(current),
                   ),
                 ),
               ),
             ),
-            Positioned(
-              bottom: 32,
-              left: 32,
-              right: 32,
-              child: FadeTransition(
-                opacity: _fadeController,
-                child: _buildContentOverlay(widget.items[_currentIndex]),
-              ),
-            ),
-            Positioned(
-              bottom: 20,
-              right: 32,
-              child: _buildIndicators(),
-            ),
+            if (widget.items.length > 1)
+              Positioned(bottom: 24, right: 32, child: _buildIndicators()),
           ],
         ),
       ),
@@ -172,38 +157,23 @@ class _HeroCarouselState extends State<HeroCarousel>
   }
 
   Widget _buildCarouselPage(HeroCarouselItem item) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        if (item.imageUrl != null && item.imageUrl!.isNotEmpty)
-          Image.network(
-            item.imageUrl!,
-            fit: BoxFit.cover,
-            cacheWidth: 1280,
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                color: AppColors.surface,
-                child: const Center(
-                  child: Icon(Icons.broken_image_outlined, size: 64),
-                ),
-              );
-            },
-          )
-        else
-          Container(color: AppColors.surface),
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                AppColors.background.withOpacity(0.3),
-                AppColors.background.withOpacity(0.8),
-              ],
-            ),
+    if (item.imageUrl == null || item.imageUrl!.isEmpty) {
+      return const SizedBox.expand();
+    }
+    return Image.network(
+      item.imageUrl!,
+      fit: BoxFit.cover,
+      alignment: Alignment.topCenter,
+      cacheWidth: 1280,
+      errorBuilder: (context, error, stackTrace) {
+        return const Center(
+          child: Icon(
+            Icons.broken_image_outlined,
+            size: 56,
+            color: AppColors.textMuted,
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -212,137 +182,74 @@ class _HeroCarouselState extends State<HeroCarousel>
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (item.badge != null)
+        if (item.badge != null) ...[
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: item.accentColor ?? AppColors.primary,
+              color: AppColors.accentFill,
               borderRadius: BorderRadius.circular(AppTheme.radiusSm),
             ),
             child: Text(
               item.badge!,
-              style: GoogleFonts.karla(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-                letterSpacing: 0.5,
+              style: AppTheme.body(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: item.accentColor ?? AppColors.accent,
               ),
             ),
           ),
-        const SizedBox(height: 12),
+          const SizedBox(height: 12),
+        ],
         Text(
           item.title,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.fraunces(
-            fontSize: 48,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-            letterSpacing: -1.0,
+          style: AppTheme.display(
+            fontSize: 40,
+            fontWeight: FontWeight.w600,
             height: 1.1,
           ),
         ),
         if (item.subtitle != null) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
             item.subtitle!,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.karla(
+            style: AppTheme.body(
               fontSize: 16,
-              fontWeight: FontWeight.w400,
               color: AppColors.textSecondary,
               height: 1.4,
             ),
           ),
         ],
-        const SizedBox(height: 24),
-        if (item.onPlay != null || item.onTap != null)
+        if (item.onPlay != null || item.onTap != null) ...[
+          const SizedBox(height: 22),
           Row(
             children: [
               if (item.onPlay != null)
-                AnimatedScale(
-                  scale: _isHovered ? 1.05 : 1.0,
-                  duration: AppTheme.durationMd,
-                  child: GestureDetector(
-                    onTap: item.onPlay,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                        boxShadow: [
-                          BoxShadow(
-                            color: (item.accentColor ?? AppColors.primary)
-                                .withOpacity(0.4),
-                            blurRadius: 16,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.play_arrow,
-                            color: AppColors.textPrimary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Play',
-                            style: GoogleFonts.karla(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                FilledButton.icon(
+                  onPressed: item.onPlay,
+                  icon: const Icon(Icons.play_arrow_rounded, size: 22),
+                  label: const Text('Lire'),
                 ),
-              const SizedBox(width: 16),
+              if (item.onPlay != null && item.onTap != null)
+                const SizedBox(width: 12),
               if (item.onTap != null)
-                GestureDetector(
-                  onTap: item.onTap,
-                  child: Container(
+                OutlinedButton.icon(
+                  onPressed: item.onTap,
+                  style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface.withOpacity(0.8),
-                      border: Border.all(
-                        color: AppColors.border,
-                        width: 1.5,
-                      ),
-                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.info_outline,
-                          color: AppColors.textPrimary,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'More Info',
-                          style: GoogleFonts.karla(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ],
+                      horizontal: 20,
+                      vertical: 16,
                     ),
                   ),
+                  icon: const Icon(Icons.info_outline_rounded, size: 20),
+                  label: const Text("Plus d'infos"),
                 ),
             ],
           ),
+        ],
       ],
     );
   }
@@ -360,16 +267,20 @@ class _HeroCarouselState extends State<HeroCarousel>
               curve: AppTheme.curveDefault,
             );
           },
-          child: AnimatedContainer(
-            duration: AppTheme.durationMd,
-            curve: AppTheme.curveDefault,
-            margin: const EdgeInsets.symmetric(horizontal: 6),
-            width: _currentIndex == index ? 32 : 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color:
-                  _currentIndex == index ? AppColors.primary : AppColors.border,
-              borderRadius: BorderRadius.circular(4),
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: AnimatedContainer(
+              duration: AppTheme.durationMd,
+              curve: AppTheme.curveDefault,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: _currentIndex == index ? 24 : 8,
+              height: 6,
+              decoration: BoxDecoration(
+                color: _currentIndex == index
+                    ? AppColors.textPrimary
+                    : AppColors.onSurface38,
+                borderRadius: BorderRadius.circular(3),
+              ),
             ),
           ),
         ),

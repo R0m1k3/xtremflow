@@ -1,12 +1,13 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../../../features/auth/providers/auth_provider.dart';
 import '../../../../features/iptv/providers/settings_provider.dart';
 import '../../../../features/iptv/providers/xtream_provider.dart';
-import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/glass.dart';
 
 class MobileSettingsTab extends ConsumerStatefulWidget {
   const MobileSettingsTab({super.key});
@@ -63,308 +64,263 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
   Widget build(BuildContext context) {
     final currentUser = ref.watch(authProvider).currentUser;
     final settings = ref.watch(iptvSettingsProvider);
-    final themeNotifier = ref.read(themeProvider.notifier);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_initialized) _syncControllers(settings);
     });
 
     return SafeArea(
+      bottom: false,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
           // Header
           Padding(
-            padding: const EdgeInsets.only(bottom: 24),
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 20),
             child: Text(
-              'Settings',
-              style: Theme.of(context).textTheme.headlineMedium,
+              'Réglages',
+              style: AppTheme.display(
+                fontSize: 34,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
 
           // User Profile
-          Container(
+          _Group(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: AppColors.primary.withOpacity(0.2),
-                  child: Text(
-                    currentUser?.username.substring(0, 1).toUpperCase() ?? 'U',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: AppColors.accentFill,
+                    child: Text(
+                      currentUser?.username.substring(0, 1).toUpperCase() ??
+                          'U',
+                      style: AppTheme.body(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.accent,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        currentUser?.username ?? 'Guest',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.onSurface,
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          currentUser?.username ?? 'Invité',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTheme.body(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      ),
-                      if (currentUser?.isAdmin ?? false)
-                        Container(
-                          margin: const EdgeInsets.only(top: 4),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            'ADMIN',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.bold,
+                        if (currentUser?.isAdmin ?? false)
+                          Text(
+                            'Administrateur',
+                            style: AppTheme.body(
+                              fontSize: 13,
+                              color: AppColors.textMuted,
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ),
           const SizedBox(height: 24),
 
-          // Appearance
-          const _SectionHeader(title: 'Appearance'),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                SwitchListTile(
-                  title: const Text(
-                    'Dark Mode',
-                    style: TextStyle(color: AppColors.onSurface),
-                  ),
-                  secondary: Icon(
-                    isDark ? Icons.dark_mode : Icons.light_mode,
-                    color: AppColors.primary,
-                  ),
-                  value: isDark,
-                  onChanged: (_) => themeNotifier.toggleTheme(),
-                  activeThumbColor: AppColors.primary,
-                ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  title: const Text(
-                    'Show Clock',
-                    style: TextStyle(color: AppColors.onSurface),
-                  ),
-                  secondary:
-                      const Icon(Icons.access_time, color: AppColors.primary),
-                  value: settings.showClock,
-                  onChanged: (val) =>
-                      ref.read(iptvSettingsProvider.notifier).setShowClock(val),
-                  activeThumbColor: AppColors.primary,
-                ),
-              ],
-            ),
+          // Display (the charter is dark only: no theme switch)
+          const _SectionHeader(title: 'Affichage'),
+          _Group(
+            children: [
+              _SwitchRow(
+                icon: Icons.access_time,
+                label: 'Afficher l’horloge',
+                value: settings.showClock,
+                onChanged: (val) =>
+                    ref.read(iptvSettingsProvider.notifier).setShowClock(val),
+              ),
+            ],
           ),
           const SizedBox(height: 24),
 
           // Streaming Settings
-          const _SectionHeader(title: 'Streaming'),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Column(
-              children: [
-                _DropdownSetting<StreamQuality>(
-                  label: 'Quality',
-                  icon: Icons.high_quality,
-                  value: settings.streamQuality,
-                  items: StreamQuality.values,
-                  labelBuilder: (v) => v.name.toUpperCase(),
-                  onChanged: (v) {
-                    if (v != null) {
-                      ref
-                          .read(iptvSettingsProvider.notifier)
-                          .setStreamQuality(v);
-                    }
-                  },
-                ),
-                const Divider(height: 1),
-                _DropdownSetting<BufferSize>(
-                  label: 'Buffer Size',
-                  icon: Icons.memory,
-                  value: settings.bufferSize,
-                  items: BufferSize.values,
-                  labelBuilder: (v) => v.name.toUpperCase(),
-                  onChanged: (v) {
-                    if (v != null) {
-                      ref.read(iptvSettingsProvider.notifier).setBufferSize(v);
-                    }
-                  },
-                ),
-                const Divider(height: 1),
-                _DropdownSetting<ConnectionTimeout>(
-                  label: 'Timeout',
-                  icon: Icons.timer,
-                  value: settings.connectionTimeout,
-                  items: ConnectionTimeout.values,
-                  labelBuilder: (v) =>
-                      '${v.name.toUpperCase()} (${ref.read(iptvSettingsProvider).timeoutSeconds}s)',
-                  onChanged: (v) {
-                    if (v != null) {
-                      ref
-                          .read(iptvSettingsProvider.notifier)
-                          .setConnectionTimeout(v);
-                    }
-                  },
-                ),
-                const Divider(height: 1),
-                _DropdownSetting<TranscodingMode>(
-                  label: 'Mode',
-                  icon: Icons.settings_input_component,
-                  value: settings.transcodingMode,
-                  items: TranscodingMode.values,
-                  labelBuilder: (v) {
-                    switch (v) {
-                      case TranscodingMode.auto:
-                        return 'AUTO';
-                      case TranscodingMode.forced:
-                        return 'TRANSCODE';
-                      case TranscodingMode.disabled:
-                        return 'DIRECT';
-                    }
-                  },
-                  onChanged: (v) {
-                    if (v != null) {
-                      ref
-                          .read(iptvSettingsProvider.notifier)
-                          .setTranscodingMode(v);
-                    }
-                  },
-                ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  title: const Text(
-                    'Auto Reconnect',
-                    style: TextStyle(color: AppColors.onSurface),
-                  ),
-                  secondary:
-                      const Icon(Icons.refresh, color: AppColors.primary),
-                  value: settings.autoReconnect,
-                  onChanged: (val) => ref
-                      .read(iptvSettingsProvider.notifier)
-                      .setAutoReconnect(val),
-                  activeThumbColor: AppColors.primary,
-                ),
-              ],
-            ),
+          const _SectionHeader(title: 'Lecture'),
+          _Group(
+            children: [
+              _DropdownSetting<StreamQuality>(
+                label: 'Qualité',
+                icon: Icons.high_quality_outlined,
+                value: settings.streamQuality,
+                items: StreamQuality.values,
+                labelBuilder: (v) => switch (v) {
+                  StreamQuality.low => 'Faible',
+                  StreamQuality.medium => 'Moyenne',
+                  StreamQuality.high => 'Élevée',
+                },
+                onChanged: (v) {
+                  if (v != null) {
+                    ref.read(iptvSettingsProvider.notifier).setStreamQuality(v);
+                  }
+                },
+              ),
+              const Divider(height: 1, indent: 52),
+              _DropdownSetting<BufferSize>(
+                label: 'Mémoire tampon',
+                icon: Icons.memory,
+                value: settings.bufferSize,
+                items: BufferSize.values,
+                labelBuilder: (v) => switch (v) {
+                  BufferSize.low => 'Faible',
+                  BufferSize.medium => 'Moyenne',
+                  BufferSize.high => 'Élevée',
+                },
+                onChanged: (v) {
+                  if (v != null) {
+                    ref.read(iptvSettingsProvider.notifier).setBufferSize(v);
+                  }
+                },
+              ),
+              const Divider(height: 1, indent: 52),
+              _DropdownSetting<ConnectionTimeout>(
+                label: 'Délai d’attente',
+                icon: Icons.timer_outlined,
+                value: settings.connectionTimeout,
+                items: ConnectionTimeout.values,
+                labelBuilder: (v) {
+                  final name = switch (v) {
+                    ConnectionTimeout.short => 'Court',
+                    ConnectionTimeout.medium => 'Moyen',
+                    ConnectionTimeout.long => 'Long',
+                  };
+                  return '$name (${ref.read(iptvSettingsProvider).timeoutSeconds} s)';
+                },
+                onChanged: (v) {
+                  if (v != null) {
+                    ref
+                        .read(iptvSettingsProvider.notifier)
+                        .setConnectionTimeout(v);
+                  }
+                },
+              ),
+              const Divider(height: 1, indent: 52),
+              _DropdownSetting<TranscodingMode>(
+                label: 'Transcodage',
+                icon: Icons.settings_input_component_outlined,
+                value: settings.transcodingMode,
+                items: TranscodingMode.values,
+                labelBuilder: (v) {
+                  switch (v) {
+                    case TranscodingMode.auto:
+                      return 'Auto';
+                    case TranscodingMode.forced:
+                      return 'Forcé';
+                    case TranscodingMode.disabled:
+                      return 'Direct';
+                  }
+                },
+                onChanged: (v) {
+                  if (v != null) {
+                    ref
+                        .read(iptvSettingsProvider.notifier)
+                        .setTranscodingMode(v);
+                  }
+                },
+              ),
+              const Divider(height: 1, indent: 52),
+              _SwitchRow(
+                icon: Icons.refresh,
+                label: 'Reconnexion automatique',
+                value: settings.autoReconnect,
+                onChanged: (val) => ref
+                    .read(iptvSettingsProvider.notifier)
+                    .setAutoReconnect(val),
+              ),
+            ],
           ),
           const SizedBox(height: 24),
 
-          const _SectionHeader(title: 'Server Settings'),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-            ),
+          const _SectionHeader(title: 'Serveur'),
+          _Group(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                _FilterInput(
-                  label: 'Backend URL Override',
-                  icon: Icons.lan,
-                  controller: _backendUrlController,
-                  onChanged: (val) => ref
-                      .read(iptvSettingsProvider.notifier)
-                      .setBackendUrl(val),
-                ),
-                if (settings.backendUrl.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8, left: 32),
-                    child: Text(
-                      'Currently using: ${Uri.base.origin}',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: AppColors.onSurfaceVariant,
-                        fontStyle: FontStyle.italic,
-                      ),
+            children: [
+              _FilterInput(
+                label: 'Adresse du serveur (remplace l’adresse par défaut)',
+                hint: 'https://…',
+                icon: Icons.lan_outlined,
+                controller: _backendUrlController,
+                onChanged: (val) =>
+                    ref.read(iptvSettingsProvider.notifier).setBackendUrl(val),
+              ),
+              if (settings.backendUrl.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, left: 32),
+                  child: Text(
+                    'Adresse utilisée : ${Uri.base.origin}',
+                    style: AppTheme.body(
+                      fontSize: 13,
+                      color: AppColors.textMuted,
                     ),
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
           const SizedBox(height: 24),
 
           // Content Filters
-          const _SectionHeader(title: 'Content Filters'),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-            ),
+          const _SectionHeader(title: 'Filtres de contenu'),
+          _Group(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                _FilterInput(
-                  label: 'Live TV Keywords',
-                  icon: Icons.live_tv,
-                  controller: _liveTvController,
-                  onChanged: (val) => ref
-                      .read(iptvSettingsProvider.notifier)
-                      .setLiveTvFilter(val),
-                ),
-                const Divider(height: 24),
-                _FilterInput(
-                  label: 'Movies Keywords',
-                  icon: Icons.movie,
-                  controller: _moviesController,
-                  onChanged: (val) => ref
-                      .read(iptvSettingsProvider.notifier)
-                      .setMoviesFilter(val),
-                ),
-                const Divider(height: 24),
-                _FilterInput(
-                  label: 'Series Keywords',
-                  icon: Icons.tv,
-                  controller: _seriesController,
-                  onChanged: (val) => ref
-                      .read(iptvSettingsProvider.notifier)
-                      .setSeriesFilter(val),
-                ),
-              ],
-            ),
+            children: [
+              _FilterInput(
+                label: 'Mots-clés du direct',
+                icon: Icons.live_tv_outlined,
+                controller: _liveTvController,
+                onChanged: (val) => ref
+                    .read(iptvSettingsProvider.notifier)
+                    .setLiveTvFilter(val),
+              ),
+              const Divider(height: 24),
+              _FilterInput(
+                label: 'Mots-clés des films',
+                icon: Icons.movie_outlined,
+                controller: _moviesController,
+                onChanged: (val) => ref
+                    .read(iptvSettingsProvider.notifier)
+                    .setMoviesFilter(val),
+              ),
+              const Divider(height: 24),
+              _FilterInput(
+                label: 'Mots-clés des séries',
+                icon: Icons.layers_outlined,
+                controller: _seriesController,
+                onChanged: (val) => ref
+                    .read(iptvSettingsProvider.notifier)
+                    .setSeriesFilter(val),
+              ),
+            ],
           ),
           const SizedBox(height: 24),
 
           // Actions
-          if (currentUser?.isAdmin ?? false)
+          if (currentUser?.isAdmin ?? false) ...[
             _SettingsButton(
-              icon: Icons.admin_panel_settings,
-              label: 'Admin Panel',
+              icon: Icons.admin_panel_settings_outlined,
+              label: 'Administration',
               onTap: () => context.go('/admin'),
             ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
+          ],
           _SettingsButton(
             icon: Icons.playlist_play,
-            label: 'Change Playlist',
+            label: 'Changer de playlist',
             // L'IPTV active, pour savoir d'où viennent guide, enregistrements
             // et Auto NBA avant d'en changer.
             value: ref.watch(selectedPlaylistProvider)?.name,
@@ -372,21 +328,45 @@ class _MobileSettingsTabState extends ConsumerState<MobileSettingsTab> {
           ),
           const SizedBox(height: 32),
 
-          FilledButton.icon(
-            onPressed: () {
-              ref.read(authProvider.notifier).logout();
-              context.go('/login');
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.error.withOpacity(0.1),
-              foregroundColor: AppColors.error,
-              minimumSize: const Size(double.infinity, 50),
+          SizedBox(
+            height: 52,
+            child: FilledButton.icon(
+              onPressed: () {
+                ref.read(authProvider.notifier).logout();
+                context.go('/login');
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.errorContainer,
+                foregroundColor: AppColors.onErrorContainer,
+              ),
+              icon: const Icon(Icons.logout),
+              label: const Text('Se déconnecter'),
             ),
-            icon: const Icon(Icons.logout),
-            label: const Text('Logout'),
           ),
-          const SizedBox(height: 100),
         ],
+      ),
+    );
+  }
+}
+
+/// A group of settings on blur-free glass.
+class _Group extends StatelessWidget {
+  final List<Widget> children;
+  final EdgeInsetsGeometry padding;
+
+  const _Group({
+    required this.children,
+    this.padding = const EdgeInsets.symmetric(vertical: 4),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const GlassDecoration(radius: AppTheme.radiusXl, halo: false),
+      padding: padding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
       ),
     );
   }
@@ -399,21 +379,40 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 8, bottom: 8),
-      child: Text(
-        title,
-        style: GoogleFonts.karla(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: AppColors.onSurfaceVariant,
-        ),
-      ),
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(title, style: AppTheme.eyebrow(fontSize: 14)),
+    );
+  }
+}
+
+class _SwitchRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _SwitchRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      title: Text(label, style: AppTheme.body(fontSize: 16)),
+      secondary: Icon(icon, color: AppColors.textSecondary),
+      value: value,
+      onChanged: onChanged,
     );
   }
 }
 
 class _FilterInput extends StatelessWidget {
   final String label;
+  final String hint;
   final IconData icon;
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
@@ -423,13 +422,14 @@ class _FilterInput extends StatelessWidget {
     required this.icon,
     required this.controller,
     required this.onChanged,
+    this.hint = 'ex. FR, HD',
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: AppColors.onSurfaceVariant),
+        Icon(icon, size: 20, color: AppColors.textSecondary),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -437,20 +437,23 @@ class _FilterInput extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.onSurfaceVariant,
-                ),
+                style: AppTheme.body(fontSize: 13, color: AppColors.textMuted),
               ),
               TextField(
                 controller: controller,
-                style:
-                    const TextStyle(fontSize: 14, color: AppColors.onSurface),
-                decoration: const InputDecoration(
+                style: AppTheme.body(fontSize: 16),
+                decoration: InputDecoration(
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 4),
+                  filled: false,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 6),
                   border: InputBorder.none,
-                  hintText: 'e.g. FR, HD',
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  hintText: hint,
+                  hintStyle: AppTheme.body(
+                    fontSize: 16,
+                    color: AppColors.textMuted,
+                  ),
                 ),
                 onChanged: onChanged,
               ),
@@ -479,44 +482,49 @@ class _SettingsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: AppColors.onSurface),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+    const radius = BorderRadius.all(Radius.circular(AppTheme.radiusLg));
+    return DecoratedBox(
+      decoration: const GlassDecoration(radius: AppTheme.radiusLg, halo: false),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: radius,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
               children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.onSurface,
+                Icon(icon, color: AppColors.textSecondary),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        label,
+                        style: AppTheme.body(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (value != null)
+                        Text(
+                          value!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTheme.body(
+                            fontSize: 13,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-                if (value != null)
-                  Text(
-                    value!,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.karla(
-                      color: AppColors.textTertiary,
-                      fontSize: 11,
-                    ),
-                  ),
+                const Icon(Icons.chevron_right, color: AppColors.textMuted),
               ],
             ),
-            const Spacer(),
-            const Icon(Icons.chevron_right, color: AppColors.onSurfaceVariant),
-          ],
+          ),
         ),
       ),
     );
@@ -546,26 +554,16 @@ class _DropdownSetting<T> extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         children: [
-          Icon(icon, color: AppColors.primary),
+          Icon(icon, color: AppColors.textSecondary),
           const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.onSurface,
-                fontSize: 16,
-              ),
-            ),
-          ),
+          Expanded(child: Text(label, style: AppTheme.body(fontSize: 16))),
           DropdownButton<T>(
             value: value,
             underline: const SizedBox(),
-            dropdownColor: AppColors.surfaceVariant,
-            icon: const Icon(
-              Icons.arrow_drop_down,
-              color: AppColors.onSurfaceVariant,
-            ),
-            style: const TextStyle(color: AppColors.onSurface),
+            dropdownColor: AppColors.surfaceHigh,
+            borderRadius: BorderRadius.circular(AppTheme.radiusField),
+            icon: const Icon(Icons.expand_more, color: AppColors.textMuted),
+            style: AppTheme.body(fontSize: 15, color: AppColors.textSecondary),
             items: items.map((item) {
               return DropdownMenuItem<T>(
                 value: item,

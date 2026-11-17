@@ -1,434 +1,146 @@
-# XtremFlow Projector Noir Design System
-
-## Overview
-
-XtremFlow uses a **Projector Noir aesthetic**: warm tungsten light cutting through a dark screening room. The design system prioritizes:
-
-- **Sophisticated Glassmorphism** - Elegant blur effects with warm-tinted borders
-- **Tungsten Palette** - Amber projector-beam accents on deep film-black
-- **Art-House Typography** - Geometric headlines (Syne) + refined UI text (Instrument Sans)
-- **Focus-Driven Interactions** - TV-friendly hover states and animations
-- **Responsive Layouts** - Seamless adaptation from web to mobile
-
----
-
-## Color Palette
-
-### Backgrounds (warm film-black ladder)
-- **`baseLevel0`** (#0B0A08) - Deepest black, OLED optimized
-- **`background` / `surface`** (#14110C) - Primary dark surface
-- **`surfaceContainerLow`** (#1B1812) to **`surfaceContainerHighest`** (#363027) - Warm charcoal hierarchy
-
-### Primary Accents
-- **`primary`** (#FFB35C) - Tungsten amber (main brand color)
-- **`primaryContainer`** (#F39A1F) - Vivid amber (buttons, focus rings)
-- **`secondary`** (#D3C6B2) - Warm taupe
-- **`tertiary`** (#A4CCBE) - Verdigris teal (counterpoint accent)
-
-### Semantic Colors
-- **`success`** (#6BD89B) - Success/completed state
-- **`warning`** (#FFAB00) - Warning/caution state
-- **`error`** (#FFB4AB) - Error/danger state (Material 3 dark)
-- **`info`** (#64B6AC) - Information state (soft teal)
-
-### Text Hierarchy (warm ivory)
-- **`textPrimary`** (#ECE6DA) - Main text
-- **`textSecondary`** (#CDC4B4) - Secondary text
-- **`textTertiary`** (#998F7C) - Tertiary text
-
-### Category Colors
-- **`live`** (#FF6E5E) - Live streams (signal coral)
-- **`movies`** (#E8B64C) - Movie content (warm gold)
-- **`series`** (#5FC9AE) - Series content (teal)
-
----
-
-## Typography
-
-### Font Stack
-1. **Syne** (headings/display) - Geometric, art-house, distinctive
-2. **Instrument Sans** (UI/body) - Clean, readable, characterful
-3. Fallback to system fonts
-
-### Sizes & Weights
-
-| Style | Size | Weight | Usage |
-|-------|------|--------|-------|
-| `displayLarge` | 56px | W800 | Hero titles, billboards |
-| `displayMedium` | 48px | W700 | Section headers |
-| `displaySmall` | 36px | W700 | Sub-titles |
-| `headlineMedium` | 28px | W700 | Card titles |
-| `headlineSmall` | 24px | W600 | Smaller headings |
-| `titleLarge` | 20px | W600 | Labels, emphasis |
-| `titleMedium` | 16px | W600 | UI elements |
-| `titleSmall` | 14px | W600 | Secondary labels |
-| `bodyLarge` | 16px | W400 | Primary body text |
-| `bodyMedium` | 14px | W400 | Standard body |
-| `bodySmall` | 12px | W400 | Secondary text |
-| `labelLarge` | 14px | W700 | Button text |
-
----
-
-## Spacing System (8pt base)
-
-```dart
-spacing2 = 2.0
-spacing4 = 4.0
-spacing8 = 8.0
-spacing12 = 12.0
-spacing16 = 16.0
-spacing20 = 20.0
-spacing24 = 24.0
-spacing32 = 32.0
-spacing40 = 40.0
-spacing48 = 48.0
-spacing56 = 56.0
-spacing64 = 64.0
-```
-
-**TV Safe Margins:** Use `spacing32` (32px) for content edges on web/desktop.
-**Mobile Safe Margins:** Use `spacing16` (16px) for mobile screens.
-
----
-
-## Radius System
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| `radiusXs` | 4px | Tiny elements, toggles |
-| `radiusSm` | 8px | Badges, chips |
-| `radiusMd` | 12px | Buttons, inputs |
-| `radiusLg` | 16px | Cards, dialogs |
-| `radiusXl` | 24px | Large containers |
-| `radiusXxl` | 32px | Hero sections |
-| `radiusFull` | 999px | Circles, pills |
-
----
-
-## Elevation & Shadows
-
-### Elevation Levels
-```dart
-elevationXs = 2.0   // Subtle lift (tooltips)
-elevationSm = 4.0   // Slight elevation (cards)
-elevationMd = 8.0   // Standard elevation (modals)
-elevationLg = 16.0  // Prominent elevation (dialogs)
-elevationXl = 24.0  // Maximum elevation (top-level modals)
-```
-
-### Shadow System
-Shadows automatically scale with elevation. Premium glass effects use dual shadows for depth:
-- **Primary shadow:** Larger blur, higher spread (primary depth)
-- **Secondary shadow:** Smaller blur, lower spread (edge definition)
-
----
-
-## Animations
-
-### Duration
-```dart
-durationXs = 100ms     // Quick interactions
-durationSm = 150ms     // Hover states
-durationBase = 200ms   // Standard transitions
-durationMd = 300ms     // UI animations
-durationLg = 400ms     // Page transitions
-durationXl = 600ms     // Hero animations
-```
-
-### Curves
-- **`curveDefault`** (easeInOutCubic) - Standard animations
-- **`curveSnappy`** (fastOutSlowIn) - Apple-like feel
-- **`curveSmooth`** (easeOutCubic) - Content reveal
-- **`curveBouncy`** (elasticOut) - Fun interactions
-
----
-
-## Core Widgets
-
-### `GlassContainer`
-Premium glassmorphism widget with backdrop blur and gradient overlay.
-
-```dart
-GlassContainer(
-  borderRadius: AppTheme.radiusLg,
-  padding: EdgeInsets.all(16),
-  blur: 15.0,
-  opacity: 0.08,
-  child: YourWidget(),
-)
-```
-
-### `GlassCard`
-Interactive glass card with scale animations and loading states.
-
-```dart
-GlassCard(
-  interactive: true,
-  onTap: () => Navigator.push(...),
-  child: ContentWidget(),
-)
-```
-
-### `ChannelCard`
-Modern channel card with:
-- Live indicator (with pulse animation)
-- Favorite toggle button
-- EPG information display
-- Hover scale effects
-
-```dart
-ChannelCard(
-  streamId: channel.id,
-  name: channel.name,
-  iconUrl: channel.logo,
-  currentProgram: epg?.title,
-  isLive: true,
-  playlist: playlistConfig,
-  onTap: () => playChannel(channel),
-)
-```
-
-### `TvModernCard`
-Premium content card for movies, shows, or other media.
-
-```dart
-TvModernCard(
-  id: item.id,
-  title: item.title,
-  imageUrl: item.posterUrl,
-  rating: '8.7',
-  year: '2024',
-  badge: 'NEW',
-  badgeColor: AppColors.primary,
-  onTap: () => showDetails(item),
-  onPlayTap: () => playContent(item),
-)
-```
-
-### `HeroCarousel`
-Full-screen featured content carousel with auto-play.
-
-```dart
-HeroCarousel(
-  items: [
-    HeroCarouselItem(
-      id: '1',
-      title: 'Breaking Bad',
-      subtitle: 'Season 5 - Now Streaming',
-      imageUrl: 'https://...',
-      badge: 'LIMITED TIME',
-      onPlay: () => play(),
-    ),
-  ],
-  autoPlay: true,
-  autoPlayInterval: Duration(seconds: 6),
-)
-```
-
-### `TvChannelGrid`
-Responsive grid layout for channels with flexible columns.
-
-```dart
-TvChannelGrid(
-  children: channels.map((ch) => ChannelCard(...)).toList(),
-  horizontalSpacing: 20,
-  verticalSpacing: 20,
-)
-```
-
-### `TvHorizontalList`
-Horizontal scrollable list with title and smooth scrolling.
-
-```dart
-TvHorizontalList(
-  title: 'Trending Now',
-  children: items.map((item) => TvModernCard(...)).toList(),
-  itemWidth: 200,
-  spacing: 16,
-)
-```
-
-### `TvTopNavBar`
-Premium top navigation with search, notifications, profile.
-
-```dart
-TvTopNavBar(
-  title: 'XtremFlow',
-  onSearch: () => showSearchModal(),
-  onNotifications: () => showNotifications(),
-  onProfile: () => showProfile(),
-  notificationCount: 3,
-)
-```
-
-### `TvSideNav`
-Vertical navigation menu with category items.
-
-```dart
-TvSideNav(
-  items: [
-    TvNavItem(label: 'Home', icon: Icons.home),
-    TvNavItem(label: 'Live TV', icon: Icons.tv),
-    TvNavItem(label: 'Movies', icon: Icons.movie),
-  ],
-  selectedIndex: 0,
-  onItemSelected: (index) => navigate(index),
-)
-```
-
----
-
-## Usage Guidelines
-
-### Color Usage
-- **Primary (Tungsten Amber):** Call-to-action buttons, focus states, active indicators
-- **Secondary (Warm Taupe):** Alerts, favorite toggles, urgent actions
-- **Tertiary (Verdigris Teal):** Accent highlights, success states, featured badges
-- **White/Grey text:** Maintain WCAG AA contrast ratio (4.5:1 minimum)
-
-### Typography
-- **Syne:** Only for headings/hero text (sizes 20px and above)
-- **Instrument Sans:** All UI, buttons, body text
-- **Letter spacing:** Increase for larger sizes (hero titles: -1.0 to -1.5), decrease for body text
-
-### Spacing
-- **Card padding:** 16px standard, 24px for premium cards
-- **List spacing:** 20px horizontal, 20px vertical between items
-- **Button height:** 44px standard (48px for mobile large buttons)
-- **Safe margins:** 32px for TV, 16px for mobile
-
-### Animations
-- **Hover states:** Always use 200-300ms animations
-- **Page transitions:** 400-600ms for hero animations
-- **Loading:** Use pulse/fade animations, not spinners when possible
-
-### Glassmorphism
-- **Blur:** 15px standard, up to 20px for premium overlays
-- **Opacity:** 8-12% for background colors, 15% for borders
-- **Gradient:** Always include subtle gradient + border for depth
-- **Shadows:** Dual shadow system for elevation
-
----
-
-## Mobile Adaptations
-
-### Touch Targets
-- **Minimum button size:** 48x48px
-- **Minimum tap area:** 44x44px
-- **Between buttons:** 16px spacing minimum
-
-### Typography Scaling
-- **Display text:** Reduced by 8px on mobile
-- **Body text:** Standard sizes (no reduction needed)
-- **Buttons:** Slightly smaller (14px vs 16px)
-
-### Navigation
-- **Bottom navigation bar** for main categories
-- **Horizontal scrolling** for content grids
-- **Collapsible menus** for secondary options
-- **Modal dialogs** for detailed information
-
-### Bottom Navigation
-- Maximum 5 items
-- Icon + label style
-- Bottom safe area padding
-- Glass effect with elevated background
-
----
-
-## Implementation Examples
-
-### Adding a New Feature
-1. Use `TvModernCard` or `ChannelCard` base
-2. Extend with custom styling if needed
-3. Follow spacing/animation guidelines
-4. Test hover states on desktop, tap on mobile
-5. Ensure text contrast >= 4.5:1
-
-### Color Customization
-- Never override `AppColors` constants directly
-- Use `color.withOpacity()` for transparency
-- Test on OLED displays for pure black background
-- Avoid colors outside the defined palette
-
-### Custom Animations
-- Always import `AppTheme.durationMd` and `curveDefault`
-- Keep animations under 600ms unless loading indicator
-- Use `AnimatedScale`, `FadeTransition` over custom controllers
-- Test at 60fps on low-end devices
-
----
-
-## Performance Tips
-
-1. **Image Loading:** Use `CachedNetworkImage` with placeholder
-2. **Scroll Performance:** Enable `repaint` boundaries on large lists
-3. **Animations:** Use `SingleTickerProviderStateMixin` for complex animations
-4. **Memory:** Dispose controllers in `dispose()` method
-5. **Rendering:** Avoid nested `LayoutBuilders` in scrollable areas
-
----
-
-## Accessibility
-
-- **Text Contrast:** All text must meet WCAG AA (4.5:1)
-- **Touch Targets:** 48x48px minimum on mobile
-- **Focus States:** Always visible with 2px border or scale change
-- **Semantic HTML:** Use proper widget hierarchy
-- **Tooltips:** Always add for icon-only buttons
-
----
-
-## Export & Integration
-
-### Update main.dart
-```dart
-import 'package:flutter/material.dart';
-import 'lib/core/theme/app_theme.dart';
-import 'lib/mobile/theme/mobile_theme.dart';
-
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'XtremFlow',
-      theme: AppTheme.darkTheme,
-      home: const HomePage(),
-    );
-  }
-}
-```
-
-### Use Across App
-```dart
-// Colors
-Container(color: AppColors.primary)
-
-// Spacing
-Padding(padding: EdgeInsets.all(AppTheme.spacing16))
-
-// Animations
-Duration animDuration = AppTheme.durationMd;
-Curve animCurve = AppTheme.curveDefault;
-```
-
----
-
-## Future Enhancements
-
-- [ ] Implement animations library for transitions
-- [ ] Add haptic feedback for interactions
-- [ ] Create dark/light theme toggle
-- [ ] Implement material motion guide (motion curves)
-- [ ] Add accessibility scanner integration
-- [ ] Create Storybook/documentation UI
-
----
-
-**Design System Version:** 3.0 Projector Noir
-**Last Updated:** 2026-06-10
-**Status:** Production Ready OK
+# XtremFlow — charte « Salle obscure » (web)
+
+Même charte que l'application sœur xtremobile (v1.9.9) : un salon le soir, lumières éteintes,
+l'écran est la seule source de lumière. L'interface reste discrète, ce sont les logos et les
+affiches qui portent la couleur. Une seule chose est allumée à la fois : l'élément focalisé.
+
+Fichiers de référence :
+
+| Fichier | Rôle |
+|---|---|
+| `lib/core/theme/app_colors.dart` | jetons de couleur |
+| `lib/core/theme/app_theme.dart` | police, tailles, rayons, mouvement, thème Material |
+| `lib/core/theme/glass.dart` | `GlassDecoration` (verre sans flou), `AmbientBackground` |
+| `lib/core/theme/app_decorations.dart` | `tvCard`, `logoTile` |
+| `lib/core/widgets/tv_focusable.dart` | focus unique souris / clavier |
+| `lib/core/widgets/app_dialog.dart` | fenêtres et feuilles au thème |
+| `lib/core/widgets/side_rail.dart` | barre latérale du tableau de bord |
+| `lib/features/iptv/widgets/live_widgets.dart` | cartes, lignes et panneau du Direct |
+| `lib/features/iptv/widgets/player_osd.dart` | plaques du lecteur |
+
+## Couleurs
+
+Rampe graphite neutre, du plus sombre au plus clair :
+
+| Jeton | Valeur | Usage |
+|---|---|---|
+| `rail` | #090A0D | barre latérale, champs dans une fenêtre |
+| `background` | #101216 | fond de page |
+| `surface` | #18181A | cartes, panneaux, barre du téléphone |
+| `surfaceHigh` | #232326 | élément surélevé, bouton au repos |
+| `track` | #2E2E31 | piste de progression |
+| `hairline` | texte à 8 % | séparateurs, liseré de la barre latérale |
+
+Texte : `textPrimary` #EDEDED, `textSecondary` #BDBDC2, `textMuted` #A8A8AE.
+
+Un seul accent, le bleu du logo : `accent` #8FCFFF (onglet courant, étoiles, bouton principal),
+`accentOnLight` sur une carte allumée, `accentFill` (bleu à 15 %) derrière l'onglet courant.
+
+Rouge `live` #F0533F : **uniquement** la progression du programme en cours (« ligne rouge ») et le
+point d'enregistrement en cours. Rien d'autre n'est rouge, hors erreurs (`error`).
+
+Élément focalisé : carte claire `focusTop` #F4F4F2, encre sombre `onFocus` / `onFocusMuted`.
+
+Les anciens noms (`primary`, `surfaceContainer*`, `secondaryFixed*`…) existent encore en alias sur
+cette rampe ; le nouveau code utilise les jetons ci-dessus.
+
+## Typographie
+
+Figtree seule, en 400 / 500 / 600, fichiers statiques dans `assets/fonts/` (licence OFL) déclarés
+dans `pubspec.yaml`. Aucune requête vers Google Fonts.
+
+- `AppTheme.display(...)` titres, `AppTheme.body(...)` texte d'interface, `AppTheme.eyebrow(...)`
+  petit libellé discret.
+- `AppTheme.font(...)` remplace les anciens `GoogleFonts.xxx(...)` : mêmes paramètres, impose
+  Figtree, ramène toute graisse > 600 à 600 et tout interlettrage négatif à 0.
+- Chiffres tabulaires (`AppTheme.tabular`) pour les heures, numéros et compteurs.
+- Hiérarchie par la taille et la couleur, pas par la graisse. Pas de majuscules espacées : les
+  libellés sont en français, en minuscules de phrase.
+
+Le moteur Flutter garde son repli vers Noto (fonts.gstatic.com) pour les glyphes absents de Figtree
+(emoji, écritures non latines dans des noms de chaînes) : l'interface elle-même n'en dépend pas.
+
+## Verre et profondeur
+
+- **Pas de flou** (`BackdropFilter`) ni d'ombre portée : le flou se recalcule à chaque image.
+  `GlassDecoration` peint un remplissage translucide et un liseré clair ; `lit: 1` en fait la carte
+  claire focalisée.
+- Fond des écrans (tableau de bord, connexion, choix de playlist, administration) :
+  `AmbientBackground`, lueurs bleues précalculées une fois dans une image. Le lecteur reste noir.
+- `GlassContainer` garde son ancienne API et peint `GlassDecoration` (ses options de bordure et
+  d'ombre sont ignorées).
+
+## Focus : souris et clavier
+
+`TVFocusable` porte le focus de toute l'application :
+
+- survoler un élément lui donne le focus : une seule carte allumée, qu'on vienne de la souris ou du
+  clavier ;
+- le survol ne prend jamais le focus à un champ de saisie ;
+- un focus venu du survol ne fait pas défiler la liste (seul le clavier la fait défiler) ;
+- `paintsOwnFocus: true` : l'enfant lit `TVFocusable.isFocused(context)` et devient la carte claire.
+
+## Barre latérale
+
+`SideRail`, posée au-dessus du contenu (décalé de 88 px fixes) :
+
+- repliée à 88 px (icônes), dépliée à 240 px (icônes + libellés) au survol, ou quand le focus clavier
+  y entre ; libellés masqués sous 160 px ;
+- de haut en bas : logo, Rechercher, Direct, Films, Séries, Enregistrements, puis IPTV active,
+  Réglages, Compte (Administration, Se déconnecter) ;
+- élément de 48 px, rayon 12 ; onglet courant sur `accentFill` en `accent` ; élément focalisé en
+  verre allumé ;
+- flèche droite : retour au contenu. « Rechercher » donne le focus au champ de recherche de l'onglet
+  (Direct, Films ou Séries).
+
+## Direct
+
+- Vue groupes : « Favoris » (grille de 3 : « Chaînes favorites » puis les groupes épinglés),
+  « Tous les groupes » (grille de cartes de 300 px max). L'étoile d'une carte épingle le groupe
+  (clic, ou appui long sur Entrée).
+- Vue chaînes : liste numérotée (logo, nom complet, programme, horaires, ligne rouge) et panneau à
+  droite (`min(40 %, 560 px)`) : aperçu vidéo, nom complet, programme, temps restant, progression,
+  « À suivre », boutons Plein écran / Favori / Enregistrer. Échap ramène aux groupes.
+
+### Aperçu vidéo muet
+
+- Une seule iframe `player_lite.html?…&preview=1` dont l'adresse suit `livePreviewProvider`
+  (`live_preview_controller.dart`, testé sur la VM).
+- Chargée 350 ms après l'arrivée sur une chaîne ; abandonnée après 10 s sans image ; après un
+  échec, plus d'aperçu pendant 60 s (logo et programme seulement).
+- Arrêtée en quittant la liste ou le Direct, quand l'onglet du navigateur est caché, après 3 min
+  sans souris ni clavier, et avant le plein écran.
+- En `preview=1`, `xf-player-core.js` lit en muet, sans interface, sans aucune reprise ni journal,
+  et envoie `preview_state` (`playing` / `error`) au parent.
+- Côté serveur, `turbo.ts?preview=1` inscrit sa connexion amont comme toujours cédable
+  (`preview_<id>_<n>`) : l'ouverture suivante du même compte (autre aperçu, plein écran,
+  enregistrement via le proxy local) la coupe aussitôt.
+- Réglage « Aperçu vidéo dans le Direct » (Réglages → Lecture), activé par défaut.
+
+## Lecteur
+
+Rien en haut de l'image. En bas, une plaque à 88 % d'opacité :
+
+- direct : logo, nom, programme, progression, « À suivre » ; boutons Chaînes, Son, Qualité,
+  Plein écran. La liste des chaînes s'ouvre à droite (bouton « Chaînes » ou touche C) : ↑/↓
+  parcourent la liste, Entrée zappe, Échap ferme la liste ;
+- films, séries, enregistrements : titre, barre de lecture (plage déjà disponible), −10 s / +10 s
+  (60 s avec Maj), vitesse, son, plein écran.
+
+Les raccourcis clavier existants sont inchangés.
+
+## Fenêtres
+
+`showAppDialog` + `AppDialog` / `AppDialogButton` / `AppDialogTile`, `showAppConfirm`,
+`showAppTextInput`, `showAppSheet` : carte graphite au liseré bleu, bouton focalisé allumé.
+
+## Téléphone
+
+Largeur < 768 px : écrans `lib/mobile/`, barre de navigation en bas (`NavigationBar`, fond
+`surface`, indicateur `accentFill`), mêmes jetons et même police.
+
+## Mouvement
+
+Une seule courbe, `AppTheme.curveFocus` = `Cubic(0.22, 1, 0.36, 1)`. Focus en 150 ms
+(`durationFocus`), transitions en 220 ms (`durationNormal`), 300 / 400 ms pour les grands
+déplacements.

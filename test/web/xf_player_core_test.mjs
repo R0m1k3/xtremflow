@@ -301,3 +301,136 @@ test('live : le buffer déjà lu est purgé (sinon QuotaExceeded en séance long
     c.autoCleanupMinBackwardDuration < c.autoCleanupMaxBackwardDuration,
   );
 });
+
+// ---------------------------------------------------------------------------
+// Aperçu muet de l'onglet Direct (preview=1)
+// ---------------------------------------------------------------------------
+
+/**
+ * Lecteur démarré par `start()` dans un DOM minimal : mpegts.js « chargé »
+ * dès l'injection du script, messages au parent, appels fetch et minuteurs
+ * capturés.
+ */
+const plain = (v) => JSON.parse(JSON.stringify(v)); // objets d'un autre contexte vm
+
+async function startedPlayer({ search }) {
+  const posted = [];
+  const fetches = [];
+  const timeouts = [];
+  const created = [];
+  const videoListeners = {};
+  const bodyClasses = new Set();
+  const video = {
+    addEventListener(type, fn) { (videoListeners[type] ||= []).push(fn); },
+    removeEventListener() {},
+    canPlayType: () => '',
+    play: () => Promise.resolve(),
+    buffered: { length: 0 },
+    seekable: { length: 0 },
+    currentTime: 0,
+    playbackRate: 1,
+    muted: false,
+  };
+  const document = {
+    addEventListener() {}, removeEventListener() {},
+    createElement: () => ({}),
+    head: { appendChild(s) { queueMicrotask(() => s.onload()); } },
+    body: { classList: { add: (c) => bodyClasses.add(c) } },
+  };
+  const window = {
+    addEventListener() {}, removeEventListener() {},
+    console: { log() {} },
+    location: { origin: 'https://xf.test', href: 'https://xf.test/', search },
+    parent: { postMessage: (msg) => posted.push(msg) },
+    localStorage: { getItem: () => 'tok' },
+    document,
+    mpegts: {
+      isSupported: () => true,
+      Events: { MEDIA_INFO: 'media_info', ERROR: 'error' },
+      createPlayer() {
+        const handlers = {};
+        const p = {
+          handlers,
+          destroyed: false,
+          on(type, fn) { handlers[type] = fn; },
+          attachMediaElement() {}, load() {}, unload() {},
+          detachMediaElement() {}, destroy() { p.destroyed = true; },
+        };
+        created.push(p);
+        return p;
+      },
+    },
+  };
+  const context = vm.createContext({
+    window,
+    location: window.location,
+    document,
+    URLSearchParams,
+    URL,
+    setInterval: () => 0,
+    clearInterval() {},
+    setTimeout: (fn, ms) => { timeouts.push(ms); return 0; },
+    queueMicrotask,
+    fetch: (url) => { fetches.push(url); return Promise.resolve(); },
+  });
+  vm.runInContext(source, context);
+  const player = new window.XFPlayer({ video, url: '/api/live/7/turbo.ts?preview=1', type: 'live' });
+  await player.start();
+  await new Promise((r) => setImmediate(r));
+  const fire = (type) => (videoListeners[type] || []).forEach((fn) => fn());
+  return { player, video, posted, fetches, timeouts, created, fire, bodyClasses };
+}
+
+test('aperçu : muet, sans interface, profil figé, aucun journal player-log', async () => {
+  const h = await startedPlayer({ search: '?preview=1' });
+  assert.equal(h.player.preview, true);
+  assert.equal(h.video.muted, true);
+  assert.equal(h.player.profileLocked, true);
+  assert.ok(h.bodyClasses.has('xf-preview'));
+  assert.equal(h.created.length, 1);
+  h.fire('playing');
+  assert.equal(h.fetches.filter((u) => u === '/api/player-log').length, 0);
+});
+
+test('aperçu : « playing » envoyé une fois au parent, et rien d\'autre', async () => {
+  const h = await startedPlayer({ search: '?preview=1' });
+  h.fire('playing');
+  h.fire('waiting');
+  h.fire('playing');
+  assert.deepEqual(plain(h.posted), [{ type: 'preview_state', state: 'playing' }]);
+});
+
+test('aperçu : à la première erreur, « error » puis destruction, sans reprise', async () => {
+  const h = await startedPlayer({ search: '?preview=1' });
+  h.created[0].handlers.error('NetworkError', 'HttpStatusCodeInvalid');
+  assert.deepEqual(plain(h.posted), [{ type: 'preview_state', state: 'error' }]);
+  assert.equal(h.player._destroyed, true);
+  assert.equal(h.created[0].destroyed, true);
+  // Ni recréation programmée (setTimeout 1200 ms), ni bascule HLS.
+  assert.ok(!h.timeouts.includes(1200));
+  assert.equal(h.created.length, 1);
+  assert.equal(h.player.hls, null);
+  assert.equal(h.player.url, '/api/live/7/turbo.ts?preview=1');
+});
+
+test('aperçu : une piste audio illisible ne fait pas basculer en HLS', async () => {
+  const h = await startedPlayer({ search: '?preview=1' });
+  h.created[0].handlers.media_info({ hasAudio: false });
+  assert.notEqual(h.player._audioFallbackDone, true);
+  assert.equal(h.player.url, '/api/live/7/turbo.ts?preview=1');
+});
+
+test('sans preview : comportement inchangé (journal, statut, recréation)', async () => {
+  const h = await startedPlayer({ search: '' });
+  assert.equal(h.player.preview, false);
+  assert.equal(h.video.muted, false);
+  assert.equal(h.player.profileLocked, false);
+  assert.ok(!h.bodyClasses.has('xf-preview'));
+  assert.ok(h.fetches.includes('/api/player-log'));
+  h.fire('playing');
+  assert.deepEqual(plain(h.posted), [{ type: 'playback_status', status: 'playing' }]);
+  h.created[0].handlers.error('NetworkError', 'HttpStatusCodeInvalid');
+  assert.equal(h.player._destroyed, false);
+  assert.ok(h.timeouts.includes(1200), 'recréation de mpegts.js programmée');
+  assert.ok(!h.posted.some((m) => m.type === 'preview_state'));
+});

@@ -61,6 +61,7 @@ class _SettingsKeys {
   static const String preferDirectPlay = 'prefer_direct_play';
   // Player Display Settings
   static const String showClock = 'show_clock';
+  static const String livePreview = 'live_preview';
   static const String preferredAspectRatio = 'aspect_ratio';
   static const String playerType = 'player_type';
   // Server/GPU Settings
@@ -86,6 +87,9 @@ class IptvSettings {
 
   // Player Display Settings
   final bool showClock;
+
+  /// Muted video preview of the focused channel in the Direct tab.
+  final bool livePreview;
   final String preferredAspectRatio;
   final PlayerType playerType;
 
@@ -108,6 +112,7 @@ class IptvSettings {
     this.preferDirectPlay = false,
     // Player defaults
     this.showClock = false,
+    this.livePreview = true,
     this.preferredAspectRatio = 'contain',
     this.playerType = PlayerType.standard,
     // Server/GPU defaults
@@ -127,6 +132,7 @@ class IptvSettings {
     TranscodingMode? transcodingMode,
     bool? preferDirectPlay,
     bool? showClock,
+    bool? livePreview,
     String? preferredAspectRatio,
     PlayerType? playerType,
     bool? enableNvidiaGpu,
@@ -144,6 +150,7 @@ class IptvSettings {
       transcodingMode: transcodingMode ?? this.transcodingMode,
       preferDirectPlay: preferDirectPlay ?? this.preferDirectPlay,
       showClock: showClock ?? this.showClock,
+      livePreview: livePreview ?? this.livePreview,
       preferredAspectRatio: preferredAspectRatio ?? this.preferredAspectRatio,
       playerType: playerType ?? this.playerType,
       enableNvidiaGpu: enableNvidiaGpu ?? this.enableNvidiaGpu,
@@ -342,6 +349,7 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
               : null,
           preferDirectPlay: getValue<bool>(_SettingsKeys.preferDirectPlay),
           showClock: getValue<bool>(_SettingsKeys.showClock),
+          livePreview: getValue<bool>(_SettingsKeys.livePreview),
           preferredAspectRatio:
               getValue<String>(_SettingsKeys.preferredAspectRatio),
           playerType: remoteSettings[_SettingsKeys.playerType] != null
@@ -391,6 +399,7 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
         _SettingsKeys.transcodingMode: state.transcodingMode.index,
         _SettingsKeys.preferDirectPlay: state.preferDirectPlay,
         _SettingsKeys.showClock: state.showClock,
+        _SettingsKeys.livePreview: state.livePreview,
         _SettingsKeys.preferredAspectRatio: state.preferredAspectRatio,
         _SettingsKeys.playerType: state.playerType.index,
         _SettingsKeys.enableNvidiaGpu: state.enableNvidiaGpu,
@@ -474,6 +483,11 @@ class IptvSettingsNotifier extends StateNotifier<IptvSettings> {
 
   void setShowClock(bool value) {
     state = state.copyWith(showClock: value);
+    _saveToApi();
+  }
+
+  void setLivePreview(bool value) {
+    state = state.copyWith(livePreview: value);
     _saveToApi();
   }
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../core/services/playlist_api_service.dart';
 import '../../../core/services/user_api_service.dart';
 import '../../../core/models/playlist_config.dart';
@@ -10,6 +10,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/components/ui_components.dart';
 import '../../iptv/screens/playlist_selection_screen.dart';
+import '../../../core/theme/glass.dart';
+import '../../../core/widgets/app_dialog.dart';
+import '../../../core/widgets/tv_focusable.dart';
 
 /// Users provider for admin panel
 final usersProvider = FutureProvider<List<AppUser>>((ref) async {
@@ -22,18 +25,10 @@ class AdminPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return const Scaffold(
       extendBodyBehindAppBar: true,
-      backgroundColor: AppColors.baseLevel0,
-      body: Container(
-        // Meme precaution que sur l'ecran de selection de playlist : sans
-        // contrainte d'expansion, le degrade ne couvre que le contenu.
-        constraints: const BoxConstraints.expand(),
-        decoration: const BoxDecoration(
-          gradient: AppColors.backgroundGradient,
-        ),
-        child: const AdminContent(),
-      ),
+      backgroundColor: AppColors.background,
+      body: AmbientBackground(child: AdminContent()),
     );
   }
 }
@@ -77,30 +72,21 @@ class _AdminContentState extends ConsumerState<AdminContent>
                   padding: const EdgeInsets.all(8),
                   showBorder: false,
                   onTap: () => context.go('/playlists'),
-                  child: const Icon(Icons.arrow_back, color: AppColors.textSecondary),
+                  child: const Icon(Icons.arrow_back),
                 ),
                 const SizedBox(width: 16),
-                Text(
-                  'Administration',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
+                Text('Administration', style: AppTheme.display(fontSize: 26)),
                 const Spacer(),
                 // Custom Tab Bar Indicator
                 Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(50),
-                  ),
+                  decoration: const GlassDecoration(radius: 999, halo: false),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       _buildTabButton(0, 'Playlists', Icons.playlist_play),
                       const SizedBox(width: 4),
-                      _buildTabButton(1, 'Users', Icons.people),
+                      _buildTabButton(1, 'Utilisateurs', Icons.people_outline),
                     ],
                   ),
                 ),
@@ -112,12 +98,8 @@ class _AdminContentState extends ConsumerState<AdminContent>
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              physics:
-                  const NeverScrollableScrollPhysics(), // Custom tabs handle ref
-              children: const [
-                _PlaylistsTab(),
-                _UsersTab(),
-              ],
+              physics: const NeverScrollableScrollPhysics(), // Custom tabs handle ref
+              children: const [_PlaylistsTab(), _UsersTab()],
             ),
           ),
         ],
@@ -130,33 +112,48 @@ class _AdminContentState extends ConsumerState<AdminContent>
       animation: _tabController.animation!,
       builder: (context, child) {
         final isSelected = _tabController.index == index;
-        return GestureDetector(
-          onTap: () => _tabController.animateTo(index),
-          child: AnimatedContainer(
-            duration: AppTheme.durationSm,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            decoration: BoxDecoration(
-              color: isSelected ? AppColors.focusColor : Colors.transparent,
-              borderRadius: BorderRadius.circular(50),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 18,
-                  color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
+        return TVFocusable(
+          paintsOwnFocus: true,
+          scale: 1.0,
+          borderRadius: BorderRadius.circular(999),
+          onPressed: () => _tabController.animateTo(index),
+          child: Builder(
+            builder: (context) {
+              final lit = TVFocusable.isFocused(context);
+              final ink = lit
+                  ? AppColors.onFocus
+                  : (isSelected ? AppColors.accent : AppColors.textMuted);
+              return AnimatedContainer(
+                duration: AppTheme.durationFocus,
+                curve: AppTheme.curveFocus,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: GoogleFonts.karla(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
-                  ),
+                decoration: BoxDecoration(
+                  color: lit
+                      ? AppColors.focus
+                      : (isSelected
+                            ? AppColors.accentFill
+                            : Colors.transparent),
+                  borderRadius: BorderRadius.circular(999),
                 ),
-              ],
-            ),
+                child: Row(
+                  children: [
+                    Icon(icon, size: 18, color: ink),
+                    const SizedBox(width: 8),
+                    Text(
+                      label,
+                      style: AppTheme.body(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: ink,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         );
       },
@@ -180,14 +177,14 @@ class _PlaylistsTab extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${playlistsAsync.asData?.value.length ?? 0} Playlists',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyLarge
-                    ?.copyWith(color: AppColors.textSecondary),
+                '${playlistsAsync.asData?.value.length ?? 0} playlists',
+                style: AppTheme.body(
+                  fontSize: 15,
+                  color: AppColors.textSecondary,
+                ),
               ),
               GradientButton(
-                label: 'Add Playlist',
+                label: 'Ajouter une playlist',
                 icon: Icons.add,
                 onPressed: () => _showPlaylistDialog(context, ref),
               ),
@@ -196,11 +193,13 @@ class _PlaylistsTab extends ConsumerWidget {
         ),
         Expanded(
           child: playlistsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const Center(
+              child: CircularProgressIndicator(color: AppColors.accent),
+            ),
             error: (error, stack) => Center(
               child: Text(
-                'Error: $error',
-                style: const TextStyle(color: AppColors.error),
+                'Erreur : $error',
+                style: AppTheme.body(fontSize: 15, color: AppColors.error),
               ),
             ),
             data: (playlists) {
@@ -209,20 +208,23 @@ class _PlaylistsTab extends ConsumerWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.playlist_remove,
                         size: 64,
-                        color: AppColors.textSecondary.withOpacity(0.5),
+                        color: AppColors.textMuted,
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'No playlists configured',
-                        style: Theme.of(context).textTheme.titleMedium,
+                        'Aucune playlist configurée',
+                        style: AppTheme.body(
+                          fontSize: 17,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       TextButton(
                         onPressed: () => _showPlaylistDialog(context, ref),
-                        child: const Text('Add your first playlist'),
+                        child: const Text('Ajouter votre première playlist'),
                       ),
                     ],
                   ),
@@ -230,8 +232,10 @@ class _PlaylistsTab extends ConsumerWidget {
               }
 
               return ListView.separated(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 8,
+                ),
                 itemCount: playlists.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
@@ -244,12 +248,12 @@ class _PlaylistsTab extends ConsumerWidget {
                           width: 48,
                           height: 48,
                           decoration: BoxDecoration(
-                            color: AppColors.surface,
+                            color: AppColors.accentFill,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
                             Icons.playlist_play,
-                            color: AppColors.textPrimary,
+                            color: AppColors.accent,
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -259,18 +263,18 @@ class _PlaylistsTab extends ConsumerWidget {
                             children: [
                               Text(
                                 playlist.name,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.copyWith(color: AppColors.onSurface),
+                                style: AppTheme.body(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 playlist.dns,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(color: AppColors.onSurface54),
+                                style: AppTheme.body(
+                                  fontSize: 14,
+                                  color: AppColors.textMuted,
+                                ),
                               ),
                             ],
                           ),
@@ -279,17 +283,17 @@ class _PlaylistsTab extends ConsumerWidget {
                           children: [
                             IconButton(
                               icon: const Icon(Icons.edit_outlined, size: 20),
-                              color: AppColors.onSurfaceVariant,
+                              color: AppColors.textSecondary,
                               onPressed: () =>
                                   _showPlaylistDialog(context, ref, playlist),
-                              tooltip: 'Edit',
+                              tooltip: 'Modifier',
                             ),
                             IconButton(
                               icon: const Icon(Icons.delete_outline, size: 20),
                               color: AppColors.error,
                               onPressed: () =>
                                   _deletePlaylist(context, ref, playlist),
-                              tooltip: 'Delete',
+                              tooltip: 'Supprimer',
                             ),
                           ],
                         ),
@@ -317,49 +321,41 @@ class _PlaylistsTab extends ConsumerWidget {
     final service = PlaylistApiService();
     bool isLoading = false;
 
-    showDialog(
-      context: context,
+    showAppDialog(
+      context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text(
-            playlist == null ? 'Ajouter une playlist' : 'Modifier la playlist',
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Nom'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: dnsController,
-                  decoration: const InputDecoration(
-                    labelText: 'URL du serveur',
-                    hintText: 'http://server.com:8080',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: usernameController,
-                  decoration: const InputDecoration(labelText: 'Utilisateur'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: passwordController,
-                  decoration: const InputDecoration(labelText: 'Mot de passe'),
-                  obscureText: true,
-                ),
-              ],
-            ),
+        builder: (context, setState) => AppDialog(
+          title: playlist == null
+              ? 'Ajouter une playlist'
+              : 'Modifier la playlist',
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _field(controller: nameController, label: 'Nom', autofocus: true),
+              const SizedBox(height: 12),
+              _field(
+                controller: dnsController,
+                label: 'URL du serveur',
+                hint: 'http://server.com:8080',
+              ),
+              const SizedBox(height: 12),
+              _field(controller: usernameController, label: 'Utilisateur'),
+              const SizedBox(height: 12),
+              _field(
+                controller: passwordController,
+                label: 'Mot de passe',
+                obscure: true,
+              ),
+            ],
           ),
           actions: [
-            TextButton(
+            AppDialogButton(
+              label: 'Annuler',
               onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
-              child: const Text('Annuler'),
             ),
-            FilledButton(
+            AppDialogButton(
+              label: isLoading ? 'Enregistrement…' : 'Sauvegarder',
+              primary: true,
               onPressed: isLoading
                   ? null
                   : () async {
@@ -373,9 +369,10 @@ class _PlaylistsTab extends ConsumerWidget {
                         return;
                       }
                       setState(() => isLoading = true);
-                      final dns = dnsController.text
-                          .trim()
-                          .replaceAll(RegExp(r'/$'), '');
+                      final dns = dnsController.text.trim().replaceAll(
+                        RegExp(r'/$'),
+                        '',
+                      );
                       if (playlist == null) {
                         await service.createPlaylist(
                           name: nameController.text.trim(),
@@ -395,13 +392,6 @@ class _PlaylistsTab extends ConsumerWidget {
                       if (dialogContext.mounted) Navigator.pop(dialogContext);
                       ref.invalidate(playlistsProvider);
                     },
-              child: isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Sauvegarder'),
             ),
           ],
         ),
@@ -409,33 +399,21 @@ class _PlaylistsTab extends ConsumerWidget {
     );
   }
 
-  void _deletePlaylist(
+  Future<void> _deletePlaylist(
     BuildContext context,
     WidgetRef ref,
     PlaylistConfig playlist,
-  ) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Supprimer la playlist'),
-        content: Text('Supprimer "${playlist.name}" ?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              Navigator.pop(dialogContext);
-              await PlaylistApiService().deletePlaylist(playlist.id);
-              ref.invalidate(playlistsProvider);
-            },
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
+  ) async {
+    final ok = await showAppConfirm(
+      context,
+      title: 'Supprimer la playlist',
+      message: 'Supprimer « ${playlist.name} » ?',
+      confirmLabel: 'Supprimer',
+      destructive: true,
     );
+    if (!ok) return;
+    await PlaylistApiService().deletePlaylist(playlist.id);
+    ref.invalidate(playlistsProvider);
   }
 }
 
@@ -455,14 +433,14 @@ class _UsersTab extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${usersAsync.asData?.value.length ?? 0} Users',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyLarge
-                    ?.copyWith(color: AppColors.textSecondary),
+                '${usersAsync.asData?.value.length ?? 0} utilisateurs',
+                style: AppTheme.body(
+                  fontSize: 15,
+                  color: AppColors.textSecondary,
+                ),
               ),
               GradientButton(
-                label: 'Create User',
+                label: 'Créer un utilisateur',
                 icon: Icons.person_add,
                 onPressed: () => _showCreateUserDialog(context, ref),
               ),
@@ -471,11 +449,13 @@ class _UsersTab extends ConsumerWidget {
         ),
         Expanded(
           child: usersAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const Center(
+              child: CircularProgressIndicator(color: AppColors.accent),
+            ),
             error: (error, stack) => Center(
               child: Text(
-                'Error: $error',
-                style: const TextStyle(color: AppColors.error),
+                'Erreur : $error',
+                style: AppTheme.body(fontSize: 15, color: AppColors.error),
               ),
             ),
             data: (users) {
@@ -484,15 +464,18 @@ class _UsersTab extends ConsumerWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.people_outline,
                         size: 64,
-                        color: AppColors.textSecondary.withOpacity(0.5),
+                        color: AppColors.textMuted,
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'No users found',
-                        style: Theme.of(context).textTheme.titleMedium,
+                        'Aucun utilisateur',
+                        style: AppTheme.body(
+                          fontSize: 17,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -500,8 +483,10 @@ class _UsersTab extends ConsumerWidget {
               }
 
               return ListView.separated(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 8,
+                ),
                 itemCount: users.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
@@ -515,8 +500,8 @@ class _UsersTab extends ConsumerWidget {
                           height: 48,
                           decoration: BoxDecoration(
                             color: user.isAdmin
-                                ? AppColors.focusColor
-                                : AppColors.surface,
+                                ? AppColors.accentFill
+                                : AppColors.surfaceHigh,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -524,8 +509,8 @@ class _UsersTab extends ConsumerWidget {
                                 ? Icons.admin_panel_settings
                                 : Icons.person,
                             color: user.isAdmin
-                                ? Colors.black
-                                : AppColors.textPrimary,
+                                ? AppColors.accent
+                                : AppColors.textSecondary,
                             size: 24,
                           ),
                         ),
@@ -538,10 +523,10 @@ class _UsersTab extends ConsumerWidget {
                                 children: [
                                   Text(
                                     user.username,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(color: AppColors.onSurface),
+                                    style: AppTheme.body(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                   if (user.isAdmin) ...[
                                     const SizedBox(width: 8),
@@ -551,16 +536,17 @@ class _UsersTab extends ConsumerWidget {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppColors.focusColor
-                                            .withOpacity(0.2),
-                                        borderRadius: BorderRadius.circular(50),
+                                        color: AppColors.accentFill,
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
                                       ),
                                       child: Text(
-                                        'ADMIN',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.focusColor,
+                                        'Admin',
+                                        style: AppTheme.body(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          color: AppColors.accent,
                                         ),
                                       ),
                                     ),
@@ -569,23 +555,27 @@ class _UsersTab extends ConsumerWidget {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'ID: ${user.id}',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(color: AppColors.onSurface54),
+                                'ID : ${user.id}',
+                                style: AppTheme.body(
+                                  fontSize: 14,
+                                  color: AppColors.textMuted,
+                                ),
                               ),
                             ],
                           ),
                         ),
                         PopupMenuButton<String>(
+                          tooltip: 'Actions',
                           icon: const Icon(
                             Icons.more_vert,
-                            color: AppColors.onSurfaceVariant,
+                            color: AppColors.textSecondary,
                           ),
-                          color: AppColors.surface,
+                          color: AppColors.surfaceHigh,
+                          surfaceTintColor: Colors.transparent,
+                          elevation: 0,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(14),
+                            side: const BorderSide(color: AppColors.hairline),
                           ),
                           onSelected: (value) {
                             switch (value) {
@@ -604,7 +594,7 @@ class _UsersTab extends ConsumerWidget {
                                 children: [
                                   Icon(Icons.lock_reset, size: 18),
                                   SizedBox(width: 8),
-                                  Text('Change Password'),
+                                  Text('Changer le mot de passe'),
                                 ],
                               ),
                             ),
@@ -613,13 +603,13 @@ class _UsersTab extends ConsumerWidget {
                               child: Row(
                                 children: [
                                   Icon(
-                                    Icons.delete,
+                                    Icons.delete_outline,
                                     color: AppColors.error,
                                     size: 18,
                                   ),
                                   SizedBox(width: 8),
                                   Text(
-                                    'Delete',
+                                    'Supprimer',
                                     style: TextStyle(color: AppColors.error),
                                   ),
                                 ],
@@ -645,45 +635,54 @@ class _UsersTab extends ConsumerWidget {
     bool isAdmin = false;
     bool isLoading = false;
 
-    showDialog(
-      context: context,
+    showAppDialog(
+      context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Créer un utilisateur'),
+        builder: (context, setState) => AppDialog(
+          title: 'Créer un utilisateur',
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
+              _field(
                 controller: usernameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nom d\'utilisateur',
-                  prefixIcon: Icon(Icons.person_outline),
-                ),
+                label: "Nom d'utilisateur",
+                icon: Icons.person_outline,
+                autofocus: true,
               ),
               const SizedBox(height: 12),
-              TextField(
+              _field(
                 controller: passwordController,
-                decoration: const InputDecoration(
-                  labelText: 'Mot de passe',
-                  prefixIcon: Icon(Icons.lock_outline),
-                ),
-                obscureText: true,
+                label: 'Mot de passe',
+                icon: Icons.lock_outline,
+                obscure: true,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               SwitchListTile(
-                title: const Text('Administrateur'),
-                subtitle: const Text('Accès au panneau admin'),
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  'Administrateur',
+                  style: AppTheme.body(fontSize: 15),
+                ),
+                subtitle: Text(
+                  "Accès à l'administration",
+                  style: AppTheme.body(
+                    fontSize: 13,
+                    color: AppColors.textMuted,
+                  ),
+                ),
                 value: isAdmin,
                 onChanged: (v) => setState(() => isAdmin = v),
               ),
             ],
           ),
           actions: [
-            TextButton(
+            AppDialogButton(
+              label: 'Annuler',
               onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
-              child: const Text('Annuler'),
             ),
-            FilledButton(
+            AppDialogButton(
+              label: isLoading ? 'Création…' : 'Créer',
+              primary: true,
               onPressed: isLoading
                   ? null
                   : () async {
@@ -713,13 +712,6 @@ class _UsersTab extends ConsumerWidget {
                         );
                       }
                     },
-              child: isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Créer'),
             ),
           ],
         ),
@@ -735,33 +727,32 @@ class _UsersTab extends ConsumerWidget {
     final passwordController = TextEditingController();
     bool isLoading = false;
 
-    showDialog(
-      context: context,
+    showAppDialog(
+      context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text('Changer le mot de passe de ${user.username}'),
-          content: TextField(
+        builder: (context, setState) => AppDialog(
+          title: 'Changer le mot de passe de ${user.username}',
+          content: _field(
             controller: passwordController,
-            decoration: const InputDecoration(
-              labelText: 'Nouveau mot de passe',
-              prefixIcon: Icon(Icons.lock_outline),
-            ),
-            obscureText: true,
+            label: 'Nouveau mot de passe',
+            icon: Icons.lock_outline,
+            obscure: true,
+            autofocus: true,
           ),
           actions: [
-            TextButton(
+            AppDialogButton(
+              label: 'Annuler',
               onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
-              child: const Text('Annuler'),
             ),
-            FilledButton(
+            AppDialogButton(
+              label: isLoading ? 'Modification…' : 'Changer',
+              primary: true,
               onPressed: isLoading
                   ? null
                   : () async {
                       if (passwordController.text.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Mot de passe requis'),
-                          ),
+                          const SnackBar(content: Text('Mot de passe requis')),
                         );
                         return;
                       }
@@ -787,13 +778,6 @@ class _UsersTab extends ConsumerWidget {
                         );
                       }
                     },
-              child: isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Changer'),
             ),
           ],
         ),
@@ -801,38 +785,60 @@ class _UsersTab extends ConsumerWidget {
     );
   }
 
-  void _deleteUser(BuildContext context, WidgetRef ref, AppUser user) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Supprimer l\'utilisateur'),
-        content: Text(
-          'Supprimer "${user.username}" ? Cette action est irréversible.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              Navigator.pop(dialogContext);
-              final result = await UserApiService().deleteUser(user.id);
-              ref.invalidate(usersProvider);
-              if (!result.success && context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(result.error ?? 'Erreur'),
-                    backgroundColor: AppColors.error,
-                  ),
-                );
-              }
-            },
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
+  Future<void> _deleteUser(
+    BuildContext context,
+    WidgetRef ref,
+    AppUser user,
+  ) async {
+    final ok = await showAppConfirm(
+      context,
+      title: "Supprimer l'utilisateur",
+      message:
+          'Supprimer « ${user.username} » ? Cette action est irréversible.',
+      confirmLabel: 'Supprimer',
+      destructive: true,
     );
+    if (!ok) return;
+    final result = await UserApiService().deleteUser(user.id);
+    ref.invalidate(usersProvider);
+    if (!result.success && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.error ?? 'Erreur'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
+}
+
+/// Text field of the admin dialogs: the theme field, sunk (rail) and with
+/// an accent edge when focused.
+Widget _field({
+  required TextEditingController controller,
+  required String label,
+  String? hint,
+  IconData? icon,
+  bool obscure = false,
+  bool autofocus = false,
+}) {
+  return TextField(
+    controller: controller,
+    obscureText: obscure,
+    autofocus: autofocus,
+    cursorColor: AppColors.accent,
+    style: AppTheme.body(fontSize: 16),
+    decoration: InputDecoration(
+      labelText: label,
+      hintText: hint,
+      labelStyle: AppTheme.body(fontSize: 15, color: AppColors.textMuted),
+      floatingLabelStyle: AppTheme.body(fontSize: 15, color: AppColors.accent),
+      prefixIcon: icon == null ? null : Icon(icon, color: AppColors.textMuted),
+      fillColor: AppColors.rail,
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusField),
+        borderSide: const BorderSide(color: AppColors.accent),
+      ),
+    ),
+  );
 }

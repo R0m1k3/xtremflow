@@ -1,20 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'dart:html' as html;
 import 'dart:ui_web' as ui_web;
 import 'dart:async';
-import 'package:google_fonts/google_fonts.dart';
+
 import 'package:pointer_interceptor/pointer_interceptor.dart';
+
 import '../providers/xtream_provider.dart';
 import '../providers/playback_positions_provider.dart';
+import '../utils/epg_now.dart';
+import '../widgets/live_widgets.dart';
+import '../widgets/player_osd.dart';
 import '../widgets/quality_selector_widget.dart';
 
-// ... (existing imports)
-// ... (existing imports)
+import '../../../core/models/iptv_models.dart';
 import '../../../core/models/playlist_config.dart';
-import '../../../core/widgets/glass_container.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 
 enum StreamType { live, vod, series, recording }
 
@@ -55,8 +59,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _isLoading = true;
   StreamSubscription? _messageSubscription;
   bool _isSeeking = false;
-  late final String _viewIdPrefix =
-      DateTime.now().millisecondsSinceEpoch.toString();
+  late final String _viewIdPrefix = DateTime.now().millisecondsSinceEpoch
+      .toString();
   String _viewId = 'iptv-player';
   bool _isMuted = false;
   bool _ignoreStatusUpdates = false;
@@ -114,8 +118,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _onHover(); // Start the auto-hide timer
     _initializePlayer(startTimeOverride: widget.startTime);
     _setupMessageListener();
-    _fullscreenSubscription =
-        html.document.onFullscreenChange.listen((_) => _syncFullscreenState());
+    _fullscreenSubscription = html.document.onFullscreenChange.listen(
+      (_) => _syncFullscreenState(),
+    );
   }
 
   @override
@@ -123,6 +128,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _messageSubscription?.cancel();
     _fullscreenSubscription?.cancel();
     _controlsTimer?.cancel();
+    _keysScope.dispose();
+    _listScope.dispose();
+    _listCurrentFocus.dispose();
+    _listScroll.dispose();
     super.dispose();
   }
 
@@ -207,10 +216,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         _mediaOffset = (startTimeOverride ?? 0) > 0
             ? startTimeOverride!.floorToDouble()
             : 0;
-        final base = '${service.backendBaseUrl}/api/recordings/stream/'
+        final base =
+            '${service.backendBaseUrl}/api/recordings/stream/'
             '$currentStreamId/playlist.m3u8';
-        streamUrl =
-            _mediaOffset > 0 ? '$base?start=${_mediaOffset.toInt()}' : base;
+        streamUrl = _mediaOffset > 0
+            ? '$base?start=${_mediaOffset.toInt()}'
+            : base;
       }
 
       // Store URL for Lite Player
@@ -234,8 +245,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // - Live TV: Player Lite (simple TS playback with mpegts.js)
       // - VOD/Series: Player Standard (fuller controls, HLS support)
 
-      final streamTypeParam =
-          widget.streamType == StreamType.live ? 'live' : 'vod';
+      final streamTypeParam = widget.streamType == StreamType.live
+          ? 'live'
+          : 'vod';
       final playerFile = isMobile
           ? 'player_mobile.html'
           : (isLiveTV ? 'player_lite.html' : 'player.html');
@@ -320,8 +332,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         final rawDuration = (data['duration'] as num).toDouble();
         final duration = rawDuration.isFinite ? rawDuration : 0.0;
         final rawSeekable = data['seekableEnd'];
-        final seekableEnd =
-            rawSeekable is num ? rawSeekable.toDouble() : currentTime;
+        final seekableEnd = rawSeekable is num
+            ? rawSeekable.toDouble()
+            : currentTime;
 
         // Only update position if user is NOT dragging the slider
         setState(() {
@@ -338,11 +351,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         // d'un flux continu n'a pas de sens et polluait le stockage avec une
         // entrée bidon par chaîne zappée.
         if (currentTime > 0 && widget.streamType != StreamType.live) {
-          ref.read(playbackPositionsProvider.notifier).savePosition(
-                _positionKey,
-                currentTime,
-                duration,
-              );
+          ref
+              .read(playbackPositionsProvider.notifier)
+              .savePosition(_positionKey, currentTime, duration);
         }
       } else if (type == 'seek_out_of_range') {
         // Cible hors de la zone déjà transcodée : seul un redémarrage du
@@ -351,7 +362,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         if (target != null) _restartAt(target);
       } else if (type == 'playback_ended') {
         setState(() => _isPlaying = false);
-        ref.read(playbackPositionsProvider.notifier).clearPosition(_positionKey);
+        ref
+            .read(playbackPositionsProvider.notifier)
+            .clearPosition(_positionKey);
       } else if (type == 'playback_status') {
         if (!_ignoreStatusUpdates) {
           setState(() => _isPlaying = data['status'] == 'playing');
@@ -372,7 +385,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (iframe == null) {
       final iframes = html.document.getElementsByTagName('iframe');
       for (final frame in iframes) {
+        // L'aperçu du Direct (name="xf-preview") n'est jamais la cible.
         if (frame is html.IFrameElement &&
+            frame.name != 'xf-preview' &&
             (frame.src?.contains('player_lite.html') == true ||
                 frame.src?.contains('player.html') == true ||
                 frame.src?.contains('player_mobile.html') == true)) {
@@ -383,8 +398,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
 
     if (iframe != null) {
-      iframe.contentWindow
-          ?.postMessage(message, html.window.location.origin);
+      iframe.contentWindow?.postMessage(message, html.window.location.origin);
     } else {
       print(
         '[PlayerScreen] Error: Could not find iframe to send message: $message',
@@ -437,8 +451,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (!_isSeekable || _seekReloading) return;
     // Jamais tout à la fin : FFmpeg lancé au-delà de la dernière image
     // n'encoderait rien et le lecteur n'aurait qu'une erreur à afficher.
-    final ceiling =
-        _totalDuration > 10 ? _totalDuration - 5 : _totalDuration;
+    final ceiling = _totalDuration > 10 ? _totalDuration - 5 : _totalDuration;
     final clamped = target.clamp(0.0, ceiling);
     if (widget.streamType != StreamType.recording) {
       // VOD/séries : le serveur ne sait pas démarrer ailleurs qu'au début,
@@ -475,10 +488,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
     // `fullscreenchange` arrive de façon asynchrone : relire l'état juste
     // après l'appel évite que l'icône reste figée si l'évènement est perdu.
-    Future.delayed(
-      const Duration(milliseconds: 150),
-      _syncFullscreenState,
-    );
+    Future.delayed(const Duration(milliseconds: 150), _syncFullscreenState);
   }
 
   void _toggleMute() {
@@ -491,8 +501,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     setState(() => _quality = quality);
     // Rebuild the iframe with the new quality; VOD resumes at the
     // current position, live restarts at the live edge.
-    final resumeAt =
-        widget.streamType == StreamType.live ? null : _currentPosition;
+    final resumeAt = widget.streamType == StreamType.live
+        ? null
+        : _currentPosition;
     // Un enregistrement redémarre à cette position côté serveur : sa zone
     // navigable repart de zéro.
     _initializePlayer(startTimeOverride: resumeAt, isChannelSwitch: true);
@@ -654,32 +665,185 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     _setRate(_rates[next]);
   }
 
-  String _formatDuration(Duration d) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final hours = twoDigits(d.inHours);
-    final minutes = twoDigits(d.inMinutes.remainder(60));
-    final seconds = twoDigits(d.inSeconds.remainder(60));
-    return d.inHours > 0 ? '$hours:$minutes:$seconds' : '$minutes:$seconds';
+  // ─── Overlay (plates « Salle obscure », see widgets/player_osd.dart) ──────────
+
+  /// Chaînes du direct, typées : la liste reçue est `List<dynamic>` (elle
+  /// porte aussi des films côté mobile), seule une vraie liste de chaînes
+  /// alimente la liste latérale et la plaque du direct.
+  late final List<Channel>? _channelList = _asChannels(widget.channels);
+
+  static List<Channel>? _asChannels(List<dynamic>? list) {
+    if (list == null || list.isEmpty) return null;
+    if (list is List<Channel>) return list;
+    if (list.every((c) => c is Channel)) return list.cast<Channel>();
+    return null;
+  }
+
+  Channel? get _currentChannel {
+    final list = _channelList;
+    if (list == null || _currentIndex < 0 || _currentIndex >= list.length) {
+      return null;
+    }
+    return list[_currentIndex];
+  }
+
+  /// Portée de focus du lecteur : reçoit tous les raccourcis clavier. Quand
+  /// un bouton d'une plaque disparaît (plaques masquées), le focus revient
+  /// ici et les raccourcis continuent de s'appliquer.
+  final FocusScopeNode _keysScope = FocusScopeNode(debugLabel: 'player-keys');
+
+  /// Liste des chaînes (à droite), ouverte par « Chaînes » ou la touche C.
+  bool _channelListOpen = false;
+  final FocusScopeNode _listScope = FocusScopeNode(debugLabel: 'player-list');
+  final FocusNode _listCurrentFocus = FocusNode(debugLabel: 'player-list-cur');
+  final ScrollController _listScroll = ScrollController();
+
+  static const double _listWidth = 300;
+
+  bool get _canListChannels =>
+      widget.streamType == StreamType.live && _channelList != null;
+
+  /// Raccourcis : ceux de [_onKeyEvent], inchangés, plus la liste des
+  /// chaînes. Liste ouverte : ↑/↓ déplacent le focus dans la liste (pas de
+  /// zap), Entrée zappe sur la chaîne choisie (la ligne focalisée la gère),
+  /// Échap ferme la liste seulement.
+  KeyEventResult _onPlayerKey(FocusNode node, KeyEvent event) {
+    final key = event.logicalKey;
+    if (_channelListOpen && event is! KeyUpEvent) {
+      if (key == LogicalKeyboardKey.arrowUp ||
+          key == LogicalKeyboardKey.arrowDown) {
+        _moveInChannelList(down: key == LogicalKeyboardKey.arrowDown);
+        return KeyEventResult.handled;
+      }
+      if (event is KeyDownEvent) {
+        if (key == LogicalKeyboardKey.escape) {
+          _closeChannelList();
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.enter ||
+            key == LogicalKeyboardKey.numpadEnter ||
+            key == LogicalKeyboardKey.select) {
+          // Une ligne focalisée traite Entrée elle-même ; ici aucune ne
+          // l'a : on la place sur la chaîne en cours.
+          _focusCurrentListRow();
+          return KeyEventResult.handled;
+        }
+      }
+    }
+    if (event is KeyDownEvent &&
+        key == LogicalKeyboardKey.keyC &&
+        _canListChannels) {
+      _toggleChannelList();
+      return KeyEventResult.handled;
+    }
+    return _onKeyEvent(node, event);
+  }
+
+  void _toggleChannelList() {
+    if (_channelListOpen) {
+      _closeChannelList();
+      return;
+    }
+    setState(() => _channelListOpen = true);
+    _onHover();
+    // Premier temps : faire défiler jusqu'à la chaîne en cours ; second
+    // temps : lui donner le focus, une fois sa ligne construite.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_channelListOpen) return;
+      if (_listScroll.hasClients) {
+        final position = _listScroll.position;
+        final offset =
+            _currentIndex * ChannelListPlate.itemExtent -
+            position.viewportDimension / 2 +
+            ChannelListPlate.itemExtent / 2;
+        _listScroll.jumpTo(
+          offset.clamp(position.minScrollExtent, position.maxScrollExtent),
+        );
+      }
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _focusCurrentListRow(),
+      );
+    });
+  }
+
+  void _closeChannelList() {
+    if (!_channelListOpen) return;
+    // Rendre le focus à la portée du lecteur avant de retirer la liste.
+    if (_listScope.hasFocus) {
+      _listScope.unfocus(disposition: UnfocusDisposition.scope);
+    }
+    setState(() => _channelListOpen = false);
+    _onHover();
+  }
+
+  void _focusCurrentListRow() {
+    if (!mounted || !_channelListOpen) return;
+    _listCurrentFocus.requestFocus();
+  }
+
+  void _moveInChannelList({required bool down}) {
+    _onHover();
+    final primary = FocusManager.instance.primaryFocus;
+    if (primary == null || primary == _listScope || !_listScope.hasFocus) {
+      _focusCurrentListRow();
+      return;
+    }
+    primary.focusInDirection(
+      down ? TraversalDirection.down : TraversalDirection.up,
+    );
+  }
+
+  /// Zap depuis la liste : même chemin que [_previousChannel] /
+  /// [_nextChannel] (index courant, puis relance du flux).
+  void _selectChannel(int index) {
+    _onHover();
+    final list = _channelList;
+    if (list == null || index < 0 || index >= list.length) return;
+    if (index == _currentIndex) return;
+    setState(() => _currentIndex = index);
+    _initializePlayer(isChannelSwitch: true);
+    // La ligne de la chaîne en cours change de clé : y remettre le focus.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focusCurrentListRow());
+  }
+
+  /// Le pointeur quitte une plaque : le bouton survolé rend le focus au
+  /// lecteur, pour qu'Espace / Entrée restent lecture / pause.
+  void _releasePlateFocus() {
+    final primary = FocusManager.instance.primaryFocus;
+    if (primary == null || primary == _keysScope) return;
+    if (primary.enclosingScope != _keysScope) return;
+    primary.unfocus(disposition: UnfocusDisposition.scope);
   }
 
   @override
   Widget build(BuildContext context) {
     final isLiveTV = widget.streamType == StreamType.live;
+    final size = MediaQuery.sizeOf(context);
+    final side = size.width < 700 ? 16.0 : 48.0;
+    final bottom = size.width < 700 ? 16.0 : 32.0;
+    final listOpen = _channelListOpen && _canListChannels;
+    final listWidth = size.width - 2 * side < _listWidth + 200
+        ? size.width - 2 * side
+        : _listWidth;
+    // La liste et la plaque se partagent le bas de l'écran.
+    final plateRight = listOpen && size.width >= 900
+        ? side + listWidth + 16
+        : side;
 
-    // LITE PLAYER MODE for Live TV - Simplified UI (no BackdropFilter)
-    if (isLiveTV) {
-      return Focus(
-        autofocus: true,
-        onKeyEvent: _onKeyEvent,
-        child: Scaffold(
-        backgroundColor: AppColors.background,
+    return FocusScope(
+      node: _keysScope,
+      autofocus: true,
+      onKeyEvent: _onPlayerKey,
+      child: Scaffold(
+        backgroundColor: isLiveTV ? AppColors.background : Colors.black,
         body: Stack(
           fit: StackFit.expand,
           children: [
             // Video Player
             if (_isInitialized) HtmlElementView(viewType: _viewId),
 
-            // Control Overlay (sits on top of video, catches all pointer events)
+            // Control overlay: catches every pointer event over the iframe
+            // so that hover and clicks reach Flutter.
             Positioned.fill(
               child: PointerInterceptor(
                 child: MouseRegion(
@@ -693,161 +857,81 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         _onHover();
                       }
                     },
-                    child: Container(
-                      color: Colors.transparent,
-                      child: Stack(
-                        children: [
-                          // Top Bar
-                          AnimatedPositioned(
-                            duration: const Duration(milliseconds: 200),
-                            top: _showControls ? 0 : -100,
-                            left: 0,
-                            right: 0,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    AppColors.background.withOpacity(0.8),
-                                    Colors.transparent,
-                                  ],
-                                ),
-                              ),
-                              child: SafeArea(
-                                bottom: false,
-                                child: Row(
-                                  children: [
-                                    _buildSimpleIconButton(
-                                      icon: Icons.arrow_back_rounded,
-                                      onTap: () => Navigator.pop(context),
-                                      tooltip: 'Retour',
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            widget.channels != null
-                                                ? (widget
-                                                            .channels![
-                                                                _currentIndex]
-                                                            .name ??
-                                                        widget
-                                                            .channels![
-                                                                _currentIndex]
-                                                            .title ??
-                                                        'Unknown')
-                                                    .toString()
-                                                : widget.title,
-                                            style: GoogleFonts.fraunces(
-                                              color: AppColors.textPrimary,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          Text(
-                                            'Live TV',
-                                            style: GoogleFonts.karla(
-                                              color: AppColors.primary,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    // Top right mute button removed
-                                  ],
-                                ),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Container(color: Colors.transparent),
+                        ),
+
+                        // Loading (VOD / séries / enregistrements).
+                        if (!isLiveTV && _isLoading)
+                          Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const OsdSpinner(size: 32),
+                                // Un saut hors de la zone transcodée relance
+                                // l'encodeur : quelques secondes d'attente,
+                                // autant dire pourquoi.
+                                if (_seekReloading) ...[
+                                  const SizedBox(height: 16),
+                                  PlayerToast(
+                                    text:
+                                        'Reprise à '
+                                        '${formatPlayerTime(Duration(seconds: _currentPosition.toInt()))}…',
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+
+                        // Bottom plate.
+                        if (_showControls)
+                          Positioned(
+                            left: side,
+                            right: plateRight,
+                            bottom: bottom,
+                            child: MouseRegion(
+                              onExit: (_) => _releasePlateFocus(),
+                              child: GestureDetector(
+                                // A click on the plate itself must not hide
+                                // the controls.
+                                behavior: HitTestBehavior.opaque,
+                                onTap: _onHover,
+                                child: isLiveTV
+                                    ? _buildLivePlate()
+                                    : _buildVodPlate(),
                               ),
                             ),
                           ),
 
-                          // Unified Bottom Bar - EPG + Controls in one bar
-                          AnimatedPositioned(
-                            duration: const Duration(milliseconds: 200),
-                            bottom: _showControls
-                                ? 24
-                                : -150, // More offset for stacked layout
-                            left: 16,
-                            right: 16,
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                final isSmallScreen =
-                                    constraints.maxWidth < 600;
-                                return Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: isSmallScreen ? 16 : 20,
-                                    vertical: isSmallScreen ? 12 : 16,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surface.withOpacity(0.95),
-                                    borderRadius: BorderRadius.circular(24),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppColors.background
-                                            .withOpacity(0.3),
-                                        blurRadius: 10,
-                                        spreadRadius: 2,
-                                      ),
-                                    ],
-                                    border: Border.all(
-                                      color: AppColors.textPrimary
-                                          .withOpacity(0.15),
-                                    ),
-                                  ),
-                                  child: isSmallScreen
-                                      ? Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            // EPG Info (top in mobile)
-                                            _buildInlineEpg(),
-                                            const SizedBox(height: 12),
-                                            const Divider(
-                                              color: AppColors.onSurface06,
-                                            ),
-                                            const SizedBox(height: 8),
-                                            // Control Buttons
-                                            Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.spaceEvenly,
-                                              children: _buildControlButtons(
-                                                isSmallScreen,
-                                              ),
-                                            ),
-                                          ],
-                                        )
-                                      : Row(
-                                          children: [
-                                            // EPG Info (left side)
-                                            Expanded(
-                                              child: _buildInlineEpg(),
-                                            ),
-                                            const SizedBox(width: 24),
-                                            // Control Buttons (right side)
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: _buildControlButtons(
-                                                isSmallScreen,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                );
-                              },
+                        // Channel list (live), on the right.
+                        if (listOpen)
+                          Positioned(
+                            top: bottom,
+                            bottom: bottom,
+                            right: side,
+                            width: listWidth,
+                            child: GestureDetector(
+                              // A click on the list's header must not close
+                              // the controls.
+                              behavior: HitTestBehavior.opaque,
+                              onTap: _onHover,
+                              child: FocusScope(
+                                node: _listScope,
+                                child: ChannelListPlate(
+                                  playlist: widget.playlist,
+                                  channels: _channelList!,
+                                  currentIndex: _currentIndex,
+                                  currentFocusNode: _listCurrentFocus,
+                                  controller: _listScroll,
+                                  onSelect: _selectChannel,
+                                  onActivity: _onHover,
+                                ),
+                              ),
                             ),
                           ),
-                        ],
-                      ),
+                      ],
                     ),
                   ),
                 ),
@@ -855,295 +939,217 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             ),
           ],
         ),
-        ),
-      );
-    }
-
-    // STANDARD PLAYER MODE (VOD/Series)
-    return Focus(
-      autofocus: true,
-      onKeyEvent: _onKeyEvent,
-      child: Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (_isInitialized) HtmlElementView(viewType: _viewId),
-
-          // User interaction area
-          Positioned.fill(
-            child: PointerInterceptor(
-              child: MouseRegion(
-                onHover: (_) => _onHover(),
-                child: GestureDetector(
-                  onTap: () {
-                    if (_showControls) {
-                      setState(() => _showControls = false);
-                    } else {
-                      _onHover();
-                    }
-                  },
-                  behavior: HitTestBehavior.translucent,
-                  child: Container(color: Colors.transparent),
-                ),
-              ),
-            ),
-          ),
-
-          // Controls Overlay
-          if (_showControls || _isLoading)
-            Positioned.fill(
-              child: PointerInterceptor(
-                child: Container(
-                  color: Colors.black.withOpacity(0.4),
-                  child: Stack(
-                    children: [
-                      // Top Bar
-                      Positioned(
-                        top: 24,
-                        left: 24,
-                        right: 24,
-                        child: GlassContainer.glass(
-                          height: 72,
-                          borderRadius: 24,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            children: [
-                              _buildGlassIconButton(
-                                icon: Icons.arrow_back_rounded,
-                                onTap: () => Navigator.pop(context),
-                                tooltip: 'Retour',
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Text(
-                                  widget.title,
-                                  style: GoogleFonts.fraunces(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.onSurface,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      // Center Loading Indicator (only show when loading)
-                      if (_isLoading)
-                        Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const CircularProgressIndicator(
-                                color: AppColors.primary,
-                              ),
-                              // Un saut hors de la zone transcodée relance
-                              // l'encodeur : quelques secondes d'attente,
-                              // autant dire pourquoi.
-                              if (_seekReloading) ...[
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Reprise à '
-                                  '${_formatDuration(Duration(seconds: _currentPosition.toInt()))}…',
-                                  style: GoogleFonts.karla(
-                                    color: AppColors.onSurfaceVariant,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-
-                      // Bottom Controls
-                      Positioned(
-                        bottom: 40,
-                        left: 40,
-                        right: 40,
-                        child: GlassContainer.glass(
-                          borderRadius: 24,
-                          borderColor: AppColors.onSurface.withOpacity(0.1),
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Progress
-                              Row(
-                                children: [
-                                  Text(
-                                    _formatDuration(
-                                      Duration(
-                                        seconds: _currentPosition.toInt(),
-                                      ),
-                                    ),
-                                    style: GoogleFonts.karla(
-                                      color: AppColors.onSurfaceVariant,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: SliderTheme(
-                                      data: SliderThemeData(
-                                        trackHeight: 4,
-                                        activeTrackColor: AppColors.primary,
-                                        inactiveTrackColor:
-                                            AppColors.onSurface.withOpacity(0.2),
-                                        // Portion déjà transcodée : navigable
-                                        // instantanément, contrairement au
-                                        // reste qui redémarre l'encodeur.
-                                        secondaryActiveTrackColor:
-                                            AppColors.onSurface.withOpacity(0.4),
-                                        thumbColor: AppColors.onSurface,
-                                        thumbShape: const RoundSliderThumbShape(
-                                          enabledThumbRadius: 8,
-                                        ),
-                                        overlayColor:
-                                            AppColors.primary.withOpacity(0.2),
-                                      ),
-                                      child: Slider(
-                                        value: _currentPosition
-                                            .clamp(0.0, _totalDuration),
-                                        secondaryTrackValue: _seekableEnd > 0
-                                            ? _seekableEnd
-                                                .clamp(0.0, _totalDuration)
-                                            : null,
-                                        min: 0,
-                                        max: _totalDuration,
-                                        onChanged: (val) => setState(
-                                          () => _currentPosition = val,
-                                        ),
-                                        onChangeStart: (_) =>
-                                            setState(() => _isSeeking = true),
-                                        onChangeEnd: (val) {
-                                          _seekTo(val);
-                                          Future.delayed(
-                                              const Duration(milliseconds: 500),
-                                              () {
-                                            if (mounted) {
-                                              setState(
-                                                () => _isSeeking = false,
-                                              );
-                                            }
-                                          });
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Text(
-                                    _formatDuration(
-                                      Duration(
-                                        seconds: _totalDuration.toInt(),
-                                      ),
-                                    ),
-                                    style: GoogleFonts.karla(
-                                      color: AppColors.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-
-                              // Buttons
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  // Sous 720 px, les sauts de 60 s et le
-                                  // sélecteur de vitesse sortent de la barre
-                                  // plutôt que de la faire déborder.
-                                  final compact = constraints.maxWidth < 720;
-                                  return Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      if (!compact) ...[
-                                        _buildGlassIconButton(
-                                          icon: Icons.fast_rewind_rounded,
-                                          onTap: () => _seekBy(-_bigStep),
-                                          transparent: true,
-                                          tooltip: 'Reculer de 1 min',
-                                        ),
-                                        const SizedBox(width: 16),
-                                      ],
-                                      _buildGlassIconButton(
-                                        icon: Icons.replay_10_rounded,
-                                        onTap: () => _seekBy(-_smallStep),
-                                        transparent: true,
-                                        tooltip: 'Reculer de 10 s',
-                                      ),
-                                      const SizedBox(width: 24),
-                                      _buildGlassIconButton(
-                                        icon: _isPlaying
-                                            ? Icons.pause_rounded
-                                            : Icons.play_arrow_rounded,
-                                        onTap: _togglePlayPause,
-                                        size: 56,
-                                        iconSize: 32,
-                                        tooltip:
-                                            _isPlaying ? 'Pause' : 'Lecture',
-                                      ),
-                                      const SizedBox(width: 24),
-                                      _buildGlassIconButton(
-                                        icon: Icons.forward_10_rounded,
-                                        onTap: () => _seekBy(_smallStep),
-                                        transparent: true,
-                                        tooltip: 'Avancer de 10 s',
-                                      ),
-                                      if (!compact) ...[
-                                        const SizedBox(width: 16),
-                                        _buildGlassIconButton(
-                                          icon: Icons.fast_forward_rounded,
-                                          onTap: () => _seekBy(_bigStep),
-                                          transparent: true,
-                                          tooltip: 'Avancer de 1 min',
-                                        ),
-                                      ],
-                                      const Spacer(),
-                                      if (!compact) ...[
-                                        _buildRateSelector(),
-                                        const SizedBox(width: 16),
-                                      ],
-                                      QualitySelectorButton(
-                                        current: _quality,
-                                        onSelected: _changeQuality,
-                                      ),
-                                      const SizedBox(width: 16),
-                                      _buildGlassIconButton(
-                                        icon: _isMuted
-                                            ? Icons.volume_off_rounded
-                                            : Icons.volume_up_rounded,
-                                        onTap: _toggleMute,
-                                        transparent: true,
-                                        tooltip: _isMuted
-                                            ? 'Activer le son'
-                                            : 'Couper le son',
-                                      ),
-                                      const SizedBox(width: 16),
-                                      _buildGlassIconButton(
-                                        icon: _isFullscreen
-                                            ? Icons.fullscreen_exit_rounded
-                                            : Icons.fullscreen_rounded,
-                                        onTap: _toggleFullscreen,
-                                        transparent: true,
-                                        tooltip: _isFullscreen
-                                            ? 'Quitter le plein écran'
-                                            : 'Plein écran',
-                                      ),
-                                    ],
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-        ],
       ),
+    );
+  }
+
+  /// Buttons separated by 10 px: the lit halo stays clear of its neighbours.
+  static List<Widget> _spaced(List<Widget> items) => [
+    for (var i = 0; i < items.length; i++) ...[
+      if (i > 0) const SizedBox(width: 10),
+      items[i],
+    ],
+  ];
+
+  /// Gap between two groups of buttons.
+  static const Widget _groupGap = SizedBox(width: 18);
+
+  Widget _backButton() => OsdButton(
+    key: const ValueKey('osd-back'),
+    icon: Icons.arrow_back_rounded,
+    label: 'Retour',
+    onPressed: () => Navigator.pop(context),
+    onFocus: _onHover,
+  );
+
+  Widget _playPauseButton() => OsdButton(
+    key: const ValueKey('osd-play'),
+    icon: _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+    label: _isPlaying ? 'Pause' : 'Lecture',
+    onPressed: _togglePlayPause,
+    onFocus: _onHover,
+    iconSize: 22,
+  );
+
+  Widget _muteButton() => OsdButton(
+    key: const ValueKey('osd-mute'),
+    icon: _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+    label: _isMuted ? 'Son · coupé' : 'Son',
+    onPressed: _toggleMute,
+    onFocus: _onHover,
+  );
+
+  Widget _fullscreenButton() => OsdButton(
+    key: const ValueKey('osd-fullscreen'),
+    icon: _isFullscreen
+        ? Icons.fullscreen_exit_rounded
+        : Icons.fullscreen_rounded,
+    label: _isFullscreen ? 'Quitter le plein écran' : 'Plein écran',
+    onPressed: _toggleFullscreen,
+    onFocus: _onHover,
+    iconSize: 22,
+  );
+
+  Widget _qualityButton() => QualitySelectorButton(
+    current: _quality,
+    onSelected: _changeQuality,
+    size: 40,
+  );
+
+  /// Direct : logo, nom, programme, ligne rouge, « À suivre » et boutons.
+  Widget _buildLivePlate() {
+    final channel = _currentChannel;
+    final streamId = channel?.streamId ?? widget.streamId;
+    final hasZap = widget.channels != null && widget.channels!.length > 1;
+    return Consumer(
+      builder: (context, ref, _) {
+        final entries = ref
+            .watch(
+              epgByPlaylistProvider(
+                EpgRequestKey(playlist: widget.playlist, streamId: streamId),
+              ),
+            )
+            .valueOrNull;
+        final now = DateTime.now();
+        final epg = entries == null ? EpgNow.empty : epgNow(entries, now);
+        final info = LiveOsdInfo.fromEpg(
+          number: channel == null ? '' : '${_currentIndex + 1}',
+          name: channel?.name ?? widget.title,
+          logoUrl: channel == null ? '' : logoOf(channel),
+          epg: epg,
+          now: now,
+          connecting: _isLoading,
+        );
+        return LivePlate(
+          info: info,
+          actions: LayoutBuilder(
+            builder: (context, box) {
+              final roomy = box.maxWidth >= 640;
+              // Très étroit (téléphone) : le retour système suffit.
+              final narrow = box.maxWidth < 420;
+              return Row(
+                children: [
+                  ..._spaced([
+                    if (!narrow) _backButton(),
+                    if (roomy && hasZap)
+                      OsdButton(
+                        key: const ValueKey('osd-prev'),
+                        icon: Icons.skip_previous_rounded,
+                        label: 'Chaîne précédente',
+                        onPressed: _previousChannel,
+                        onFocus: _onHover,
+                        iconSize: 22,
+                      ),
+                    _playPauseButton(),
+                    if (roomy && hasZap)
+                      OsdButton(
+                        key: const ValueKey('osd-next'),
+                        icon: Icons.skip_next_rounded,
+                        label: 'Chaîne suivante',
+                        onPressed: _nextChannel,
+                        onFocus: _onHover,
+                        iconSize: 22,
+                      ),
+                  ]),
+                  _groupGap,
+                  ..._spaced([
+                    if (_canListChannels)
+                      OsdButton(
+                        key: const ValueKey('osd-channels'),
+                        icon: Icons.playlist_play_rounded,
+                        label: _channelListOpen
+                            ? 'Chaînes · ouvertes'
+                            : 'Chaînes',
+                        onPressed: _toggleChannelList,
+                        onFocus: _onHover,
+                        iconSize: 22,
+                      ),
+                    _muteButton(),
+                    _qualityButton(),
+                    _fullscreenButton(),
+                  ]),
+                  Expanded(
+                    child:
+                        !roomy ||
+                            info.nextTime == null ||
+                            info.nextTitle == null
+                        ? const SizedBox.shrink()
+                        : OsdUpNext(
+                            time: info.nextTime!,
+                            title: info.nextTitle!,
+                          ),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  /// Films, séries, enregistrements : titre, barre (position, durée, plage
+  /// navigable), boutons.
+  Widget _buildVodPlate() {
+    Duration seconds(double s) =>
+        Duration(milliseconds: s.isFinite && s > 0 ? (s * 1000).round() : 0);
+    // 1 = durée encore inconnue (valeur initiale de [_totalDuration]).
+    final known = _totalDuration > 1;
+    final progress = VodProgress(
+      position: seconds(_currentPosition),
+      duration: known ? seconds(_totalDuration) : Duration.zero,
+      buffer: known ? seconds(_seekableEnd) : Duration.zero,
+    );
+    // Maj enfoncée : sauts de 60 s, comme au clavier.
+    double step() =>
+        HardwareKeyboard.instance.isShiftPressed ? _bigStep : _smallStep;
+    return VodPlate(
+      title: widget.title,
+      progress: progress,
+      onSeekStart: _onHover,
+      onSeek: (fraction) {
+        setState(() => _isSeeking = true);
+        _seekTo(_totalDuration * fraction);
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) setState(() => _isSeeking = false);
+        });
+      },
+      actions: LayoutBuilder(
+        builder: (context, box) {
+          final roomy = box.maxWidth >= 600;
+          final narrow = box.maxWidth < 420;
+          return Row(
+            children: [
+              ..._spaced([
+                if (!narrow) _backButton(),
+                OsdButton(
+                  key: const ValueKey('osd-back10'),
+                  icon: Icons.replay_10_rounded,
+                  label: '−10 s',
+                  onPressed: () => _seekBy(-step()),
+                  onFocus: _onHover,
+                  iconSize: 22,
+                ),
+                _playPauseButton(),
+                OsdButton(
+                  key: const ValueKey('osd-fwd10'),
+                  icon: Icons.forward_10_rounded,
+                  label: '+10 s',
+                  onPressed: () => _seekBy(step()),
+                  onFocus: _onHover,
+                  iconSize: 22,
+                ),
+              ]),
+              const Spacer(),
+              ..._spaced([
+                if (roomy) _buildRateSelector(),
+                _qualityButton(),
+                _muteButton(),
+                _fullscreenButton(),
+              ]),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1166,9 +1172,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    rate == _rate
-                        ? Icons.check_rounded
-                        : Icons.speed_rounded,
+                    rate == _rate ? Icons.check_rounded : Icons.speed_rounded,
                     size: 16,
                     color: rate == _rate
                         ? AppColors.primary
@@ -1189,18 +1193,34 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         ],
         child: Container(
           height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          constraints: const BoxConstraints(minWidth: 40),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.onSurface.withOpacity(0.15)),
+            color: OsdColors.button,
+            borderRadius: BorderRadius.circular(12),
           ),
-          child: Text(
-            _formatRate(_rate),
-            style: GoogleFonts.karla(
-              color: _rate == 1.0 ? AppColors.onSurface : AppColors.primary,
-              fontWeight: FontWeight.w600,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.speed_rounded,
+                size: 18,
+                color: _rate == 1.0 ? AppColors.textPrimary : AppColors.accent,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _formatRate(_rate),
+                style: AppTheme.body(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: _rate == 1.0
+                      ? AppColors.textPrimary
+                      : AppColors.accent,
+                  fontFeatures: AppTheme.tabular,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1213,314 +1233,5 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         ? rate.toStringAsFixed(0)
         : rate.toString();
     return '$text×';
-  }
-
-  Widget _buildGlassIconButton({
-    required IconData icon,
-    required VoidCallback onTap,
-    bool transparent = false,
-    double size = 48,
-    double iconSize = 24,
-    String? tooltip,
-  }) {
-    // Button with direct Material/InkWell - PointerInterceptor is on outer container
-    final button = Material(
-      color: transparent ? Colors.transparent : AppColors.onSurface.withOpacity(0.1),
-      shape: const CircleBorder(),
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: Container(
-          width: size,
-          height: size,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: transparent
-                ? null
-                : Border.all(color: AppColors.onSurface.withOpacity(0.1)),
-          ),
-          child: Icon(icon, color: AppColors.onSurface, size: iconSize),
-        ),
-      ),
-    );
-    return tooltip != null ? Tooltip(message: tooltip, child: button) : button;
-  }
-
-  List<Widget> _buildControlButtons(bool isSmallScreen) {
-    final buttonSize = isSmallScreen ? 40.0 : 44.0;
-    final playButtonSize = isSmallScreen ? 48.0 : 52.0;
-    final spacing = isSmallScreen ? 8.0 : 16.0;
-
-    return [
-      // Previous Channel
-      if (widget.channels != null && widget.channels!.length > 1)
-        _buildSimpleIconButton(
-          icon: Icons.skip_previous_rounded,
-          onTap: _previousChannel,
-          size: buttonSize,
-          tooltip: 'Chaîne précédente',
-        ),
-
-      if (widget.channels != null && widget.channels!.length > 1)
-        SizedBox(width: spacing),
-
-      // Play/Pause (Large)
-      _buildSimpleIconButton(
-        icon: _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-        onTap: _togglePlayPause,
-        size: playButtonSize,
-        iconSize: isSmallScreen ? 24 : 28,
-        highlighted: true,
-        tooltip: _isPlaying ? 'Pause' : 'Lecture',
-      ),
-
-      if (widget.channels != null && widget.channels!.length > 1)
-        SizedBox(width: spacing),
-
-      // Next Channel
-      if (widget.channels != null && widget.channels!.length > 1)
-        _buildSimpleIconButton(
-          icon: Icons.skip_next_rounded,
-          onTap: _nextChannel,
-          size: buttonSize,
-          tooltip: 'Chaîne suivante',
-        ),
-
-      SizedBox(width: spacing),
-
-      // Mute button
-      _buildSimpleIconButton(
-        icon: _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-        onTap: _toggleMute,
-        size: buttonSize,
-        tooltip: _isMuted ? 'Activer le son' : 'Couper le son',
-      ),
-
-      SizedBox(width: spacing),
-
-      // Quality selector
-      QualitySelectorButton(
-        current: _quality,
-        onSelected: _changeQuality,
-        size: buttonSize,
-      ),
-
-      SizedBox(width: spacing),
-
-      // Fullscreen
-      _buildSimpleIconButton(
-        icon: _isFullscreen
-            ? Icons.fullscreen_exit_rounded
-            : Icons.fullscreen_rounded,
-        onTap: _toggleFullscreen,
-        size: buttonSize,
-        tooltip: _isFullscreen ? 'Quitter le plein écran' : 'Plein écran',
-      ),
-    ];
-  }
-
-  // Simple Icon Button for Live TV player (no BackdropFilter issues)
-  Widget _buildSimpleIconButton({
-    required IconData icon,
-    required VoidCallback onTap,
-    double size = 48,
-    double iconSize = 24,
-    bool highlighted = false,
-    String? tooltip,
-  }) {
-    final button = Material(
-      color: highlighted
-          ? AppColors.primary.withOpacity(0.2)
-          : AppColors.onSurface.withOpacity(0.1),
-      shape: const CircleBorder(),
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        splashColor: AppColors.primary.withOpacity(0.3),
-        highlightColor: AppColors.primary.withOpacity(0.1),
-        child: Container(
-          width: size,
-          height: size,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: highlighted
-                  ? AppColors.primary.withOpacity(0.5)
-                  : AppColors.onSurface.withOpacity(0.2),
-              width: highlighted ? 2 : 1,
-            ),
-          ),
-          child: Icon(
-            icon,
-            color: highlighted ? AppColors.primary : AppColors.onSurface,
-            size: iconSize,
-          ),
-        ),
-      ),
-    );
-    return tooltip != null ? Tooltip(message: tooltip, child: button) : button;
-  }
-
-  /// Build inline EPG info for the unified control bar
-  Widget _buildInlineEpg() {
-    final currentStreamId = widget.channels != null
-        ? widget.channels![_currentIndex].streamId
-        : widget.streamId;
-
-    return Consumer(
-      builder: (context, ref, child) {
-        final epgAsync = ref.watch(
-          epgByPlaylistProvider(
-            EpgRequestKey(playlist: widget.playlist, streamId: currentStreamId),
-          ),
-        );
-
-        return epgAsync.when(
-          data: (epgEntries) {
-            if (epgEntries.isEmpty) {
-              // No EPG data - show channel name only
-              return Row(
-                children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.live,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      'LIVE',
-                      style: TextStyle(
-                        color: AppColors.onSurface,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      widget.channels != null
-                          ? widget.channels![_currentIndex].name
-                          : widget.title,
-                      style: GoogleFonts.fraunces(
-                        color: AppColors.onSurface,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              );
-            }
-
-            // Get current program
-            final now = DateTime.now();
-            final currentProgram = epgEntries.firstWhere(
-              (entry) {
-                final start = DateTime.parse(entry.start);
-                final end = DateTime.parse(entry.end);
-                return now.isAfter(start) && now.isBefore(end);
-              },
-              orElse: () => epgEntries.first,
-            );
-
-            return Row(
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.live,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Text(
-                    'LIVE',
-                    style: TextStyle(
-                      color: AppColors.onSurface,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        currentProgram.title,
-                        style: GoogleFonts.fraunces(
-                          color: AppColors.onSurface,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (currentProgram.description.isNotEmpty)
-                        Text(
-                          currentProgram.description,
-                          style: GoogleFonts.karla(
-                            color: AppColors.onSurface54,
-                            fontSize: 12,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
-          loading: () => Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.live,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  'LIVE',
-                  style: TextStyle(
-                    color: AppColors.onSurface,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                widget.channels != null
-                    ? widget.channels![_currentIndex].name
-                    : widget.title,
-                style: GoogleFonts.fraunces(
-                  color: AppColors.onSurface,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          error: (_, __) => Text(
-            widget.channels != null
-                ? widget.channels![_currentIndex].name
-                : widget.title,
-            style: GoogleFonts.fraunces(
-              color: AppColors.onSurface,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        );
-      },
-    );
   }
 }

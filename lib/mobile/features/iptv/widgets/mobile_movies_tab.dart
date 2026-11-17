@@ -1,16 +1,18 @@
-﻿import 'dart:async';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../../../core/models/playlist_config.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/components/hero_carousel.dart';
-import '../../../../core/widgets/glass_container.dart';
 import '../../../../features/iptv/providers/watch_history_provider.dart';
 import '../../../../features/iptv/models/xtream_models.dart';
 import '../../../../features/iptv/providers/xtream_provider.dart';
 import '../../../../features/iptv/providers/settings_provider.dart';
 import '../screens/mobile_player_screen.dart';
+import '../../../../core/theme/app_theme.dart';
+import 'mobile_live_tv_tab.dart' show MobileSearchField;
 
 class MobileMoviesTab extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
@@ -169,8 +171,8 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
       displayMovies = settings.moviesKeywords.isEmpty
           ? _movies
           : _movies
-              .where((m) => settings.matchesMoviesFilter(m.categoryName))
-              .toList();
+                .where((m) => settings.matchesMoviesFilter(m.categoryName))
+                .toList();
     }
 
     final heroItems = displayMovies
@@ -180,7 +182,7 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
             id: m.streamId,
             title: m.name,
             imageUrl: _getProxiedImageUrl(m.streamIcon, ref),
-            subtitle: m.rating != null ? '${_formatRating(m.rating)} â˜…' : null,
+            subtitle: m.rating != null ? 'Note ${_formatRating(m.rating)}' : null,
             onMoreInfo: () => _playMovie(m, displayMovies),
           ),
         )
@@ -191,58 +193,32 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
       child: CustomScrollView(
         controller: _scrollController,
         slivers: [
-          // Glass Header & Search
+          // Large title + search
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: GlassContainer.glass(
-                borderRadius: 100,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    const Icon(Icons.search, size: 20, color: AppColors.onSurfaceVariant),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        style: GoogleFonts.karla(
-                          fontSize: 14,
-                          color: AppColors.onSurface,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: 'Search Movies...',
-                          hintStyle: GoogleFonts.karla(color: AppColors.onSurfaceVariant),
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: const EdgeInsets.only(bottom: 11),
-                        ),
-                        onChanged: _onSearchChanged,
-                      ),
-                    ),
-                    if (_isSearching)
-                      const SizedBox(
-                        width: 12,
-                        height: 12,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.onSurface,
-                        ),
-                      ),
-                    if (_searchQuery.isNotEmpty)
-                      GestureDetector(
-                        onTap: () {
-                          _searchController.clear();
-                          _onSearchChanged('');
-                        },
-                        child: const Icon(
-                          Icons.close,
-                          size: 16,
-                          color: AppColors.onSurface,
-                        ),
-                      ),
-                  ],
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+              child: Text(
+                'Films',
+                style: AppTheme.display(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w600,
                 ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+              child: MobileSearchField(
+                controller: _searchController,
+                hint: 'Rechercher un film',
+                showClear: _searchQuery.isNotEmpty,
+                busy: _isSearching,
+                onChanged: _onSearchChanged,
+                onClear: () {
+                  _searchController.clear();
+                  _onSearchChanged('');
+                },
               ),
             ),
           ),
@@ -257,8 +233,9 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
                   child: HeroCarousel(
                     items: heroItems,
                     onTap: (item) {
-                      final movie = _movies
-                          .firstWhere((element) => element.streamId == item.id);
+                      final movie = _movies.firstWhere(
+                        (element) => element.streamId == item.id,
+                      );
                       _playMovie(movie, _movies);
                     },
                   ),
@@ -268,145 +245,33 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
 
           // Grid
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 0.65,
-              ),
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  if (index >= displayMovies.length) return null;
-                  final movie = displayMovies[index];
-                  final isWatched = watchHistory.isMovieWatched(movie.streamId);
-
-                  return GestureDetector(
-                    onTap: () => _playMovie(movie, displayMovies),
-                    onLongPress: () {
-                      ref
-                          .read(watchHistoryProvider.notifier)
-                          .toggleMovieWatched(movie.streamId);
-                    },
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Poster
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: movie.streamIcon != null &&
-                                  movie.streamIcon!.isNotEmpty
-                              ? Image.network(
-                                  _getProxiedImageUrl(movie.streamIcon, ref),
-                                  fit: BoxFit.cover,
-                                  cacheWidth: 360,
-                                  filterQuality: FilterQuality.low,
-                                  errorBuilder: (_, __, ___) =>
-                                      Container(color: AppColors.surfaceContainerLow),
-                                )
-                              : Container(
-                                  color: AppColors.surfaceContainerLow,
-                                  child: const Icon(
-                                    Icons.movie,
-                                    color: AppColors.outlineVariant,
-                                  ),
-                                ),
-                        ),
-
-                        // Gradient Overlay
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          height: 80,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  AppColors.background.withOpacity(0.9),
-                                ],
-                              ),
-                              borderRadius: const BorderRadius.vertical(
-                                bottom: Radius.circular(16),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // Title
-                        Positioned(
-                          bottom: 12,
-                          left: 12,
-                          right: 12,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                movie.name,
-                                style: GoogleFonts.karla(
-                                  color: AppColors.onSurface,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              if (isWatched)
-                                Text(
-                                  'WATCHED',
-                                  style: GoogleFonts.karla(
-                                    color: AppColors.primary,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-
-                        // Rating
-                        if (movie.rating != null && movie.rating!.isNotEmpty)
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: GlassContainer.glass(
-                              borderRadius: 4,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.star,
-                                    size: 10,
-                                    color: AppColors.ratingGold,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _formatRating(movie.rating)!,
-                                    style: GoogleFonts.karla(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.onSurface,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                },
-                childCount: displayMovies.length,
-              ),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            sliver: SliverLayoutBuilder(
+              builder: (context, constraints) {
+                return SliverGrid(
+                  gridDelegate: MobilePosterTile.gridDelegate(
+                    constraints.crossAxisExtent,
+                  ),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    if (index >= displayMovies.length) return null;
+                    final movie = displayMovies[index];
+                    final rating = _formatRating(movie.rating);
+                    return MobilePosterTile(
+                      title: movie.name,
+                      imageUrl: _getProxiedImageUrl(movie.streamIcon, ref),
+                      meta: rating == null ? null : '$rating / 10',
+                      isWatched: watchHistory.isMovieWatched(movie.streamId),
+                      placeholderIcon: Icons.movie_outlined,
+                      onTap: () => _playMovie(movie, displayMovies),
+                      onLongPress: () {
+                        ref
+                            .read(watchHistoryProvider.notifier)
+                            .toggleMovieWatched(movie.streamId);
+                      },
+                    );
+                  }, childCount: displayMovies.length),
+                );
+              },
             ),
           ),
 
@@ -414,12 +279,171 @@ class _MobileMoviesTabState extends ConsumerState<MobileMoviesTab> {
             const SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.all(24),
-                child: Center(
-                  child: CircularProgressIndicator(color: AppColors.onSurface),
-                ),
+                child: Center(child: CircularProgressIndicator()),
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// A movie or series poster, as in xtremobile's phone layout: the artwork
+/// carries the colour (light edge so dark posters stay off the page), a
+/// quiet caption underneath, a small neutral check when watched.
+class MobilePosterTile extends StatelessWidget {
+  const MobilePosterTile({
+    super.key,
+    required this.title,
+    required this.imageUrl,
+    required this.onTap,
+    this.onLongPress,
+    this.meta,
+    this.isWatched = false,
+    this.placeholderIcon = Icons.movie_outlined,
+  });
+
+  final String title;
+
+  /// Already proxied; empty when the item has no artwork.
+  final String imageUrl;
+  final String? meta;
+  final bool isWatched;
+  final IconData placeholderIcon;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+
+  static const double _radius = 10;
+  static const double _caption = 44;
+  static const double _gap = 12;
+
+  /// Columns of about 150 dp (3 on most phones), poster 2:3 + caption.
+  static SliverGridDelegate gridDelegate(double width) {
+    final columns = (width / 150).floor().clamp(2, 6);
+    final tile = (width - (columns - 1) * _gap) / columns;
+    return SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: columns,
+      crossAxisSpacing: _gap,
+      mainAxisSpacing: 16,
+      mainAxisExtent: tile * 1.5 + _caption,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Container(
+              foregroundDecoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(_radius),
+                border: Border.all(color: AppColors.cardEdge),
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(_radius),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(_radius),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (imageUrl.isNotEmpty)
+                      Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        cacheWidth: 360,
+                        filterQuality: FilterQuality.low,
+                        errorBuilder: (_, __, ___) => _placeholder(),
+                      )
+                    else
+                      _placeholder(),
+                    if (isWatched)
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: Container(
+                          width: 22,
+                          height: 22,
+                          decoration: const BoxDecoration(
+                            color: AppColors.background,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.check,
+                            size: 14,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SizedBox(
+            height: _caption,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.body(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (meta != null)
+                    Text(
+                      meta!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTheme.body(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                        fontFeatures: AppTheme.tabular,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _placeholder() {
+    return ColoredBox(
+      color: AppColors.surfaceHigh,
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(placeholderIcon, size: 22, color: AppColors.textMuted),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: AppTheme.body(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
