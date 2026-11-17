@@ -179,15 +179,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                 ),
-
-                const SizedBox(height: 28),
-                Text(
-                  'Par défaut : admin / admin',
-                  style: AppTheme.body(
-                    fontSize: 14,
-                    color: AppColors.textMuted,
-                  ),
-                ),
               ],
             ),
           ),
