@@ -1175,6 +1175,7 @@ class _RecordingsListViewState extends ConsumerState<_RecordingsListView> {
   String _statusLabel(String status) => switch (status) {
     'scheduled' => 'Planifié',
     'recording' => 'En cours',
+    'finalizing' => 'Conversion…',
     'completed' => 'Terminé',
     'failed' => 'Échoué',
     'cancelled' => 'Annulé',
@@ -1289,7 +1290,12 @@ class _RecordingsListViewState extends ConsumerState<_RecordingsListView> {
                     itemCount: _recordings.length,
                     itemBuilder: (ctx, i) {
                       final rec = _recordings[i];
-                      final status = rec['status'] as String? ?? 'unknown';
+                      // Fenêtre finie, conversion en MKV en cours : le
+                      // serveur garde le statut « recording » jusqu'à la fin
+                      // de la conversion, mais la capture est arrêtée.
+                      final status = rec['finalizing'] == true
+                          ? 'finalizing'
+                          : rec['status'] as String? ?? 'unknown';
                       final color = _statusColor(status);
                       return GlassContainer(
                         margin: const EdgeInsets.only(bottom: 8),

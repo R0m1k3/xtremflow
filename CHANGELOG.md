@@ -5,7 +5,7 @@
 ### ⏭️ Enregistrements : saut des pubs dans Jellyfin
 - **Coupures pub repérées après chaque enregistrement** : Comskip (compilé dans l'image, lié à un FFmpeg réduit aux décodeurs TV) analyse le fichier terminé, une analyse à la fois et en priorité basse. Les coupures sont inscrites dans le MKV comme chapitres `Commercial` (le reste en `Programme`) par un remux sans réencodage ; vignette intégrée et titre sont conservés, et le fichier n'est remplacé qu'une fois la copie complète
 - **Bouton « Passer » dans Jellyfin** via le plugin officiel Chapter Segments Provider, qui transforme ces chapitres en segments « Commercial » (réglage décrit dans le README). Un `X.edl` (format Kodi, type 3) est déposé à côté du fichier
-- **Rattrapage** : deux minutes après le démarrage, les enregistrements terminés sans `.edl` (antérieurs à la fonction, analyse interrompue ou en échec) sont remis en file
+- **Rattrapage** : une minute après le démarrage, une fois les nouveaux essais de conversion en MKV terminés, les enregistrements terminés sans `.edl` (antérieurs à la fonction, analyse interrompue ou en échec) sont remis en file
 - `COMMERCIAL_DETECTION=false` coupe la détection ; `COMSKIP_INI` permet de fournir ses propres réglages
 
 ### 🎬 Interface web « Salle obscure » (v1.1.0)
@@ -24,6 +24,8 @@
 - **Reprise au redémarrage** : un `docker stop` ou une mise à jour pendant un match clôturait l'enregistrement, qui ne reprenait jamais. La capture reste désormais ouverte et repart dans le même `.ts` au redémarrage si la fenêtre n'est pas finie
 - **Connexion figée détectée** : sans données pendant 30 s, la connexion est abandonnée et rouverte (délai croissant, jamais d'abandon avant la fin de la fenêtre). Le log de l'enregistrement indique chaque coupure, sa cause, sa durée et le volume reçu
 - Les sources HLS (`.m3u8`) ou non HTTP passent toujours par FFmpeg, converti en MPEG-TS dans le même fichier
+- **Conversion en MKV qui n'abandonne plus** : un seul paquet audio abîmé (souvent à une reconnexion) faisait échouer toute la conversion (« Error applying bitstream filters… », code 183) et l'enregistrement restait en `.ts` brut, avec ses sauts d'horloge : durée fausse, lecture qui ne s'arrête pas ou casse en plein milieu dans Plex/Jellyfin. En cas d'échec, un second essai copie toujours la vidéo mais réencode l'audio en AAC, qui saute les trames abîmées. Les enregistrements déjà restés en `.ts` pour cette raison sont reconvertis une fois, une minute après le démarrage du serveur
+- **« En cours » après l'heure de fin** : la capture s'arrête bien à la fin de la fenêtre, mais l'enregistrement gardait le statut « En cours » (point rouge, barre pleine, bouton Arrêter sans effet) pendant toute la conversion en MKV, qui peut durer de longues minutes sur un match. Il s'affiche désormais « Conversion… » pendant cette étape
 
 ### 🦀 Serveur réécrit en Rust
 - **Le serveur Dart (`bin/`) est remplacé par un serveur Rust (`server/`)** : tokio + axum, reqwest/rustls, SQLite embarqué (rusqlite). Même API, mêmes routes, mêmes réponses : le front Flutter n'a pas changé. Le binaire est multi-thread (plus de boucle d'événements unique sur laquelle un gros JSON ou un dump XMLTV gelait les flux en cours) et pèse ~9 Mo

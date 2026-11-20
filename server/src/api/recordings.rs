@@ -107,6 +107,11 @@ fn enrich(scheduler: &RecordingScheduler, r: &Recording, now: DateTime<Utc>) -> 
             map.insert("progress_pct".into(), json!(pct));
         }
         map.insert("is_active".into(), json!(scheduler.is_capturing(&r.id)));
+        // La conversion en MKV peut durer de longues minutes après la fin de
+        // la fenêtre : l'interface ne doit plus l'afficher « En cours ».
+        if scheduler.is_finalizing(&r.id) {
+            map.insert("finalizing".into(), json!(true));
+        }
         if let Some(retries) = scheduler.retry_count_of(&r.id) {
             map.insert("retry_count".into(), json!(retries));
         }
