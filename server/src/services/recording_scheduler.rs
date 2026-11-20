@@ -191,6 +191,11 @@ impl RecordingScheduler {
     }
 
     /// Un enregistrement est-il en cours de capture (ou de clôture) ?
+    /// Capture arrêtée, conversion en MKV pas encore finie.
+    pub fn is_finalizing(&self, id: &str) -> bool {
+        self.finalizing.lock().unwrap().contains(id)
+    }
+
     pub fn is_capturing(&self, id: &str) -> bool {
         self.active.lock().unwrap().contains_key(id) || self.finalizing.lock().unwrap().contains(id)
     }
