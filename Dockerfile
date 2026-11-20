@@ -67,7 +67,50 @@ COPY server/src ./src
 RUN cargo build --release --locked
 
 # ============================================
-# Stage 3: Production Runtime
+# Stage 3: Comskip (repérage des pubs des enregistrements)
+# ============================================
+# Binaire statique, lié à un FFmpeg réduit aux décodeurs des flux TV : le
+# FFmpeg complet du runtime est un exécutable, pas une bibliothèque.
+FROM debian:stable-slim AS comskip-builder
+
+ARG FFMPEG_VERSION=7.1.2
+ARG COMSKIP_COMMIT=a140b6ac8bc8f596729e9052819affc779c3b377
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    autoconf \
+    automake \
+    build-essential \
+    ca-certificates \
+    curl \
+    libargtable2-dev \
+    libtool \
+    nasm \
+    pkg-config \
+    xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+RUN curl -fsSL "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" | tar -xJ \
+    && cd "ffmpeg-${FFMPEG_VERSION}" \
+    && ./configure --prefix=/opt/ffmpeg --enable-static --disable-shared \
+       --disable-programs --disable-doc --disable-network --disable-autodetect \
+       --disable-everything --enable-protocol=file \
+       --enable-demuxer=matroska,mpegts,mov \
+       --enable-decoder=h264,hevc,mpeg2video,aac,aac_latm,ac3,eac3,mp2,mp3 \
+       --enable-parser=h264,hevc,mpegvideo,aac,aac_latm,ac3,mpegaudio \
+       --enable-swscale \
+    && make -j"$(nproc)" && make install
+
+RUN curl -fsSL "https://github.com/erikkaashoek/Comskip/archive/${COMSKIP_COMMIT}.tar.gz" | tar -xz \
+    && cd "Comskip-${COMSKIP_COMMIT}" \
+    && ./autogen.sh \
+    && PKG_CONFIG_PATH=/opt/ffmpeg/lib/pkgconfig ./configure --enable-static --disable-gui \
+    && make -j"$(nproc)" \
+    && install -m 755 comskip /usr/local/bin/comskip
+
+# ============================================
+# Stage 4: Production Runtime
 # ============================================
 FROM debian:stable-slim
 
@@ -98,6 +141,7 @@ RUN mkdir -p /app/data /app/web /app/recordings /tmp/xtremflow_streams \
 
 COPY --from=builder /app/build/web /app/web
 COPY --from=server-builder /server/target/release/xtremflow-server /app/server
+COPY --from=comskip-builder /usr/local/bin/comskip /usr/local/bin/comskip
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/server /app/entrypoint.sh
 

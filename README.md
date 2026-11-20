@@ -27,6 +27,7 @@ Toutes les captures utilisent des données fictives.
 - Aperçu vidéo muet dans le Direct : en survolant une chaîne, son image apparaît dans le panneau de droite. L'aperçu utilise une connexion que l'ouverture suivante sur le même compte libère aussitôt, il marche donc aussi avec un abonnement limité à une connexion. Il se coupe en quittant la liste, en cachant l'onglet du navigateur ou après 3 min d'inactivité, et se désactive dans Réglages → Lecture.
 - Guide TV : panneau de l'abonné en priorité, repli automatique sur un fichier XMLTV quand le panneau ne se met plus à jour.
 - Enregistrements : planification depuis le guide, capture du flux brut en `.ts` avec reconnexion automatique, reprise dans le même fichier après un redémarrage du serveur, conversion en MKV à la fin.
+- Saut des pubs dans Jellyfin : après chaque enregistrement, Comskip repère les coupures pub et les inscrit comme chapitres « Commercial » dans le MKV, plus un `.edl` lu par Kodi. Voir [Saut des pubs (Jellyfin)](#saut-des-pubs-jellyfin).
 - Enregistrements récurrents : toutes les diffusions d'une émission sont enregistrées (le guide est relu toutes les 4 h).
 - Transcodage à la demande : `source | high | medium | low`, en direct comme en VOD. `source` ne transcode rien. NVENC en option.
 - Plusieurs utilisateurs : comptes locaux (bcrypt), playlists par utilisateur, panneau d'administration.
@@ -87,6 +88,9 @@ L'image publiée est `ghcr.io/r0m1k3/xtremflow:latest`.
 | `ADMIN_INITIAL_PASSWORD` | *(généré)* | Mot de passe initial du compte admin |
 | `MIN_FREE_DISK_MB` | `500` | Espace libre minimal pour démarrer une capture |
 | `RECORDINGS_QUOTA_GB` | `0` (désactivé) | Quota du dossier d'enregistrements (les plus anciens enregistrements terminés partent en premier) |
+| `COMMERCIAL_DETECTION` | `true` | Repérage des pubs des enregistrements terminés (Comskip) ; `false` pour le couper |
+| `COMSKIP_INI` | *(réglages intégrés)* | Chemin d'un `comskip.ini` personnalisé (monté dans le conteneur) pour ajuster la détection |
+| `COMSKIP_PATH` | `/usr/local/bin/comskip` | Binaire Comskip (hors Docker, ex. `comskip.exe` sous Windows) |
 | `TRUSTED_PROXIES` | *(vide : aucun)* | IP ou plages CIDR (ex. `172.18.0.0/16`) des reverse proxies dont l'en-tête `X-Forwarded-For` est pris en compte, lu de droite à gauche. Vide : le serveur retient l'IP de la connexion |
 | `PROXY_ALLOW_PRIVATE_HOSTS` | *(vide)* | Noms d'hôtes du réseau local que le proxy `/api/xtream/` et les captures peuvent joindre malgré la protection anti-SSRF (panneau IPTV local) |
 
@@ -94,6 +98,19 @@ L'image publiée est `ghcr.io/r0m1k3/xtremflow:latest`.
 
 - Derrière un reverse proxy (Nginx, Traefik, Caddy…), définissez `TRUSTED_PROXIES` avec l'IP ou le réseau Docker du proxy. Sans cela, tous les clients partagent l'IP du proxy pour la limite de requêtes (600 par minute) et la limite de tentatives de connexion (10 par minute).
 - Le proxy `/api/xtream/<url>` et les adresses de flux des enregistrements refusent toute adresse privée, loopback, link-local (métadonnées cloud), CGNAT ou réservée, y compris quand un nom de domaine y mène (contrôle au moment de la connexion). Un panneau IPTV hébergé sur le réseau local doit donc figurer dans `PROXY_ALLOW_PRIVATE_HOSTS`.
+
+### Saut des pubs (Jellyfin)
+
+Une fois un enregistrement terminé, le serveur lance Comskip (une analyse à la fois, en priorité basse ; compter un quart d'heure environ pour un match en HD). Le fichier reste lisible pendant l'analyse, puis est remplacé par une copie identique portant des chapitres `Programme` / `Commercial`. Un fichier `X.edl` (format Kodi) est déposé à côté ; son absence signale un enregistrement à analyser, repris au démarrage suivant du serveur (y compris les enregistrements antérieurs à cette fonction).
+
+Côté Jellyfin (10.10 ou plus récent) :
+
+1. Installer le plugin officiel **Chapter Segments Provider** (Tableau de bord → Plugins → Catalogue), puis redémarrer Jellyfin.
+2. Dans les réglages du plugin, vérifier que le motif du type **Commercial** reconnaît le titre de chapitre `Commercial` (sinon y mettre `Commercial`), puis lancer la tâche planifiée **Media Segment Scan**.
+3. Dans le client web, Paramètres → Lecture, section des segments de média : pour les publicités, choisir de demander à passer (bouton) ou de passer automatiquement. Les autres clients suivent selon leur version.
+4. Avec la surveillance en temps réel de la bibliothèque, Jellyfin relit le fichier quand ses chapitres sont ajoutés ; sinon, « Actualiser les métadonnées » sur l'enregistrement.
+
+La détection n'est pas infaillible (Comskip s'appuie surtout sur la disparition du logo de la chaîne, les images noires et les silences) : le saut reste proposé, jamais imposé, et le fichier n'est jamais coupé. Plex lit les chapitres mais n'en fait pas un bouton « Passer la pub ».
 
 ## Développement local
 

@@ -1,6 +1,7 @@
 pub mod bein_channels;
 pub mod bein_guide;
 pub mod cleanup;
+pub mod commercial_detection;
 pub mod ffmpeg_sessions;
 pub mod gpu_fallback;
 pub mod logo_catalog;

@@ -2,6 +2,12 @@
 
 ## Non publié
 
+### ⏭️ Enregistrements : saut des pubs dans Jellyfin
+- **Coupures pub repérées après chaque enregistrement** : Comskip (compilé dans l'image, lié à un FFmpeg réduit aux décodeurs TV) analyse le fichier terminé, une analyse à la fois et en priorité basse. Les coupures sont inscrites dans le MKV comme chapitres `Commercial` (le reste en `Programme`) par un remux sans réencodage ; vignette intégrée et titre sont conservés, et le fichier n'est remplacé qu'une fois la copie complète
+- **Bouton « Passer » dans Jellyfin** via le plugin officiel Chapter Segments Provider, qui transforme ces chapitres en segments « Commercial » (réglage décrit dans le README). Un `X.edl` (format Kodi, type 3) est déposé à côté du fichier
+- **Rattrapage** : une minute après le démarrage, une fois les nouveaux essais de conversion en MKV terminés, les enregistrements terminés sans `.edl` (antérieurs à la fonction, analyse interrompue ou en échec) sont remis en file
+- `COMMERCIAL_DETECTION=false` coupe la détection ; `COMSKIP_INI` permet de fournir ses propres réglages
+
 ### 🎬 Interface web « Salle obscure » (v1.1.0)
 - **Même charte que xtremobile** : palette graphite, un seul accent (le bleu du logo), rouge réservé à la progression du programme en cours ; police Figtree embarquée (400/500/600, plus aucune requête vers Google Fonts) ; cartes en verre sans flou ; élément focalisé en carte claire. Tous les libellés en français
 - **Barre latérale** repliée (88 px, icônes) qui se déplie au survol ou au focus clavier (240 px, libellés) : Rechercher, Direct, Films, Séries, Enregistrements, IPTV active, Réglages, Compte

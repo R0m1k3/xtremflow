@@ -216,6 +216,7 @@ impl RecordingScheduler {
             "[RecordingScheduler] Démarrage du planificateur d'enregistrements TV (max simultanés: {})",
             self.max_concurrent
         );
+        println!("{}", crate::services::commercial_detection::status_line());
         let mut timers = self.timers.lock().unwrap();
 
         // Toutes les 10 secondes (démarrage quasi immédiat), premier passage tout de suite.
@@ -229,11 +230,14 @@ impl RecordingScheduler {
         }));
 
         // Captures restées en `.ts` (ancienne conversion) : un essai, une
-        // minute après le démarrage.
+        // minute après le démarrage. Puis les coupures pub jamais repérées,
+        // une fois ces conversions finies (Comskip ne doit pas lire un `.ts`
+        // en cours de conversion).
         let this = self.clone();
         timers.push(tokio::spawn(async move {
             tokio::time::sleep(Duration::from_secs(60)).await;
             this.retry_failed_conversions().await;
+            this.schedule_missing_commercial_detection();
         }));
 
         // Season passes : un premier scan après 30 s (laisser le serveur
@@ -974,7 +978,7 @@ impl RecordingScheduler {
     }
 
     /// Matchs NBA automatiques : vignettes Plex/Jellyfin, .nfo et pochette
-    /// intégrée au MKV.
+    /// intégrée au MKV ; puis, pour tout enregistrement, repérage des pubs.
     async fn finish_nba_artwork(&self, recording: &Recording, path: &str) {
         if recording.source_rule_id.is_some()
             && let Some(game) = self
@@ -991,6 +995,24 @@ impl RecordingScheduler {
                 &resolve_ffmpeg_path(),
             )
             .await;
+        }
+        // Après la pochette : les deux remplacent le MKV, jamais en même temps.
+        crate::services::commercial_detection::schedule(Path::new(&path), resolve_ffmpeg_path());
+    }
+
+    /// Enregistrements terminés jamais analysés (détection ajoutée après
+    /// coup, analyse interrompue par un redémarrage ou en échec).
+    fn schedule_missing_commercial_detection(&self) {
+        for rec in self.db.get_finished_recordings_oldest_first() {
+            if rec.status != "completed" || self.is_capturing(&rec.id) {
+                continue;
+            }
+            let Some(path) = rec.file_path.as_deref().map(Path::new) else {
+                continue;
+            };
+            if crate::services::commercial_detection::needs_detection(path) {
+                crate::services::commercial_detection::schedule(path, resolve_ffmpeg_path());
+            }
         }
     }
 
@@ -1119,6 +1141,18 @@ impl RecordingScheduler {
         let remux = Path::new(file_path).with_extension("cover.mkv");
         if remux.exists() {
             paths.push(remux.to_string_lossy().into_owned());
+        }
+        // Coupures pub : EDL et remux en cours.
+        let video = Path::new(file_path);
+        let [chapters_mkv, chapters_txt] = crate::services::commercial_detection::temp_paths(video);
+        for extra in [
+            crate::services::commercial_detection::edl_path(video),
+            chapters_mkv,
+            chapters_txt,
+        ] {
+            if extra.exists() {
+                paths.push(extra.to_string_lossy().into_owned());
+            }
         }
         paths
     }
