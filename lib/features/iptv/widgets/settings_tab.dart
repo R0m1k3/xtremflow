@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import 'dart:html' as html; // For reloading
+
 import '../../auth/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/xtream_provider.dart';
 import 'streaming_settings_tab.dart';
-import '../../../core/providers/theme_provider.dart';
+import '../../../core/widgets/glass_container.dart';
+import '../../../core/widgets/app_dialog.dart';
+import '../../../core/theme/glass.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../admin/screens/admin_panel.dart';
+import '../../../core/theme/app_theme.dart';
 
-/// Main Settings tab with sub-tabs for Filters, Streaming, and Appearance
+/// Réglages : onglets Filtres, Streaming, Lecture (et Administration).
 class SettingsTab extends ConsumerStatefulWidget {
   const SettingsTab({super.key});
 
@@ -73,238 +77,127 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
     });
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // TabBar
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(50),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(32, 28, 32, 16),
+          child: Text(
+            'Réglages',
+            style: AppTheme.display(fontSize: 30, fontWeight: FontWeight.w600),
           ),
-          child: TabBar(
-            controller: _tabController,
-            indicator: BoxDecoration(
-              color: AppColors.outlineVariant,
-              borderRadius: BorderRadius.circular(50),
-            ),
-            labelColor: AppColors.onSurface,
-            unselectedLabelColor: AppColors.onSurfaceVariant,
-            dividerColor: Colors.transparent,
-            overlayColor: WidgetStateProperty.all(Colors.transparent),
-            tabs: [
-              const Tab(icon: Icon(Icons.filter_list), text: 'Filtres'),
-              const Tab(icon: Icon(Icons.stream), text: 'Streaming'),
-              const Tab(icon: Icon(Icons.palette), text: 'Apparence'),
-              if (currentUser?.isAdmin ?? false)
+        ),
+        // TabBar
+        Padding(
+          padding: const EdgeInsets.fromLTRB(32, 0, 32, 4),
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: const GlassDecoration(radius: 999, halo: false),
+            child: TabBar(
+              controller: _tabController,
+              indicator: BoxDecoration(
+                color: AppColors.accentFill,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              indicatorSize: TabBarIndicatorSize.tab,
+              labelColor: AppColors.accent,
+              unselectedLabelColor: AppColors.textMuted,
+              labelStyle: AppTheme.body(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+              unselectedLabelStyle: AppTheme.body(fontSize: 14),
+              dividerColor: Colors.transparent,
+              overlayColor: WidgetStateProperty.all(Colors.transparent),
+              tabs: [
                 const Tab(
-                  icon: Icon(Icons.admin_panel_settings),
-                  text: 'Administration',
+                  height: 44,
+                  iconMargin: EdgeInsets.only(bottom: 2),
+                  icon: Icon(Icons.filter_list, size: 20),
+                  text: 'Filtres',
                 ),
-            ],
+                const Tab(
+                  height: 44,
+                  iconMargin: EdgeInsets.only(bottom: 2),
+                  icon: Icon(Icons.stream, size: 20),
+                  text: 'Streaming',
+                ),
+                const Tab(
+                  height: 44,
+                  iconMargin: EdgeInsets.only(bottom: 2),
+                  icon: Icon(Icons.smart_display_outlined, size: 20),
+                  text: 'Lecture',
+                ),
+                if (currentUser?.isAdmin ?? false)
+                  const Tab(
+                    height: 44,
+                    iconMargin: EdgeInsets.only(bottom: 2),
+                    icon: Icon(Icons.admin_panel_settings_outlined, size: 20),
+                    text: 'Administration',
+                  ),
+              ],
+            ),
           ),
         ),
 
         // TabBarView
         Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              // Filters Tab
-              _buildFiltersTab(context, currentUser, settings),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // Filters Tab
+                _buildFiltersTab(context, currentUser, settings),
 
-              // Streaming Tab
-              const StreamingSettingsTab(),
+                // Streaming Tab
+                const StreamingSettingsTab(),
 
-              // Appearance Tab
-              _buildAppearanceTab(context),
+                // Playback Tab
+                _buildPlaybackTab(context, settings),
 
-              // Admin Tab
-              if (currentUser?.isAdmin ?? false) const AdminContent(),
-            ],
+                // Admin Tab
+                if (currentUser?.isAdmin ?? false) const AdminContent(),
+              ],
+            ),
           ),
         ),
       ],
     );
   }
 
-  /// Build Appearance tab with theme toggle
-  Widget _buildAppearanceTab(BuildContext context) {
-    final themeState = ref.watch(themeProvider);
-    final themeNotifier = ref.read(themeProvider.notifier);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
+  /// Lecture : réglages d'affichage du direct. (L'ancien onglet Apparence
+  /// choisissait un thème clair ou sombre ; la charte n'a qu'un mode sombre.)
+  Widget _buildPlaybackTab(BuildContext context, IptvSettings settings) {
+    final notifier = ref.read(iptvSettingsProvider.notifier);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Theme selection card
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.outlineVariant),
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.dark_mode,
-                    color: AppColors.onSurface,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Thème',
-                    style: GoogleFonts.karla(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.onSurface,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Theme options
-              _buildThemeOption(
-                context: context,
-                title: 'Système',
-                subtitle: 'Suivre les paramètres du système',
-                icon: Icons.settings_suggest,
-                isSelected: themeState.appThemeMode == AppThemeMode.system,
-                onTap: () => themeNotifier.setThemeMode(AppThemeMode.system),
-              ),
-              const SizedBox(height: 8),
-              _buildThemeOption(
-                context: context,
-                title: 'Sombre',
-                subtitle: 'Interface sombre premium',
-                icon: Icons.dark_mode,
-                isSelected: themeState.appThemeMode == AppThemeMode.dark,
-                onTap: () => themeNotifier.setThemeMode(AppThemeMode.dark),
-              ),
-              const SizedBox(height: 8),
-              _buildThemeOption(
-                context: context,
-                title: 'Clair',
-                subtitle: 'Interface claire et lumineuse',
-                icon: Icons.light_mode,
-                isSelected: themeState.appThemeMode == AppThemeMode.light,
-                onTap: () => themeNotifier.setThemeMode(AppThemeMode.light),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 16),
-
-        // Quick toggle card
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.outlineVariant),
-          ),
-          child: ListTile(
-            leading: Icon(
-              isDark ? Icons.dark_mode : Icons.light_mode,
-              color: AppColors.onSurface,
+        GlassContainer(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: SwitchListTile(
+            value: settings.livePreview,
+            onChanged: notifier.setLivePreview,
+            secondary: const Icon(
+              Icons.smart_display_outlined,
+              color: AppColors.accent,
             ),
             title: Text(
-              'Mode actuel',
-              style: GoogleFonts.karla(
-                fontWeight: FontWeight.w500,
-                color: AppColors.onSurface,
-              ),
+              'Aperçu vidéo dans le Direct',
+              style: AppTheme.body(fontSize: 16, fontWeight: FontWeight.w500),
             ),
             subtitle: Text(
-              isDark ? 'Thème sombre actif' : 'Thème clair actif',
-              style: const TextStyle(color: AppColors.onSurfaceVariant),
-            ),
-            trailing: Switch(
-              value: isDark,
-              onChanged: (_) => themeNotifier.toggleTheme(),
-              activeThumbColor: AppColors.primary,
-              trackColor: WidgetStateProperty.resolveWith(
-                (states) => states.contains(WidgetState.selected)
-                    ? AppColors.primary.withOpacity(0.5)
-                    : AppColors.surfaceContainerHigh,
+              "Image muette de la chaîne survolée, dans le panneau de droite. "
+              "Elle utilise une connexion de l'abonnement, rendue dès qu'on "
+              'quitte la liste ou qu\'on ouvre le plein écran.',
+              style: AppTheme.body(
+                fontSize: 14,
+                height: 1.4,
+                color: AppColors.textSecondary,
               ),
             ),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildThemeOption({
-    required BuildContext context,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? colorScheme.primary.withOpacity(0.1)
-              : colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? colorScheme.primary : Colors.transparent,
-            width: 2,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: isSelected
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.karla(
-                      fontWeight: FontWeight.w600,
-                      color: isSelected
-                          ? colorScheme.primary
-                          : colorScheme.onSurface,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.karla(
-                      fontSize: 12,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (isSelected)
-              Icon(
-                Icons.check_circle,
-                color: colorScheme.primary,
-              ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -317,64 +210,58 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
       padding: const EdgeInsets.all(16),
       children: [
         // User info card
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.outlineVariant),
-          ),
+        GlassContainer(
           padding: const EdgeInsets.all(4),
           child: ListTile(
-            leading: const Icon(Icons.person, color: AppColors.onSurface),
+            leading: const Icon(Icons.person_outline, color: AppColors.accent),
             title: Text(
               'Connecté en tant que',
-              style: GoogleFonts.karla(fontSize: 12, color: AppColors.onSurfaceVariant),
+              style: AppTheme.body(fontSize: 13, color: AppColors.textMuted),
             ),
             subtitle: Text(
-              currentUser?.username ?? 'Unknown',
-              style: GoogleFonts.karla(
-                fontWeight: FontWeight.w600,
-                color: AppColors.onSurface,
-              ),
+              currentUser?.username ?? 'Inconnu',
+              style: AppTheme.body(fontSize: 16, fontWeight: FontWeight.w500),
             ),
             trailing: currentUser?.isAdmin ?? false
-                ? Chip(
-                    label: Text(
+                ? Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.accentFill,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
                       'Admin',
-                      style: GoogleFonts.karla(
-                        fontSize: 11,
-                        color: AppColors.onPrimaryContainer,
+                      style: AppTheme.body(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.accent,
                       ),
                     ),
-                    backgroundColor: AppColors.onSurface,
                   )
                 : null,
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 24),
 
         // Category filters section
-        Text(
-          'Filtres de Catégories',
-          style: GoogleFonts.karla(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-            color: AppColors.onSurface,
-          ),
-        ),
+        Text('Filtres de catégories', style: AppTheme.display(fontSize: 18)),
         const SizedBox(height: 4),
         Text(
           'Seules les catégories contenant un de ces mots-clés seront affichées. Séparez par des virgules.',
-          style: GoogleFonts.karla(
-            fontSize: 12,
-            color: AppColors.onSurfaceVariant,
+          style: AppTheme.body(
+            fontSize: 13,
+            height: 1.4,
+            color: AppColors.textSecondary,
           ),
         ),
         const SizedBox(height: 12),
 
         // Live TV Filter
         _buildFilterCard(
-          title: 'Filtre TV Live',
+          title: 'Filtre Direct',
           icon: Icons.live_tv,
           controller: _liveTvController,
           keywords: settings.liveTvKeywords,
@@ -386,12 +273,12 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             ref.read(iptvSettingsProvider.notifier).clearLiveTvFilter();
           },
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
 
         // Movies Filter
         _buildFilterCard(
           title: 'Filtre Films',
-          icon: Icons.movie,
+          icon: Icons.movie_outlined,
           controller: _moviesController,
           keywords: settings.moviesKeywords,
           onChanged: (value) {
@@ -402,7 +289,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             ref.read(iptvSettingsProvider.notifier).clearMoviesFilter();
           },
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
 
         // Series Filter
         _buildFilterCard(
@@ -418,141 +305,111 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
             ref.read(iptvSettingsProvider.notifier).clearSeriesFilter();
           },
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 24),
 
         // Change playlist
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.outlineVariant),
-          ),
+        GlassContainer(
+          padding: EdgeInsets.zero,
           child: ListTile(
-            leading: const Icon(Icons.playlist_play, color: AppColors.onSurface),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            leading: const Icon(Icons.playlist_play, color: AppColors.accent),
             title: Text(
-              'Changer de Playlist',
-              style: GoogleFonts.karla(color: AppColors.onSurface),
+              'Changer de playlist',
+              style: AppTheme.body(fontSize: 15, fontWeight: FontWeight.w500),
             ),
             // L'IPTV active, pour savoir d'où viennent guide, enregistrements
             // et Auto NBA avant d'en changer.
             subtitle: Text(
               ref.watch(selectedPlaylistProvider)?.name ?? 'Aucune',
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.karla(
-                color: AppColors.textTertiary,
-                fontSize: 11,
-              ),
+              style: AppTheme.body(fontSize: 13, color: AppColors.textMuted),
             ),
-            trailing: const Icon(Icons.chevron_right, color: AppColors.onSurfaceVariant),
+            trailing: const Icon(
+              Icons.chevron_right,
+              color: AppColors.textMuted,
+            ),
             onTap: () => context.go('/playlists'),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
 
         // About
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.outlineVariant),
-          ),
+        GlassContainer(
+          padding: EdgeInsets.zero,
           child: ListTile(
-            leading: const Icon(Icons.info_outline, color: AppColors.onSurface),
+            leading: const Icon(Icons.info_outline, color: AppColors.accent),
             title: Text(
               'À propos',
-              style: GoogleFonts.karla(color: AppColors.onSurface),
+              style: AppTheme.body(fontSize: 15, fontWeight: FontWeight.w500),
             ),
             subtitle: Text(
-              'XtremFlow IPTV v1.0.0',
-              style: GoogleFonts.karla(fontSize: 12, color: AppColors.onSurfaceVariant),
+              'XtremFlow IPTV v1.1.0',
+              style: AppTheme.body(fontSize: 13, color: AppColors.textMuted),
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
 
         // Maintenance Section
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.warning.withOpacity(0.3)),
-          ),
+        GlassContainer(
+          padding: EdgeInsets.zero,
           child: ListTile(
-            leading: const Icon(Icons.cleaning_services, color: AppColors.warning),
+            leading: const Icon(
+              Icons.cleaning_services_outlined,
+              color: AppColors.accent,
+            ),
             title: Text(
               'Maintenance',
-              style: GoogleFonts.karla(color: AppColors.onSurface),
+              style: AppTheme.body(fontSize: 15, fontWeight: FontWeight.w500),
             ),
             subtitle: Text(
               'En cas de problèmes d\'affichage ou de mise à jour',
-              style: GoogleFonts.karla(fontSize: 12, color: AppColors.onSurfaceVariant),
+              style: AppTheme.body(fontSize: 13, color: AppColors.textMuted),
             ),
-            trailing: FilledButton.icon(
-              onPressed: () {
+            trailing: OutlinedButton.icon(
+              onPressed: () async {
                 // Show confirmation dialog
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    backgroundColor: AppColors.surfaceContainer,
-                    title: const Text(
-                      'Vider le cache ?',
-                      style: TextStyle(color: AppColors.onSurface),
-                    ),
-                    content: const Text(
+                final ok = await showAppConfirm(
+                  context,
+                  title: 'Vider le cache ?',
+                  message:
                       'Cette action va recharger l\'application et effacer les données temporaires.\n'
                       'Vos réglages et favoris sont sauvegardés sur le serveur.',
-                      style: TextStyle(color: AppColors.onSurfaceVariant),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Annuler'),
-                      ),
-                      FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.warning,
-                        ),
-                        onPressed: () {
-                          Navigator.pop(context);
-
-                          // Clear Flutter Image Cache
-                          PaintingBinding.instance.imageCache.clear();
-                          PaintingBinding.instance.imageCache.clearLiveImages();
-
-                          // Clear Browser Local Storage (SharedPreferences backend for Web)
-                          html.window.localStorage.clear();
-                          html.window.sessionStorage.clear();
-
-                          // Reload application
-                          html.window.location.reload();
-                        },
-                        child: const Text('Vider et Recharger'),
-                      ),
-                    ],
-                  ),
+                  confirmLabel: 'Vider et recharger',
                 );
+                if (!ok) return;
+
+                // Clear Flutter Image Cache
+                PaintingBinding.instance.imageCache.clear();
+                PaintingBinding.instance.imageCache.clearLiveImages();
+
+                // Clear Browser Local Storage (SharedPreferences backend for Web)
+                html.window.localStorage.clear();
+                html.window.sessionStorage.clear();
+
+                // Reload application
+                html.window.location.reload();
               },
               icon: const Icon(Icons.refresh, size: 16),
-              label: const Text('Vider le Cache'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.warning.withOpacity(0.2),
-                foregroundColor: AppColors.warning,
-              ),
+              label: const Text('Vider le cache'),
             ),
           ),
         ),
         const SizedBox(height: 24),
 
         // Logout button
-        FilledButton.icon(
+        OutlinedButton.icon(
           onPressed: () {
             ref.read(authProvider.notifier).logout();
             context.go('/login');
           },
           icon: const Icon(Icons.logout),
-          label: const Text('Déconnexion'),
-          style: FilledButton.styleFrom(
-            backgroundColor: AppColors.error,
+          label: const Text('Se déconnecter'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.error,
+            side: const BorderSide(color: AppColors.track),
             padding: const EdgeInsets.symmetric(vertical: 16),
           ),
         ),
@@ -568,62 +425,50 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
     required ValueChanged<String> onChanged,
     required VoidCallback onClear,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
+    return GlassContainer(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 18, color: AppColors.primaryContainer),
+              Icon(icon, size: 18, color: AppColors.accent),
               const SizedBox(width: 8),
               Text(
                 title,
-                style: GoogleFonts.karla(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: AppColors.onSurface,
-                ),
+                style: AppTheme.body(fontSize: 15, fontWeight: FontWeight.w500),
               ),
             ],
           ),
           const SizedBox(height: 12),
           TextField(
             controller: controller,
+            cursorColor: AppColors.accent,
             decoration: InputDecoration(
-              hintText: 'Ex: FR,FRANCE,HD,SPORT',
-              hintStyle:
-                  GoogleFonts.karla(fontSize: 12, color: AppColors.outline),
-              filled: true,
-              fillColor: AppColors.surfaceContainerHigh,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide.none,
-              ),
+              hintText: 'Ex : FR,FRANCE,HD,SPORT',
+              fillColor: AppColors.rail,
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 12,
                 vertical: 12,
               ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusField),
+                borderSide: const BorderSide(color: AppColors.accent),
+              ),
               suffixIcon: controller.text.isNotEmpty
                   ? IconButton(
+                      tooltip: 'Effacer',
                       icon: const Icon(
                         Icons.clear,
                         size: 16,
-                        color: AppColors.onSurfaceVariant,
+                        color: AppColors.textMuted,
                       ),
                       onPressed: onClear,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
                     )
                   : null,
             ),
-            style: GoogleFonts.karla(fontSize: 12, color: AppColors.onSurface),
+            style: AppTheme.body(fontSize: 14),
             onChanged: onChanged,
           ),
           if (keywords.isNotEmpty) ...[
@@ -633,18 +478,21 @@ class _SettingsTabState extends ConsumerState<SettingsTab>
               runSpacing: 6,
               children: keywords.map((keyword) {
                 return Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryContainer.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(50),
-                    border:
-                        Border.all(color: AppColors.primaryContainer.withOpacity(0.5)),
+                    color: AppColors.accentFill,
+                    borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
                     keyword,
-                    style:
-                        GoogleFonts.karla(fontSize: 11, color: AppColors.onSurface),
+                    style: AppTheme.body(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.accent,
+                    ),
                   ),
                 );
               }).toList(),

@@ -1,7 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../../core/services/playlist_api_service.dart';
 import '../../../core/api/authed_http.dart';
 import '../../../core/models/playlist_config.dart';
@@ -9,6 +9,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/xtream_provider.dart';
+import '../../../core/theme/glass.dart';
+import '../../../core/widgets/tv_focusable.dart';
+import '../../../core/widgets/xtremflow_mark.dart';
 
 /// Provider for fetching playlists from API
 final playlistsProvider = FutureProvider<List<PlaylistConfig>>((ref) async {
@@ -28,49 +31,36 @@ class PlaylistSelectionScreen extends ConsumerWidget {
       extendBodyBehindAppBar: true,
       // Filet de securite : meme pendant une transition de route, le fond
       // reste dans la palette au lieu de virer au noir pur.
-      backgroundColor: AppColors.baseLevel0,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(
-          'Select Playlist',
-          style: GoogleFonts.karla(
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
+        toolbarHeight: 72,
+        titleSpacing: 32,
+        title: const XtremFlowWordmark(),
         backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         actions: [
           if (currentUser?.isAdmin ?? false)
-            IconButton(
-              icon: const Icon(
-                Icons.admin_panel_settings,
-                color: AppColors.textSecondary,
-              ),
+            TextButton.icon(
+              icon: const Icon(Icons.admin_panel_settings_outlined, size: 20),
+              label: const Text('Administration'),
               onPressed: () => context.go('/admin'),
-              tooltip: 'Admin Panel',
             ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: AppColors.textSecondary),
+          const SizedBox(width: 4),
+          TextButton.icon(
+            icon: const Icon(Icons.logout, size: 20),
+            label: const Text('Se déconnecter'),
             onPressed: () async {
               await ref.read(authProvider.notifier).logout();
               if (context.mounted) {
                 context.go('/login');
               }
             },
-            tooltip: 'Logout',
           ),
+          const SizedBox(width: 24),
         ],
       ),
-      body: Container(
-        // `BoxConstraints.expand()` est indispensable ici : sous les
-        // contraintes laches du body, ce Container se dimensionnait sur son
-        // contenu (SingleChildScrollView -> Wrap shrink-wrappent tous les
-        // deux), si bien que le degrade n'etait peint que sur un rectangle
-        // de la taille des cartes, le reste de l'ecran restant noir.
-        constraints: const BoxConstraints.expand(),
-        decoration: const BoxDecoration(
-          gradient: AppColors.backgroundGradient,
-        ),
+      body: AmbientBackground(
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -80,13 +70,13 @@ class PlaylistSelectionScreen extends ConsumerWidget {
                   !constraints.maxHeight.isFinite ||
                   constraints.maxHeight <= 0) {
                 return const Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
+                  child: CircularProgressIndicator(color: AppColors.accent),
                 );
               }
 
               return playlistsAsync.when(
                 loading: () => const Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
+                  child: CircularProgressIndicator(color: AppColors.accent),
                 ),
                 error: (error, stack) => Center(
                   child: Column(
@@ -99,20 +89,16 @@ class PlaylistSelectionScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Error loading playlists',
-                        style: GoogleFonts.fraunces(
+                        'Impossible de charger les playlists',
+                        style: AppTheme.body(
                           fontSize: 18,
                           color: AppColors.textSecondary,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      ElevatedButton(
+                      const SizedBox(height: 16),
+                      FilledButton(
                         onPressed: () => ref.refresh(playlistsProvider),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.textPrimary,
-                        ),
-                        child: Text('Retry', style: GoogleFonts.karla()),
+                        child: const Text('Réessayer'),
                       ),
                     ],
                   ),
@@ -126,24 +112,24 @@ class PlaylistSelectionScreen extends ConsumerWidget {
                           const Icon(
                             Icons.playlist_remove,
                             size: 64,
-                            color: AppColors.onSurface24,
+                            color: AppColors.textMuted,
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'No playlists available',
-                            style: GoogleFonts.fraunces(
+                            'Aucune playlist disponible',
+                            style: AppTheme.body(
                               fontSize: 18,
-                              color: AppColors.onSurface54,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             currentUser?.isAdmin ?? false
-                                ? 'Add playlists in Admin Panel'
-                                : 'Contact administrator',
-                            style: GoogleFonts.karla(
+                                ? "Ajoutez-en dans l'administration"
+                                : "Contactez l'administrateur",
+                            style: AppTheme.body(
                               fontSize: 14,
-                              color: AppColors.onSurface38,
+                              color: AppColors.textMuted,
                             ),
                           ),
                         ],
@@ -153,27 +139,49 @@ class PlaylistSelectionScreen extends ConsumerWidget {
 
                   // Simple Wrap layout - no grid, no NaN-prone calculations
                   return SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(48, 32, 48, 48),
-                    child: Wrap(
-                      spacing: 32,
-                      runSpacing: 32,
-                      children: playlists.map((playlist) {
-                        return SizedBox(
-                          width: 340,
-                          height: 240,
-                          child: _PlaylistCard(
-                            playlist: playlist,
-                            onTap: () {
-                              AuthedHttp.usePlaylist(
-                                playlist.id,
-                                json: playlist.toJson(),
-                              );
-                              selectPlaylist(ref, playlist);
-                              context.go('/dashboard');
-                            },
+                    padding: const EdgeInsets.fromLTRB(48, 24, 48, 48),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Choisir une IPTV',
+                          style: AppTheme.display(fontSize: 30),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Guide, enregistrements et favoris suivent '
+                          "l'IPTV choisie.",
+                          style: AppTheme.body(
+                            fontSize: 15,
+                            color: AppColors.textSecondary,
                           ),
-                        );
-                      }).toList(),
+                        ),
+                        const SizedBox(height: 28),
+                        Wrap(
+                          spacing: 24,
+                          runSpacing: 24,
+                          children: [
+                            for (var i = 0; i < playlists.length; i++)
+                              SizedBox(
+                                width: 340,
+                                height: 220,
+                                child: _PlaylistCard(
+                                  playlist: playlists[i],
+                                  autofocus: i == 0,
+                                  onTap: () {
+                                    final playlist = playlists[i];
+                                    AuthedHttp.usePlaylist(
+                                      playlist.id,
+                                      json: playlist.toJson(),
+                                    );
+                                    selectPlaylist(ref, playlist);
+                                    context.go('/dashboard');
+                                  },
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
                   );
                 },
@@ -186,112 +194,81 @@ class PlaylistSelectionScreen extends ConsumerWidget {
   }
 }
 
-class _PlaylistCard extends StatefulWidget {
+/// A playlist: resting glass, the lit card on focus (hover on the web).
+class _PlaylistCard extends StatelessWidget {
   final PlaylistConfig playlist;
   final VoidCallback onTap;
+  final bool autofocus;
 
   const _PlaylistCard({
     required this.playlist,
     required this.onTap,
+    this.autofocus = false,
   });
 
   @override
-  State<_PlaylistCard> createState() => _PlaylistCardState();
-}
-
-class _PlaylistCardState extends State<_PlaylistCard> {
-  bool _isHovered = false;
-
-  @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          decoration: BoxDecoration(
-            // Surface OPAQUE : une plaque a 3 % de creme prenait la couleur du
-            // fond et flottait sans jamais se poser dessus. Un cran de la
-            // hierarchie de surfaces ancre la carte, l'ombre fait le relief.
-            color: _isHovered
-                ? AppColors.surfaceContainerHigh
-                : AppColors.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(AppTheme.radiusXl),
-            border: Border.all(
-              color: _isHovered
-                  ? AppColors.primaryContainer
-                  : AppColors.glassLevel1Border,
-              width: _isHovered ? 2 : 1,
+    return TVFocusable(
+      paintsOwnFocus: true,
+      autofocus: autofocus,
+      scale: 1.03,
+      borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+      onPressed: onTap,
+      child: Builder(
+        builder: (context) {
+          final lit = TVFocusable.isFocused(context);
+          return AnimatedContainer(
+            duration: AppTheme.durationFocus,
+            curve: AppTheme.curveFocus,
+            decoration: GlassDecoration(
+              lit: lit ? 1 : 0,
+              radius: AppTheme.radiusXl,
             ),
-            boxShadow:
-                _isHovered ? AppColors.emberFocus() : AppColors.lift(),
-          ),
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  gradient: _isHovered
-                      ? AppColors.primaryGradient
-                      : LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            AppColors.onSurface.withOpacity(0.1),
-                            AppColors.onSurface.withOpacity(0.05),
-                          ],
-                        ),
-                  shape: BoxShape.circle,
-                  boxShadow: _isHovered
-                      ? [
-                          BoxShadow(
-                            color: AppColors.primary.withOpacity(0.4),
-                            blurRadius: 16,
-                            offset: const Offset(0, 4),
-                          ),
-                        ]
-                      : [],
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AnimatedContainer(
+                  duration: AppTheme.durationFocus,
+                  curve: AppTheme.curveFocus,
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: lit ? AppColors.onFocus : AppColors.accentFill,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.playlist_play_rounded,
+                    size: 30,
+                    color: AppColors.accent,
+                  ),
                 ),
-                child: Icon(
-                  Icons.playlist_play_rounded,
-                  size: 32,
-                  color: _isHovered ? AppColors.onSurface : AppColors.onSurfaceVariant,
+                const SizedBox(height: 20),
+                Text(
+                  playlist.name,
+                  style: AppTheme.display(
+                    fontSize: 22,
+                    height: 1.2,
+                    color: lit ? AppColors.onFocus : AppColors.textPrimary,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                widget.playlist.name,
-                style: GoogleFonts.fraunces(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.onSurface,
-                  height: 1.2,
+                const SizedBox(height: 6),
+                Text(
+                  Uri.tryParse(playlist.dns)?.host ?? playlist.dns,
+                  style: AppTheme.body(
+                    fontSize: 14,
+                    color: lit ? AppColors.onFocusMuted : AppColors.textMuted,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                Uri.tryParse(widget.playlist.dns)?.host ?? widget.playlist.dns,
-                style: GoogleFonts.karla(
-                  fontSize: 13,
-                  color: AppColors.onSurface38,
-                  letterSpacing: 0.5,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

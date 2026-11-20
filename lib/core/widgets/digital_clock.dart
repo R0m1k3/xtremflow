@@ -1,8 +1,11 @@
-﻿import 'dart:async';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+
 import '../../core/theme/app_colors.dart';
+import '../theme/app_theme.dart';
+import '../theme/glass.dart';
 
 class DigitalClock extends StatefulWidget {
   const DigitalClock({super.key});
@@ -19,7 +22,10 @@ class _DigitalClockState extends State<DigitalClock> {
   void initState() {
     super.initState();
     _format = DateFormat('HH:mm');
-    _clockStream = Stream.periodic(const Duration(seconds: 1), (_) => DateTime.now());
+    _clockStream = Stream.periodic(
+      const Duration(seconds: 1),
+      (_) => DateTime.now(),
+    );
   }
 
   @override
@@ -31,17 +37,14 @@ class _DigitalClockState extends State<DigitalClock> {
         final timeString = _format.format(snapshot.data ?? DateTime.now());
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.onSurface.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.onSurface.withOpacity(0.05)),
-          ),
+          decoration: const GlassDecoration(radius: 999, halo: false),
           child: Text(
             timeString,
-            style: GoogleFonts.karla(
-              fontWeight: FontWeight.w600,
+            style: AppTheme.body(
               fontSize: 16,
-              color: AppColors.onSurface,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textPrimary,
+              fontFeatures: AppTheme.tabular,
             ),
           ),
         );

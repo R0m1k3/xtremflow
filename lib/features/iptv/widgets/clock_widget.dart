@@ -1,6 +1,10 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
+
 import 'package:intl/intl.dart';
 
 class ClockWidget extends StatefulWidget {
@@ -45,12 +49,14 @@ class _ClockWidgetState extends State<ClockWidget> {
     final timeString = DateFormat('HH:mm').format(_now);
     return Text(
       timeString,
-      style: widget.style ?? const TextStyle(
-        color: AppColors.onSurface, 
-        fontSize: 16, 
-        fontWeight: FontWeight.bold,
-        shadows: [Shadow(color: AppColors.background, blurRadius: 4)],
-      ),
+      style:
+          widget.style ??
+          AppTheme.body(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+            fontFeatures: AppTheme.tabular,
+          ),
     );
   }
 }

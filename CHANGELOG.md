@@ -8,6 +8,17 @@
 - **Rattrapage** : deux minutes après le démarrage, les enregistrements terminés sans `.edl` (antérieurs à la fonction, analyse interrompue ou en échec) sont remis en file
 - `COMMERCIAL_DETECTION=false` coupe la détection ; `COMSKIP_INI` permet de fournir ses propres réglages
 
+### 🎬 Interface web « Salle obscure » (v1.1.0)
+- **Même charte que xtremobile** : palette graphite, un seul accent (le bleu du logo), rouge réservé à la progression du programme en cours ; police Figtree embarquée (400/500/600, plus aucune requête vers Google Fonts) ; cartes en verre sans flou ; élément focalisé en carte claire. Tous les libellés en français
+- **Barre latérale** repliée (88 px, icônes) qui se déplie au survol ou au focus clavier (240 px, libellés) : Rechercher, Direct, Films, Séries, Enregistrements, IPTV active, Réglages, Compte
+- **Souris et clavier partagent le focus** : survoler un élément l'allume, comme le clavier ; le survol ne prend pas le focus d'un champ de saisie et ne fait pas défiler les listes
+- **Direct** : groupes favoris (épinglés par l'étoile), grille de tous les groupes, puis liste des chaînes avec un panneau à droite (programme, horaires, temps restant, « À suivre », Plein écran / Favori / Enregistrer)
+- **Aperçu vidéo muet** de la chaîne survolée dans ce panneau : une seule connexion à la fois, lancée après 350 ms, coupée en quittant la liste, quand l'onglet est caché, après 3 min d'inactivité et avant le plein écran ; 60 s sans aperçu après un échec. Côté serveur, `turbo.ts?preview=1` marque la connexion amont comme toujours cédable : le plein écran ou l'aperçu suivant la remplace sans refus du fournisseur sur un abonnement à une connexion. Réglage « Aperçu vidéo dans le Direct » (Réglages → Lecture)
+- **Lecteur compact** : plus rien en haut de l'image ; une plaque en bas (logo, programme, progression, « À suivre » en direct ; titre et barre de lecture en VOD) et la liste des chaînes à droite (bouton « Chaînes » ou touche C). Raccourcis existants inchangés
+- **Fenêtres au thème** pour les confirmations, saisies et choix (enregistrements, administration, playlist)
+- **Téléphone** : même charte, barre de navigation en bas
+- Le choix de thème clair/sombre disparaît : la charte n'a qu'un mode sombre
+
 ### 📼 Enregistrements : capture en `.ts`, conversion en MKV à la fin
 - **Fin des fichiers incomplets** : FFmpeg écrivait le direct en MKV et chaque coupure du fournisseur produisait une nouvelle partie, recollée à la fin. Les sauts d'horloge des flux IPTV (« timestamp discontinuity ») cassaient la chronologie du MKV et le recollage : Plex et Jellyfin voyaient un fichier qui s'arrêtait avant la fin du match. Le serveur recopie désormais les octets du flux tels quels dans un seul `.ts`, complété à chaque reconnexion, puis le convertit une seule fois en MKV en fin de capture ; FFmpeg recale alors les sauts d'horloge sur tout le fichier. Le `.ts` n'est supprimé que si le MKV obtenu est complet, sinon il est conservé (lisible tel quel)
 - **Reprise au redémarrage** : un `docker stop` ou une mise à jour pendant un match clôturait l'enregistrement, qui ne reprenait jamais. La capture reste désormais ouverte et repart dans le même `.ts` au redémarrage si la fenêtre n'est pas finie

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../features/iptv/screens/player_screen.dart';
 export '../../../../features/iptv/screens/player_screen.dart' show StreamType;
 import '../../../../core/models/playlist_config.dart';

@@ -1,15 +1,15 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../../../features/iptv/providers/xtream_provider.dart';
 import '../../../../features/iptv/providers/settings_provider.dart';
 import '../../../../features/iptv/providers/favorites_provider.dart';
+import '../../../../features/iptv/widgets/live_widgets.dart';
 import '../screens/mobile_player_screen.dart';
-import '../../../../core/api/channel_logo.dart';
 import '../../../../core/models/iptv_models.dart';
 import '../../../../core/models/playlist_config.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/glass_container.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class MobileLiveTVTab extends ConsumerStatefulWidget {
   final PlaylistConfig playlist;
@@ -35,8 +35,9 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
 
   @override
   Widget build(BuildContext context) {
-    final channelsAsync =
-        ref.watch(liveChannelsByPlaylistProvider(widget.playlist));
+    final channelsAsync = ref.watch(
+      liveChannelsByPlaylistProvider(widget.playlist),
+    );
     final favorites = ref.watch(favoritesProvider);
     final settings = ref.watch(iptvSettingsProvider);
 
@@ -49,9 +50,12 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
             children: [
               const CircularProgressIndicator(),
               const SizedBox(height: 16),
-              const Text(
-                'Loading channels...',
-                style: TextStyle(color: AppColors.onSurfaceVariant),
+              Text(
+                'Chargement des chaînes…',
+                style: AppTheme.body(
+                  fontSize: 15,
+                  color: AppColors.textSecondary,
+                ),
               ),
               const SizedBox(height: 24),
               FutureBuilder(
@@ -62,7 +66,7 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                       onPressed: () => ref.refresh(
                         liveChannelsByPlaylistProvider(widget.playlist),
                       ),
-                      child: const Text('Taking too long? Tap to retry'),
+                      child: const Text('C’est long ? Réessayer'),
                     );
                   }
                   return const SizedBox.shrink();
@@ -77,27 +81,35 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline, color: AppColors.error, size: 48),
+                const Icon(
+                  Icons.error_outline,
+                  color: AppColors.error,
+                  size: 44,
+                ),
                 const SizedBox(height: 16),
                 Text(
-                  'Failed to load channels',
-                  style: GoogleFonts.karla(
-                    color: AppColors.onSurface,
+                  'Impossible de charger les chaînes',
+                  textAlign: TextAlign.center,
+                  style: AppTheme.body(
                     fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   '$e',
-                  style: const TextStyle(color: AppColors.onSurface54),
+                  style: AppTheme.body(
+                    fontSize: 13,
+                    color: AppColors.textMuted,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () => ref
-                      .refresh(liveChannelsByPlaylistProvider(widget.playlist)),
-                  child: const Text('Retry'),
+                FilledButton(
+                  onPressed: () => ref.refresh(
+                    liveChannelsByPlaylistProvider(widget.playlist),
+                  ),
+                  child: const Text('Réessayer'),
                 ),
               ],
             ),
@@ -130,144 +142,132 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
             // If the selected category is no longer available (due to filters), reset it
             if (_selectedCategory != null &&
                 !categories.contains(_selectedCategory)) {
-              _selectedCategory =
-                  categories.isNotEmpty ? categories.first : null;
+              _selectedCategory = categories.isNotEmpty
+                  ? categories.first
+                  : null;
             }
             if (_selectedCategory != null) {
               displayedChannels = groupedChannels[_selectedCategory] ?? [];
             }
           }
 
+          final title = _searchQuery.isNotEmpty
+              ? 'Résultats'
+              : _showFavoritesOnly
+              ? 'Favoris'
+              : _selectedCategory ?? 'Chaînes';
+
           return SafeArea(
             bottom: false,
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Header & Search
+                // Large title + favourites filter
                 Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: GlassContainer.glass(
-                    borderRadius: 16,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _searchController,
-                            style: GoogleFonts.karla(color: AppColors.onSurface),
-                            decoration: InputDecoration(
-                              hintText: 'Search channels...',
-                              hintStyle:
-                                  GoogleFonts.karla(color: AppColors.onSurface54),
-                              border: InputBorder.none,
-                              prefixIcon: const Icon(
-                                Icons.search,
-                                color: AppColors.onSurface54,
-                              ),
-                              isDense: true,
-                            ),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 8, 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Direct',
+                          style: AppTheme.display(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        if (_searchQuery.isNotEmpty)
-                          GestureDetector(
-                            onTap: () => _searchController.clear(),
-                            child:
-                                const Icon(Icons.close, color: AppColors.onSurface54),
-                          ),
-                      ],
-                    ),
+                      ),
+                      IconButton(
+                        tooltip: _showFavoritesOnly
+                            ? 'Toutes les chaînes'
+                            : 'Chaînes favorites seulement',
+                        onPressed: () => setState(
+                          () => _showFavoritesOnly = !_showFavoritesOnly,
+                        ),
+                        style: IconButton.styleFrom(
+                          backgroundColor: _showFavoritesOnly
+                              ? AppColors.accentFill
+                              : Colors.transparent,
+                        ),
+                        icon: Icon(
+                          _showFavoritesOnly
+                              ? Icons.star_rounded
+                              : Icons.star_outline_rounded,
+                          color: _showFavoritesOnly
+                              ? AppColors.accent
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Search
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: MobileSearchField(
+                    controller: _searchController,
+                    hint: 'Rechercher une chaîne',
+                    showClear: _searchQuery.isNotEmpty,
+                    onClear: () => _searchController.clear(),
                   ),
                 ),
 
                 // Categories
                 if (_searchQuery.isEmpty && !_showFavoritesOnly)
-                  SizedBox(
-                    height: 40,
-                    child: ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      scrollDirection: Axis.horizontal,
-                      itemCount: categories.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 8),
-                      itemBuilder: (context, index) {
-                        final category = categories[index];
-                        final isSelected = category == _selectedCategory;
-                        return GestureDetector(
-                          onTap: () =>
-                              setState(() => _selectedCategory = category),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.onSurface
-                                  : Colors.black.withOpacity(0.4),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              category,
-                              style: GoogleFonts.karla(
-                                color:
-                                    isSelected ? Colors.black : AppColors.onSurfaceVariant,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.w500,
-                                fontSize: 13,
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: SizedBox(
+                      height: 38,
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        scrollDirection: Axis.horizontal,
+                        itemCount: categories.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (context, index) {
+                          final category = categories[index];
+                          final isSelected = category == _selectedCategory;
+                          return GestureDetector(
+                            onTap: () =>
+                                setState(() => _selectedCategory = category),
+                            child: AnimatedContainer(
+                              duration: AppTheme.durationFocus,
+                              curve: AppTheme.curveFocus,
+                              alignment: Alignment.center,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppColors.accentFill
+                                    : AppColors.surface,
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusFull,
+                                ),
+                              ),
+                              child: Text(
+                                category,
+                                style: AppTheme.body(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: isSelected
+                                      ? AppColors.textPrimary
+                                      : AppColors.textSecondary,
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
                   ),
 
                 // Sub-header
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Row(
-                    children: [
-                      Text(
-                        _searchQuery.isNotEmpty
-                            ? 'Results'
-                            : _showFavoritesOnly
-                                ? 'Favorites'
-                                : _selectedCategory ?? 'Channels',
-                        style: GoogleFonts.karla(
-                          color: AppColors.onSurface,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
-                      const Spacer(),
-                      GestureDetector(
-                        onTap: () => setState(
-                          () => _showFavoritesOnly = !_showFavoritesOnly,
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: _showFavoritesOnly
-                                ? AppColors.live.withOpacity(0.2)
-                                : AppColors.onSurface.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: _showFavoritesOnly
-                                ? Border.all(color: AppColors.live)
-                                : null,
-                          ),
-                          child: Icon(
-                            _showFavoritesOnly
-                                ? Icons.favorite
-                                : Icons.favorite_border,
-                            color: _showFavoritesOnly
-                                ? AppColors.live
-                                : AppColors.onSurface,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ],
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 6),
+                  child: SectionTitle(
+                    title,
+                    count: displayedChannels.length,
+                    fontSize: 18,
                   ),
                 ),
 
@@ -280,25 +280,32 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
                             children: [
                               const Icon(
                                 Icons.tv_off,
-                                color: AppColors.onSurface24,
-                                size: 48,
+                                color: AppColors.textMuted,
+                                size: 44,
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                'No channels found',
-                                style: GoogleFonts.karla(color: AppColors.onSurface38),
+                                'Aucune chaîne trouvée',
+                                style: AppTheme.body(
+                                  fontSize: 15,
+                                  color: AppColors.textMuted,
+                                ),
                               ),
                             ],
                           ),
                         )
                       : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                          padding: const EdgeInsets.fromLTRB(4, 0, 4, 24),
                           itemCount: displayedChannels.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 8),
+                          separatorBuilder: (_, __) => const Divider(
+                            height: 1,
+                            indent: 12,
+                            endIndent: 12,
+                          ),
                           itemBuilder: (context, index) {
                             final channel = displayedChannels[index];
                             return _MobileChannelTile(
+                              playlist: widget.playlist,
                               channel: channel,
                               onTap: () => _playChannel(
                                 context,
@@ -336,11 +343,92 @@ class _MobileLiveTVTabState extends ConsumerState<MobileLiveTVTab> {
   }
 }
 
+/// Search field of the phone tabs (Direct, Films, Séries): a 48 dp `surface`
+/// field, as in xtremobile. [busy] shows a small spinner (search running).
+class MobileSearchField extends StatelessWidget {
+  const MobileSearchField({
+    super.key,
+    required this.controller,
+    required this.hint,
+    required this.showClear,
+    required this.onClear,
+    this.onChanged,
+    this.busy = false,
+  });
+
+  final TextEditingController controller;
+  final String hint;
+  final bool showClear;
+  final VoidCallback onClear;
+  final ValueChanged<String>? onChanged;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppTheme.radiusField),
+      ),
+      padding: EdgeInsets.only(left: 12, right: showClear ? 0 : 12),
+      child: Row(
+        children: [
+          const Icon(Icons.search, size: 22, color: AppColors.textMuted),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              style: AppTheme.body(fontSize: 16),
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: hint,
+                hintStyle: AppTheme.body(
+                  fontSize: 16,
+                  color: AppColors.textMuted,
+                ),
+                filled: false,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+              onChanged: onChanged,
+            ),
+          ),
+          if (busy)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8),
+              child: SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          if (showClear)
+            IconButton(
+              tooltip: 'Effacer',
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.close, size: 20),
+              color: AppColors.textMuted,
+              onPressed: onClear,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One channel, like xtremobile's phone rows: logo tile, name, programme on
+/// now with its times and the red live line, and the favourite star.
 class _MobileChannelTile extends ConsumerWidget {
+  final PlaylistConfig playlist;
   final Channel channel;
   final VoidCallback onTap;
 
   const _MobileChannelTile({
+    required this.playlist,
     required this.channel,
     required this.onTap,
   });
@@ -350,74 +438,91 @@ class _MobileChannelTile extends ConsumerWidget {
     // Sans ce bouton, aucun moyen d'ajouter un favori : le filtre « Favoris »
     // de l'en-tête affichait toujours une liste vide.
     final isFav = ref.watch(favoritesProvider).contains(channel.streamId);
-    final iconUrl = channelLogoUrl(
-      streamIcon: channel.streamIcon,
-      name: channel.name,
-    );
+    final now = watchEpgNow(ref, playlist, channel);
+    final current = now.current;
 
-    return GlassContainer.glass(
-      borderRadius: 12,
-      padding: EdgeInsets.zero,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      child: SizedBox(
+        height: 76,
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.only(left: 12),
           child: Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.onSurface.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                padding: const EdgeInsets.all(4),
-                child: Image.network(
-                  iconUrl,
-                  fit: BoxFit.contain,
-                  cacheWidth: 120,
-                  filterQuality: FilterQuality.low,
-                  errorBuilder: (_, __, ___) =>
-                      const Icon(Icons.tv, color: AppColors.onSurface24),
-                ),
+              ChannelLogo(
+                url: logoOf(channel),
+                name: channel.name,
+                width: 56,
+                height: 36,
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  channel.name,
-                  style: GoogleFonts.karla(
-                    color: AppColors.onSurface,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            channel.name,
+                            maxLines: current == null ? 2 : 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTheme.body(
+                              fontSize: 16,
+                              height: 1.2,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        if (now.timeRange != null)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: Text(
+                              now.timeRange!,
+                              style: AppTheme.body(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                                fontFeatures: AppTheme.tabular,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (current != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        current.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTheme.body(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      if (now.progress != null) ...[
+                        const SizedBox(height: 6),
+                        LiveLine(
+                          progress: now.progress!,
+                          height: 2,
+                          subdued: true,
+                        ),
+                      ],
+                    ],
+                  ],
                 ),
               ),
               IconButton(
-                visualDensity: VisualDensity.compact,
                 tooltip: isFav ? 'Retirer des favoris' : 'Ajouter aux favoris',
                 icon: Icon(
-                  isFav ? Icons.favorite : Icons.favorite_border,
-                  color: isFav ? AppColors.primary : AppColors.onSurface54,
-                  size: 20,
+                  isFav ? Icons.star_rounded : Icons.star_outline_rounded,
+                  color: isFav ? AppColors.accent : AppColors.textMuted,
+                  size: 22,
                 ),
                 onPressed: () => ref
                     .read(favoritesProvider.notifier)
                     .toggleFavorite(channel.streamId),
-              ),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.onSurface.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.play_arrow_rounded,
-                  color: AppColors.onSurface,
-                  size: 16,
-                ),
               ),
             ],
           ),

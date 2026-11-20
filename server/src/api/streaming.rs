@@ -457,6 +457,10 @@ impl Streaming {
     }
 
     /// Inscrit [child] comme connexion amont de [playlist] tant qu'il vit.
+    /// [yieldable] : connexion jamais comptée comme regardée (aperçu muet du
+    /// Direct) ; la prochaine ouverture du même compte la coupe aussitôt, même
+    /// pendant un silence du panneau où la fermeture du navigateur est
+    /// invisible.
     fn register_upstream(
         &self,
         playlist: &PlaylistConfig,
@@ -464,13 +468,16 @@ impl Streaming {
         child: ManagedChild,
         release: Box<dyn Fn() + Send + Sync>,
         idle_for: Box<dyn Fn() -> Duration + Send + Sync>,
+        yieldable: bool,
     ) {
-        let token = self.slots.register(
-            id,
-            &account_key_of(playlist),
-            release,
-            Some(Box::new(move || idle_for() < VIEWER_GRACE)),
-        );
+        let is_active: Option<Box<dyn Fn() -> bool + Send + Sync>> = if yieldable {
+            None
+        } else {
+            Some(Box::new(move || idle_for() < VIEWER_GRACE))
+        };
+        let token = self
+            .slots
+            .register(id, &account_key_of(playlist), release, is_active);
         let slots = self.slots.clone();
         let id = id.to_string();
         tokio::spawn(async move {
@@ -519,6 +526,7 @@ impl Streaming {
                 Box::new(move || sessions.kill_session(&release_id)),
                 // Touchée à chaque requête de playlist ou de segment.
                 Box::new(move || watched.idle_for()),
+                false,
             );
         }
         let (ready, error) = self
@@ -750,12 +758,13 @@ impl Streaming {
             "{}/live/{}/{}/{stream_id}.ts",
             playlist.dns, playlist.username, playlist.password
         );
-        println!("[Live Turbo] {stream_id}: {}", redact_url(&target));
-
         // Un identifiant par requête : deux onglets sur la même chaîne sont
-        // deux connexions distinctes chez le fournisseur.
+        // deux connexions distinctes chez le fournisseur. `preview=1` : aperçu
+        // muet du Direct, connexion cédable (voir register_upstream).
         let n = self.turbo_counter.fetch_add(1, Ordering::SeqCst) + 1;
-        let upstream_id = format!("turbo_{stream_id}_{n}");
+        let preview = req.query_param("preview").as_deref() == Some("1");
+        let (upstream_id, yieldable) = turbo_slot(stream_id, n, preview);
+        println!("[Live Turbo] {upstream_id}: {}", redact_url(&target));
         self.claim_upstream(&playlist, &upstream_id).await;
 
         let mut args = strings(&[
@@ -845,6 +854,7 @@ impl Streaming {
                 let elapsed = started.elapsed().as_millis() as u64;
                 Duration::from_millis(elapsed.saturating_sub(ld.load(Ordering::Relaxed)))
             }),
+            yieldable,
         );
 
         // Erreurs FFmpeg journalisées (masquées) sans bloquer le flux.
@@ -1394,9 +1404,23 @@ async fn open_live_upstream(client: &reqwest::Client, url: &str) -> Option<reqwe
         .ok()
 }
 
+/// Identifiant amont d'une requête `turbo.ts` et son caractère cédable :
+/// `preview_<id>_<n>` pour un aperçu (toujours cédable), `turbo_<id>_<n>`
+/// sinon.
+fn turbo_slot(stream_id: &str, n: u64, preview: bool) -> (String, bool) {
+    let kind = if preview { "preview" } else { "turbo" };
+    (format!("{kind}_{stream_id}_{n}"), preview)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn turbo_slot_marque_les_apercus_cedables() {
+        assert_eq!(turbo_slot("1", 3, false), ("turbo_1_3".to_string(), false));
+        assert_eq!(turbo_slot("1", 3, true), ("preview_1_3".to_string(), true));
+    }
 
     #[test]
     fn extension_vod() {

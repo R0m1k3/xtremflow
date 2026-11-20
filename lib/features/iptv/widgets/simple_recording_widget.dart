@@ -1,11 +1,13 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
+
 import '../../../core/api/authed_http.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../core/models/iptv_models.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/glass_container.dart';
+import '../../../core/widgets/app_dialog.dart';
 import '../providers/recordings_refresh.dart';
+import '../../../core/theme/app_theme.dart';
 
 class SimpleRecordingWidget extends StatefulWidget {
   final Channel channel;
@@ -27,9 +29,9 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
   int _durationMinutes = 60;
   DateTime _startTime = DateTime.now();
 
-  /// 🟢 Record NOW for X minutes
+  /// Record now for X minutes.
   Future<void> _recordNow(int minutes) async {
-    setState(() => _status = 'Starting...');
+    setState(() => _status = 'Démarrage…');
 
     try {
       final response = await AuthedHttp.post(
@@ -47,23 +49,23 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
         notifyRecordingsChanged();
         setState(() {
           _isRecording = true;
-          _status = '🔴 Recording for $minutes min';
+          _status = 'Enregistrement en cours ($minutes min)';
         });
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('✅ Recording started!')),
+            const SnackBar(content: Text('Enregistrement démarré')),
           );
         }
       } else {
-        throw Exception('API error');
+        throw Exception('Erreur API');
       }
     } catch (e) {
-      setState(() => _status = '❌ Error: $e');
+      setState(() => _status = 'Erreur : $e');
     }
   }
 
-  /// 🔵 Schedule for later
+  /// Schedule for later.
   Future<void> _scheduleRecording() async {
     final endTime = _startTime.add(Duration(minutes: _durationMinutes));
 
@@ -82,21 +84,21 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
 
       if (response.statusCode == 200) {
         notifyRecordingsChanged();
-        setState(() => _status = '⏰ Scheduled for ${_startTime.toLocal()}');
+        setState(() => _status = 'Programmé pour ${_startTime.toLocal()}');
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('✅ Recording scheduled!')),
+            const SnackBar(content: Text('Enregistrement programmé')),
           );
           Navigator.pop(context);
         }
       }
     } catch (e) {
-      setState(() => _status = '❌ Error: $e');
+      setState(() => _status = 'Erreur : $e');
     }
   }
 
-  /// 🔴 Stop recording
+  /// Stop the recording.
   Future<void> _stopRecording() async {
     try {
       await AuthedHttp.post(
@@ -107,227 +109,157 @@ class _SimpleRecordingWidgetState extends State<SimpleRecordingWidget> {
       notifyRecordingsChanged();
       setState(() {
         _isRecording = false;
-        _status = 'Stopped';
+        _status = 'Arrêté';
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Recording stopped!')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Enregistrement arrêté')));
       }
     } catch (e) {
-      setState(() => _status = '❌ Error: $e');
+      setState(() => _status = 'Erreur : $e');
+    }
+  }
+
+  String get _startLabel =>
+      '${_startTime.toLocal().hour}:${_startTime.toLocal().minute.toString().padLeft(2, '0')}';
+
+  Future<void> _pickStart() async {
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_startTime),
+    );
+    if (time != null) {
+      setState(() {
+        _startTime = _startTime.copyWith(hour: time.hour, minute: time.minute);
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.all(20),
-      child: GlassContainer(
-        child: Container(
-          width: 500,
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Title
-              Text(
-                '🎬 Record "${widget.channel.name}"',
-                style: GoogleFonts.fraunces(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.onSurface,
-                ),
+    return AppDialog(
+      title: 'Enregistrer « ${widget.channel.name} »',
+      width: 500,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Status
+          if (_status.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.glassBottom,
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(height: 24),
-
-              // Status
-              if (_status.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    _status,
-                    style: GoogleFonts.fraunces(
-                      fontSize: 14,
-                      color: AppColors.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 20),
-
-              // 🟢 Quick record buttons
-              if (!_isRecording) ...[
-                Text(
-                  '⚡ Quick Record',
-                  style: GoogleFonts.fraunces(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _QuickButton(
-                      label: '30 min',
-                      onTap: () => _recordNow(30),
-                    ),
-                    _QuickButton(
-                      label: '1 hour',
-                      onTap: () => _recordNow(60),
-                    ),
-                    _QuickButton(
-                      label: '2 hours',
-                      onTap: () => _recordNow(120),
-                    ),
-                    _QuickButton(
-                      label: '4 hours',
-                      onTap: () => _recordNow(240),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 28),
-              ],
-
-              // 🔴 Stop if recording
-              if (_isRecording)
-                ElevatedButton.icon(
-                  onPressed: _stopRecording,
-                  icon: const Icon(Icons.stop),
-                  label: const Text('STOP RECORDING'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.errorContainer,
-                    foregroundColor: AppColors.onSurface,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                ),
-
-              if (!_isRecording) ...[
-                // 🔵 Schedule section
-                ExpansionTile(
-                  title: Text(
-                    '🔵 Schedule for Later',
-                    style: GoogleFonts.fraunces(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.onSurface,
-                    ),
-                  ),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          // Start time picker
-                          ListTile(
-                            title: const Text('Start'),
-                            trailing: Text(
-                              '${_startTime.toLocal().hour}:${_startTime.toLocal().minute.toString().padLeft(2, '0')}',
-                              style: const TextStyle(color: Colors.grey),
-                            ),
-                            onTap: () async {
-                              final time = await showTimePicker(
-                                context: context,
-                                initialTime: TimeOfDay.fromDateTime(_startTime),
-                              );
-                              if (time != null) {
-                                setState(() {
-                                  _startTime = _startTime.copyWith(
-                                    hour: time.hour,
-                                    minute: time.minute,
-                                  );
-                                });
-                              }
-                            },
-                          ),
-
-                          // Duration selector
-                          ListTile(
-                            title: const Text('Duration'),
-                            trailing: DropdownButton<int>(
-                              value: _durationMinutes,
-                              dropdownColor: Colors.grey[800],
-                              items: [30, 60, 120, 240, 480]
-                                  .map(
-                                    (m) => DropdownMenuItem(
-                                      value: m,
-                                      child: Text('$m min'),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (v) {
-                                if (v != null) {
-                                  setState(() => _durationMinutes = v);
-                                }
-                              },
-                            ),
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          // Schedule button
-                          ElevatedButton.icon(
-                            onPressed: _scheduleRecording,
-                            icon: const Icon(Icons.schedule),
-                            label: const Text('SCHEDULE'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              minimumSize: const Size.fromHeight(48),
-                            ),
-                          ),
-                        ],
+              child: Row(
+                children: [
+                  if (_isRecording) ...[
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: AppColors.live,
+                        shape: BoxShape.circle,
                       ),
                     ),
+                    const SizedBox(width: 10),
                   ],
-                ),
-              ],
-
-              const SizedBox(height: 16),
-
-              // Close button
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
+                  Expanded(
+                    child: Text(
+                      _status,
+                      style: AppTheme.body(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+            const SizedBox(height: 20),
+          ],
+
+          // Quick record buttons
+          if (!_isRecording) ...[
+            Text(
+              'Enregistrer maintenant',
+              style: AppTheme.body(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                AppDialogButton(
+                  label: '30 min',
+                  onPressed: () => _recordNow(30),
+                ),
+                AppDialogButton(label: '1 h', onPressed: () => _recordNow(60)),
+                AppDialogButton(label: '2 h', onPressed: () => _recordNow(120)),
+                AppDialogButton(label: '4 h', onPressed: () => _recordNow(240)),
+              ],
+            ),
+            const SizedBox(height: 24),
+          ],
+
+          // Stop if recording
+          if (_isRecording)
+            AppDialogButton(
+              label: "Arrêter l'enregistrement",
+              destructive: true,
+              onPressed: _stopRecording,
+            ),
+
+          if (!_isRecording) ...[
+            // Schedule section
+            Text(
+              'Programmer pour plus tard',
+              style: AppTheme.body(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 12),
+            AppDialogTile(
+              icon: Icons.access_time,
+              label: 'Début',
+              value: _startLabel,
+              onPressed: _pickStart,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Durée',
+              style: AppTheme.body(fontSize: 13, color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [30, 60, 120, 240, 480]
+                  .map(
+                    (m) => AppDialogButton(
+                      label: '$m min',
+                      primary: _durationMinutes == m,
+                      onPressed: () => setState(() => _durationMinutes = m),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 16),
+            AppDialogButton(
+              label: 'Programmer',
+              primary: true,
+              onPressed: _scheduleRecording,
+            ),
+          ],
+        ],
       ),
-    );
-  }
-}
-
-/// Quick button component
-class _QuickButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-
-  const _QuickButton({
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: onTap,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary.withOpacity(0.7),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+      actions: [
+        AppDialogButton(
+          label: 'Fermer',
+          onPressed: () => Navigator.pop(context),
         ),
-      ),
-      child: Text(label),
+      ],
     );
   }
 }

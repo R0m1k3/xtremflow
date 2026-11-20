@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 
 /// Stream quality presets handled server-side by FFmpeg
 /// (see bin/api/streaming_handler.dart).
 enum StreamQuality {
   source('source', 'Source', 'Flux direct, zéro transcodage'),
-  high('high', 'Haute', '1080p · 6-8 Mbps'),
-  medium('medium', 'Moyenne', '3 Mbps'),
-  low('low', 'Basse', '720p · 1.5 Mbps');
+  high('high', 'Haute', '1080p · 6-8 Mbit/s'),
+  medium('medium', 'Moyenne', '3 Mbit/s'),
+  low('low', 'Basse', '720p · 1,5 Mbit/s');
 
   const StreamQuality(this.value, this.label, this.description);
 
@@ -17,7 +18,7 @@ enum StreamQuality {
   final String description;
 }
 
-/// Popup button to switch the transcoding quality of the current stream.
+/// Bouton (menu) qui change la qualité de transcodage du flux en cours.
 class QualitySelectorButton extends StatelessWidget {
   final StreamQuality current;
   final ValueChanged<StreamQuality> onSelected;
@@ -36,8 +37,13 @@ class QualitySelectorButton extends StatelessWidget {
       message: 'Qualité : ${current.label}',
       child: PopupMenuButton<StreamQuality>(
         initialValue: current,
-        color: AppColors.surfaceContainerHigh,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        color: AppColors.surfaceHigh,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: AppColors.hairline),
+        ),
         onSelected: onSelected,
         itemBuilder: (context) => StreamQuality.values
             .map(
@@ -52,8 +58,8 @@ class QualitySelectorButton extends StatelessWidget {
                           : Icons.radio_button_off_rounded,
                       size: 18,
                       color: q == current
-                          ? AppColors.primary
-                          : AppColors.textTertiary,
+                          ? AppColors.accent
+                          : AppColors.textMuted,
                     ),
                     const SizedBox(width: 12),
                     Flexible(
@@ -64,18 +70,20 @@ class QualitySelectorButton extends StatelessWidget {
                           Text(
                             q.label,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.karla(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w600,
+                            style: AppTheme.body(
                               fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: q == current
+                                  ? AppColors.accent
+                                  : AppColors.textPrimary,
                             ),
                           ),
                           Text(
                             q.description,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.karla(
-                              color: AppColors.textTertiary,
-                              fontSize: 11,
+                            style: AppTheme.body(
+                              fontSize: 12,
+                              color: AppColors.textMuted,
                             ),
                           ),
                         ],
@@ -90,14 +98,16 @@ class QualitySelectorButton extends StatelessWidget {
           width: size,
           height: size,
           alignment: Alignment.center,
+          // Over the video: a dark disc keeps the icon legible on a bright
+          // picture (the translucent glass would not).
           decoration: BoxDecoration(
-            color: AppColors.onSurface.withOpacity(0.1),
+            color: AppColors.rail.withValues(alpha: 0.72),
             shape: BoxShape.circle,
-            border: Border.all(color: AppColors.onSurface.withOpacity(0.2)),
+            border: Border.all(color: AppColors.hairline),
           ),
           child: const Icon(
             Icons.high_quality_rounded,
-            color: AppColors.onSurface,
+            color: AppColors.textPrimary,
             size: 22,
           ),
         ),

@@ -190,6 +190,15 @@
     this.injectedDuration = parseFloat(p.get('duration') || '0');
     this.isRecording = p.get('is_recording') === 'true';
 
+    // Aperçu muet de l'onglet Direct (`preview=1`) : lu en sourdine, sans
+    // interface, sans AUCUNE reprise (ni nouvel essai, ni recréation de
+    // mpegts.js, ni bascule HLS) et sans journal player-log. Le parent ne
+    // reçoit que `preview_state` : `playing` à la première image, `error` à
+    // la première erreur (le lecteur se détruit alors). Chaque reprise
+    // rouvrirait une connexion chez le fournisseur, souvent limitée à une.
+    this.preview = p.get('preview') === '1';
+    this._previewSent = null;
+
     // Décalage du média par rapport au début du contenu. Un enregistrement
     // ouvert à 45 min est transcodé par FFmpeg *depuis* 45 min : le média
     // commence à 0 alors que la lecture, elle, est à 2700 s. Tout ce qui
@@ -200,7 +209,7 @@
     // Profil de départ : forçable via ?buffer=balanced|safe
     var forced = p.get('buffer');
     this.profile = PROFILES[forced] ? PROFILES[forced] : PROFILES.fast;
-    this.profileLocked = !!PROFILES[forced];
+    this.profileLocked = !!PROFILES[forced] || this.preview;
 
     this.hls = null;
     this.mpegts = null;
@@ -229,10 +238,32 @@
     var self = this;
     var userOnError = this.onError;
     this.onError = function (msg) {
+      if (self.preview) { self._previewFailed(); return; }
       self._report('error_shown', { detail: String(msg) });
       userOnError(msg);
     };
+    if (this.preview) {
+      // Même lecture bloquée en sourdine : pas d'aperçu.
+      this.onBlocked = function () { self._previewFailed(); };
+    }
   }
+
+  // ---------------- Aperçu (preview=1) ----------------
+
+  /** Prévient le parent, une seule fois par état. */
+  XFPlayer.prototype._previewState = function (state) {
+    if (!this.preview || this._previewSent === state) return;
+    if (this._previewSent === 'error') return;
+    this._previewSent = state;
+    this.send({ type: 'preview_state', state: state });
+  };
+
+  /** Première erreur d'un aperçu : on le dit au parent et on s'arrête là. */
+  XFPlayer.prototype._previewFailed = function () {
+    if (this._destroyed) return;
+    this._previewState('error');
+    this.destroy();
+  };
 
   // ---------------- Télémétrie ----------------
 
@@ -256,6 +287,7 @@
    * sans session.
    */
   XFPlayer.prototype._report = function (event, data) {
+    if (this.preview) return;
     try {
       var token = null;
       try { token = global.localStorage.getItem('auth_token'); } catch (e) {}
@@ -296,6 +328,9 @@
   };
 
   XFPlayer.prototype.send = function (msg) {
+    // Un aperçu ne parle que de son état : ses positions ou son activité ne
+    // doivent pas atteindre un autre lecteur ouvert par le parent.
+    if (this.preview && (!msg || msg.type !== 'preview_state')) return;
     // Cible restreinte à notre origine : l'iframe est toujours même-origine
     // que le parent Flutter, un wildcard '*' livrerait l'état du player à
     // n'importe quelle page qui embarquerait player.html.
@@ -309,6 +344,10 @@
     if (!this.url) { this.onError('Aucun flux fourni'); return Promise.resolve(); }
 
     preconnect(this.url);
+    if (this.preview) {
+      this.video.muted = true;
+      try { global.document.body.classList.add('xf-preview'); } catch (e) {}
+    }
     this._wireVideoEvents();
     this._wireParentMessages();
 
@@ -480,6 +519,7 @@
       }
       self._createMpegts(isLive);
     }).catch(function (err) {
+      if (self.preview) { self.log(err.message); self._previewFailed(); return; }
       // mpegts.js indisponible (build incomplet, coupure réseau, quota du
       // rate limiter…) : le même flux reste lisible par la route HLS, où
       // FFmpeg réencode déjà l'audio en AAC. Une seconde de latence en plus
@@ -563,6 +603,8 @@
     // simplement absent. On bascule alors sur le chemin HLS, où FFmpeg
     // réencode systématiquement l'audio en AAC.
     player.on(mpegts.Events.MEDIA_INFO, function (mediaInfo) {
+      // Un aperçu est muet : une piste audio illisible ne le gêne pas.
+      if (self.preview) return;
       if (self._destroyed || self._audioFallbackDone) return;
       if (mediaInfo && mediaInfo.hasAudio) return;
 
@@ -589,6 +631,7 @@
     player.on(mpegts.Events.ERROR, function (type, detail) {
       self.log('Erreur MPEG-TS : ' + type + ' / ' + detail);
       if (self._destroyed) return;
+      if (self.preview) { self._previewFailed(); return; }
       self._stats.errors++;
       self._report('mpegts_error', { detail: type + '/' + detail });
 
@@ -816,6 +859,7 @@
       }
       self._started = true;
       self.onReady();
+      self._previewState('playing');
       self.send({ type: 'playback_status', status: 'playing' });
     });
 

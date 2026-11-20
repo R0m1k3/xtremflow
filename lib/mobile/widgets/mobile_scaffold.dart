@@ -1,8 +1,35 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../../core/theme/app_colors.dart';
 
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/glass.dart';
+
+class _Destination {
+  const _Destination(this.label, this.icon, this.selectedIcon, {this.tooltip});
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
+  final String? tooltip;
+}
+
+/// Same order as the dashboard's IndexedStack: 0 Direct, 1 Films, 2 Séries,
+/// 3 Enregistrements, 4 Réglages.
+const _destinations = [
+  _Destination('Direct', Icons.live_tv_outlined, Icons.live_tv),
+  _Destination('Films', Icons.movie_outlined, Icons.movie),
+  _Destination('Séries', Icons.layers_outlined, Icons.layers),
+  _Destination(
+    'Enreg.',
+    Icons.videocam_outlined,
+    Icons.videocam,
+    tooltip: 'Enregistrements',
+  ),
+  _Destination('Réglages', Icons.settings_outlined, Icons.settings),
+];
+
+/// Phone shell (browser narrower than 768 px): the page on the ambient
+/// background, a Material navigation bar at the bottom (`surface`, indicator
+/// `accentFill`, see `AppTheme.darkTheme`), as in xtremobile's phone layout.
 class MobileScaffold extends ConsumerWidget {
   final Widget child;
   final int currentIndex;
@@ -18,76 +45,26 @@ class MobileScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      extendBody: true,
-      backgroundColor: AppColors.background,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Global Background
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  AppColors.surfaceVariant,
-                  AppColors.background,
-                ],
-              ),
-            ),
-          ),
-
-          // Content
-          child,
-        ],
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: Border(
-            top: BorderSide(
-              color: AppColors.border,
-              width: 0.5,
-            ),
-          ),
+      // The ambient image is opaque: no second full-screen fill.
+      backgroundColor: Colors.transparent,
+      body: AmbientBackground(child: child),
+      bottomNavigationBar: DecoratedBox(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: AppColors.hairline)),
         ),
-        child: BottomNavigationBar(
-          currentIndex: currentIndex,
-          onTap: onIndexChanged,
-          backgroundColor: Colors.transparent,
-          type: BottomNavigationBarType.fixed,
-          elevation: 0,
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.textSecondary,
-          selectedLabelStyle:
-              GoogleFonts.karla(fontWeight: FontWeight.w600, fontSize: 11),
-          unselectedLabelStyle:
-              GoogleFonts.karla(fontWeight: FontWeight.w500, fontSize: 11),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.live_tv_rounded),
-              label: 'Live',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.movie_outlined),
-              activeIcon: Icon(Icons.movie_rounded),
-              label: 'Movies',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.video_library_outlined),
-              activeIcon: Icon(Icons.video_library_rounded),
-              label: 'Series',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.videocam_outlined),
-              activeIcon: Icon(Icons.videocam_rounded),
-              label: 'REC',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined),
-              activeIcon: Icon(Icons.settings_rounded),
-              label: 'Settings',
-            ),
+        child: NavigationBar(
+          selectedIndex: currentIndex,
+          onDestinationSelected: onIndexChanged,
+          backgroundColor: AppColors.surface,
+          indicatorColor: AppColors.accentFill,
+          destinations: [
+            for (final d in _destinations)
+              NavigationDestination(
+                icon: Icon(d.icon),
+                selectedIcon: Icon(d.selectedIcon),
+                label: d.label,
+                tooltip: d.tooltip,
+              ),
           ],
         ),
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
+
+import '../theme/glass.dart';
 
 /// Conteneur de surface « Warm Cinema » — 3 niveaux de profondeur.
 ///
@@ -16,6 +17,12 @@ import '../theme/app_colors.dart';
 /// L'API publique est inchangée : aucun site d'appel n'a besoin d'être modifié.
 enum GlassLevel { level0, level1, level2 }
 
+/// A pane of « glass without blur » ([GlassDecoration], `glass.dart`).
+///
+/// The API of the former Warm Cinema container is kept so its callers did not
+/// change. The charter has no shadow at rest and no coloured border: [level],
+/// [border], [hasBorder], [borderColor], [boxShadow] and [showShadow] are
+/// accepted and ignored.
 class GlassContainer extends StatelessWidget {
   final Widget child;
   final double? width;
@@ -51,8 +58,6 @@ class GlassContainer extends StatelessWidget {
     this.hasBorder,
     this.showShadow = true,
   });
-
-  bool get _showBorder => hasBorder ?? border;
 
   /// Niveau 0 — socle brut.
   const GlassContainer.base({
@@ -104,120 +109,12 @@ class GlassContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    switch (level) {
-      case GlassLevel.level0:
-        return _buildLevel0();
-      case GlassLevel.level1:
-        return _buildLevel1();
-      case GlassLevel.level2:
-        return _buildLevel2();
-    }
-  }
-
-  Widget _buildLevel0() {
     return Container(
       width: width,
       height: height,
       margin: margin,
       padding: padding,
-      decoration: BoxDecoration(
-        color: AppColors.baseLevel0,
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: _showBorder
-            ? Border.all(
-                color: borderColor ?? Colors.transparent,
-                width: 1,
-              )
-            : null,
-        boxShadow: showShadow ? boxShadow : null,
-      ),
-      child: child,
-    );
-  }
-
-  Widget _buildLevel1() {
-    return Container(
-      width: width,
-      height: height,
-      margin: margin,
-      padding: padding,
-      decoration: BoxDecoration(
-        color: AppColors.glassLevel1Bg,
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: _showBorder
-            ? Border.all(
-                color: borderColor ?? AppColors.glassLevel1Border,
-                width: 1,
-              )
-            : null,
-        boxShadow: !showShadow
-            ? null
-            : boxShadow ??
-            const [
-              BoxShadow(
-                color: Color(0x59000000), // noir 35 %
-                blurRadius: 18,
-                spreadRadius: -6,
-                offset: Offset(0, 8),
-              ),
-            ],
-      ),
-      child: child,
-    );
-  }
-
-  Widget _buildLevel2() {
-    return Container(
-      width: width,
-      height: height,
-      margin: margin,
-      padding: padding,
-      decoration: BoxDecoration(
-        // Dégradé très court : arête haute captant la « lumière du projecteur ».
-        gradient: const LinearGradient(
-          colors: [Color(0xFF262019), Color(0xFF1F1815)],
-          stops: [0.0, 0.45],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: _showBorder
-            ? Border(
-                top: BorderSide(
-                  color: borderColor ?? AppColors.glassLevel2InnerGlow,
-                  width: 1,
-                ),
-                left: BorderSide(
-                  color: borderColor ?? AppColors.glassLevel2Border,
-                  width: 1,
-                ),
-                right: BorderSide(
-                  color: borderColor ?? AppColors.glassLevel2Border,
-                  width: 1,
-                ),
-                bottom: BorderSide(
-                  color: borderColor ?? AppColors.glassLevel2Border,
-                  width: 1,
-                ),
-              )
-            : null,
-        boxShadow: !showShadow
-            ? null
-            : boxShadow ??
-            const [
-              BoxShadow(
-                color: Color(0xA6000000), // noir 65 %
-                blurRadius: 40,
-                spreadRadius: -12,
-                offset: Offset(0, 20),
-              ),
-              BoxShadow(
-                color: Color(0x1FD9541F), // halo ember 12 %
-                blurRadius: 48,
-                spreadRadius: -18,
-              ),
-            ],
-      ),
+      decoration: GlassDecoration(radius: borderRadius, halo: false),
       child: child,
     );
   }

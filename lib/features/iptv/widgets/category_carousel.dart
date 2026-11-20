@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 
 /// Horizontal carousel for displaying channels by category
 ///
@@ -34,9 +36,6 @@ class CategoryCarousel<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     if (items.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -45,67 +44,49 @@ class CategoryCarousel<T> extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Category header
+        // Category header: title, count, « Voir tout »
         Padding(
           padding: padding ?? const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
-                  if (itemCount != null) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: colorScheme.primary.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '$itemCount',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              if (onSeeAllTap != null)
-                TextButton(
-                  onPressed: onSeeAllTap,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
                     children: [
-                      Text(
-                        'Voir tout',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.primary,
+                      TextSpan(text: title),
+                      if (itemCount != null)
+                        TextSpan(
+                          text: '  $itemCount',
+                          style: AppTheme.body(
+                            fontSize: 16,
+                            color: AppColors.textMuted,
+                            fontFeatures: AppTheme.tabular,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        size: 12,
-                        color: colorScheme.primary,
-                      ),
                     ],
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.body(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              if (onSeeAllTap != null)
+                TextButton.icon(
+                  onPressed: onSeeAllTap,
+                  iconAlignment: IconAlignment.end,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.textSecondary,
+                    textStyle: AppTheme.body(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  icon: const Icon(Icons.chevron_right_rounded, size: 18),
+                  label: const Text('Voir tout'),
                 ),
             ],
           ),
@@ -133,9 +114,7 @@ class CategoryCarousel<T> extends StatelessWidget {
             blendMode: BlendMode.dstIn,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.symmetric(
-                horizontal: (padding?.left ?? 16),
-              ),
+              padding: EdgeInsets.symmetric(horizontal: (padding?.left ?? 16)),
               physics: const BouncingScrollPhysics(),
               itemCount: items.length,
               separatorBuilder: (_, __) => SizedBox(width: spacing),
@@ -154,7 +133,7 @@ class CategoryCarousel<T> extends StatelessWidget {
   }
 }
 
-/// Simple category chip for filtering
+/// Category chip for filtering: graphite at rest, light blue when selected.
 class CategoryChipButton extends StatelessWidget {
   final String label;
   final bool isSelected;
@@ -171,47 +150,28 @@ class CategoryChipButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          gradient: isSelected ? AppColors.primaryGradient : null,
-          color: isSelected ? null : colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? Colors.transparent : colorScheme.outlineVariant,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(
-                icon,
-                size: 16,
-                color: isSelected
-                    ? colorScheme.onPrimary
-                    : colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color:
-                    isSelected ? colorScheme.onPrimary : colorScheme.onSurface,
-              ),
-            ),
-          ],
-        ),
+    final ink = isSelected ? AppColors.accent : AppColors.textSecondary;
+    return ChoiceChip(
+      selected: isSelected,
+      onSelected: onTap == null ? null : (_) => onTap!(),
+      showCheckmark: false,
+      avatar: icon == null ? null : Icon(icon, size: 16, color: ink),
+      label: Text(label),
+      labelStyle: AppTheme.body(
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+        color: ink,
       ),
+      color: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? AppColors.accentFill
+            : AppColors.surface,
+      ),
+      side: BorderSide(
+        color: isSelected ? Colors.transparent : AppColors.hairline,
+      ),
+      shape: const StadiumBorder(),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
     );
   }
 }
