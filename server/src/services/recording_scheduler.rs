@@ -191,6 +191,11 @@ impl RecordingScheduler {
     }
 
     /// Un enregistrement est-il en cours de capture (ou de clôture) ?
+    /// Capture arrêtée, conversion en MKV pas encore finie.
+    pub fn is_finalizing(&self, id: &str) -> bool {
+        self.finalizing.lock().unwrap().contains(id)
+    }
+
     pub fn is_capturing(&self, id: &str) -> bool {
         self.active.lock().unwrap().contains_key(id) || self.finalizing.lock().unwrap().contains(id)
     }
@@ -221,6 +226,14 @@ impl RecordingScheduler {
                 interval.tick().await;
                 this.check_and_run_recordings().await;
             }
+        }));
+
+        // Captures restées en `.ts` (ancienne conversion) : un essai, une
+        // minute après le démarrage.
+        let this = self.clone();
+        timers.push(tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_secs(60)).await;
+            this.retry_failed_conversions().await;
         }));
 
         // Season passes : un premier scan après 30 s (laisser le serveur
@@ -947,32 +960,7 @@ impl RecordingScheduler {
             return;
         }
 
-        let mkv = Path::new(capture_path).with_extension("mkv");
-        let (path, note) = if mkv.exists() {
-            // Fichier d'une capture antérieure (ancien format) : ne jamais
-            // l'écraser, la suite reste en `.ts`.
-            write("Un fichier .mkv du même nom existe déjà : capture conservée en .ts.");
-            (capture_path.to_string(), None)
-        } else {
-            write(&format!("\n[{}] Conversion en MKV…", now_display()));
-            match remux_to_mkv(Path::new(capture_path), &mkv, &write).await {
-                Ok(()) => {
-                    write("Conversion terminée.");
-                    (mkv.to_string_lossy().into_owned(), None)
-                }
-                Err(e) => {
-                    write(&format!(
-                        "Conversion impossible ({e}) : capture conservée en .ts."
-                    ));
-                    (
-                        capture_path.to_string(),
-                        Some(
-                            "Conversion en MKV impossible : fichier conservé en .ts (lisible tel quel)",
-                        ),
-                    )
-                }
-            }
-        };
+        let (path, note) = convert_capture(capture_path, &write).await;
         write(&format!(
             "\n[{}] Enregistrement clôturé avec le statut \"completed\"",
             now_display()
@@ -982,8 +970,12 @@ impl RecordingScheduler {
         }
         self.db
             .update_recording_status(&recording.id, "completed", Some(&path), note, false);
-        // Matchs NBA automatiques : vignettes Plex/Jellyfin, .nfo et pochette
-        // intégrée au MKV.
+        self.finish_nba_artwork(recording, &path).await;
+    }
+
+    /// Matchs NBA automatiques : vignettes Plex/Jellyfin, .nfo et pochette
+    /// intégrée au MKV.
+    async fn finish_nba_artwork(&self, recording: &Recording, path: &str) {
         if recording.source_rule_id.is_some()
             && let Some(game) = self
                 .db
@@ -994,11 +986,68 @@ impl RecordingScheduler {
                 &self.http,
                 Path::new(&recordings_dir_path()),
                 &game,
-                Path::new(&path),
+                Path::new(path),
                 &recording.title,
                 &resolve_ffmpeg_path(),
             )
             .await;
+        }
+    }
+
+    /// Rattrapage des captures restées en `.ts` parce que l'ancienne
+    /// conversion abandonnait sur un paquet audio abîmé : nouvel essai, un
+    /// seul par enregistrement (un second échec change le motif affiché).
+    async fn retry_failed_conversions(&self) {
+        for recording in self.db.get_finished_recordings_oldest_first() {
+            let Some(ts) = recording.file_path.clone() else {
+                continue;
+            };
+            if recording.status != "completed"
+                || recording.error_reason.as_deref() != Some(LEGACY_CONVERSION_FAILED)
+                || !is_capture(&ts)
+                || !file_has_data(Some(&ts))
+                || self.is_capturing(&recording.id)
+            {
+                continue;
+            }
+            self.finalizing.lock().unwrap().insert(recording.id.clone());
+            println!(
+                "[RecordingScheduler] Nouvel essai de conversion en MKV : {}",
+                recording.title
+            );
+            let log = RecordingLog::open(&Path::new(&ts).with_extension("log"), true);
+            let write = |line: &str| {
+                if let Some(log) = &log {
+                    log.writeln(line);
+                }
+            };
+            let (path, note) = convert_capture(&ts, &write).await;
+            if let Some(log) = &log {
+                log.close();
+            }
+            // Supprimé pendant la conversion : ne pas le ressusciter.
+            if self.db.get_recording_by_id(&recording.id).is_some() {
+                match note {
+                    None => {
+                        self.db.update_recording_status(
+                            &recording.id,
+                            "completed",
+                            Some(&path),
+                            None,
+                            true,
+                        );
+                        self.finish_nba_artwork(&recording, &path).await;
+                    }
+                    Some(note) => self.db.update_recording_status(
+                        &recording.id,
+                        "completed",
+                        None,
+                        Some(note),
+                        false,
+                    ),
+                }
+            }
+            self.finalizing.lock().unwrap().remove(&recording.id);
         }
     }
 
@@ -1248,21 +1297,104 @@ async fn stop_signal(active: &ActiveRecording, end: chrono::DateTime<Utc>) {
     }
 }
 
-/// Convertit la capture en MKV sans réencodage. FFmpeg recale les sauts
-/// d'horloge du flux (« timestamp discontinuity ») sur tout le fichier.
+/// Motif laissé par les versions dont la conversion abandonnait au premier
+/// paquet audio abîmé : ces captures méritent un nouvel essai.
+const LEGACY_CONVERSION_FAILED: &str =
+    "Conversion en MKV impossible : fichier conservé en .ts (lisible tel quel)";
+const CONVERSION_FAILED: &str =
+    "Conversion en MKV impossible, même en réencodant l'audio : fichier conservé en .ts";
+
+/// Conversion d'une capture terminée : chemin final, et motif si le `.ts`
+/// a dû être gardé.
+async fn convert_capture(
+    capture_path: &str,
+    write: &(dyn Fn(&str) + Sync),
+) -> (String, Option<&'static str>) {
+    let mkv = Path::new(capture_path).with_extension("mkv");
+    if mkv.exists() {
+        // Fichier d'une capture antérieure (ancien format) : ne jamais
+        // l'écraser, la suite reste en `.ts`.
+        write("Un fichier .mkv du même nom existe déjà : capture conservée en .ts.");
+        return (capture_path.to_string(), None);
+    }
+    write(&format!("\n[{}] Conversion en MKV…", now_display()));
+    match remux_to_mkv(Path::new(capture_path), &mkv, write).await {
+        Ok(()) => {
+            write("Conversion terminée.");
+            (mkv.to_string_lossy().into_owned(), None)
+        }
+        Err(e) => {
+            write(&format!(
+                "Conversion impossible ({e}) : capture conservée en .ts."
+            ));
+            (capture_path.to_string(), Some(CONVERSION_FAILED))
+        }
+    }
+}
+
+/// Convertit la capture en MKV. FFmpeg recale les sauts d'horloge du flux
+/// (« timestamp discontinuity ») sur tout le fichier.
+///
+/// D'abord sans réencodage. Un seul paquet audio abîmé (souvent à une
+/// reconnexion) fait échouer toute la copie : l'AAC des flux TV doit passer
+/// par le filtre `aac_adtstoasc` pour entrer dans un MKV, et FFmpeg abandonne
+/// au premier en-tête ADTS illisible (code 183). Second essai alors : vidéo
+/// toujours copiée, audio réencodé en AAC, dont le décodeur saute les trames
+/// abîmées au lieu de s'arrêter.
 ///
 /// Le `.ts` n'est supprimé que si le MKV paraît complet : un MKV nettement
 /// plus petit que sa source trahirait une conversion tronquée.
 async fn remux_to_mkv(ts: &Path, mkv: &Path, log: &(dyn Fn(&str) + Sync)) -> Result<(), String> {
     let tmp = mkv.with_extension("remux.mkv");
+    let copied = run_remux(ts, &tmp, &["-c", "copy"], log).await;
+    let result = match copied {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            log(&format!(
+                "Copie directe impossible ({e}) : nouvel essai en réencodant l'audio…"
+            ));
+            run_remux(
+                ts,
+                &tmp,
+                &["-c:v", "copy", "-c:a", "aac", "-b:a", "192k"],
+                log,
+            )
+            .await
+        }
+    };
+    if let Err(e) = result {
+        delete_quietly(&tmp.to_string_lossy());
+        return Err(e);
+    }
+    std::fs::rename(&tmp, mkv).map_err(|e| e.to_string())?;
+    delete_quietly(&ts.to_string_lossy());
+    Ok(())
+}
+
+/// Un passage de FFmpeg du `.ts` vers [tmp] avec les options de codec
+/// [codecs] ; échoue sur un code de sortie non nul ou un MKV tronqué.
+async fn run_remux(
+    ts: &Path,
+    tmp: &Path,
+    codecs: &[&str],
+    log: &(dyn Fn(&str) + Sync),
+) -> Result<(), String> {
     let output = tokio::process::Command::new(resolve_ffmpeg_path())
         .args(["-hide_banner", "-nostats", "-loglevel", "warning"])
-        .args(["-fflags", "+genpts+discardcorrupt", "-i"])
+        .args([
+            "-fflags",
+            "+genpts+discardcorrupt",
+            "-err_detect",
+            "ignore_err",
+        ])
+        .arg("-i")
         .arg(ts)
         // Vidéo et audio seulement : télétexte et données (SCTE-35…) des
         // flux TV ne tiennent pas dans un MKV et feraient échouer la copie.
-        .args(["-map", "0:v?", "-map", "0:a?", "-c", "copy", "-y"])
-        .arg(&tmp)
+        .args(["-map", "0:v?", "-map", "0:a?"])
+        .args(codecs)
+        .arg("-y")
+        .arg(tmp)
         .stdin(Stdio::null())
         .output()
         .await
@@ -1279,26 +1411,19 @@ async fn remux_to_mkv(ts: &Path, mkv: &Path, log: &(dyn Fn(&str) + Sync)) -> Res
         log(line);
     }
     let size = |p: &Path| std::fs::metadata(p).map(|m| m.len()).unwrap_or(0);
-    let (ts_size, mkv_size) = (size(ts), size(&tmp));
+    let (ts_size, mkv_size) = (size(ts), size(tmp));
     let code = output.status.code().unwrap_or(-1);
-    let problem = if code != 0 {
-        Some(format!("code {code}"))
+    if code != 0 {
+        Err(format!("code {code}"))
     } else if !conversion_complete(ts_size, mkv_size) {
-        Some(format!(
+        Err(format!(
             "MKV de {} Mo pour {} Mo capturés",
             mkv_size / (1024 * 1024),
             ts_size / (1024 * 1024)
         ))
     } else {
-        None
-    };
-    if let Some(problem) = problem {
-        delete_quietly(&tmp.to_string_lossy());
-        return Err(problem);
+        Ok(())
     }
-    std::fs::rename(&tmp, mkv).map_err(|e| e.to_string())?;
-    delete_quietly(&ts.to_string_lossy());
-    Ok(())
 }
 
 /// Le MKV garde l'essentiel du `.ts` : l'en-tête MPEG-TS et les flux
